@@ -2,6 +2,7 @@
   "name": "chart-analysis-step10-bundle",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "npm@10.2.4",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
