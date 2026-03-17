@@ -1,0 +1,11 @@
+
+{
+  "energy": "Energy",
+  "volatility": "Volatility",
+  "risk": "Risk",
+  "trend": "Trend",
+  "decision": "Decision",
+  "danger": "Danger",
+  "stable": "Stable",
+  "timeframes": ["5m","15m","1h","4h","1d","1w","1M"]
+}

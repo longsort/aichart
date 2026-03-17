@@ -1,0 +1,8 @@
+{
+  "source": "2r6u4zi3.png",
+  "supportLines": [{ "price": 19500, "label": "Wedge 하단" }],
+  "resistanceLines": [{ "price": 21000, "label": "Wedge 상단" }],
+  "target": 23500,
+  "boxTop": 21000,
+  "boxBottom": 19500
+}

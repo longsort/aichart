@@ -1,0 +1,6 @@
+{
+  "source": "0lHoXVm5.png",
+  "resistanceLines": [{ "price": 2300, "label": "Resistance" }],
+  "trendlineSegments": [{ "t1": "2022-04-15", "p1": 3500, "t2": "2022-10-15", "p2": 1286, "label": "저항", "dashed": true }],
+  "gannFan": { "t0": "2022-04-15", "p0": 3500, "slope1x1": -20, "isFromLow": false }
+}

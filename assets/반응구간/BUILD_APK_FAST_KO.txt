@@ -1,0 +1,15 @@
+[폰 설치용 APK 만들기 - 초간단]
+
+1) (PC) Flutter 설치
+2) 이 폴더에서 아래 순서대로 실행
+
+flutter create .
+flutter clean
+flutter pub get
+flutter build apk --release
+
+3) 결과 APK 경로
+build/app/outputs/flutter-apk/app-release.apk
+
+* flutter create . 은 android/ios/windows/web 폴더를 생성해주는 단계입니다.
+* lib/ 폴더(앱 코드)는 건드리지 않게 설계했지만, 혹시 덮어쓰는 파일이 있으면 플랫폼 폴더만 다시 생성하면 됩니다.

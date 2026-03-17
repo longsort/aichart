@@ -1,0 +1,28 @@
+{
+  "decision": "LONG",
+  "grade": "A",
+  "confidence": 75,
+  "structureSummary": "상승 구조 (HH/HL 3/2, BOS 2, ChoCH 1)",
+  "patternSummary": "삼각형 ASCENDING, V턴 2",
+  "entry": {
+    "zoneLow": 90350.0,
+    "zoneHigh": 90450.0,
+    "entry": 90400.0
+  },
+  "risk": {
+    "sl": 89500.0,
+    "rr1": 1.8
+  },
+  "targets": {
+    "tp1": 91200.0,
+    "tp2": 92000.0,
+    "tp3": 92800.0
+  },
+  "pass": [
+    "HH/HL 상승 구조",
+    "ChoCH 상방",
+    "상승 패턴 확인"
+  ],
+  "block": [],
+  "summary": "판정: LONG (등급 A)\n구조: 상승 구조 (HH/HL 3/2, BOS 2, ChoCH 1)\n패턴: 삼각형 ASCENDING, V턴 2\n통과: HH/HL 상승 구조, ChoCH 상방, 상승 패턴 확인"
+}

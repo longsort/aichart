@@ -1,0 +1,238 @@
+import 'package:flutter/material.dart';
+
+import '../../core/models/fu_state.dart';
+
+class DecisionDockV1 extends StatelessWidget {
+  final FuState s;
+  const DecisionDockV1({super.key, required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = _decision();
+    final zoneSummary = _zoneSummary();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withOpacity(0.06),
+            Colors.white.withOpacity(0.02),
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 메인 결정 라벨
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: d.color.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: d.color.withOpacity(0.55)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(d.icon, size: 16, color: d.color),
+                    const SizedBox(width: 6),
+                    Text(
+                      d.label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: d.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  d.sub,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.75),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // 핵심 수치 1줄
+          Row(
+            children: [
+              _miniChip('근거', '${s.evidenceHit}/${s.evidenceTotal}'),
+              const SizedBox(width: 6),
+              _miniChip('확률', '${s.signalProb}%'),
+              const SizedBox(width: 6),
+              _miniChip('리스크', '${s.risk}'),
+              const SizedBox(width: 6),
+              Expanded(child: _miniChip('등급', s.signalGrade, full: true)),
+            ],
+          ),
+          if (zoneSummary.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              zoneSummary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.25,
+                color: Colors.white.withOpacity(0.78),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+
+          // 매니저 한줄
+          if ((s.signalKo).trim().isNotEmpty || (s.decisionTitle).trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              '매니저: ${(s.signalKo).trim().isNotEmpty ? s.signalKo : s.decisionTitle}'.trim(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.72),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _miniChip(String k, String v, {bool full = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Row(
+        mainAxisSize: full ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          Text(
+            k,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withOpacity(0.55),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              v,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.88),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  _DecisionView _decision() {
+    // 기본: 관망
+    var label = '관망';
+    Color color = Colors.blueGrey;
+    var icon = Icons.remove_red_eye_rounded;
+
+    // 강제 NO-TRADE 우선
+    if (s.locked) {
+      label = '관망(잠금)';
+      color = Colors.deepOrange;
+      icon = Icons.block_rounded;
+    } else if (s.showSignal && s.signalDir == 'LONG') {
+      label = '롱 확정';
+      color = Colors.lightGreenAccent;
+      icon = Icons.trending_up_rounded;
+    } else if (s.showSignal && s.signalDir == 'SHORT') {
+      label = '숏 확정';
+      color = Colors.redAccent;
+      icon = Icons.trending_down_rounded;
+    } else {
+      // 확정이 아니더라도 확률이 높으면 "주의"로 표기
+      if (s.signalProb >= 65 && s.signalDir != 'NEUTRAL') {
+        label = s.signalDir == 'LONG' ? '롱 주의(조건부)' : '숏 주의(조건부)';
+        color = s.signalDir == 'LONG' ? Colors.lightGreenAccent : Colors.orangeAccent;
+        icon = Icons.warning_amber_rounded;
+      }
+    }
+
+    final conf = s.signalProb.clamp(0, 100);
+    final ev = s.evidenceHit.clamp(0, s.evidenceTotal);
+    final sub = '확신 ${conf}% · 근거 ${ev}/${s.evidenceTotal} · ${s.decisionTitle}';
+
+    return _DecisionView(label: label, color: color, icon: icon, sub: sub);
+  }
+
+  String _zoneSummary() {
+    final parts = <String>[];
+
+    if (s.reactHigh > 0 && s.reactLow > 0) {
+      parts.add('반응구간 ${s.reactLow.toStringAsFixed(0)}~${s.reactHigh.toStringAsFixed(0)}');
+    }
+
+    // "BPR 2" 같은 다중존은 리스트가 2개 이상이면 자동으로 요약
+    if (s.bprZones.isNotEmpty) {
+      final z = s.bprZones.take(2).toList();
+      final label = (z.length >= 2) ? 'BPR1/BPR2' : 'BPR';
+      parts.add('$label ${_fmtZone(z.first)}${z.length >= 2 ? ' · ${_fmtZone(z[1])}' : ''}');
+    }
+
+    if (s.fvgZones.isNotEmpty) {
+      parts.add('FVG ${_fmtZone(s.fvgZones.first)}');
+    }
+
+    if (s.obZones.isNotEmpty) {
+      parts.add('OB ${_fmtZone(s.obZones.first)}');
+    }
+
+    // 구조 태그
+    if (s.structureTag.trim().isNotEmpty) {
+      final lv = (s.breakLevel > 0) ? ' ${s.breakLevel.toStringAsFixed(0)}' : '';
+      parts.add('${s.structureTag}$lv');
+    }
+
+    return parts.join(' · ');
+  }
+
+  String _fmtZone(FuZone z) {
+    return '${z.low.toStringAsFixed(0)}~${z.high.toStringAsFixed(0)}';
+  }
+}
+
+class _DecisionView {
+  final String label;
+  final Color color;
+  final IconData icon;
+  final String sub;
+  const _DecisionView({
+    required this.label,
+    required this.color,
+    required this.icon,
+    required this.sub,
+  });
+}

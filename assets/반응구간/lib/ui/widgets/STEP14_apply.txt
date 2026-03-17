@@ -1,0 +1,21 @@
+STEP14 적용(미래경로에 가격 포함)
+
+1) 파일 추가
+- lib/core/models/future_path_price_dto.dart
+- lib/core/services/future_path_price_service.dart
+- lib/ui/widgets/future_path_price_legend.dart
+
+2) FutureWavePanel(우측 패널)에서, dto(Map)와 aiMode(A/B/C/AUTO)를 알고 있다면:
+import '../../core/services/future_path_price_service.dart';
+import 'future_path_price_legend.dart';
+
+final fp = FuturePathPriceService.build(
+  tf: tfLabel, // '5m'/'15m'/'1h'...
+  dto: dtoMap,
+  mode: aiMode, // 'A'/'B'/'C'
+);
+
+우측 카드 컬럼 상단(미래경로 그래프 위/아래)에:
+FuturePathPriceLegend(fp: fp),
+
+3) 차트 오버레이/미래경로 Painter가 있다면 fp.wavePrices를 그대로 사용해서 5파동 가격 라벨을 찍으면 됨.

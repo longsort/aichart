@@ -1,0 +1,14 @@
+/// 거래소 캔들 응답 DTO
+class CandleDto {
+  final int t;
+  final double o, h, l, c, v;
+
+  CandleDto({
+    required this.t,
+    required this.o,
+    required this.h,
+    required this.l,
+    required this.c,
+    required this.v,
+  });
+}

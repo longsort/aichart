@@ -1,0 +1,9 @@
+
+PATCH-7 적용(최종 안정화):
+1) WS 수신 콜백마다 WsGuard.tick() 호출
+2) guard.isStale면 WS 재연결 트리거 + HUD에 OFFLINE 표시 유지
+3) HUD 상단에 TradeModeToggle 추가:
+   - 실전 보호(safe): 확정(>=60% & 근거 5/5)만 EXECUTE
+   - 기본(normal): 기존 동작
+4) 성능:
+   - 200ms 이하로 setState 남발 금지(스트림 디바운스 권장)

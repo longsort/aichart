@@ -1,0 +1,9 @@
+{
+  "source": "BTCUSD_2026-02-26_00-24-11.png",
+  "horizontalDottedLines": [
+    { "price": 423.8, "label": "EQL" },
+    { "price": 5429.21, "label": "EQH" }
+  ],
+  "supportLines": [],
+  "resistanceLines": []
+}

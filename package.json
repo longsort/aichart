@@ -1,0 +1,23 @@
+{
+  "name": "chart-analysis-step10-bundle",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "lightweight-charts": "^5.0.8",
+    "next": "14.2.32",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "20.17.10",
+    "@types/react": "18.3.12",
+    "typescript": "5.7.2"
+  }
+}

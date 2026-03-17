@@ -1,0 +1,12 @@
+FULINK PRO ULTRA - 마감 패치(서식 누락 보완)
+기준: 마감에bs_patch_move_bottom_fix_overflow.zip
+
+[추가]
+1) 최종 결론(TradeVerdict) + 확정 판정 엔진(DecisionEngineV1)
+2) FuState에 스펙 별칭/맵 제공: livePrice, zoneValidInt, hasStructure, structureType, tfAgree, flags, sr
+3) Decision Zone 탭 -> 전체화면 브리핑 페이지 추가
+- lib/ui/screens/briefing_fullscreen_page.dart
+
+[수정]
+- lib/ui/screens/ultra_home_screen.dart : DecisionDockV1 탭 이동 추가
+- lib/core/models/fu_state.dart : 스펙 별칭/맵 추가(기존 필드 유지)

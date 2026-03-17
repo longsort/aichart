@@ -1,0 +1,12 @@
+{
+  "source": "4brU5AHk.png",
+  "neckline": 19500,
+  "target": 16000,
+  "resistanceLines": [
+    { "price": 24000, "label": "1차 고점" },
+    { "price": 24000, "label": "2차 고점" }
+  ],
+  "hsType": "H&S",
+  "hsNeckline": 19500,
+  "hsTarget": 16000
+}

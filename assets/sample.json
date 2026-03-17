@@ -1,0 +1,60 @@
+{
+  "sourceImage": "images/charts/sample.png",
+  "overlay": {
+    "bos": 91200,
+    "choch": 90500,
+    "eqh": [91250, 91300],
+    "eql": [89800, 89750],
+    "sweep": 89800,
+    "levelFlips": [
+      {"price": 90000, "type": "RES_TO_SUP", "time": 1738800000},
+      {"price": 91200, "type": "SUP_TO_RES", "time": 1738886400}
+    ],
+    "attackZones": [{"top": 91500, "bottom": 90450, "label": "attackZone"}],
+    "entryLow": 90350,
+    "entryHigh": 90450,
+    "stop": 89500,
+    "tp1": 91200,
+    "tp2": 92000,
+    "tp3": 92800,
+    "side": "LONG",
+    "boxTop": 91500,
+    "boxBottom": 89500,
+    "triangleType": "ASCENDING",
+    "triangleLine": 90200,
+    "triangleTarget": 92500,
+    "vTurns": [{"price": 89800, "time": 1738800000, "isBottom": true}],
+    "tailongLevels": [{"high": 91200, "low": 89800, "close": 90400, "open": 90000, "tf": "current", "verdict": "long"}],
+    "tailongSupport": 89800,
+    "tailongResistance": 91500,
+    "tailongBreakPrice": 91500,
+    "tailongBreakDirection": "bullish",
+    "gannFan": {"t0": 1738600000, "p0": 89000, "slope1x1": 50, "isFromLow": true},
+    "supportLines": [{"price": 89800, "label": "supportLine"}, {"price": 89750, "label": "support", "dashed": true}],
+    "resistanceLines": [{"price": 91500, "label": "resistance", "dashed": true}, {"price": 91300, "label": "resistance"}],
+    "horizontalDottedLines": [{"price": 90400, "label": "기준가"}],
+    "harmonicPrzLines": [
+      {"price": 90100, "label": "1.27XA", "color": "blue"},
+      {"price": 89900, "label": "1.27AB=CD", "color": "red"},
+      {"price": 89700, "label": "2.0", "color": "black"},
+      {"price": 89600, "label": "2.24", "color": "black"}
+    ],
+    "trendlineSegments": [
+      {"t1": 1738700000, "p1": 89500, "t2": 1738900000, "p2": 90500, "label": "up", "dashed": true}
+    ],
+    "highPointZones": [{"top": 91300, "bottom": 91250, "label": "highPointZone"}]
+  },
+  "briefing": {
+    "decision": "LONG",
+    "grade": "A",
+    "confidence": 75,
+    "structureSummary": "상승 구조 (HH/HL 3/2, BOS 2, ChoCH 1)",
+    "patternSummary": "삼각형 ASCENDING, V턴 2",
+    "entry": {"zoneLow": 90350, "zoneHigh": 90450, "entry": 90400},
+    "risk": {"sl": 89500, "rr1": 1.8},
+    "targets": {"tp1": 91200, "tp2": 92000, "tp3": 92800},
+    "pass": ["HH/HL 상승 구조", "ChoCH 상방", "상승 패턴 확인"],
+    "block": [],
+    "summary": "이미지 기반 overlay 적용"
+  }
+}

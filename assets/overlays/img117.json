@@ -1,0 +1,10 @@
+{
+  "source": "image.png",
+  "bprZones": [
+    { "top": 17010, "bottom": 16970, "label": "BPR 1" },
+    { "top": 16910, "bottom": 16870, "label": "BPR 2" }
+  ],
+  "supportLines": [
+    { "price": 16850.1, "label": "Support Line" }
+  ]
+}

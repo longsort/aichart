@@ -1,0 +1,2 @@
+Add this line to the top of signals_screen_v82.dart:
+import 'package:fulink_pro_ultra/ui/widgets/ai_conclusion_card.dart';

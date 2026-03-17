@@ -1,0 +1,46 @@
+{
+  "app": "Fulink Pro",
+  "channel": "stable",
+  "version": "0.0.13",
+  "patch": {
+    "id": "PATCH_0013",
+    "title": "v13 지표사전 + 클릭설명(바/칩/히트맵) + 미연결 표시",
+    "notes": [
+      "상단 우측 “지표사전(❓)” 버튼 추가(검색/목록)",
+      "반응구간 히트맵: 칩/미터/핵심근거 클릭 시 설명 바텀시트",
+      "DecisionHud: PO3/TF합의/반응 칩 클릭 설명",
+      "체결/오더북/고래/기관/흡수/세력/리스크(스윕) 클릭 설명 + 데이터 미연결이면 “--” 표기"
+    ],
+    "min_app_version": "0.0.0",
+    "files": [
+      {
+        "path": "lib/ui/data/indicator_glossary.dart",
+        "sha256": "df2743dbd266ac26fa5a3a6b6f32dfd992fe34475459428576d87c0492da16fa"
+      },
+      {
+        "path": "lib/ui/screens/indicator_glossary_screen.dart",
+        "sha256": "e3c63fdc6b5c5a3bd3c694b2f9b1a97ea7708cd00328a1db33d9c00a15558751"
+      },
+      {
+        "path": "lib/ui/screens/ultra_home_screen.dart",
+        "sha256": "870991c89d8aed3643b148032db9f9c39f0a9bb23a670745affcc2d23d3c31cc"
+      },
+      {
+        "path": "lib/ui/widgets/decision_hud_v11.dart",
+        "sha256": "91a4fe35e264d43bf19589f03cd5efdb737d0835aa03802bd4bc2494add98367"
+      },
+      {
+        "path": "lib/ui/widgets/indicator_info_sheet.dart",
+        "sha256": "e1ff7078fcadbd9a8208e6fd4ffa91f98c007a43acd1572d3bdc537a9d24f7bd"
+      },
+      {
+        "path": "lib/ui/widgets/reaction_heatmap_panel.dart",
+        "sha256": "ad0c383ec23125c30ab47638443b6a858c6566567bfaff32d91eba2b42f1ae2b"
+      },
+      {
+        "path": "lib/ui/widgets/ultra_top_bar_v1.dart",
+        "sha256": "0665a7e0e85a869439b7c063d86ff1c8b3bc3ed14ceb31c64d20c80ebd593746"
+      }
+    ]
+  }
+}

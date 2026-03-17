@@ -1,0 +1,15 @@
+
+PATCH-8 적용 (앱 내 patch.json 교체 + 자동 롤백)
+
+1) pubspec.yaml 확인:
+   - path_provider: 이미 사용중이면 OK. (없으면 추가)
+
+2) HUD 또는 설정 화면 Column 맨 아래에 추가:
+   const UpdatePanelV1(),
+
+3) 패치 적용 방법:
+   - UpdatePanel에서 patch.json 내용을 붙여넣고 '적용' 클릭
+   - 실패 시 자동 롤백
+   - '롤백' 버튼으로 수동 복구 가능
+
+※ 이 패치는 '코드 업데이트'가 아니라 '설정/임계값/옵션 업데이트'용.

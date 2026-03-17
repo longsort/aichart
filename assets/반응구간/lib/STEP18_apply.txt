@@ -1,0 +1,1 @@
+STEP18 FIX v5: _detailExpanded ternary에 else(:) 분기 누락된 부분 보정 + Expanded 래핑 제거

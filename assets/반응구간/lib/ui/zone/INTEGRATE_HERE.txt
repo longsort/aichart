@@ -1,0 +1,12 @@
+
+1) 신호/메인 화면 원하는 위치에 아래 위젯 추가:
+   const ZonePanel(),
+
+2) 실데이터 훅 (선택):
+   ZoneScoreEngine.currentPrice = () => bitgetLiveStore.lastPrice;
+   ZoneScoreEngine.bidWallNear = (p) => orderbook.bidWallScoreNear(p);
+   ZoneScoreEngine.askWallNear = (p) => orderbook.askWallScoreNear(p);
+   ZoneScoreEngine.tradeImbNear = (p) => tradeTape.imbalanceNear(p);
+   ZoneScoreEngine.reactionNear = (p) => reaction.bounceRejectNear(p);
+
+* 훅 안 꽂아도 DEMO로 게이지 움직임 확인 가능

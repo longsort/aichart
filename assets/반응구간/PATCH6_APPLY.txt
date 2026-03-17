@@ -1,0 +1,4 @@
+
+PATCH-6 적용:
+1) 진입 결과 확정 시 ReviewEngine.summarize() 호출
+2) HUD 하단에 ReviewBadge(text) 추가

@@ -1,0 +1,13 @@
+STEP17 적용(우측 패널 스크롤 고정)
+
+- 교체 파일:
+  lib/ui/widgets/future_wave_panel.dart
+
+- 변경 내용:
+  1) _FutureWavePanelState에 ScrollController(_rightScroll) 추가
+  2) dispose()에서 _rightScroll.dispose()
+  3) 우측 패널(세로) SingleChildScrollView에
+     controller/ClampingScrollPhysics 주입 + Scrollbar 감싸기
+
+효과:
+- 우측 카드가 많아도 항상 스크롤 가능(마우스휠/트랙패드 포함)

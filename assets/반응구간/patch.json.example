@@ -1,0 +1,14 @@
+{
+  "app": "Fulink Pro",
+  "version": "patch-YYYYMMDD-01",
+  "title": "차트 UI/표시 개선",
+  "notes": [
+    "미니차트 확대 버튼 개선",
+    "반응구간(지지/저항) 가격 라벨 표시",
+    "오버플로 경고(노랑/검정) 제거"
+  ],
+  "files": [
+    "lib/ui/widgets/mini_chart_v4.dart",
+    "lib/ui/screens/ultra_home_screen.dart"
+  ]
+}

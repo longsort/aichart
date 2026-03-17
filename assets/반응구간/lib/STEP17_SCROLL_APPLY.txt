@@ -1,0 +1,11 @@
+스크롤 패치 v1 (우측 패널 강제 스크롤)
+
+교체 파일(둘 다 포함):
+- lib/ui/widgets/future_wave_panel.dart
+- lib/widgets/chart/future_wave_panel.dart
+
+변경:
+1) _FutureWavePanelState에 ScrollController _rightScroll 추가
+2) 우측 패널 SingleChildScrollView에 controller/ClampingScrollPhysics 주입
+3) Scrollbar로 감싸서 데스크탑에서도 휠 스크롤 확실히 먹게 처리
+4) dispose()에서 _rightScroll.dispose()

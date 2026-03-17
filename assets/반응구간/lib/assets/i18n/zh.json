@@ -1,0 +1,11 @@
+
+{
+  "energy": "能量",
+  "volatility": "波动",
+  "risk": "风险",
+  "trend": "方向",
+  "decision": "判断",
+  "danger": "危险",
+  "stable": "稳定",
+  "timeframes": ["5分钟","15分钟","1小时","4小时","1天","1周","1月"]
+}

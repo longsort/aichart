@@ -1,0 +1,3 @@
+// PATCH NOTE:
+// AiCardsPanel 생성자에 tfLabel(required)이 추가되어 누락 시 빌드 에러가 납니다.
+// chart_fullscreen_page.dart 에서 AiCardsPanel(...) 호출 시 tfLabel: widget.tfLabel 을 반드시 전달하세요.

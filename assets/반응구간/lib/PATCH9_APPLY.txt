@@ -1,0 +1,10 @@
+
+PATCH-9 적용 (원격 URL에서 patch.json 받아 적용)
+
+1) pubspec.yaml에 http 추가(없으면):
+   http: ^1.2.0
+
+2) UpdatePanelV1 대신 UpdatePanelV2를 화면에 추가:
+   const UpdatePanelV2(),
+
+3) 서버/깃허브 raw 등 HTTPS URL을 입력하고 '다운로드+적용' 클릭

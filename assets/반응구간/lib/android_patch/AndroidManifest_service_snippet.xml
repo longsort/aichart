@@ -1,0 +1,5 @@
+<!-- AndroidManifest.xml (application 태그 안) -->
+<service
+    android:name="com.fulink.pro.service.ForegroundTradeService"
+    android:exported="false"
+    android:foregroundServiceType="dataSync" />

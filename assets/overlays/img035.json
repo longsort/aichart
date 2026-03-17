@@ -1,0 +1,14 @@
+{
+  "source": "3PGLQaYV.png",
+  "neckline": 57800,
+  "entryLow": 57800,
+  "entryHigh": 57800,
+  "stop": 61000,
+  "tp1": 48200,
+  "tp2": null,
+  "tp3": null,
+  "resistanceLines": [
+    { "price": 67200, "label": "1st Peak" },
+    { "price": 69000, "label": "2nd Peak" }
+  ]
+}
