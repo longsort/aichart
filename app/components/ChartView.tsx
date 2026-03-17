@@ -222,7 +222,10 @@ const ChartViewInner = ({
     if (isNaN(entry) || isNaN(stop)) { setExecutionPositions(null); return; }
     const entryY = series.priceToCoordinate(entry);
     const stopY = series.priceToCoordinate(stop);
-    const tpY = targets.map(t => series.priceToCoordinate(t)).filter((y): y is number => y != null) as number[];
+    const tpY = targets
+      .map(t => series.priceToCoordinate(t))
+      .filter((y): y is NonNullable<ReturnType<typeof series.priceToCoordinate>> => y != null)
+      .map(y => Number(y));
     if (entryY == null || stopY == null) { setExecutionPositions(null); return; }
     setExecutionPositions({
       entryY: Number(entryY),
