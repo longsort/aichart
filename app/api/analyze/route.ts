@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchMarketCandles } from '@/lib/market';
+import type { Candle } from '@/types';
 import { getCandlesFromServer } from '@/lib/candlesFromServer';
 import { analyzeCandles } from '@/lib/analyze';
 import { fetchMarketData } from '@/lib/data/dataService';
@@ -75,15 +75,10 @@ export async function GET(req: NextRequest) {
 
     const getCandles = async (sym: string, tf: string) => {
       const fromServer = await getCandlesFromServer(sym, tf);
-      if (fromServer && fromServer.length > 0) return fromServer;
-      try {
-        return await fetchMarketCandles(sym, tf);
-      } catch {
-        return [];
-      }
+      return fromServer && fromServer.length > 0 ? fromServer : [];
     };
 
-    let candles: Awaited<ReturnType<typeof fetchMarketCandles>>;
+    let candles: Candle[] = [];
     let marketData: Awaited<ReturnType<typeof fetchMarketData>> | null = null;
 
     if (useCollect) {

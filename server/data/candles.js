@@ -1,32 +1,24 @@
 /**
- * Railway 배포 시 거래소 차단(403/451) 회피:
- * - getHttpClient() 사용 → PROXY_URL 설정 시 프록시 경유.
- * - Bitget 우선 사용(지역 제한 적음), 실패 시 Binance fallback.
+ * Railway 전용: Bitget V2 Mix API만 사용.
+ * GET https://api.bitget.com/api/v2/mix/market/candles
+ * 실패 시 throw 없이 빈 배열 반환, 서버 유지.
  */
 const { getHttpClient } = require("../lib/httpClient");
 
 const BITGET_BASE = "https://api.bitget.com";
 
-// 우리 tf → Bitget period (spot v1)
-const tfToBitgetPeriod = {
-  "1m": "1min",
-  "3m": "1min",   // 1min 수집 후 3개 묶음
-  "5m": "5min",
-  "15m": "15min",
-  "1h": "1h",
-  "4h": "4h",
-  "1d": "1day",
-  "1w": "1week",
-  "1M": "1M",
+// tf → Bitget V2 mix granularity (문자열만, 숫자 금지)
+const TF_TO_GRANULARITY = {
+  "1m": "1m",
+  "3m": "1m",   // 1m 수집 후 3개 묶음
+  "5m": "5m",
+  "15m": "15m",
+  "1h": "1H",
+  "4h": "4H",
+  "1d": "1D",
+  "1w": "1D",  // 1D로 수집 후 7개 묶음 또는 동일 1D 반환
+  "1M": "1D",
 };
-
-// 우리 tf → Binance interval
-const tfToBinanceInterval = {
-  "1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m",
-  "1h": "1h", "4h": "4h", "1d": "1d", "1w": "1w", "1M": "1M",
-};
-
-const BINANCE_START = 1502942400000;
 
 function toCandle(ts, open, high, low, close, vol) {
   return {
@@ -39,13 +31,10 @@ function toCandle(ts, open, high, low, close, vol) {
   };
 }
 
-/** 1min 캔들 배열을 3개씩 묶어 3m 캔들로 변환 */
 function aggregate3m(candles) {
   const out = [];
   for (let i = 0; i + 2 < candles.length; i += 3) {
-    const a = candles[i];
-    const b = candles[i + 1];
-    const c = candles[i + 2];
+    const a = candles[i], b = candles[i + 1], c = candles[i + 2];
     out.push({
       time: a.time,
       open: a.open,
@@ -58,68 +47,44 @@ function aggregate3m(candles) {
   return out;
 }
 
-async function fetchBitgetCandles(client, sym, period, after, before) {
-  const url = `${BITGET_BASE}/api/spot/v1/market/candles?symbol=${encodeURIComponent(sym)}&period=${period}&after=${after}&before=${before}&limit=1000`;
-  const res = await client.get(url, { timeout: 15000 });
-  const data = res.data?.data;
-  if (!Array.isArray(data) || data.length === 0) return null;
-  return data.map((c) =>
-    toCandle(c.ts, c.open, c.high, c.low, c.close, c.baseVol)
-  ).sort((a, b) => a.time - b.time);
-}
-
-async function loadBitget(symbol, tf) {
-  const client = getHttpClient();
-  const period = tfToBitgetPeriod[tf] || "1h";
-  const now = Date.now();
-  const oneDay = 24 * 60 * 60 * 1000;
-  const before = now;
-  const after = now - (tf === "1d" || tf === "1w" || tf === "1M" ? 365 * oneDay : 30 * oneDay);
-
-  // 시도 1: 소문자 Symbol Id (btcusdt_spbl)
-  const symWithSuffix = (symbol.includes("_") ? symbol : `${symbol}_SPBL`).toLowerCase();
-  let candles = await fetchBitgetCandles(client, symWithSuffix, period, after, before).catch(() => null);
-  // 시도 2: 400이면 접미사 없이 (btcusdt)
-  if (!candles?.length && !symbol.includes("_")) {
-    const symPlain = symbol.toLowerCase();
-    candles = await fetchBitgetCandles(client, symPlain, period, after, before).catch(() => null);
-  }
-  if (!candles?.length) return null;
-  if (tf === "3m") return aggregate3m(candles);
-  return candles;
-}
-
-async function loadBinance(symbol, tf) {
-  const client = getHttpClient();
-  const interval = tfToBinanceInterval[tf] || "1h";
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&startTime=${BINANCE_START}&limit=1000`;
-  const res = await client.get(url, { timeout: 15000 });
-  const data = res.data;
-  if (!Array.isArray(data)) return null;
-  return data.map((c) =>
-    toCandle(c[0], c[1], c[2], c[3], c[4], c[5])
-  );
-}
-
 exports.load = async function load(symbol = "BTCUSDT", tf = "1h") {
   const normTf = (tf || "1h").toLowerCase();
+  const granularity = TF_TO_GRANULARITY[normTf] || "15m";
+  const productType = "usdt-futures";
+  const limit = 200;
+
+  const client = getHttpClient();
+  const url = `${BITGET_BASE}/api/v2/mix/market/candles?symbol=${encodeURIComponent(symbol)}&productType=${productType}&granularity=${granularity}&limit=${limit}`;
+
+  let res;
   try {
-    const fromBitget = await loadBitget(symbol, normTf);
-    if (fromBitget && fromBitget.length > 0) {
-      return fromBitget;
-    }
+    res = await client.get(url, { timeout: 15000 });
   } catch (e) {
-    console.warn("[candles] Bitget failed, trying Binance:", e?.message || e);
+    const status = e.response?.status;
+    const body = typeof e.response?.data === "string"
+      ? e.response.data
+      : JSON.stringify(e.response?.data || e.message || "");
+    console.log("bitget request url:", url);
+    console.log("bitget status:", status != null ? status : "no response");
+    console.log("bitget raw body:", body.slice(0, 500));
+    return [];
   }
-  try {
-    const fromBinance = await loadBinance(symbol, normTf);
-    if (fromBinance && fromBinance.length > 0) {
-      return fromBinance;
-    }
-  } catch (e) {
-    console.warn("[candles] Binance failed:", e?.message || e);
+
+  const status = res.status;
+  const data = res.data?.data;
+  if (status !== 200 || !Array.isArray(data) || data.length === 0) {
+    const body = typeof res.data === "string" ? res.data : JSON.stringify(res.data || "");
+    console.log("bitget request url:", url);
+    console.log("bitget status:", status);
+    console.log("bitget raw body:", body.slice(0, 500));
+    return [];
   }
-  // 둘 다 실패해도 서버는 유지: 빈 배열 반환 (Next가 fallback 시도 가능)
-  console.warn("[candles] Bitget and Binance both failed, returning empty candles");
-  return [];
+
+  // Bitget V2 mix 응답: [{ ts, open, high, low, close, vol }] (ts ms)
+  const candles = data.map((c) =>
+    toCandle(c.ts, c.open, c.high, c.low, c.close, c.vol ?? c.volume)
+  ).sort((a, b) => a.time - b.time);
+
+  if (normTf === "3m") return aggregate3m(candles);
+  return candles;
 };

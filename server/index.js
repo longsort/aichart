@@ -1,42 +1,42 @@
+const express = require("express");
+const cors = require("cors");
 
-const express = require("express")
-const cors = require("cors")
+const candles = require("./data/candles");
+const engine = require("./analysis/engine");
 
-const candles = require("./data/candles")
-const engine = require("./analysis/engine")
-
-const app = express()
-app.use(cors())
-app.use(express.json())
-
-// timeframes supported
-// 1m 3m 5m 15m 1h 4h 1d 1w 1M 1Y
-
-app.get("/candles", async (req,res)=>{
-
-    const symbol = req.query.symbol || "BTCUSDT"
-    const tf = req.query.tf || "1h"
-
-    const data = await candles.load(symbol,tf)
-
-    res.json(data)
-
-})
-
-app.get("/analyze", async (req,res)=>{
-
-    const symbol = req.query.symbol || "BTCUSDT"
-    const tf = req.query.tf || "1h"
-
-    const data = await candles.load(symbol,tf)
-
-    const result = engine.run(data)
-
-    res.json(result)
-
-})
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 const port = process.env.SERVER_PORT || 3001;
+
+// timeframes: 1m 3m 5m 15m 1h 4h 1d 1w 1M
+app.get("/candles", async (req, res) => {
+  const symbol = req.query.symbol || "BTCUSDT";
+  const tf = req.query.tf || "1h";
+  try {
+    const data = await candles.load(symbol, tf);
+    res.json(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.warn("[server] /candles error:", err?.message || err);
+    res.json([]);
+  }
+});
+
+app.get("/analyze", async (req, res) => {
+  const symbol = req.query.symbol || "BTCUSDT";
+  const tf = req.query.tf || "1h";
+  try {
+    const data = await candles.load(symbol, tf);
+    const list = Array.isArray(data) ? data : [];
+    const result = engine.run(list);
+    res.json(result);
+  } catch (err) {
+    console.warn("[server] /analyze error:", err?.message || err);
+    res.status(500).json({ error: err?.message || "analyze failed" });
+  }
+});
+
 app.listen(port, () => {
-  console.log("AI LONGSHORT ENGINE RUNNING :" + port);
+  console.log("[server] AI LONGSHORT ENGINE RUNNING on port", port);
 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchMarketCandles } from '@/lib/market';
+import { getCandlesFromServer } from '@/lib/candlesFromServer';
 import { runBacktest } from '@/lib/backtest';
 
 export const dynamic = 'force-dynamic';
@@ -9,10 +9,14 @@ export async function GET(req: NextRequest) {
   const symbol = (searchParams.get('symbol') || 'BTCUSDT').toUpperCase();
   const timeframe = searchParams.get('timeframe') || '4h';
   try {
-    const candles = await fetchMarketCandles(symbol, timeframe);
-    const result = await runBacktest(symbol, timeframe, candles);
+    const candles = await getCandlesFromServer(symbol, timeframe);
+    const list = candles && candles.length > 0 ? candles : [];
+    if (list.length === 0) {
+      return NextResponse.json({ ok: false, error: 'No candles' });
+    }
+    const result = await runBacktest(symbol, timeframe, list);
     return NextResponse.json({ ok: true, ...result });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || 'backtest failed' }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'backtest failed' });
   }
 }

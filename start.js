@@ -12,6 +12,7 @@ const serverPort = process.env.SERVER_PORT || '3001';
 console.log('[start] PORT=', port, 'SERVER_PORT=', serverPort);
 
 const serverPath = path.join(__dirname, 'server', 'index.js');
+console.log('[start] starting candles server (Bitget V2 mix only)');
 const server = spawn('node', [serverPath], {
   stdio: ['ignore', 'pipe', 'pipe'],
   detached: true,
