@@ -105,3 +105,20 @@ export async function fetchMarketCandles(symbol: string, timeframe: string): Pro
   const raw = await res.json();
   return raw.map((c: any[]) => parseKline(c as number[]));
 }
+
+/** 특정 시간 구간의 캔들 조회 (path API 등에서 사용) */
+export async function fetchMarketCandlesInRange(
+  symbol: string,
+  interval: string,
+  startTimeSec: number,
+  endTimeSec: number
+): Promise<Candle[]> {
+  const startMs = startTimeSec * 1000;
+  const endMs = endTimeSec * 1000;
+  const int = intervalMap[interval] || '1h';
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${int}&startTime=${startMs}&endTime=${endMs}&limit=500`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`binance ${res.status}`);
+  const raw = await res.json() as number[][];
+  return raw.map((c) => parseKline(c));
+}
