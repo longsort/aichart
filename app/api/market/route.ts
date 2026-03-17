@@ -10,9 +10,16 @@ export async function GET(req: NextRequest) {
   const timeframe = searchParams.get('timeframe') || '4h';
   try {
     const fromServer = await getCandlesFromServer(symbol, timeframe);
-    const candles = fromServer && fromServer.length > 0 ? fromServer : await fetchMarketCandles(symbol, timeframe);
-    return NextResponse.json({ ok: true, candles });
+    let candles = fromServer && fromServer.length > 0 ? fromServer : null;
+    if (!candles?.length) {
+      try {
+        candles = await fetchMarketCandles(symbol, timeframe);
+      } catch {
+        candles = [];
+      }
+    }
+    return NextResponse.json({ ok: true, candles: candles || [] });
   } catch (error: any) {
-    return NextResponse.json({ ok: false, candles: [], error: error?.message || 'market fetch failed' }, { status: 500 });
+    return NextResponse.json({ ok: true, candles: [], error: error?.message }, { status: 200 });
   }
 }

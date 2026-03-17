@@ -76,7 +76,11 @@ export async function GET(req: NextRequest) {
     const getCandles = async (sym: string, tf: string) => {
       const fromServer = await getCandlesFromServer(sym, tf);
       if (fromServer && fromServer.length > 0) return fromServer;
-      return fetchMarketCandles(sym, tf);
+      try {
+        return await fetchMarketCandles(sym, tf);
+      } catch {
+        return [];
+      }
     };
 
     let candles: Awaited<ReturnType<typeof fetchMarketCandles>>;

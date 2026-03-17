@@ -58,27 +58,34 @@ function aggregate3m(candles) {
   return out;
 }
 
-async function loadBitget(symbol, tf) {
-  const client = getHttpClient();
-  const period = tfToBitgetPeriod[tf] || "1h";
-  const sym = symbol.includes("_") ? symbol : `${symbol}_SPBL`;
-  const now = Date.now();
-  const oneDay = 24 * 60 * 60 * 1000;
-  let before = now;
-  let after = now - (tf === "1d" || tf === "1w" || tf === "1M" ? 365 * oneDay : 30 * oneDay);
-
+async function fetchBitgetCandles(client, sym, period, after, before) {
   const url = `${BITGET_BASE}/api/spot/v1/market/candles?symbol=${encodeURIComponent(sym)}&period=${period}&after=${after}&before=${before}&limit=1000`;
   const res = await client.get(url, { timeout: 15000 });
   const data = res.data?.data;
-  if (!Array.isArray(data) || data.length === 0) {
-    return null;
-  }
-  const candles = data.map((c) =>
+  if (!Array.isArray(data) || data.length === 0) return null;
+  return data.map((c) =>
     toCandle(c.ts, c.open, c.high, c.low, c.close, c.baseVol)
   ).sort((a, b) => a.time - b.time);
-  if (tf === "3m") {
-    return aggregate3m(candles);
+}
+
+async function loadBitget(symbol, tf) {
+  const client = getHttpClient();
+  const period = tfToBitgetPeriod[tf] || "1h";
+  const now = Date.now();
+  const oneDay = 24 * 60 * 60 * 1000;
+  const before = now;
+  const after = now - (tf === "1d" || tf === "1w" || tf === "1M" ? 365 * oneDay : 30 * oneDay);
+
+  // 시도 1: 소문자 Symbol Id (btcusdt_spbl)
+  const symWithSuffix = (symbol.includes("_") ? symbol : `${symbol}_SPBL`).toLowerCase();
+  let candles = await fetchBitgetCandles(client, symWithSuffix, period, after, before).catch(() => null);
+  // 시도 2: 400이면 접미사 없이 (btcusdt)
+  if (!candles?.length && !symbol.includes("_")) {
+    const symPlain = symbol.toLowerCase();
+    candles = await fetchBitgetCandles(client, symPlain, period, after, before).catch(() => null);
   }
+  if (!candles?.length) return null;
+  if (tf === "3m") return aggregate3m(candles);
   return candles;
 }
 
@@ -112,5 +119,7 @@ exports.load = async function load(symbol = "BTCUSDT", tf = "1h") {
   } catch (e) {
     console.warn("[candles] Binance failed:", e?.message || e);
   }
-  throw new Error("candles: Bitget and Binance both failed");
+  // 둘 다 실패해도 서버는 유지: 빈 배열 반환 (Next가 fallback 시도 가능)
+  console.warn("[candles] Bitget and Binance both failed, returning empty candles");
+  return [];
 };
