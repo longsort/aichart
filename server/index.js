@@ -36,6 +36,7 @@ app.get("/analyze", async (req,res)=>{
 
 })
 
-app.listen(3001,()=>{
-    console.log("AI LONGSHORT ENGINE RUNNING :3001")
-})
+const port = process.env.SERVER_PORT || 3001;
+app.listen(port, () => {
+  console.log("AI LONGSHORT ENGINE RUNNING :" + port);
+});

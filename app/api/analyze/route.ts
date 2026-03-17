@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchMarketCandles } from '@/lib/market';
+import { getCandlesFromServer } from '@/lib/candlesFromServer';
 import { analyzeCandles } from '@/lib/analyze';
 import { fetchMarketData } from '@/lib/data/dataService';
 import { buildBriefingContext } from '@/lib/briefingContext';
@@ -72,6 +73,12 @@ export async function GET(req: NextRequest) {
     const htf = HTF_MAP[timeframe] || '1d';
     const ltf = LTF_MAP[timeframe] || '1h';
 
+    const getCandles = async (sym: string, tf: string) => {
+      const fromServer = await getCandlesFromServer(sym, tf);
+      if (fromServer && fromServer.length > 0) return fromServer;
+      return fetchMarketCandles(sym, tf);
+    };
+
     let candles: Awaited<ReturnType<typeof fetchMarketCandles>>;
     let marketData: Awaited<ReturnType<typeof fetchMarketData>> | null = null;
 
@@ -80,19 +87,19 @@ export async function GET(req: NextRequest) {
         marketData = await fetchMarketData(symbol, timeframe);
         candles = marketData.candles;
       } catch {
-        candles = await fetchMarketCandles(symbol, timeframe);
+        candles = await getCandles(symbol, timeframe);
       }
     } else {
-      candles = await fetchMarketCandles(symbol, timeframe);
+      candles = await getCandles(symbol, timeframe);
     }
 
     const [pythonSignal, htfCandles, ltfCandles, candles1d, candles1w, candles1M] = await Promise.all([
       fetchPythonSignal(symbol, timeframe),
-      timeframe !== htf ? fetchMarketCandles(symbol, htf) : Promise.resolve(null),
-      timeframe !== ltf ? fetchMarketCandles(symbol, ltf) : Promise.resolve(null),
-      fetchMarketCandles(symbol, '1d'),
-      fetchMarketCandles(symbol, '1w'),
-      fetchMarketCandles(symbol, '1M'),
+      timeframe !== htf ? getCandles(symbol, htf) : Promise.resolve(null),
+      timeframe !== ltf ? getCandles(symbol, ltf) : Promise.resolve(null),
+      getCandles(symbol, '1d'),
+      getCandles(symbol, '1w'),
+      getCandles(symbol, '1M'),
     ]);
 
     const htfEngine = htfCandles ? analyzeCandles(symbol, htf, htfCandles).engine : null;
