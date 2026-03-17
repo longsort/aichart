@@ -533,7 +533,7 @@ const ChartViewInner = ({
       if (!zoneRangeSeriesRef.current) {
         const lineSeries = chart.addSeries(LineSeries, {
           color: 'rgba(0,0,0,0)',
-          lineWidth: 0,
+          lineWidth: 1,
           lastValueVisible: false,
           priceLineVisible: false,
           crosshairMarkerVisible: false,
