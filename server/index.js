@@ -1,8 +1,14 @@
 const express = require("express");
 const cors = require("cors");
 
-const candles = require("./data/candles");
-const engine = require("./analysis/engine");
+let candles, engine;
+try {
+  candles = require("./data/candles");
+  engine = require("./analysis/engine");
+} catch (e) {
+  console.error("[server] require error:", e?.message || e);
+  process.exit(1);
+}
 
 const app = express();
 app.use(cors());
