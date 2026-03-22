@@ -5,6 +5,7 @@ const nextConfig = {
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://182.231.196.203:3000',
+    'http://45.76.231.214:3000',
   ],
 };
 export default nextConfig;
