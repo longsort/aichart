@@ -10,11 +10,13 @@ export function getAppSessionSecret(): string {
   return process.env.APP_SESSION_SECRET?.trim() || 'ailongshort-dev-session-secret';
 }
 
-/** 로그인에 사용할 계정 (env 미설정 시 기본값) */
+/** 로그인에 사용할 계정 (env 미설정 시 기본값: aichart / longshort) */
 export function getAppLoginCredentials(): { user: string; password: string } {
+  const envUser = process.env.APP_BRIEFING_LOGIN_USER?.trim();
+  const envPass = process.env.APP_BRIEFING_LOGIN_PASSWORD?.trim();
   return {
-    user: process.env.APP_BRIEFING_LOGIN_USER?.trim() || 'aichart',
-    password: process.env.APP_BRIEFING_LOGIN_PASSWORD?.trim() || 'longshort',
+    user: envUser && envUser.length > 0 ? envUser : 'aichart',
+    password: envPass && envPass.length > 0 ? envPass : 'longshort',
   };
 }
 

@@ -67,7 +67,7 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
               autoComplete="username"
               value={user}
               onChange={e => setUser(e.target.value)}
-              placeholder="aichart"
+              placeholder="아이디 입력"
               disabled={loading}
             />
           </label>
