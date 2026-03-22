@@ -10,23 +10,26 @@ export function getAppSessionSecret(): string {
   return process.env.APP_SESSION_SECRET?.trim() || 'ailongshort-dev-session-secret';
 }
 
-/** 로그인에 사용할 계정 (env 미설정 시 기본값: aichart / longshort) */
+/** 로그인에 사용할 계정. 기본: aichart / longshort (env로 오버라이드 가능) */
+const DEFAULT_USER = 'aichart';
+const DEFAULT_PASS = 'longshort';
+
 export function getAppLoginCredentials(): { user: string; password: string } {
   const envUser = process.env.APP_BRIEFING_LOGIN_USER?.trim();
   const envPass = process.env.APP_BRIEFING_LOGIN_PASSWORD?.trim();
   return {
-    user: envUser && envUser.length > 0 ? envUser : 'aichart',
-    password: envPass && envPass.length > 0 ? envPass : 'longshort',
+    user: envUser && envUser.length > 0 ? envUser : DEFAULT_USER,
+    password: envPass && envPass.length > 0 ? envPass : DEFAULT_PASS,
   };
 }
 
 export function verifyBriefingLoginBody(
   body: { briefingLogin?: { user?: string; password?: string } }
 ): { ok: true } | { ok: false; error: string } {
-  const { user, password } = getAppLoginCredentials();
-  const u = body.briefingLogin?.user?.trim() ?? '';
-  const p = body.briefingLogin?.password ?? '';
-  if (u !== user || p !== password) {
+  const cred = getAppLoginCredentials();
+  const u = (body.briefingLogin?.user ?? '').toString().trim();
+  const p = (body.briefingLogin?.password ?? '').toString().trim();
+  if (u !== cred.user || p !== cred.password) {
     return { ok: false, error: '아이디·비밀번호가 올바르지 않습니다.' };
   }
   return { ok: true };
@@ -64,11 +67,12 @@ export function verifySiteAuthToken(token: string | undefined | null): boolean {
 }
 
 export function siteAuthCookieOptions() {
+  const useHttps = process.env.APP_USE_HTTPS === 'true';
   return {
     httpOnly: true as const,
     sameSite: 'lax' as const,
     path: '/',
     maxAge: COOKIE_MAX_AGE_SEC,
-    secure: process.env.NODE_ENV === 'production',
+    secure: useHttps,
   };
 }
