@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SYMBOLS } from '../lib/constants';
 import ChartView, { type ChartSnapshotRef } from './components/ChartView';
+import { type UIMode } from './components/UIModeSwitcher';
 import AppSiteLogin from './components/AppSiteLogin';
 import AIChatPanel from './components/AIChatPanel';
 import FocusOverlay from './components/FocusOverlay';
@@ -115,7 +116,6 @@ export default function HomePageContent() {
   const strategies = generateStrategies();
   type RightPanelTab = 'trade' | 'market' | 'briefing' | 'pattern' | 'ref' | 'etc' | 'virtual';
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('trade');
-  type UIMode = 'FULL' | 'FOCUS' | 'EXECUTION' | 'TAPPOINT';
   const [uiMode, setUiMode] = useState<UIMode>('EXECUTION');
   const [briefingCollapsed, setBriefingCollapsed] = useState(true);
   /** 사이트 로그인(쿠키) — API 미들웨어와 동기 */
