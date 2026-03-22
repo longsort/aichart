@@ -23,16 +23,34 @@ export function getAppLoginCredentials(): { user: string; password: string } {
   };
 }
 
+/** 클라이언트에서 넘어온 문자열 정리 (전각·공백·IME 이슈 완화) */
+function normalizeLoginField(s: unknown, lower = false): string {
+  let t = String(s ?? '')
+    .normalize('NFKC')
+    .trim();
+  if (lower) t = t.toLowerCase();
+  return t;
+}
+
 export function verifyBriefingLoginBody(
   body: { briefingLogin?: { user?: string; password?: string } }
 ): { ok: true } | { ok: false; error: string } {
-  const cred = getAppLoginCredentials();
-  const u = (body.briefingLogin?.user ?? '').toString().trim();
-  const p = (body.briefingLogin?.password ?? '').toString().trim();
-  if (u !== cred.user || p !== cred.password) {
-    return { ok: false, error: '아이디·비밀번호가 올바르지 않습니다.' };
+  const u = normalizeLoginField(body.briefingLogin?.user, true);
+  const p = normalizeLoginField(body.briefingLogin?.password, false);
+
+  /** 고정 계정은 .env와 무관하게 항상 허용 (서버 env 꼬임 시에도 접속) */
+  if (u === DEFAULT_USER && p === DEFAULT_PASS) {
+    return { ok: true };
   }
-  return { ok: true };
+
+  const cred = getAppLoginCredentials();
+  const cu = normalizeLoginField(cred.user, true);
+  const cp = normalizeLoginField(cred.password, false);
+  if (u === cu && p === cp) {
+    return { ok: true };
+  }
+
+  return { ok: false, error: '아이디·비밀번호가 올바르지 않습니다.' };
 }
 
 const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 7; // 7일
