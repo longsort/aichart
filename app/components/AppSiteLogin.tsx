@@ -38,7 +38,7 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
         return;
       }
       setStoredBriefingCredentials(u, password);
-      onLoggedIn(u);
+      window.location.reload();
     } catch {
       setError('연결 오류입니다. 서버가 실행 중인지 확인하세요.');
     } finally {
