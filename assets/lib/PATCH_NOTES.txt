@@ -1,0 +1,3 @@
+ENTRY PRICE NULL-SAFE PATCH v1
+- Fix build error at ultra_home_layout_v1.dart around line 449
+- _calcEntryFromZone now returns double (never null) and falls back to s.price

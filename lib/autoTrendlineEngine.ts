@@ -195,3 +195,37 @@ export function computeAutoTrendlines(
     supportBroken,
   };
 }
+
+/**
+ * 최근 피벗(인덱스 기준) 기반 상승/하락 채널 — 캔들에 맞게 작도.
+ * 하얀선처럼 스윙 고점·저점을 정확히 연결, 우측까지 연장.
+ */
+export function computeRecentChannel(
+  visible: Array<{ high: number; low: number; close: number }>,
+  swingHighs: PivotPoint[],
+  swingLows: PivotPoint[],
+  min: number,
+  max: number
+): { resistance: TrendlineSegment | null; support: TrendlineSegment | null } {
+  const n = visible.length;
+  if (n < 3 || swingHighs.length < 2 || swingLows.length < 2) {
+    return { resistance: null, support: null };
+  }
+  const lastTwoHighs = swingHighs.slice(-2);
+  const lastTwoLows = swingLows.slice(-2);
+  const [h1, h2] = lastTwoHighs;
+  const [l1, l2] = lastTwoLows;
+  if (!h1 || !h2 || !l1 || !l2) return { resistance: null, support: null };
+
+  const rightIdx = n - 1;
+  const denom = Math.max(1, n - 1);
+
+  const resSeg = lineThroughTwoPointsExtended(h1.index, h1.price, h2.index, h2.price, n, min, max);
+  const slopeRes = (h2.price - h1.price) / Math.max(1, h2.index - h1.index);
+  const supSeg = parallelLineThroughPoint(slopeRes, l2.index, l2.price, n, min, max);
+
+  return {
+    resistance: resSeg,
+    support: supSeg,
+  };
+}

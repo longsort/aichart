@@ -10,9 +10,12 @@ import fs from 'fs';
 const DATA_DIR = path.join(process.cwd(), 'data');
 
 /** FS 쓰기 실패 시 메모리 fallback (서버리스용) */
-const memoryFallback = new Map<string, { virtual?: StoredVirtualData; signals?: ConfirmedSignalRecord[] }>();
+const memoryFallback = new Map<string, { virtual?: StoredVirtualData; signals?: ConfirmedSignalRecord[]; softSignals?: SoftSignalRecord[] }>();
 const VIRTUAL_DIR = path.join(DATA_DIR, 'virtual-store');
 const SIGNALS_DIR = path.join(DATA_DIR, 'confirmed-signals');
+const SOFT_SIGNALS_DIR = path.join(DATA_DIR, 'soft-signals');
+const ALERT_RULES_DIR = path.join(DATA_DIR, 'alert-rules');
+const SMART_WORKFLOW_DIR = path.join(DATA_DIR, 'smart-workflow');
 
 function ensureDir(dir: string): boolean {
   try {
@@ -42,6 +45,37 @@ export type ConfirmedSignalRecord = {
   targets: number[];
   entryTime: number;
   at: number;
+};
+
+export type SoftSignalRecord = {
+  symbol: string;
+  timeframe: string;
+  direction: 'LONG' | 'SHORT';
+  state: 'READY' | 'TRIGGERED';
+  signalTime: number;
+  at: number;
+};
+
+export type AlertRuleRecord = {
+  id: string;
+  symbol: string; // e.g. BTCUSDT or '*'
+  timeframe: string; // e.g. 1h or '*'
+  minTotalScore: number;
+  minProbabilityEdge: number;
+  minConditionsMet: number;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type SmartWorkflowStateRecord = {
+  symbol: string;
+  timeframe: string;
+  state: 'IDLE' | 'SETUP' | 'ARMED' | 'TRIGGERED' | 'INVALID';
+  at: number;
+  score: number;
+  probabilityEdge: number;
+  signalTime?: number;
 };
 
 function readJsonFile<T>(filePath: string, fallback: T): T {
@@ -129,4 +163,67 @@ export function appendConfirmedSignal(
     memoryFallback.set(clientId, { ...prev, signals: trimmed });
   }
   return ok;
+}
+
+/** 보조신호(READY/TRIGGERED) 목록 읽기 */
+export function readSoftSignals(clientId: string): SoftSignalRecord[] {
+  const mem = memoryFallback.get(clientId)?.softSignals;
+  if (mem) return mem;
+  const safe = safeFilename(clientId);
+  const filePath = path.join(SOFT_SIGNALS_DIR, `${safe}.json`);
+  const arr = readJsonFile<SoftSignalRecord[]>(filePath, []);
+  return Array.isArray(arr) ? arr : [];
+}
+
+/** 보조신호(READY/TRIGGERED) 추가 */
+export function appendSoftSignal(clientId: string, signal: SoftSignalRecord): boolean {
+  const list = readSoftSignals(clientId);
+  const exists = list.some((x) =>
+    x.symbol === signal.symbol &&
+    x.timeframe === signal.timeframe &&
+    x.direction === signal.direction &&
+    x.state === signal.state &&
+    x.signalTime === signal.signalTime
+  );
+  if (exists) return true;
+  list.push(signal);
+  const trimmed = list.slice(-6000);
+  const safe = safeFilename(clientId);
+  const filePath = path.join(SOFT_SIGNALS_DIR, `${safe}.json`);
+  const ok = writeJsonFile(filePath, trimmed);
+  if (!ok) {
+    const prev = memoryFallback.get(clientId) || {};
+    memoryFallback.set(clientId, { ...prev, softSignals: trimmed });
+  }
+  return ok;
+}
+
+/** 알림 규칙 읽기 */
+export function readAlertRules(clientId: string): AlertRuleRecord[] {
+  const safe = safeFilename(clientId);
+  const filePath = path.join(ALERT_RULES_DIR, `${safe}.json`);
+  const arr = readJsonFile<AlertRuleRecord[]>(filePath, []);
+  return Array.isArray(arr) ? arr : [];
+}
+
+/** 알림 규칙 저장(전체 교체) */
+export function writeAlertRules(clientId: string, rules: AlertRuleRecord[]): boolean {
+  const safe = safeFilename(clientId);
+  const filePath = path.join(ALERT_RULES_DIR, `${safe}.json`);
+  return writeJsonFile(filePath, rules.slice(-400));
+}
+
+export function readSmartWorkflowStates(clientId: string): SmartWorkflowStateRecord[] {
+  const safe = safeFilename(clientId);
+  const filePath = path.join(SMART_WORKFLOW_DIR, `${safe}.json`);
+  const arr = readJsonFile<SmartWorkflowStateRecord[]>(filePath, []);
+  return Array.isArray(arr) ? arr : [];
+}
+
+export function appendSmartWorkflowState(clientId: string, row: SmartWorkflowStateRecord): boolean {
+  const list = readSmartWorkflowStates(clientId);
+  list.push(row);
+  const safe = safeFilename(clientId);
+  const filePath = path.join(SMART_WORKFLOW_DIR, `${safe}.json`);
+  return writeJsonFile(filePath, list.slice(-4000));
 }

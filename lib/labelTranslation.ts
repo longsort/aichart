@@ -1,3 +1,5 @@
+import type { OverlayKind } from '@/types';
+
 /**
  * 영어 차트 오버레이 라벨 → 한글 번역
  * 사용자가 "영어 관련 전부 한글 번역" 기능을 켜면 적용
@@ -6,6 +8,7 @@ const EN_TO_KO: Record<string, string> = {
   // 구조
   BOS: '구조돌파',
   CHOCH: '추세전환',
+  MSB: '시장구조전환',
   EQ: '균형',
   EQH: '균형고점',
   EQL: '균형저점',
@@ -20,14 +23,17 @@ const EN_TO_KO: Record<string, string> = {
   'OB Early': '롱·숏 대기',
   'OB Early Mit': '약함(대기·완화)',
   // 과거 한글 라벨 → 통일 문구 (캐시·스냅샷 호환)
-  '수요 블록(롱)': '롱확정',
-  '공급 블록(숏)': '숏확정',
+  '수요 블록(롱)': '롱확인',
+  '공급 블록(숏)': '숏확인',
   '수요 블록·완화': '롱약함',
   '공급 블록·완화': '숏약함',
   '수요 선포착(롱)': '롱대기',
   '공급 선포착(숏)': '숏대기',
   '수요 선포착·완화': '롱약함',
   '공급 선포착·완화': '숏약함',
+  /** 이전 패치 문구(확정) → 요청 문구(확인) */
+  롱확정: '롱확인',
+  숏확정: '숏확인',
   BPR: '균형가격구간',
   Target: '목표가',
   Sweep: '유동성스윕',
@@ -80,7 +86,17 @@ export function translateLabelToKo(label: string | undefined | null, enabled: bo
   if (!enabled || label == null) return String(label ?? '');
   const trimmed = String(label).trim();
   if (!trimmed) return trimmed;
-  return EN_TO_KO[trimmed] ?? trimmed;
+  const exact = EN_TO_KO[trimmed];
+  if (exact != null) return exact;
+  // BOS / CHOCH / MSB + 단계 접미사(✓ ~ ✕ 등) 유지
+  const struct = trimmed.match(/^(BOS|CHOCH|MSB)(\s+[\s\S]*)?$/);
+  if (struct) {
+    const base = struct[1] as keyof typeof EN_TO_KO;
+    const suffix = struct[2] ?? '';
+    const ko = EN_TO_KO[base];
+    if (ko) return `${ko}${suffix}`;
+  }
+  return trimmed;
 }
 
 /** 실행 모드에서만: 타점 지지/저항 구간·선 라벨 끝의 ` · 75%` / ` · 지지 75%` 등 제거 */
@@ -91,18 +107,40 @@ const TAP_SUPPORT_RESISTANCE_IDS_HIDE_PCT = new Set([
   'tap-resistance',
 ]);
 
-export type ChartUiMode = 'FULL' | 'FOCUS' | 'EXECUTION' | 'TAPPOINT';
+export type ChartUiMode =
+  | 'FULL'
+  | 'FOCUS'
+  | 'EXECUTION'
+  | 'SMART'
+  | 'MAX_ANALYSIS'
+  | 'SMC_DESK'
+  | 'SMC_DESK_COMPOSITE'
+  | 'SMC_DELTA_DESK'
+  | 'SMART_MONEY_MVP'
+  | 'UNIFIED_DESK'
+  | 'AI_ZONE'
+  | 'CANDLE_ANALYSIS'
+  | 'BIBLE_MODE'
+  | 'HOT_ZONE'
+  | 'TAPPOINT'
+  | 'EVOLUTION'
+  | 'WHALE';
 
 /** 차트 오버레이에 실제로 보여줄 라벨 (실행 모드 % 숨김 → 선택적 한글 번역) */
 export function overlayDisplayLabel(
   label: string | undefined | null,
   id: string | undefined,
   uiMode: ChartUiMode,
-  translateLabelsToKo: boolean
+  translateLabelsToKo: boolean,
+  kind?: OverlayKind
 ): string {
   let s = label == null ? '' : String(label);
-  if (uiMode === 'EXECUTION' && id && TAP_SUPPORT_RESISTANCE_IDS_HIDE_PCT.has(id)) {
+  if ((uiMode === 'EXECUTION' || uiMode === 'EVOLUTION') && id && TAP_SUPPORT_RESISTANCE_IDS_HIDE_PCT.has(id)) {
     s = s.replace(/ · (?:지지 |저항 )?\d+%$/, '').trim();
   }
-  return translateLabelToKo(s, translateLabelsToKo);
+  const translated = translateLabelToKo(s, translateLabelsToKo);
+  if (!translateLabelsToKo && kind && /^[A-Z]{1,6}$/.test(translated.trim()) && ['swingLabel'].includes(kind)) {
+    return translateLabelToKo(translated, true);
+  }
+  return translated;
 }

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "eagle1-default",
+    "symbol": "*",
+    "timeframe": "*",
+    "minTotalScore": 80,
+    "minProbabilityEdge": 10,
+    "minConditionsMet": 5,
+    "enabled": true,
+    "createdAt": 1776776903752,
+    "updatedAt": 1776861898422
+  }
+]

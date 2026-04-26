@@ -42,13 +42,18 @@ function connect(symbol: string, timeframe: string, onUpdate: Listener): () => v
       const d = JSON.parse(e.data as string);
       const k = d.k;
       if (!k) return;
+      const vol = parseFloat(k.v);
+      const tbRaw = k.V != null ? parseFloat(String(k.V)) : NaN;
       const candle: Candle = {
         time: Math.floor(k.t / 1000),
         open: parseFloat(k.o),
         high: parseFloat(k.h),
         low: parseFloat(k.l),
         close: parseFloat(k.c),
-        volume: parseFloat(k.v),
+        volume: vol,
+        ...(Number.isFinite(tbRaw) && vol > 0 && tbRaw >= 0 && tbRaw <= vol * 1.001
+          ? { takerBuyBaseVolume: tbRaw }
+          : {}),
       };
       const isComplete = !!k.x;
       connections.get(key)?.listeners.forEach(fn => fn({ candle, isComplete }));

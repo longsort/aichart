@@ -1,0 +1,2 @@
+# Bash on Windows: LF only (avoid pipefail\r on Linux)
+*.sh text eol=lf

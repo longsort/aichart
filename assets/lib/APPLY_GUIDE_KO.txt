@@ -1,0 +1,17 @@
+[적용 방법]
+1) 이 ZIP(fulink_final) 압축 해제
+2) 기존 프로젝트 폴더에 '덮어쓰기'가 아니라, 가능하면 이 폴더를 새 기준 프로젝트로 사용
+3) 터미널에서:
+   flutter clean
+   flutter pub get
+4) 실행:
+   flutter run -d windows
+
+[자주 나는 오류]
+- package:xxx 경로 오류: pubspec.yaml name과 import가 안 맞아서 발생. 이 기준본은 상대경로/통합설정으로 맞춰둠.
+- null-safety(rc?) 오류: decision_hub_card_v2.dart에서 rc 접근 시 null 체크 누락. 기준본은 수정됨.
+
+[CSV 자동 수집]
+- 설정(⚙️) → 과거 데이터(자동) → 3년 수집 시작
+- 진행률이 100%가 될 때까지 기다리고(앱은 사용 가능)
+- 완료 후 칩/확률이 더 안정화됨

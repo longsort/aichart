@@ -1,9 +1,22 @@
 import type { AnalyzeResponse } from '@/types';
+import { buildBriefingPatternText, computeBriefingWavePathFromAnalysis, formatBriefingWaveParagraph } from '@/lib/briefingWavePath';
 
 export function generateAutoBriefing(analysis: AnalyzeResponse | null): string {
   if (!analysis) return '분석 대기 중';
   const e = analysis.engine || {};
   const parts: string[] = [];
+
+  // 결론: 5요소 확정 / 준비 / 관망
+  const confirmed = (analysis as any).confirmedSignal as { confirmed?: boolean; direction?: 'LONG' | 'SHORT' | null } | undefined;
+  const conclusion =
+    confirmed?.confirmed && confirmed?.direction
+      ? `${confirmed.direction} (5요소 확정)`
+      : analysis.verdict === 'LONG'
+        ? 'LONG (준비)'
+        : analysis.verdict === 'SHORT'
+          ? 'SHORT (준비)'
+          : '관망';
+  parts.push(`[결론] ${conclusion} · ${analysis.symbol} ${analysis.timeframe} · 신뢰도 ${analysis.confidence}%`);
 
   if (analysis.nearestBuyZone || analysis.nearestSellZone) {
     parts.push(`[강한 구간 · 서버 계산] ${analysis.symbol} ${analysis.timeframe}`);
@@ -47,6 +60,22 @@ export function generateAutoBriefing(analysis: AnalyzeResponse | null): string {
   if (analysis.dominantPattern) {
     const d = analysis.dominantPattern;
     parts.push(`주요 패턴: ${d.label ?? d.type} ${d.confidence}% (${d.bias === 'bullish' ? '상승' : d.bias === 'bearish' ? '하락' : '중립'})${d.reason ? ' · ' + d.reason : ''}`);
+  }
+  if ((analysis as any).similarBriefing?.similarity != null) {
+    const s = (analysis as any).similarBriefing as { similarity: number; summary?: string; direction?: string };
+    parts.push(`유사 시나리오 메모리: ${Math.round(s.similarity)}% · ${s.direction ?? '-'}`);
+    if (s.summary) parts.push(`유사 요약: ${String(s.summary).slice(0, 160)}`);
+  }
+  const px = (analysis as { currentPrice?: number }).currentPrice;
+  if (typeof px === 'number' && px > 0) {
+    const wave = computeBriefingWavePathFromAnalysis(analysis as any, px, buildBriefingPatternText(analysis));
+    if (wave) {
+      parts.push(formatBriefingWaveParagraph(wave));
+    } else {
+      parts.push(
+        '[파동 분석] 브리핑의 유사 참조·학습 패턴·주요 패턴과 목표가(TP1)를 바탕으로 미래 3파 경로를 만들 수 있습니다. 목표가가 비어 있으면 차트는 빔 보조 예측만 사용합니다.'
+      );
+    }
   }
   const a = analysis as any;
   if (a.dailyCloseLevel != null || a.weeklyCloseLevel != null || a.monthlyCloseLevel != null) {

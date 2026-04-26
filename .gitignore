@@ -1,12 +1,3 @@
-# Environment and secrets (do not commit)
-.env
-.env.local
-.env.*.local
-
-# Dependencies and build
-node_modules/
-.next/
-
 # Miscellaneous
 *.class
 *.log
@@ -52,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+node_modules
+
+# 가상매매·확정신호 저장 (서버 배포 시 생성)
+/data/virtual-store/
+/data/confirmed-signals/

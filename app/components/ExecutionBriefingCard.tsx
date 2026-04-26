@@ -1,33 +1,67 @@
 'use client';
 
-import { memo } from 'react';
-import type { AnalyzeResponse } from '@/types';
+import { memo, useMemo } from 'react';
+import type { AnalyzeResponse, Candle } from '@/types';
 import ExecutionModeStrip from './ExecutionModeStrip';
+import { defaultSettings, loadSettings } from '@/lib/settings';
+import { buildUnifiedSnapshot } from '@/lib/unifiedTrade';
+import { buildUnifiedLsSignal } from '@/lib/unifiedSignalEngine';
+import { buildProfileFromPanelFeatures, DEFAULT_UNIFIED_PANEL_FEATURES, type UnifiedPanelFeatures } from '@/lib/unifiedSignalPanelProfile';
+import { FUSION_DIRECTION_LABEL_KO, SIGNAL_GRADE_LABEL_KO } from '@/lib/unifiedSignalTypes';
+import { useSettingsChangeTick } from '@/lib/useSettingsChangeTick';
+import { fusionTheme, gateFailedLabelKo, verdictLabelKo } from '@/lib/fusionUiTheme';
 
 type Props = {
   analysis: AnalyzeResponse;
+  candles?: Candle[] | null;
   theme?: 'dark' | 'light';
   isTapMode: boolean;
   swingSeedUsdt: number;
   onSwingSeedChange: (v: number) => void;
   onSwingSeedBlur: () => void;
+  panelFeatures?: UnifiedPanelFeatures;
 };
 
 const divider = { borderTop: '1px solid rgba(255,255,255,0.08)', margin: '12px 0', paddingTop: 12 } as const;
 
 function ExecutionBriefingCardInner({
   analysis,
+  candles,
   theme = 'dark',
   isTapMode,
   swingSeedUsdt,
   onSwingSeedChange,
   onSwingSeedBlur,
+  panelFeatures,
 }: Props) {
+  const settingsTick = useSettingsChangeTick();
+  const fusionProfile = useMemo(() => {
+    const pf = panelFeatures ?? DEFAULT_UNIFIED_PANEL_FEATURES;
+    const s = typeof window !== 'undefined' ? loadSettings() : defaultSettings;
+    return buildProfileFromPanelFeatures(pf, {
+      showRsiIndicators: s.showRsi,
+      showMacdPanel: s.showMacdPanel,
+      showBbPanel: s.showBbPanel,
+    });
+  }, [panelFeatures, settingsTick]);
+  const unified = buildUnifiedSnapshot(analysis);
+  const lsFusion = useMemo(
+    () =>
+      buildUnifiedLsSignal(
+        analysis,
+        fusionProfile,
+        candles && candles.length >= 30 ? { candles } : undefined,
+      ),
+    [analysis, fusionProfile, candles],
+  );
+  const fusionUi = fusionTheme(lsFusion.grade);
+  const fusionMix = Math.max(1, lsFusion.longDisplay + lsFusion.shortDisplay);
+  const fusionLongPct = Math.round((lsFusion.longDisplay / fusionMix) * 100);
   const stp = (analysis as any).swingTapPoint;
   const showSwing = stp && (analysis.verdict === 'LONG' || analysis.verdict === 'SHORT');
   const entryNum = parseFloat(String(analysis.entry ?? ''));
   const stopNum = parseFloat(String(analysis.stopLoss ?? ''));
-  const confirmed = (analysis as any).confirmedSignal as { confirmed?: boolean; direction?: 'LONG' | 'SHORT' | null; reasons?: string[] } | undefined;
+  const confirmed = analysis.confirmedSignal;
   const isConfirmed = Boolean(confirmed?.confirmed && confirmed?.direction);
   const showRisk =
     showSwing &&
@@ -45,27 +79,58 @@ function ExecutionBriefingCardInner({
   const buyZones = (analysis as any).buyZones as any[] | undefined;
   const sellZones = (analysis as any).sellZones as any[] | undefined;
   const hasZones = (buyZones?.length ?? 0) > 0 || (sellZones?.length ?? 0) > 0;
+  const tailongCloseSignals = ((analysis as any).engine?.tailongCloseSignals ?? []) as Array<{
+    id?: string;
+    label?: string;
+    detailKo?: string;
+    strength?: 'weak' | 'medium' | 'strong';
+    bias?: 'bullish' | 'bearish' | 'neutral';
+    confidence?: number;
+  }>;
+  const tailongToggles = loadSettings();
+  const filteredTailongCloseSignals = tailongCloseSignals.filter((s) => {
+    if (!tailongToggles.showTailongClose) return false;
+    const id = String(s.id || '');
+    const isBreakout = id.includes('breakout') || id.includes('breakdown');
+    const isWick = id.includes('wick-absorb');
+    const isBody = id.includes('long-bull') || id.includes('long-bear');
+    const isFlow = id.includes('flow-up') || id.includes('flow-down');
+    if (isBreakout && !tailongToggles.showTailongCloseBreakout) return false;
+    if (isWick && !tailongToggles.showTailongCloseWick) return false;
+    if (isBody && !tailongToggles.showTailongCloseBody) return false;
+    if (isFlow && !tailongToggles.showTailongCloseFlow) return false;
+    return true;
+  });
+  const hasTailongClose = filteredTailongCloseSignals.length > 0;
+  const analysisPanel = analysis.analysisPanel;
+  const zoneSignal = analysis.zoneSignal;
 
   return (
     <div
       className="execution-briefing-card card panel-pad"
       style={{
-        padding: '14px 16px',
-        border: stp?.active ? '2px solid rgba(34,197,94,0.5)' : '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 14,
-        background: 'rgba(8,15,25,0.92)',
+        padding: '16px 18px',
+        border: stp?.active ? '2px solid rgba(34,197,94,0.55)' : '1px solid rgba(98,239,224,0.2)',
+        borderRadius: 16,
+        background: 'linear-gradient(165deg, rgba(8,15,28,0.96) 0%, rgba(30,27,75,0.22) 50%, rgba(8,15,25,0.94) 100%)',
+        boxShadow:
+          '0 0 40px -16px rgba(98,239,224,0.25), 0 16px 40px -20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
       }}
     >
-      <div className="section-title" style={{ fontSize: '1.05rem', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span>실행 브리핑</span>
-        <span className="subtle" style={{ fontSize: '0.75rem', fontWeight: 400 }}>
+      <div className="section-title" style={{ fontSize: '1.12rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontWeight: 800 }}>
+        <span style={{ textShadow: '0 0 20px rgba(98,239,224,0.2)' }}>실행 브리핑</span>
+        <span className="subtle" style={{ fontSize: '0.78rem', fontWeight: 500 }}>
           타점 · 마켓 · 종가 · Zone · 리스크
         </span>
       </div>
 
       {/* 결론: 롱/숏/관망 — 5요소 확정 우선 */}
       {(() => {
-        const dir = isConfirmed ? (confirmed!.direction!) : (analysis.verdict === 'LONG' || analysis.verdict === 'SHORT' ? analysis.verdict : null);
+        const dir = isConfirmed
+          ? (confirmed!.direction!)
+          : (unified.verdict === 'LONG' || unified.verdict === 'SHORT'
+            ? unified.verdict
+            : (analysis.verdict === 'LONG' || analysis.verdict === 'SHORT' ? analysis.verdict : null));
         const label = dir === 'LONG' ? '롱' : dir === 'SHORT' ? '숏' : '관망';
         const cLong = '#22C55E';
         const cShort = '#EF4444';
@@ -104,9 +169,96 @@ function ExecutionBriefingCardInner({
                   </span>
                 )
               )}
+              {unified.blacklisted && (
+                <span className="badge" style={{ padding: '4px 10px', fontSize: 11, background: 'rgba(239,68,68,0.2)', color: cShort, border: '1px solid rgba(239,68,68,0.4)' }}>
+                  오판배제 잠금
+                </span>
+              )}
               <span style={{ color: '#94a3b8', fontSize: 12 }}>{analysis.symbol} {analysis.timeframe}</span>
               <span style={{ color: accent, fontWeight: 700, fontSize: 13 }}>{analysis.confidence ?? '–'}%</span>
             </div>
+            <div style={{ marginTop: 8, fontSize: 11, color: '#94a3b8' }}>
+              통합 게이트: {unified.reason}
+            </div>
+            <div
+              style={{
+                marginTop: 10,
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: `1px solid ${fusionUi.ring}`,
+                background: 'linear-gradient(145deg, rgba(15,23,42,0.75) 0%, rgba(49,46,129,0.2) 100%)',
+                boxShadow: `0 0 24px -10px ${fusionUi.glow}, inset 0 1px 0 rgba(255,255,255,0.06)`,
+              }}
+            >
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', marginBottom: 6 }}>퓨전 롱·숏</div>
+              <div style={{ height: 5, borderRadius: 999, overflow: 'hidden', display: 'flex', marginBottom: 8, background: 'rgba(0,0,0,0.35)' }}>
+                <div style={{ width: `${fusionLongPct}%`, background: 'linear-gradient(90deg, #15803d, #4ade80)' }} />
+                <div style={{ flex: 1, background: 'linear-gradient(90deg, #f87171, #dc2626)' }} />
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                <span style={{ fontWeight: 900, color: fusionUi.main, textShadow: `0 0 18px ${fusionUi.glow}` }}>{SIGNAL_GRADE_LABEL_KO[lsFusion.grade]}</span>
+                <span style={{ fontWeight: 800, color: '#e2e8f0' }}>{FUSION_DIRECTION_LABEL_KO[lsFusion.direction]}</span>
+                <span style={{ color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
+                  롱<span style={{ color: '#86efac', fontWeight: 700 }}>{lsFusion.longDisplay}</span>
+                  /숏<span style={{ color: '#fca5a5', fontWeight: 700 }}>{lsFusion.shortDisplay}</span>
+                  {' · 격차 '}
+                  <span style={{ color: '#67e8f9', fontWeight: 700 }}>{lsFusion.edge > 0 ? '+' : ''}{lsFusion.edge}</span>
+                </span>
+              </div>
+              {lsFusion.gatesFailed.length > 0 && (
+                <div style={{ marginTop: 6, fontSize: 10, color: '#fde047' }}>
+                  주의: {lsFusion.gatesFailed.map(gateFailedLabelKo).join(', ')}
+                </div>
+              )}
+            </div>
+            {confirmed && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(15,23,42,0.65)',
+                  border: '1px solid rgba(98,239,224,0.22)',
+                }}
+              >
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em', marginBottom: 8 }}>
+                  5요소 확정 게이트
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(
+                    [
+                      { label: '구조', ok: confirmed.structure },
+                      { label: 'RSI', ok: confirmed.rsi },
+                      { label: '지지·저항', ok: confirmed.supportResistance },
+                      { label: '종가', ok: confirmed.close },
+                      { label: 'FVG 존', ok: confirmed.fvgZone },
+                    ] as const
+                  ).map(({ label, ok }) => (
+                    <span
+                      key={label}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        background: ok ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.12)',
+                        color: ok ? '#86efac' : '#64748b',
+                        border: `1px solid ${ok ? 'rgba(34,197,94,0.35)' : 'rgba(148,163,184,0.25)'}`,
+                      }}
+                    >
+                      {ok ? '✓' : '○'} {label}
+                    </span>
+                  ))}
+                </div>
+                {confirmed.reasons && confirmed.reasons.length > 0 && (
+                  <div style={{ marginTop: 10, fontSize: 10, color: '#cbd5e1', lineHeight: 1.55 }}>
+                    {confirmed.reasons.map((r, i) => (
+                      <div key={`${i}-${r.slice(0, 24)}`}>· {r}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {/* 핵심 요약 — 색상 강조 */}
             <div style={{ marginTop: 12, fontSize: 11, lineHeight: 1.6, color: '#c7d2e0' }}>
               {(analysis as any).summary && (
@@ -130,16 +282,10 @@ function ExecutionBriefingCardInner({
                   <span style={{ color: accent, fontWeight: 600 }}>RSI </span>
                   <span>
                     <span className={(analysis as any).rsiDivergenceSignal.verdict === 'LONG' ? 'c-long' : (analysis as any).rsiDivergenceSignal.verdict === 'SHORT' ? 'c-short' : ''}>
-                      {(analysis as any).rsiDivergenceSignal.verdict}
+                      {verdictLabelKo((analysis as any).rsiDivergenceSignal.verdict)}
                     </span>
                     {' '}L {(analysis as any).rsiDivergenceSignal.longScore ?? '–'} / S {(analysis as any).rsiDivergenceSignal.shortScore ?? '–'}
                   </span>
-                </div>
-              )}
-              {confirmed?.reasons && confirmed.reasons.length > 0 && (
-                <div>
-                  <span style={{ color: accent, fontWeight: 600 }}>5요소 </span>
-                  <span>{confirmed.reasons.join(' · ')}</span>
                 </div>
               )}
               {!confirmed?.reasons?.length && ((analysis as any).dailyState || (analysis as any).weeklyState) && (
@@ -158,6 +304,91 @@ function ExecutionBriefingCardInner({
           </div>
         );
       })()}
+
+      {(analysisPanel || zoneSignal) && (
+        <div style={divider}>
+          <div
+            className="section-title"
+            style={{
+              marginBottom: 10,
+              fontSize: '1.02rem',
+              fontWeight: 800,
+              color: '#e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            엔진 분석 패널
+            <span className="subtle" style={{ fontSize: '0.7rem', fontWeight: 500 }}>구조·Zone·점수·RR</span>
+          </div>
+          <div className="mini-grid" style={{ marginBottom: 10 }}>
+            <div className="mini-card" style={{ border: '1px solid rgba(98,239,224,0.18)' }}>
+              <div className="metric-label">현재 방향</div>
+              <div
+                className={`mini-value ${analysisPanel?.direction === 'Bullish' ? 'c-long' : analysisPanel?.direction === 'Bearish' ? 'c-short' : ''}`}
+                style={{ fontSize: 14, fontWeight: 800 }}
+              >
+                {analysisPanel?.direction ?? 'Neutral'}
+              </div>
+            </div>
+            <div className="mini-card">
+              <div className="metric-label">구조 상태</div>
+              <div className="metric-value" style={{ fontWeight: 700 }}>{analysisPanel?.structure ?? 'Range'}</div>
+            </div>
+            <div className="mini-card">
+              <div className="metric-label">HTF Bias</div>
+              <div className="metric-value" style={{ fontWeight: 700 }}>{analysisPanel?.htfBias ?? '-'}</div>
+            </div>
+            <div className="mini-card">
+              <div className="metric-label">Zone</div>
+              <div
+                className={`mini-value ${analysisPanel?.zoneState === 'long_confirm' ? 'c-long' : analysisPanel?.zoneState === 'short_confirm' ? 'c-short' : ''}`}
+                style={{ fontWeight: 800 }}
+              >
+                {analysisPanel?.zoneState ?? zoneSignal?.zone ?? 'wait'}
+              </div>
+            </div>
+            <div className="mini-card">
+              <div className="metric-label">점수</div>
+              <div className="metric-value" style={{ fontWeight: 800, color: '#67e8f9' }}>
+                {analysisPanel?.score ?? zoneSignal?.score ?? analysis.confidence ?? '-'}
+              </div>
+            </div>
+            <div className="mini-card">
+              <div className="metric-label">RR</div>
+              <div className={`mini-value ${(zoneSignal?.riskReward ?? 0) >= 1.8 ? 'c-long' : 'c-short'}`} style={{ fontWeight: 800 }}>
+                {zoneSignal?.riskReward != null ? zoneSignal.riskReward.toFixed(2) : (analysis.rr != null ? Number(analysis.rr).toFixed(2) : '-')}
+              </div>
+            </div>
+          </div>
+          {analysis.mtf?.mtfStructure && (
+            <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 8, fontWeight: 600 }}>
+              MTF 구조 {analysis.mtf.mtfStructure}
+              {analysis.mtf.ltfEntryBias ? ` · 진입 편향 ${analysis.mtf.ltfEntryBias}` : ''}
+            </div>
+          )}
+          <div
+            style={{
+              fontSize: 12,
+              color: '#e2e8f0',
+              lineHeight: 1.65,
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: 'rgba(15,23,42,0.65)',
+              border: '1px solid rgba(148,163,184,0.12)',
+            }}
+          >
+            {(analysisPanel?.reasons ?? zoneSignal?.reasons ?? []).slice(0, 10).map((r, i) => (
+              <div key={`${r}-${i}`} style={{ marginBottom: 4 }}>
+                <span style={{ color: '#62efe0', fontWeight: 700, marginRight: 6 }}>·</span>
+                {r}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {((analysis as any)?.engine1M || (analysis as any)?.multiTF?.trend1M) && (() => {
         const trend1MKo = (analysis as any).multiTF?.trend1M ?? ((e: { trend?: string }) => e?.trend === 'bullish' ? '상승' : e?.trend === 'bearish' ? '하락' : '횡보')((analysis as any).engine1M ?? {});
@@ -290,6 +521,29 @@ function ExecutionBriefingCardInner({
       <div style={divider}>
         <ExecutionModeStrip analysis={analysis} theme={theme} />
       </div>
+
+      {hasTailongClose && (
+        <div style={divider}>
+          <div className="section-title" style={{ marginBottom: 6, fontSize: '0.95rem' }}>봉마감(타이롱) 핵심</div>
+          <div className="subtle" style={{ fontSize: '0.72rem', marginBottom: 8 }}>이미지 규칙 기반 · 확정봉 종가 중심 · 차트에는 가로줄/zone으로 반영</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filteredTailongCloseSignals.map((s, i) => {
+              const c = s.bias === 'bullish' ? '#22C55E' : s.bias === 'bearish' ? '#EF4444' : '#fbbf24';
+              const strengthKo = s.strength === 'strong' ? '강' : s.strength === 'medium' ? '중' : '약';
+              return (
+                <div key={`tclose-${i}`} className="mini-card" style={{ padding: '8px 10px', border: `1px solid ${c}55`, borderRadius: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span style={{ color: c, fontWeight: 800, fontSize: 12 }}>{s.label ?? '봉마감 신호'}</span>
+                    <span className="badge" style={{ padding: '1px 6px', fontSize: 10 }}>{strengthKo}</span>
+                    {typeof s.confidence === 'number' && <span className="subtle" style={{ fontSize: 11 }}>{s.confidence}%</span>}
+                  </div>
+                  <div className="subtle" style={{ fontSize: 11, lineHeight: 1.45 }}>{s.detailKo ?? '-'}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {showRisk && (
         <div style={divider}>

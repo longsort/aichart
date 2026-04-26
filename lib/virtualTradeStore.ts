@@ -8,6 +8,7 @@ import { fetchVirtualApi } from '@/lib/fetchVirtualApi';
 
 const STORAGE_KEY = 'ailongshort-virtual-trades';
 const FAILED_SIGNALS_KEY = 'ailongshort-failed-signals';
+const FAILED_CONTEXT_ALLOW_KEY = 'ailongshort-failed-context-allow';
 
 export type VirtualTrade = {
   id: string;
@@ -25,6 +26,16 @@ export type VirtualTrade = {
   pnlPct?: number;
   /** 진입 시 포지션 규모(USDT) — 시드 기반 리스크 5% 산출 */
   positionSizeUsdt?: number;
+  /** 시드 기준 자동 산출 레버리지 */
+  leverage?: number;
+  /** 시드 5% 리스크 금액 */
+  riskAmountUsdt?: number;
+  /** 진입 당시 RR */
+  rr?: number;
+  /** 신호 근거 요약 */
+  signalReasons?: string[];
+  /** 진입 당시 TP/SL 적용 모드 */
+  tpSlMode?: 'auto' | 'manual';
   /** 자율학습용: 실패 시 패턴 특징 해시 */
   patternHash?: string;
 };
@@ -35,6 +46,7 @@ export type FailedSignalRecord = {
   direction: 'LONG' | 'SHORT';
   at: number;
   patternHash: string;
+  contextKey?: string;
 };
 
 let _memoryTrades: VirtualTrade[] | null = null;
@@ -138,6 +150,23 @@ export function computePositionSizeUsdt(seedUsdt: number, entryPrice: number, st
   return riskUsdt / (stopDistPct / 100);
 }
 
+export function computeLeverageFromRisk(seedUsdt: number, entryPrice: number, stopPrice: number): number {
+  const positionSize = computePositionSizeUsdt(seedUsdt, entryPrice, stopPrice);
+  const riskUsdt = seedUsdt * 0.05;
+  if (riskUsdt <= 0 || !isFinite(positionSize) || positionSize <= 0) return 1;
+  // 사용자 요청식: 레버리지 = 포지션규모 / (시드 5% 리스크 금액)
+  return Math.max(1, positionSize / riskUsdt);
+}
+
+export function computeRr(direction: 'LONG' | 'SHORT', entryPrice: number, stopPrice: number, targetPrice: number): number {
+  const risk = Math.abs(entryPrice - stopPrice);
+  const reward = direction === 'LONG'
+    ? Math.abs(targetPrice - entryPrice)
+    : Math.abs(entryPrice - targetPrice);
+  if (!isFinite(risk) || risk <= 0) return 0;
+  return reward / risk;
+}
+
 export function addVirtualTrade(
   trade: Omit<VirtualTrade, 'id' | 'status' | 'positionSizeUsdt'>,
   seedUsdt?: number
@@ -147,7 +176,11 @@ export function addVirtualTrade(
   const positionSizeUsdt = seedUsdt != null && seedUsdt > 0
     ? computePositionSizeUsdt(seedUsdt, trade.entryPrice, trade.stopPrice)
     : undefined;
-  const newTrade: VirtualTrade = { ...trade, id, status: 'open', positionSizeUsdt };
+  const leverage = seedUsdt != null && seedUsdt > 0
+    ? computeLeverageFromRisk(seedUsdt, trade.entryPrice, trade.stopPrice)
+    : undefined;
+  const riskAmountUsdt = seedUsdt != null && seedUsdt > 0 ? seedUsdt * 0.05 : undefined;
+  const newTrade: VirtualTrade = { ...trade, id, status: 'open', positionSizeUsdt, leverage, riskAmountUsdt };
   trades.push(newTrade);
   saveTrades(trades);
   return newTrade;
@@ -184,7 +217,8 @@ export function canEnterNew(symbol: string, timeframe: string): boolean {
 /** 캔들 데이터로 청산 여부 판정 (SL/TP1 우선). entryTime 이후 종료된 캔들만 검사 */
 export function checkPositionOutcome(
   position: VirtualTrade,
-  candles: Candle[]
+  candles: Candle[],
+  targetProfitPct = 5
 ): { status: string; exitPrice: number; exitTime: number; pnlPct: number } | null {
   const future = candles.filter(c => c.time > position.entryTime).sort((a, b) => a.time - b.time);
   if (future.length === 0) return null;
@@ -196,19 +230,35 @@ export function checkPositionOutcome(
   for (const c of future) {
     const { high, low, time } = c;
     if (dir === 'LONG') {
-      if (low <= stop) return { status: 'hit_stop', exitPrice: stop, exitTime: time, pnlPct: ((stop - entry) / entry) * 100 };
-      if (high >= tp1) return { status: 'hit_tp1', exitPrice: tp1, exitTime: time, pnlPct: ((tp1 - entry) / entry) * 100 };
+      if (position.leverage && position.leverage > 0) {
+        const levPnlPctAtHigh = ((high - entry) / entry) * 100 * position.leverage;
+        if (levPnlPctAtHigh >= targetProfitPct) {
+          const requiredSpotPct = targetProfitPct / position.leverage;
+          const exitPrice = entry * (1 + requiredSpotPct / 100);
+          return { status: 'hit_user_tp', exitPrice, exitTime: time, pnlPct: ((exitPrice - entry) / entry) * 100 };
+        }
+      }
+      if (low <= stop) return { status: 'hit_stop', exitPrice: stop, exitTime: time, pnlPct: -Math.abs(((stop - entry) / entry) * 100) };
+      if (high >= tp1) return { status: 'hit_tp1', exitPrice: tp1, exitTime: time, pnlPct: Math.abs(((tp1 - entry) / entry) * 100) };
       const tp2 = position.targetPrices[1];
-      if (tp2 && high >= tp2) return { status: 'hit_tp2', exitPrice: tp2, exitTime: time, pnlPct: ((tp2 - entry) / entry) * 100 };
+      if (tp2 && high >= tp2) return { status: 'hit_tp2', exitPrice: tp2, exitTime: time, pnlPct: Math.abs(((tp2 - entry) / entry) * 100) };
       const tp3 = position.targetPrices[2];
-      if (tp3 && high >= tp3) return { status: 'hit_tp3', exitPrice: tp3, exitTime: time, pnlPct: ((tp3 - entry) / entry) * 100 };
+      if (tp3 && high >= tp3) return { status: 'hit_tp3', exitPrice: tp3, exitTime: time, pnlPct: Math.abs(((tp3 - entry) / entry) * 100) };
     } else {
-      if (high >= stop) return { status: 'hit_stop', exitPrice: stop, exitTime: time, pnlPct: ((entry - stop) / entry) * 100 };
-      if (low <= tp1) return { status: 'hit_tp1', exitPrice: tp1, exitTime: time, pnlPct: ((entry - tp1) / entry) * 100 };
+      if (position.leverage && position.leverage > 0) {
+        const levPnlPctAtLow = ((entry - low) / entry) * 100 * position.leverage;
+        if (levPnlPctAtLow >= targetProfitPct) {
+          const requiredSpotPct = targetProfitPct / position.leverage;
+          const exitPrice = entry * (1 - requiredSpotPct / 100);
+          return { status: 'hit_user_tp', exitPrice, exitTime: time, pnlPct: ((entry - exitPrice) / entry) * 100 };
+        }
+      }
+      if (high >= stop) return { status: 'hit_stop', exitPrice: stop, exitTime: time, pnlPct: -Math.abs(((entry - stop) / entry) * 100) };
+      if (low <= tp1) return { status: 'hit_tp1', exitPrice: tp1, exitTime: time, pnlPct: Math.abs(((entry - tp1) / entry) * 100) };
       const tp2 = position.targetPrices[1];
-      if (tp2 && low <= tp2) return { status: 'hit_tp2', exitPrice: tp2, exitTime: time, pnlPct: ((entry - tp2) / entry) * 100 };
+      if (tp2 && low <= tp2) return { status: 'hit_tp2', exitPrice: tp2, exitTime: time, pnlPct: Math.abs(((entry - tp2) / entry) * 100) };
       const tp3 = position.targetPrices[2];
-      if (tp3 && low <= tp3) return { status: 'hit_tp3', exitPrice: tp3, exitTime: time, pnlPct: ((entry - tp3) / entry) * 100 };
+      if (tp3 && low <= tp3) return { status: 'hit_tp3', exitPrice: tp3, exitTime: time, pnlPct: Math.abs(((entry - tp3) / entry) * 100) };
     }
   }
   return null;
@@ -240,6 +290,41 @@ export function getRecentFailedCount(
   return list.filter(
     f => f.symbol === symbol && f.timeframe === timeframe && f.direction === direction && f.at >= cutoff
   ).length;
+}
+
+/** 동일 컨텍스트 패턴 최근 손절 건수 (시간대/변동성/등급 조합 역필터) */
+export function getRecentFailedPatternCount(
+  patternHash: string,
+  withinHours = 72
+): number {
+  if (!patternHash) return 0;
+  const list = getFailedSignals();
+  const cutoff = Math.floor(Date.now() / 1000) - withinHours * 3600;
+  return list.filter(f => f.patternHash === patternHash && f.at >= cutoff).length;
+}
+
+/** 역필터 예외(수동 허용) 컨텍스트 목록 */
+export function getAllowedFailedContexts(): string[] {
+  return loadFromStorage<string[]>(FAILED_CONTEXT_ALLOW_KEY, []).filter(Boolean);
+}
+
+export function isFailedContextAllowed(context: string): boolean {
+  if (!context) return false;
+  return getAllowedFailedContexts().includes(context);
+}
+
+export function setFailedContextAllowed(context: string, allowed: boolean): string[] {
+  const curr = new Set(getAllowedFailedContexts());
+  if (allowed) curr.add(context);
+  else curr.delete(context);
+  const next = [...curr].slice(-200);
+  saveToStorage(FAILED_CONTEXT_ALLOW_KEY, next);
+  return next;
+}
+
+export function clearAllowedFailedContexts(): string[] {
+  saveToStorage(FAILED_CONTEXT_ALLOW_KEY, []);
+  return [];
 }
 
 /** 자율보정: 최근 손절 3건 이상이면 가상 진입 억제 */

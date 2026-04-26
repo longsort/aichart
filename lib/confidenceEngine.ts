@@ -8,6 +8,8 @@ export type ConfidenceInput = {
   volumeConfirmation?: boolean;
   longScore?: number;
   shortScore?: number;
+  /** AI·고래 모드: 정렬·스프레드 가중 강화 */
+  aiModeMax?: boolean;
 };
 
 export type ConfidenceResult = {
@@ -28,38 +30,39 @@ const GRADE_MAP: Array<{ min: number; grade: string }> = [
 export function computeConfidence(input: ConfidenceInput): ConfidenceResult {
   const riskFlags: string[] = [];
   const conflicts: string[] = [];
-  let confidence = 55;
+  const mx = input.aiModeMax === true;
+  let confidence = mx ? 58 : 55;
 
   if (input.mtfAlignmentScore != null) {
-    if (input.mtfAlignmentScore >= 70) confidence += 12;
-    else if (input.mtfAlignmentScore >= 50) confidence += 5;
+    if (input.mtfAlignmentScore >= 70) confidence += mx ? 16 : 12;
+    else if (input.mtfAlignmentScore >= 50) confidence += mx ? 8 : 5;
     else if (input.mtfAlignmentScore < 40) {
-      confidence -= 8;
+      confidence -= mx ? 12 : 8;
       conflicts.push('MTF 불일치');
     }
   }
 
-  if (input.regimeConsistency === true) confidence += 5;
+  if (input.regimeConsistency === true) confidence += mx ? 6 : 5;
   if (input.signalConflict === true) {
-    confidence -= 10;
+    confidence -= mx ? 12 : 10;
     conflicts.push('신호 충돌');
   }
 
-  if (input.dataQuality === 'full') confidence += 5;
-  else if (input.dataQuality === 'minimal') confidence -= 5;
+  if (input.dataQuality === 'full') confidence += mx ? 6 : 5;
+  else if (input.dataQuality === 'minimal') confidence -= mx ? 6 : 5;
 
-  if (input.patternStrength != null && input.patternStrength > 0.6) confidence += 5;
-  if (input.liquidityAlignment === true) confidence += 4;
-  if (input.volumeConfirmation === true) confidence += 3;
+  if (input.patternStrength != null && input.patternStrength > 0.6) confidence += mx ? 6 : 5;
+  if (input.liquidityAlignment === true) confidence += mx ? 5 : 4;
+  if (input.volumeConfirmation === true) confidence += mx ? 4 : 3;
 
   const spread = Math.abs((input.longScore ?? 50) - (input.shortScore ?? 50));
-  if (spread >= 25) confidence += 5;
+  if (spread >= 25) confidence += mx ? 7 : 5;
   else if (spread < 10) {
-    confidence -= 5;
+    confidence -= mx ? 7 : 5;
     riskFlags.push('롱/숏 점수 근접');
   }
 
-  confidence = Math.max(30, Math.min(95, confidence));
+  confidence = Math.max(mx ? 28 : 30, Math.min(mx ? 97 : 95, confidence));
 
   const grade = GRADE_MAP.find(g => confidence >= g.min)?.grade ?? 'F';
 

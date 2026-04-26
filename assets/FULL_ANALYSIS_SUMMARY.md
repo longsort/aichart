@@ -108,7 +108,7 @@ img353
 | CHART_OVERLAY_KEYS 전체 매핑 | ✅ bos, choch, levelFlips, triangleType, flagType, hsType, harmonicPoints, gannFan, sweep, tailong, futurePath, candlestickPatterns, rsiDivergences, po3Phases 포함 |
 | 샘플 오버레이 JSON | 8개 (img024, 031, 035, 038, 067, 083, 110, 117) |
 | 353개 플레이스홀더 생성 | `node scripts/generate-placeholder-overlays.js` 실행 |
-| Vision 추출 스크립트 | `.env.local`에 `OPENAI_API_KEY` 설정 후 `node scripts/extract-overlays-from-images.js --limit N` |
+| Vision 추출 스크립트 | `OPENAI_API_KEY=xxx node scripts/extract-overlays-from-images.js --limit N` |
 
 ---
 

@@ -4,6 +4,20 @@ import { useState, useRef, useEffect } from 'react';
 import type { AnalyzeResponse } from '@/types';
 import type { ChartSnapshotRef } from './ChartView';
 import { buildBriefingContext } from '@/lib/briefingContext';
+import { isValidOpenAIKeyFormat } from '@/lib/openaiKeyFormat';
+import {
+  getStoredOpenAIKey,
+  setStoredOpenAIKey,
+  getStoredBriefingUser,
+  getStoredBriefingPassword,
+  setStoredBriefingCredentials,
+  getTotalEstimatedCostUsd,
+  addEstimatedCostUsd,
+  hasUsableOpenAIKey,
+  LS_AI_COST_TOTAL,
+  getBriefingLoggedIn,
+  setBriefingLoggedIn,
+} from '@/lib/clientAiCredentials';
 
 const STORAGE_KEY = 'ailongshort-ai-chat-history';
 const MAX_HISTORY = 20;
@@ -46,7 +60,19 @@ export default function AIChatPanel({
   const [useStreaming, setUseStreaming] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [keys, setKeys] = useState<{ openai: boolean; gemini: boolean }>({ openai: false, gemini: false });
+  const [keys, setKeys] = useState<{
+    openai: boolean;
+    gemini: boolean;
+    clientOpenAIAllowed?: boolean;
+    requiresBriefingLogin?: boolean;
+  }>({ openai: false, gemini: false });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [openaiKeyInput, setOpenaiKeyInput] = useState('');
+  const [briefingUser, setBriefingUser] = useState('');
+  const [briefingPassword, setBriefingPassword] = useState('');
+  const [totalCostUsd, setTotalCostUsd] = useState(0);
   type TestStatus = 'idle' | 'testing' | 'ok' | 'fail';
   const [testOpenai, setTestOpenai] = useState<TestStatus>('idle');
   const [testGemini, setTestGemini] = useState<TestStatus>('idle');
@@ -63,7 +89,15 @@ export default function AIChatPanel({
   }, []);
 
   useEffect(() => {
-    fetch('/api/chat-keys').then(r => r.json()).then(setKeys).catch(() => {});
+    fetch('/api/chat-keys', { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(setKeys)
+      .catch(() => {});
+    setOpenaiKeyInput(getStoredOpenAIKey());
+    setBriefingUser(getStoredBriefingUser());
+    setBriefingPassword(getStoredBriefingPassword());
+    setTotalCostUsd(getTotalEstimatedCostUsd());
+    setIsLoggedIn(getBriefingLoggedIn());
   }, []);
 
   useEffect(() => {
@@ -84,10 +118,54 @@ export default function AIChatPanel({
     }
   }, [triggerSendMessage, onTriggerSendConsumed]);
 
+  const openaiReady = hasUsableOpenAIKey(keys.openai) || isValidOpenAIKeyFormat(openaiKeyInput.trim());
   const hasKeyForModel =
-    (model === 'gpt' && keys.openai) ||
+    (model === 'gpt' && openaiReady) ||
     (model === 'gemini' && keys.gemini) ||
-    (model === 'dual' && keys.openai && keys.gemini);
+    (model === 'dual' && openaiReady && keys.gemini);
+
+  const persistAiCredentials = () => {
+    setStoredOpenAIKey(openaiKeyInput);
+    setStoredBriefingCredentials(briefingUser, briefingPassword);
+  };
+
+  const handleLogin = async () => {
+    persistAiCredentials();
+    setLoginError(null);
+    setLoginLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify-briefing', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          briefingLogin: { user: briefingUser.trim(), password: briefingPassword },
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setBriefingLoggedIn(true);
+        setIsLoggedIn(true);
+      } else {
+        setLoginError(data.error || '로그인 실패');
+      }
+    } catch {
+      setLoginError('연결 오류');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    } catch { /* ignore */ }
+    setBriefingLoggedIn(false);
+    setIsLoggedIn(false);
+    setBriefingPassword('');
+    setStoredBriefingCredentials(briefingUser, '');
+    window.location.reload();
+  };
 
   const runTest = async (provider: 'openai' | 'gemini') => {
     if (provider === 'openai') {
@@ -98,7 +176,19 @@ export default function AIChatPanel({
       setTestErrorGemini(null);
     }
     try {
-      const res = await fetch(`/api/chat-test?provider=${provider}`);
+      const res =
+        provider === 'openai'
+          ? await fetch('/api/chat-test', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                provider: 'openai',
+                openaiApiKey: openaiKeyInput.trim() || undefined,
+                briefingLogin: { user: briefingUser.trim(), password: briefingPassword },
+              }),
+            })
+          : await fetch(`/api/chat-test?provider=${provider}`, { credentials: 'same-origin' });
       const data = await res.json();
       if (data.ok) {
         if (provider === 'openai') setTestOpenai('ok');
@@ -123,9 +213,17 @@ export default function AIChatPanel({
     }
   };
 
+  const bumpCostDisplay = (u?: ChatMessage['usage']) => {
+    if (u?.estimatedCost && u.estimatedCost > 0) {
+      addEstimatedCostUsd(u.estimatedCost);
+      setTotalCostUsd(getTotalEstimatedCostUsd());
+    }
+  };
+
   const send = async (overrideMessage?: string) => {
     const text = (overrideMessage ?? input.trim()).trim();
     if (!text || loading || !hasKeyForModel) return;
+    persistAiCredentials();
     if (!overrideMessage) setInput('');
     setError(null);
     const userMsg: ChatMessage = {
@@ -149,6 +247,10 @@ export default function AIChatPanel({
       const endpoint =
         model === 'gpt' ? '/api/chat' : model === 'gemini' ? '/api/chat-gemini' : '/api/chat-dual';
       const streamRequest = (model === 'gpt' || model === 'gemini') && useStreaming && model === 'gpt';
+      const creds = {
+        openaiApiKey: getStoredOpenAIKey() || undefined,
+        briefingLogin: { user: getStoredBriefingUser().trim(), password: getStoredBriefingPassword() },
+      };
       const body = {
         message: text,
         symbol,
@@ -158,10 +260,12 @@ export default function AIChatPanel({
         includeChartContext: true,
         chartImage,
         recentMessages,
+        ...creds,
         ...(streamRequest ? { stream: true } : {}),
       };
       const res = await fetch(endpoint, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -190,7 +294,10 @@ export default function AIChatPanel({
             } catch {}
           }
         }
-        if (usage) setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, usage } : m));
+        if (usage) {
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, usage } : m));
+          bumpCostDisplay(usage);
+        }
         setLoading(false);
         return;
       }
@@ -236,6 +343,7 @@ export default function AIChatPanel({
             : undefined,
         };
         setMessages(prev => [...prev, assistantMsg]);
+        bumpCostDisplay(assistantMsg.usage);
       } else {
         const assistantMsg: ChatMessage = {
           id: `a-${Date.now()}`,
@@ -245,6 +353,7 @@ export default function AIChatPanel({
           usage: d.usage as ChatMessage['usage'],
         };
         setMessages(prev => [...prev, assistantMsg]);
+        bumpCostDisplay(assistantMsg.usage);
       }
     } catch (e: any) {
       const msg = e?.message || '오류';
@@ -264,11 +373,157 @@ export default function AIChatPanel({
       setLoading(false);
     }
   };
-  useEffect(() => { sendRef.current = send; }, [send]);
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
+
+  const needsLogin = keys.requiresBriefingLogin && !isLoggedIn;
+
+  if (needsLogin) {
+    return (
+      <div className="card panel-pad">
+        <div className="section-title">AI 대화</div>
+        <div
+          style={{
+            marginTop: 12,
+            padding: 16,
+            background: 'var(--panel2)',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 12, color: 'var(--text)' }}>로그인이 필요합니다</div>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 8 }}>
+            아이디
+            <input
+              type="text"
+              value={briefingUser}
+              onChange={e => setBriefingUser(e.target.value)}
+              placeholder="ID"
+              className="select-pill"
+              style={{ width: '100%', marginTop: 4, fontSize: 13 }}
+              autoComplete="username"
+            />
+          </label>
+          <label style={{ display: 'block', fontSize: 12, marginBottom: 12 }}>
+            비밀번호
+            <input
+              type="password"
+              value={briefingPassword}
+              onChange={e => setBriefingPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              placeholder="비밀번호"
+              className="select-pill"
+              style={{ width: '100%', marginTop: 4, fontSize: 13 }}
+              autoComplete="current-password"
+            />
+          </label>
+          {loginError && <div style={{ color: '#ff7b7b', fontSize: 12, marginBottom: 8 }}>{loginError}</div>}
+          <button
+            type="button"
+            className="tool-chip tool-chip-button"
+            onClick={handleLogin}
+            disabled={loginLoading || !briefingUser.trim() || !briefingPassword}
+          >
+            {loginLoading ? '로그인 중…' : '로그인'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card panel-pad">
-      <div className="section-title">AI Chat</div>
+      <div className="section-title">AI 대화</div>
+      <div
+        className="subtle"
+        style={{
+          fontSize: 11,
+          marginTop: 4,
+          padding: 10,
+          background: 'var(--panel2)',
+          borderRadius: 8,
+          border: '1px solid var(--border)',
+          lineHeight: 1.45,
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text)' }}>API 키 · {isLoggedIn ? '로그인됨' : '설정'}</div>
+        {isLoggedIn ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: 'var(--accent)' }}>로그인됨</span>
+            <button type="button" className="tool-chip tool-chip-button" style={{ fontSize: 10 }} onClick={handleLogout}>
+              로그아웃
+            </button>
+          </div>
+        ) : (
+          <>
+            <label style={{ display: 'block', fontSize: 11, marginBottom: 4 }}>
+              앱 로그인 ID
+              <input
+                type="text"
+                value={briefingUser}
+                onChange={e => setBriefingUser(e.target.value)}
+                onBlur={() => setStoredBriefingCredentials(briefingUser, briefingPassword)}
+                placeholder="ID"
+                className="select-pill"
+                style={{ width: '100%', marginTop: 4, fontSize: 12 }}
+                autoComplete="username"
+              />
+            </label>
+            <label style={{ display: 'block', fontSize: 11, marginBottom: 6 }}>
+              앱 로그인 비밀번호
+              <input
+                type="password"
+                value={briefingPassword}
+                onChange={e => setBriefingPassword(e.target.value)}
+                onBlur={() => setStoredBriefingCredentials(briefingUser, briefingPassword)}
+                placeholder="비밀번호"
+                className="select-pill"
+                style={{ width: '100%', marginTop: 4, fontSize: 12 }}
+                autoComplete="current-password"
+              />
+            </label>
+            <button type="button" className="tool-chip tool-chip-button" style={{ marginBottom: 8 }} onClick={handleLogin} disabled={loginLoading || !briefingUser.trim() || !briefingPassword}>
+              {loginLoading ? '로그인 중…' : '로그인'}
+            </button>
+            {loginError && <div style={{ color: '#ff7b7b', fontSize: 11, marginBottom: 8 }}>{loginError}</div>}
+          </>
+        )}
+        <label style={{ display: 'block', fontSize: 11, marginBottom: 6 }}>
+          OpenAI API 키 {keys.openai ? '(서버 키 사용 중, 대체용)' : '(필수)'}
+          <input
+            type="password"
+            value={openaiKeyInput}
+            onChange={e => setOpenaiKeyInput(e.target.value)}
+            onBlur={() => setStoredOpenAIKey(openaiKeyInput)}
+            placeholder="sk-..."
+            className="select-pill"
+            style={{ width: '100%', marginTop: 4, fontSize: 12 }}
+            autoComplete="off"
+          />
+        </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+          <span>
+            누적 예상 비용: <strong style={{ color: 'var(--accent)' }}>${totalCostUsd.toFixed(4)}</strong> (USD)
+          </span>
+          <button
+            type="button"
+            className="tool-chip tool-chip-button"
+            style={{ fontSize: 10 }}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.localStorage.removeItem(LS_AI_COST_TOTAL);
+                setTotalCostUsd(0);
+              }
+            }}
+          >
+            비용 초기화
+          </button>
+        </div>
+        <div style={{ marginTop: 6, opacity: 0.85 }}>
+          토큰당 요금은 gpt-4o-mini / Gemini Flash 기준 추정치입니다. 실제 청구는 OpenAI·Google 콘솔을 확인하세요.
+        </div>
+      </div>
       <div className="select-row" style={{ marginTop: 8 }}>
         {(['gpt', 'gemini', 'dual'] as const).map(m => (
           <button
@@ -277,7 +532,17 @@ export default function AIChatPanel({
             className={`tool-chip tool-chip-button ${model === m ? 'tool-chip-active' : ''}`}
             onClick={() => setModel(m)}
           >
-            {m === 'gpt' ? (keys.openai ? 'GPT' : 'GPT (not set)') : m === 'gemini' ? (keys.gemini ? 'Gemini' : 'Gemini (not set)') : (keys.openai && keys.gemini ? 'Dual' : 'Dual (key missing)')}
+            {m === 'gpt'
+              ? openaiReady
+                ? 'GPT'
+                : 'GPT (키 필요)'
+              : m === 'gemini'
+                ? keys.gemini
+                  ? 'Gemini'
+                  : 'Gemini (설정 안됨)'
+                : openaiReady && keys.gemini
+                  ? '듀얼'
+                  : '듀얼 (키 없음)'}
           </button>
         ))}
       </div>
@@ -383,7 +648,7 @@ export default function AIChatPanel({
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-          placeholder={!hasKeyForModel ? 'API 키를 설정한 뒤 사용하세요' : '질문 입력...'}
+          placeholder={!hasKeyForModel ? 'OpenAI 키·로그인 또는 서버 키를 확인하세요' : '질문 입력...'}
           className="select-pill"
           style={{ flex: 1 }}
           disabled={loading || !hasKeyForModel}

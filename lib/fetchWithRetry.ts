@@ -14,8 +14,10 @@ export async function fetchWithRetry(
       const shouldRetry = !res.ok && res.status >= 500 && attempt < retries;
       if (!shouldRetry) return res;
       lastError = new Error(`HTTP ${res.status}`);
-    } catch (e) {
+    } catch (e: unknown) {
       lastError = e;
+      const name = e && typeof e === 'object' && 'name' in e ? String((e as { name?: string }).name) : '';
+      if (name === 'AbortError') throw e;
     }
     if (attempt < retries) await new Promise(r => setTimeout(r, delayMs));
   }

@@ -1,0 +1,4 @@
+Quick verify:
+- Open lib/ui/widgets/future_wave_panel.dart
+- Search for: "bool _loadingLog"
+If present, hotfix is applied.

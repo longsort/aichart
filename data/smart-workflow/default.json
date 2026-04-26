@@ -1,0 +1,6232 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776778533446,
+    "score": 45,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776778540869,
+    "score": 48,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776778545426,
+    "score": 51,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1776778562640,
+    "score": 40,
+    "probabilityEdge": -80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "state": "IDLE",
+    "at": 1776778575272,
+    "score": 47,
+    "probabilityEdge": 76
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "INVALID",
+    "at": 1776778577773,
+    "score": 45,
+    "probabilityEdge": -80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776778587573,
+    "score": 61,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776778595260,
+    "score": 51,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776778601210,
+    "score": 58,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1776778609709,
+    "score": 38,
+    "probabilityEdge": 78
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "state": "IDLE",
+    "at": 1776778611780,
+    "score": 42,
+    "probabilityEdge": 0
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1Y",
+    "state": "IDLE",
+    "at": 1776778612263,
+    "score": 29,
+    "probabilityEdge": 72
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776778736054,
+    "score": 61,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776778758102,
+    "score": 51,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776778812821,
+    "score": 47,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776778848093,
+    "score": 61,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776778893630,
+    "score": 51,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776778894472,
+    "score": 61,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776778905559,
+    "score": 51,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776778927862,
+    "score": 54,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776778937703,
+    "score": 61,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776778967245,
+    "score": 51,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776778983124,
+    "score": 61,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776779026884,
+    "score": 51,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776779028544,
+    "score": 61,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776779054092,
+    "score": 51,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776779160695,
+    "score": 61,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776779188401,
+    "score": 51,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776779190349,
+    "score": 58,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776779206141,
+    "score": 51,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776779212604,
+    "score": 61,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776779213745,
+    "score": 51,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776779254799,
+    "score": 61,
+    "probabilityEdge": 92
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776779265511,
+    "score": 51,
+    "probabilityEdge": 80
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776779433437,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776779400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776779482882,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776779460
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776779756235,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776779762423,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776779845745,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776779859896,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776779863735,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776776400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776779892232,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776776400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776780193491,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776780267682,
+    "score": 65,
+    "probabilityEdge": 80,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776780268284,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776780268649,
+    "score": 65,
+    "probabilityEdge": 92,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776780284704,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776780310315,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776780322159,
+    "score": 49,
+    "probabilityEdge": 92,
+    "signalTime": 1776780300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776780329302,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776780502256,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776780509365,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776780521864,
+    "score": 54,
+    "probabilityEdge": 80,
+    "signalTime": 1776780480
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776780525224,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776780528340,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776780541050,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776780554500,
+    "score": 65,
+    "probabilityEdge": 92,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776780567207,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776780683368,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776780742119,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776780921598,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776780000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776781042634,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776772800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776781280071,
+    "score": 52,
+    "probabilityEdge": 92,
+    "signalTime": 1776781260
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776781302202,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776781260
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776781329472,
+    "score": 52,
+    "probabilityEdge": 80,
+    "signalTime": 1776781320
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776781379817,
+    "score": 63,
+    "probabilityEdge": 80,
+    "signalTime": 1776781320
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776781502484,
+    "score": 52,
+    "probabilityEdge": 92,
+    "signalTime": 1776781440
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776781570742,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776781500
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776859101057,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776859080
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776859103585,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776855600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776859108202,
+    "score": 48,
+    "probabilityEdge": 0,
+    "signalTime": 1776857700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1776859112650,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776858300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776859114601,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776859080
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776859166508,
+    "score": 52,
+    "probabilityEdge": 80,
+    "signalTime": 1776859140
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776859220168,
+    "score": 59,
+    "probabilityEdge": 80,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776859279356,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776859339798,
+    "score": 63,
+    "probabilityEdge": 80,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "SETUP",
+    "at": 1776859467024,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776859479977,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776859440
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776859599875,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776859795843,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776859802075,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776859811684,
+    "score": 51,
+    "probabilityEdge": 0,
+    "signalTime": 1776859800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776860001913,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1776860504125,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776860460
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776860519894,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776860646706,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776859200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776860767157,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776860700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776861004377,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776860940
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1776861097631,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776861000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1776861625730,
+    "score": 58,
+    "probabilityEdge": -72,
+    "signalTime": 1776861600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "SETUP",
+    "at": 1776861627810,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776861000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776862876363,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776862800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1776862884425,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776862800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776863020383,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776862800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "SETUP",
+    "at": 1776863227515,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776862800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776863830418,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776863760
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776863833262,
+    "score": 61,
+    "probabilityEdge": 0,
+    "signalTime": 1776863700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776863948849,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776863880
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1776863952762,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776863700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1776864070944,
+    "score": 62,
+    "probabilityEdge": -72,
+    "signalTime": 1776864000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "SETUP",
+    "at": 1776864071904,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776863700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776864428416,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776864360
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776864431043,
+    "score": 51,
+    "probabilityEdge": 0,
+    "signalTime": 1776864300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776864511901,
+    "score": 55,
+    "probabilityEdge": 0,
+    "signalTime": 1776864300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776864578449,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776864540
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776864690325,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776864660
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776864693837,
+    "score": 51,
+    "probabilityEdge": 0,
+    "signalTime": 1776864600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776864788553,
+    "score": 55,
+    "probabilityEdge": 0,
+    "signalTime": 1776864600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776864791223,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776864780
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776865023093,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776864960
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776865048952,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776865020
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776865056078,
+    "score": 51,
+    "probabilityEdge": 0,
+    "signalTime": 1776864900
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "state": "SETUP",
+    "at": 1776865101838,
+    "score": 54,
+    "probabilityEdge": 52,
+    "signalTime": 1776816000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776865108394,
+    "score": 55,
+    "probabilityEdge": 0,
+    "signalTime": 1776864900
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776865110990,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776865080
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "state": "IDLE",
+    "at": 1776865113705,
+    "score": 47,
+    "probabilityEdge": 52,
+    "signalTime": 1776816000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "SETUP",
+    "at": 1776865117169,
+    "score": 49,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1776865126967,
+    "score": 38,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "state": "SETUP",
+    "at": 1776865136215,
+    "score": 53,
+    "probabilityEdge": 0,
+    "signalTime": 1775001600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "state": "IDLE",
+    "at": 1776865149374,
+    "score": 42,
+    "probabilityEdge": 0,
+    "signalTime": 1775001600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "state": "SETUP",
+    "at": 1776865158611,
+    "score": 53,
+    "probabilityEdge": 72,
+    "signalTime": 1775001600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "state": "IDLE",
+    "at": 1776865197341,
+    "score": 42,
+    "probabilityEdge": 0,
+    "signalTime": 1775001600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776865693818,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776865680
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776865806288,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776865800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776866887590,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776866880
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776867022154,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776867000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776867795750,
+    "score": 52,
+    "probabilityEdge": 92,
+    "signalTime": 1776867780
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776867910892,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776867900
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776868630198,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776868500
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776868632549,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1776868560
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776868728159,
+    "score": 59,
+    "probabilityEdge": 80,
+    "signalTime": 1776868500
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776868736117,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776868680
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776868815835,
+    "score": 46,
+    "probabilityEdge": 80,
+    "signalTime": 1776868800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1776868822866,
+    "score": 62,
+    "probabilityEdge": -74,
+    "signalTime": 1776868800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1776871163019,
+    "score": 40,
+    "probabilityEdge": 52,
+    "signalTime": 1776871140
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1776871168551,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776870900
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776871283774,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776871200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776871287440,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776871200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "SETUP",
+    "at": 1776871288893,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776870900
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776871408204,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776871200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776871523517,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776871500
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776872004922,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776871920
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1776872126774,
+    "score": 62,
+    "probabilityEdge": -72,
+    "signalTime": 1776872100
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1776872483124,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776872400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776872485123,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776872400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776872602647,
+    "score": 54,
+    "probabilityEdge": 52,
+    "signalTime": 1776872580
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1776872605420,
+    "score": 62,
+    "probabilityEdge": -72,
+    "signalTime": 1776872400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1776873559475,
+    "score": 45,
+    "probabilityEdge": 72,
+    "signalTime": 1776873540
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776873630180,
+    "score": 47,
+    "probabilityEdge": 52,
+    "signalTime": 1776873600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776944014090,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776944021185,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "INVALID",
+    "at": 1776944027625,
+    "score": 46,
+    "probabilityEdge": -80,
+    "signalTime": 1776943800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776944043601,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776944129020,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776944130157,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776944135162,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776944143222,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776945202992,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776945205065,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776945305015,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776945306132,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776945306541,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776945323313,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776945334945,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776945341596,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776945350567,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776945368266,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776945368833,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776945370203,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776945383348,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776945383946,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776945385028,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776945438954,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776931200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776945646295,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776945707591,
+    "score": 54,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776945708146,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776946194636,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776946498503,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776946641327,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776946666819,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776946685435,
+    "score": 56,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776946700517,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776946730450,
+    "score": 56,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776946762706,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947111539,
+    "score": 59,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947157158,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947157957,
+    "score": 59,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947181775,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947203066,
+    "score": 56,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947216465,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947302111,
+    "score": 59,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947309657,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947337436,
+    "score": 56,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947362557,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947381337,
+    "score": 59,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776947395603,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947396166,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947426459,
+    "score": 56,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947456237,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947472425,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947481095,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947518572,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947542290,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947661609,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947664123,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947698328,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947725077,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776947898009,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776947900629,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776948124124,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776948125779,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776948140431,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776948154991,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776948155354,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776948171319,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776948172375,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776948189135,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776948190564,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776948190845,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776948560078,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776948840030,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776948845647,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776948979669,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776949190648,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1776949195943,
+    "score": 37,
+    "probabilityEdge": 80,
+    "signalTime": 1776949140
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776949264498,
+    "score": 56,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776949273778,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776949274623,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776949283235,
+    "score": 37,
+    "probabilityEdge": 52,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776949290026,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776949292324,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776949308892,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776949311740,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776949312389,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776949328165,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776949339655,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949654872,
+    "score": 52,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949656551,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949711598,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949717967,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949719485,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949742199,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949742730,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949748038,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949786032,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949807904,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949830996,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949842358,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949842779,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949858743,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949859573,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949867660,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949875234,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949892581,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776949896051,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776949860
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1776949901062,
+    "score": 47,
+    "probabilityEdge": 52,
+    "signalTime": 1776949800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949901682,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949928274,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776949938178,
+    "score": 52,
+    "probabilityEdge": 80,
+    "signalTime": 1776949920
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776949997545,
+    "score": 52,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776949998066,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776950000898,
+    "score": 53,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1776950015322,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776949980
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776950017052,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776950018161,
+    "score": 52,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776950030324,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776950030869,
+    "score": 52,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776950048133,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776950050449,
+    "score": 49,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776950063896,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776950095612,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776950118806,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776950141460,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776950173901,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776950100
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776950179138,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776950184447,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776950228846,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776950229883,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776950358743,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776950364349,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776950408947,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776950409860,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776950416512,
+    "score": 47,
+    "probabilityEdge": 0,
+    "signalTime": 1776950340
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776950424956,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776950479634,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776950719678,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776951191211,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776951194734,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776951198294,
+    "score": 62,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776951210014,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776951225842,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776951241914,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776951242842,
+    "score": 49,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776951258850,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776951276757,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776951318041,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1776951240
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776951558101,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1776951480
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776951682516,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1776951660
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1776952088193,
+    "score": 49,
+    "probabilityEdge": 80,
+    "signalTime": 1776952080
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952099257,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952101227,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776952105273,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776952080
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952128557,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952129128,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952129503,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952141702,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952220243,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776952252918,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1776952200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952261420,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952267467,
+    "score": 56,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952309338,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952309850,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776952324910,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776949200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952325430,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952509709,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1776952518284,
+    "score": 45,
+    "probabilityEdge": -78,
+    "signalTime": 1776952500
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952520932,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952531364,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952536747,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1776952789890,
+    "score": 59,
+    "probabilityEdge": 80,
+    "signalTime": 1776952740
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952796836,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952807801,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952829611,
+    "score": 56,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952842603,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952873914,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952907356,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776952918828,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776952967684,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776953163519,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776952800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776953165939,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776952800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1776953186741,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776953189931,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1776952800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776953190586,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776952800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1776953196250,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776953160
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1776953203154,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1776945600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776954559610,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776952800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1776954619510,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1776952800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1776954679496,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1776952800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777072495884,
+    "score": 58,
+    "probabilityEdge": -80,
+    "signalTime": 1777072440
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777072505500,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777060800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1777072535987,
+    "score": 46,
+    "probabilityEdge": -80,
+    "signalTime": 1777072200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777072574187,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777060800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "3m",
+    "state": "IDLE",
+    "at": 1777072710123,
+    "score": 32,
+    "probabilityEdge": 52,
+    "signalTime": 1777072680
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777072890397,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777071600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777073329686,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777060800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777073330804,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777060800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777073816480,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777071600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777074056514,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777071600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777074176475,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777071600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777075256675,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777075376450,
+    "score": 54,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777075377166,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777075557008,
+    "score": 45,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777075557633,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076215287,
+    "score": 56,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076218064,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076243831,
+    "score": 56,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076258887,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076288831,
+    "score": 56,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076318899,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076502943,
+    "score": 59,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076503189,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076541294,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076587031,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076590150,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076618794,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076629259,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076684869,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076690361,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076690833,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076719551,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076739007,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076765676,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076884278,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076965364,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777076989357,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777076990258,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777076998270,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777077009357,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777077409826,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777077417693,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777077578365,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777077580380,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777077597605,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777077598385,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777077813408,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777077852321,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777078146611,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777078206739,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777079270697,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777078800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777079619078,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777078800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777079732175,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777079761272,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777079975484,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "state": "SETUP",
+    "at": 1777079983654,
+    "score": 53,
+    "probabilityEdge": 76,
+    "signalTime": 1775001600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "state": "IDLE",
+    "at": 1777079984204,
+    "score": 42,
+    "probabilityEdge": 0,
+    "signalTime": 1775001600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777080007235,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "state": "SETUP",
+    "at": 1777080120454,
+    "score": 49,
+    "probabilityEdge": 0,
+    "signalTime": 1775001600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "state": "IDLE",
+    "at": 1777080154357,
+    "score": 42,
+    "probabilityEdge": 0,
+    "signalTime": 1775001600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "SETUP",
+    "at": 1777080609480,
+    "score": 45,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1777080653882,
+    "score": 38,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "SETUP",
+    "at": 1777080654349,
+    "score": 49,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1777080702029,
+    "score": 38,
+    "probabilityEdge": 62,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777081245978,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777081252380,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777081582134,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777081587436,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777082009366,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777082029580,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777082355812,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777082361517,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "SETUP",
+    "at": 1777082522566,
+    "score": 49,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1777082546142,
+    "score": 38,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1777083713912,
+    "score": 65,
+    "probabilityEdge": 0,
+    "signalTime": 1777083660
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777083766753,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777083771308,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777083776562,
+    "score": 55,
+    "probabilityEdge": 0,
+    "signalTime": 1777083720
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777083785912,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777083786242,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777083815639,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777083830007,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777083831237,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777083831974,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777083844656,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777083862664,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777083863031,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1777083884131,
+    "score": 65,
+    "probabilityEdge": 0,
+    "signalTime": 1777083240
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777083893138,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777084107177,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777084125158,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777084127824,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777084141510,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777084142658,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777084148769,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "SETUP",
+    "at": 1777084159865,
+    "score": 49,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1777084176035,
+    "score": 38,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "SETUP",
+    "at": 1777084201382,
+    "score": 49,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1777084454683,
+    "score": 38,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "SETUP",
+    "at": 1777084455142,
+    "score": 49,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1777084458375,
+    "score": 38,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "SETUP",
+    "at": 1777084459285,
+    "score": 49,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1777084588610,
+    "score": 38,
+    "probabilityEdge": 62,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777084607090,
+    "score": 55,
+    "probabilityEdge": 0,
+    "signalTime": 1777084560
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777084721612,
+    "score": 55,
+    "probabilityEdge": -72,
+    "signalTime": 1777084620
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777085425186,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777085430025,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "state": "SETUP",
+    "at": 1777085525174,
+    "score": 58,
+    "probabilityEdge": 52,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "state": "IDLE",
+    "at": 1777085570521,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777085573452,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777085624382,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1777085811915,
+    "score": 58,
+    "probabilityEdge": 0,
+    "signalTime": 1777085700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777085812713,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777085816636,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777085833439,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777085861915,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777085877667,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777085893618,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777085894013,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777085920702,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777085923096,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777085933968,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086067306,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086068641,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086071627,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086073002,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086073901,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086096732,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086097474,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086097714,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086101971,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086102294,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086105691,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086167723,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1777086238930,
+    "score": 65,
+    "probabilityEdge": 0,
+    "signalTime": 1777086000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1777086240778,
+    "score": 58,
+    "probabilityEdge": 0,
+    "signalTime": 1777086000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086241329,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086253055,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086268992,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086269573,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086283637,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086328409,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086329075,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086343686,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "INVALID",
+    "at": 1777086375161,
+    "score": 50,
+    "probabilityEdge": -92,
+    "signalTime": 1777086000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1777086384279,
+    "score": 54,
+    "probabilityEdge": 52,
+    "signalTime": 1777086300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086384683,
+    "score": 60,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086403653,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086420404,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086449994,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086491046,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086507701,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777086509336,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777086510062,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1777086577285,
+    "score": 65,
+    "probabilityEdge": 0,
+    "signalTime": 1777086480
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777086624865,
+    "score": 48,
+    "probabilityEdge": 0,
+    "signalTime": 1777086600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1777087198806,
+    "score": 47,
+    "probabilityEdge": -80,
+    "signalTime": 1777086300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777087199611,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777087203382,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777087360479,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777087363119,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1777087914657,
+    "score": 58,
+    "probabilityEdge": 0,
+    "signalTime": 1777087800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777087925982,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777087941476,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088225011,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777088246379,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088246996,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777088306329,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088321030,
+    "score": 61,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777088336854,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088352683,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777088410691,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088515797,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777088517984,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088734114,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777088736407,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088737317,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777088744026,
+    "score": 58,
+    "probabilityEdge": 0,
+    "signalTime": 1777088700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "INVALID",
+    "at": 1777088745732,
+    "score": 50,
+    "probabilityEdge": -92,
+    "signalTime": 1777088700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777088753003,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088754918,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777088755158,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088867818,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777088926756,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777088988006,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777089015008,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777089147770,
+    "score": 51,
+    "probabilityEdge": -92,
+    "signalTime": 1777089120
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "3m",
+    "state": "INVALID",
+    "at": 1777089354659,
+    "score": 37,
+    "probabilityEdge": -92,
+    "signalTime": 1777089240
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777089733746,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777089750738,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777089767619,
+    "score": 61,
+    "probabilityEdge": 92,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777090032044,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777090039058,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777090207121,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777090207362,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777090266879,
+    "score": 54,
+    "probabilityEdge": 80,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777090267115,
+    "score": 58,
+    "probabilityEdge": 80,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "SETUP",
+    "at": 1777091436256,
+    "score": 49,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "state": "IDLE",
+    "at": 1777091455334,
+    "score": 38,
+    "probabilityEdge": 52,
+    "signalTime": 1776643200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "state": "SETUP",
+    "at": 1777091474325,
+    "score": 58,
+    "probabilityEdge": 52,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "state": "IDLE",
+    "at": 1777091490286,
+    "score": 47,
+    "probabilityEdge": 52,
+    "signalTime": 1777075200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777092906883,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777093231715,
+    "score": 45,
+    "probabilityEdge": 92,
+    "signalTime": 1777093200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777093775077,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777093791076,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777093792585,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777093792841,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777093809044,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777093823432,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777095351066,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777093200
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777096911549,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1777089600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777104049346,
+    "score": 45,
+    "probabilityEdge": 80,
+    "signalTime": 1777104000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777104050011,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1777104000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777104089978,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1777104000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777104093512,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1777104000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1777172541477,
+    "score": 54,
+    "probabilityEdge": 80,
+    "signalTime": 1777172520
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777172542375,
+    "score": 39,
+    "probabilityEdge": 64,
+    "signalTime": 1777172400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777172542825,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777172547117,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777172552219,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777172676683,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777172717970,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777173069871,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777173084622,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777173086738,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777173088032,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777173367857,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777173370987,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777173372652,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777173388872,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777173389581,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777173405217,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777173406118,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777173423446,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777173428944,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777173474266,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777173573910,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777173540
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777173596034,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777173610536,
+    "score": 47,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1777174006187,
+    "score": 59,
+    "probabilityEdge": 92,
+    "signalTime": 1777173960
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777174034963,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777174037171,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777174048927,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777174078878,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777174079623,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777174139269,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777174173701,
+    "score": 45,
+    "probabilityEdge": 80,
+    "signalTime": 1777174140
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1777174425983,
+    "score": 54,
+    "probabilityEdge": 92,
+    "signalTime": 1777174380
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777174574086,
+    "score": 45,
+    "probabilityEdge": 80,
+    "signalTime": 1777174560
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777174910320,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777174968472,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1777161600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777176220028,
+    "score": 54,
+    "probabilityEdge": 80,
+    "signalTime": 1777176000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777187322870,
+    "score": 32,
+    "probabilityEdge": 80,
+    "signalTime": 1777187280
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777187914340,
+    "score": 60,
+    "probabilityEdge": 52,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777187927900,
+    "score": 46,
+    "probabilityEdge": 52,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777187955158,
+    "score": 56,
+    "probabilityEdge": 52,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777187969093,
+    "score": 46,
+    "probabilityEdge": 52,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777188598860,
+    "score": 40,
+    "probabilityEdge": 52,
+    "signalTime": 1777188540
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1777188838891,
+    "score": 47,
+    "probabilityEdge": 0,
+    "signalTime": 1777188600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777189395809,
+    "score": 60,
+    "probabilityEdge": 52,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777189404198,
+    "score": 46,
+    "probabilityEdge": 64,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777189406286,
+    "score": 56,
+    "probabilityEdge": 52,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777189409181,
+    "score": 46,
+    "probabilityEdge": 64,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777189411464,
+    "score": 56,
+    "probabilityEdge": 52,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777189469217,
+    "score": 46,
+    "probabilityEdge": 64,
+    "signalTime": 1777186800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777190644011,
+    "score": 60,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777190648757,
+    "score": 46,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777190651406,
+    "score": 56,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777190674319,
+    "score": 46,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777190682052,
+    "score": 60,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777190704786,
+    "score": 46,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777190707100,
+    "score": 60,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777190710058,
+    "score": 46,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777190716404,
+    "score": 60,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777190718584,
+    "score": 46,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777190724751,
+    "score": 60,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777190786286,
+    "score": 46,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777190905791,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777191134487,
+    "score": 47,
+    "probabilityEdge": 78,
+    "signalTime": 1777191120
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777191196027,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777191196359,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777191213004,
+    "score": 56,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777191228601,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777191229361,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777191246212,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777191247114,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777191263986,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777191455737,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1777191457462,
+    "score": 63,
+    "probabilityEdge": 80,
+    "signalTime": 1777191420
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777191461639,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777191594919,
+    "score": 52,
+    "probabilityEdge": 92,
+    "signalTime": 1777191540
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777192233976,
+    "score": 53,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777192253947,
+    "score": 43,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777192279944,
+    "score": 57,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777192313611,
+    "score": 43,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777192324545,
+    "score": 57,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777192337174,
+    "score": 43,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777192340034,
+    "score": 53,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "SETUP",
+    "at": 1777192374857,
+    "score": 63,
+    "probabilityEdge": 92,
+    "signalTime": 1777192320
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777192379971,
+    "score": 43,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777192384936,
+    "score": 53,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777192397204,
+    "score": 43,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777192444484,
+    "score": 53,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777192500837,
+    "score": 43,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777192501063,
+    "score": 55,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777192524479,
+    "score": 60,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777192538202,
+    "score": 46,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777192571946,
+    "score": 56,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777192588746,
+    "score": 46,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777192960744,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777193018154,
+    "score": 48,
+    "probabilityEdge": 92,
+    "signalTime": 1777192980
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "SETUP",
+    "at": 1777193796286,
+    "score": 53,
+    "probabilityEdge": 52,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1777193819791,
+    "score": 43,
+    "probabilityEdge": 64,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777194624102,
+    "score": 34,
+    "probabilityEdge": 52,
+    "signalTime": 1777194420
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777194689437,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777194720052,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777194720876,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777194733288,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777194735647,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777194753021,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777194753486,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777194771294,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777194777604,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777194794027,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777194795285,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777194879288,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777195036402,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777195097074,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777195296755,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777195308540,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777195312524,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777195322844,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777195350753,
+    "score": 62,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777195363896,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777195778968,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777195839280,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777195899445,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777196322338,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777196753365,
+    "score": 32,
+    "probabilityEdge": 80,
+    "signalTime": 1777196700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777196764064,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777196776084,
+    "score": 39,
+    "probabilityEdge": 52,
+    "signalTime": 1777196760
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777196789908,
+    "score": 51,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777196800409,
+    "score": 58,
+    "probabilityEdge": 92,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777196801309,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777197051468,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777197877999,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777197938239,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1777190400
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1777199341705,
+    "score": 32,
+    "probabilityEdge": 52,
+    "signalTime": 1777199280
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1777199702837,
+    "score": 42,
+    "probabilityEdge": 52,
+    "signalTime": 1777199640
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777204838289,
+    "score": 49,
+    "probabilityEdge": 80,
+    "signalTime": 1777204800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777205258236,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1777204800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777205378261,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777204800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777206218284,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1777204800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777206278301,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777204800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "SETUP",
+    "at": 1777206818184,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1777204800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "state": "IDLE",
+    "at": 1777207298649,
+    "score": 51,
+    "probabilityEdge": 80,
+    "signalTime": 1777204800
+  }
+]

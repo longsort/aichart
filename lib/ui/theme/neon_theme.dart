@@ -1,0 +1,69 @@
+
+import 'package:flutter/material.dart';
+
+class NeonColors {
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color panel;
+  final Color panel2;
+  final Color body;
+  final Color small;
+  final Color shadow;
+
+  NeonColors({
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.panel,
+    required this.panel2,
+    required this.body,
+    required this.small,
+    required this.shadow,
+  });
+
+  factory NeonColors.dark() => NeonColors(
+        textPrimary: Colors.white,
+        textSecondary: Colors.white70,
+        panel: const Color(0xFF121826),
+        panel2: const Color(0xFF1A2238),
+        body: const Color(0xFF0B1020),
+        small: Colors.white60,
+        shadow: Colors.black54,
+      );
+}
+
+class NeonTheme extends InheritedWidget {
+  final NeonColors colors;
+
+  const NeonTheme({
+    Key? key,
+    required this.colors,
+    required Widget child,
+  }) : super(key: key, child: child);
+
+  static NeonTheme of(BuildContext context) {
+    final NeonTheme? result =
+        context.dependOnInheritedWidgetOfExactType<NeonTheme>();
+    assert(result != null, 'NeonTheme not found in context');
+    return result!;
+  }
+
+  @override
+  bool updateShouldNotify(covariant NeonTheme oldWidget) => false;
+}
+
+extension NeonThemeGetters on NeonTheme {
+  Color get textPrimary => colors.textPrimary;
+  Color get textSecondary => colors.textSecondary;
+  Color get panel => colors.panel;
+  Color get panel2 => colors.panel2;
+  Color get body => colors.body;
+  Color get small => colors.small;
+  Color get shadow => colors.shadow;
+
+  /// êµ¬ë²„???¸í™˜???¼ì¸/ê²½ê³„????
+  /// ?¼ë? UI ì½”ë“œ?ì„œ `t.line` ??ì°¸ì¡°?˜ë˜ ?”ì ???ˆì „?˜ê²Œ ?˜ìš©?œë‹¤.
+  Color get line => colors.panel2;
+// Compatibility token: strong text color used by some UI patches
+Color get textStrong => Colors.white; // fallback to existing text color
+
+}

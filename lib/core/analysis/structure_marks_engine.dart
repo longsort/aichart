@@ -1,0 +1,148 @@
+import '../../data/models/candle.dart';
+
+class StructureMark {
+  final int index; // candle index in provided list
+  final double price; // y anchor
+  final String tag; // BOS/CHOCH/MSB/EQH/EQL
+  final bool isBull; // for small visual polarity
+  const StructureMark({
+    required this.index,
+    required this.price,
+    required this.tag,
+    required this.isBull,
+  });
+}
+
+/// ì´ˆë³´??ë¯¸ë‹ˆë©€ êµ¬ì¡° ë§ˆí¬ ?”ì§„
+/// - ëª©í‘œ: ì°¨íŠ¸ê°€ ì§€?€ë¶„í•´ì§€ì§€ ?Šê²Œ, ?µì‹¬ êµ¬ì¡° ?œê·¸ë§??ì? ê°œìˆ˜ë¡?ì°ëŠ”??
+/// - BOS/CHOCH/MSB + EQH/EQL
+class StructureMarksEngine {
+  /// ìµœê·¼ candles???€??êµ¬ì¡° ë§ˆí¬ë¥??ì„±?œë‹¤.
+  /// [maxMarks]ë¥??˜ìœ¼ë©?ìµœì‹  ë§ˆí¬ë¶€???¨ê¸´??
+  static List<StructureMark> build(
+    List<Candle> candles, {
+    int swingLeftRight = 2,
+    int maxMarks = 10,
+  }) {
+    final n = candles.length;
+    if (n < (swingLeftRight * 2 + 5)) return const [];
+
+    // price range ê¸°ë°˜ tolerance (EQH/EQL)
+    double lo = candles.first.l, hi = candles.first.h;
+    for (final c in candles) {
+      if (c.l < lo) lo = c.l;
+      if (c.h > hi) hi = c.h;
+    }
+    final span = (hi - lo).abs();
+    final tol = (span * 0.002).clamp(hi * 0.0006, hi * 0.003); // 0.06%~0.3%
+
+    int? lastSwingHighIdx;
+    double? lastSwingHighPrice;
+    int? lastSwingLowIdx;
+    double? lastSwingLowPrice;
+
+    // EQH/EQL ë¹„êµ??ì§ì „ ?¤ìœ™ê°?
+    double? prevSwingHighPrice;
+    double? prevSwingLowPrice;
+
+    int trend = 0; // 1 bull, -1 bear, 0 unknown
+    bool pendingFlip = false; // CHOCH ?´í›„ ì²?BOSë¥?MSBë¡??œê·¸
+
+    final marks = <StructureMark>[];
+
+    bool isSwingHigh(int i) {
+      final p = candles[i].h;
+      for (int k = 1; k <= swingLeftRight; k++) {
+        if (candles[i - k].h >= p) return false;
+        if (candles[i + k].h > p) return false;
+      }
+      return true;
+    }
+
+    bool isSwingLow(int i) {
+      final p = candles[i].l;
+      for (int k = 1; k <= swingLeftRight; k++) {
+        if (candles[i - k].l <= p) return false;
+        if (candles[i + k].l < p) return false;
+      }
+      return true;
+    }
+
+    // 1) swing ?¤ìº” + EQH/EQL
+    for (int i = swingLeftRight; i < n - swingLeftRight; i++) {
+      if (isSwingHigh(i)) {
+        lastSwingHighIdx = i;
+        lastSwingHighPrice = candles[i].h;
+
+        if (prevSwingHighPrice != null &&
+            (candles[i].h - prevSwingHighPrice!).abs() <= tol) {
+          marks.add(StructureMark(index: i, price: candles[i].h, tag: 'EQH', isBull: false));
+        }
+        prevSwingHighPrice = candles[i].h;
+      }
+      if (isSwingLow(i)) {
+        lastSwingLowIdx = i;
+        lastSwingLowPrice = candles[i].l;
+
+        if (prevSwingLowPrice != null &&
+            (candles[i].l - prevSwingLowPrice!).abs() <= tol) {
+          marks.add(StructureMark(index: i, price: candles[i].l, tag: 'EQL', isBull: true));
+        }
+        prevSwingLowPrice = candles[i].l;
+      }
+
+      // 2) BOS/CHOCH/MSB??"ë§ˆê°" ê¸°ì??¼ë¡œ ìµœê·¼ ëª?ê°œì—?œë§Œ ?˜ë?ê°€ ??
+      //    Swingê°€ ?¡íŒ ?´í›„??ìº”ë“¤?ì„œ closeê°€ swing???ŒíŒŒ?˜ë©´ ?´ë²¤??ë°œìƒ.
+      final close = candles[i].c;
+      if (lastSwingHighIdx != null && lastSwingHighPrice != null && i > lastSwingHighIdx!) {
+        if (close > lastSwingHighPrice!) {
+          if (trend >= 0) {
+            // ì¶”ì„¸ ? ì? BOS ?ëŠ” MSB(CHOCH ?´í›„ ì²?BOS)
+            marks.add(StructureMark(
+              index: i,
+              price: lastSwingHighPrice!,
+              tag: pendingFlip ? 'MSB' : 'BOS',
+              isBull: true,
+            ));
+            trend = 1;
+            pendingFlip = false;
+          } else {
+            // ë°˜ë? ì¶”ì„¸?ì„œ ?ë°© ?ŒíŒŒ = CHOCH
+            marks.add(StructureMark(index: i, price: lastSwingHighPrice!, tag: 'CHOCH', isBull: true));
+            trend = 1;
+            pendingFlip = true;
+          }
+          // ê°™ì? ?¤ìœ™???¬ëŸ¬ ë²?ì°ëŠ” ê²?ë°©ì?: ?ŒíŒŒ ???¤ìœ™ ì´ˆê¸°??          lastSwingHighIdx = null;
+          lastSwingHighPrice = null;
+        }
+      }
+
+      if (lastSwingLowIdx != null && lastSwingLowPrice != null && i > lastSwingLowIdx!) {
+        if (close < lastSwingLowPrice!) {
+          if (trend <= 0) {
+            marks.add(StructureMark(
+              index: i,
+              price: lastSwingLowPrice!,
+              tag: pendingFlip ? 'MSB' : 'BOS',
+              isBull: false,
+            ));
+            trend = -1;
+            pendingFlip = false;
+          } else {
+            marks.add(StructureMark(index: i, price: lastSwingLowPrice!, tag: 'CHOCH', isBull: false));
+            trend = -1;
+            pendingFlip = true;
+          }
+          lastSwingLowIdx = null;
+          lastSwingLowPrice = null;
+        }
+      }
+    }
+
+    if (marks.isEmpty) return const [];
+    // ìµœì‹  maxMarksë§?? ì?
+    marks.sort((a, b) => a.index.compareTo(b.index));
+    final trimmed = marks.length > maxMarks ? marks.sublist(marks.length - maxMarks) : marks;
+    return List<StructureMark>.unmodifiable(trimmed);
+  }
+}

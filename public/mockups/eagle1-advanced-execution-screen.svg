@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#070d18"/>
+      <stop offset="100%" stop-color="#0a1222"/>
+    </linearGradient>
+    <style>
+      .t { font-family: "Segoe UI", Arial, sans-serif; fill: #dbe7ff; }
+      .m { fill: #90a1bf; }
+      .grid { stroke: #1c2b45; stroke-width: 1; }
+      .pill { fill: #0f1a2d; stroke: #2c4063; stroke-width: 1; rx: 8; }
+      .line { stroke-width: 2.2; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="900" fill="url(#bg)"/>
+  <rect x="34" y="64" width="1532" height="804" fill="#0b1528" stroke="#243a5a" rx="10"/>
+
+  <text x="56" y="98" class="t" font-size="20" font-weight="700">��18 � 䉨�(7$� �)</text>
+  <text x="402" y="98" class="t m" font-size="13">Context � Trigger � Execution t|x</text>
+
+  <g>
+    <line class="grid" x1="70" y1="170" x2="1500" y2="170"/>
+    <line class="grid" x1="70" y1="260" x2="1500" y2="260"/>
+    <line class="grid" x1="70" y1="350" x2="1500" y2="350"/>
+    <line class="grid" x1="70" y1="440" x2="1500" y2="440"/>
+    <line class="grid" x1="70" y1="530" x2="1500" y2="530"/>
+    <line class="grid" x1="70" y1="620" x2="1500" y2="620"/>
+    <line class="grid" x1="70" y1="710" x2="1500" y2="710"/>
+  </g>
+
+  <!-- Context -->
+  <rect x="84" y="122" width="226" height="30" class="pill"/>
+  <text x="98" y="142" class="t" font-size="13">1) �}: �� � + �� � �</text>
+
+  <line x1="120" y1="300" x2="1470" y2="300" class="line" stroke="#38bdf8"/>
+  <text x="1320" y="294" class="t" font-size="12" fill="#89ddff">Context Line</text>
+
+  <!-- Zones -->
+  <rect x="420" y="468" width="640" height="56" fill="rgba(34,197,94,0.18)" stroke="#22c55e" stroke-width="1.4"/>
+  <text x="1072" y="500" class="t" font-size="12" fill="#86efac">Support Zone</text>
+
+  <rect x="470" y="352" width="600" height="52" fill="rgba(249,115,22,0.18)" stroke="#f97316" stroke-width="1.4"/>
+  <text x="1082" y="381" class="t" font-size="12" fill="#fdba74">Resistance Zone</text>
+
+  <!-- Trigger -->
+  <line x1="120" y1="346" x2="1470" y2="346" class="line" stroke="#eab308"/>
+  <text x="1320" y="339" class="t" font-size="12" fill="#facc15">Trigger Line</text>
+
+  <!-- Execution -->
+  <line x1="120" y1="430" x2="1470" y2="430" class="line" stroke="#4ade80"/>
+  <text x="1334" y="423" class="t" font-size="12" fill="#86efac">Entry</text>
+
+  <line x1="120" y1="560" x2="1470" y2="560" class="line" stroke="#ef4444"/>
+  <text x="1298" y="553" class="t" font-size="12" fill="#fca5a5">Invalidation</text>
+
+  <line x1="120" y1="380" x2="1470" y2="380" class="line" stroke="#22d3ee"/>
+  <text x="1360" y="373" class="t" font-size="12" fill="#67e8f9">T1</text>
+  <line x1="120" y1="332" x2="1470" y2="332" class="line" stroke="#2dd4bf"/>
+  <text x="1360" y="325" class="t" font-size="12" fill="#5eead4">T2</text>
+  <line x1="120" y1="286" x2="1470" y2="286" class="line" stroke="#5eead4"/>
+  <text x="1360" y="279" class="t" font-size="12" fill="#99f6e4">T3</text>
+
+  <!-- Right decision rail -->
+  <rect x="1218" y="124" width="320" height="184" class="pill"/>
+  <text x="1234" y="146" class="t" font-size="13" font-weight="700">X�� ��8�</text>
+  <text x="1234" y="170" class="t m" font-size="12">IDLE � SETUP � ARMED � TRIGGERED</text>
+  <text x="1234" y="191" class="t m" font-size="12">pt �� � INVALID\ �� X</text>
+  <text x="1234" y="213" class="t m" font-size="12">L�@ �� X ��� �</text>
+  <text x="1234" y="245" class="t" font-size="12" fill="#86efac">�: ARMED (pt 6/7 �q)</text>
+  <text x="1234" y="266" class="t" font-size="12" fill="#facc15">U`� +22% / ��CVD BUY</text>
+
+  <!-- Bottom notes -->
+  <rect x="84" y="772" width="1460" height="72" class="pill"/>
+  <text x="104" y="798" class="t" font-size="13">t Tt@ t� ��t D�| '� '| �\ � UI ����.</text>
+  <text x="104" y="821" class="t m" font-size="12">\� $�� 7�  �X�, �8� �p(OB/FVG/BOS/CVD/OI)� 4�ܴ�<\ (� ���| ���.</text>
+</svg>

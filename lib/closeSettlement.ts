@@ -27,15 +27,42 @@ export type CloseSettlementItem = {
   progress: number;
 };
 
+function getNextWeeklyCloseTime(nowSec: number): number {
+  // Binance 주봉 경계: 월요일 00:00 UTC (KST 월 09:00)
+  const d = new Date(nowSec * 1000);
+  const day = d.getUTCDay(); // 0=Sun,1=Mon
+  const daysFromMonday = (day + 6) % 7;
+  const weekStartMs = Date.UTC(
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate() - daysFromMonday,
+    0, 0, 0, 0
+  );
+  const nextWeekStartSec = Math.floor(weekStartMs / 1000) + 7 * 86400;
+  return nextWeekStartSec > nowSec ? nextWeekStartSec : nextWeekStartSec + 7 * 86400;
+}
+
+function getNextMonthlyCloseTime(nowSec: number): number {
+  // Binance 월봉 경계: 매월 1일 00:00 UTC
+  const d = new Date(nowSec * 1000);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const nextMonthStart = Date.UTC(y, m + 1, 1, 0, 0, 0, 0);
+  return Math.floor(nextMonthStart / 1000);
+}
+
 /**
  * 기준 시각(초 단위 UTC) 기준으로 각 TF별 다음 봉 마감 시각 계산.
- * 거래소는 보통 0시 UTC 정렬이므로 1d = 00:00 UTC, 1h = 0,1,2,... 정각.
+ * - 분/시간/일: period 기반
+ * - 주: 월요일 00:00 UTC 고정
+ * - 월: 매월 1일 00:00 UTC 고정
  */
-function getNextCloseTime(nowSec: number, periodSec: number): number {
-  let currentOpen = Math.floor(nowSec / periodSec) * periodSec;
-  let nextClose = currentOpen + periodSec;
-  while (nextClose <= nowSec) nextClose += periodSec;
-  return nextClose;
+function getNextCloseTime(nowSec: number, tf: string, periodSec: number): number {
+  if (tf === '1w') return getNextWeeklyCloseTime(nowSec);
+  if (tf === '1M') return getNextMonthlyCloseTime(nowSec);
+  const currentOpen = Math.floor(nowSec / periodSec) * periodSec;
+  const nextClose = currentOpen + periodSec;
+  return nextClose > nowSec ? nextClose : nextClose + periodSec;
 }
 
 export function computeCloseSettlement(
@@ -43,6 +70,8 @@ export function computeCloseSettlement(
   verdict: 'LONG' | 'SHORT' | 'WATCH'
 ): CloseSettlementItem[] {
   const tfs: Array<{ tf: string; label: string }> = [
+    { tf: '1m', label: '1m' },
+    { tf: '5m', label: '5m' },
     { tf: '15m', label: '15m' },
     { tf: '1h', label: '1h' },
     { tf: '4h', label: '4h' },
@@ -53,7 +82,7 @@ export function computeCloseSettlement(
   const result: CloseSettlementItem[] = [];
   for (const { tf, label } of tfs) {
     const periodSec = TF_PERIOD_SEC[tf] ?? 3600;
-    const nextClose = getNextCloseTime(nowSec, periodSec);
+    const nextClose = getNextCloseTime(nowSec, tf, periodSec);
     const remainingSec = Math.max(0, Math.floor(nextClose - nowSec));
     const currentOpen = nextClose - periodSec;
     const elapsed = nowSec - currentOpen;
@@ -108,7 +137,7 @@ export function buildCloseSettlementBoard(
 ): CloseSettlementItem[] {
   let items = computeCloseSettlement(nowSec, verdict);
   if (lastCandleByTf) {
-    for (const tf of ['15m', '1h', '4h', '1d', '1w', '1M']) {
+    for (const tf of ['1m', '5m', '15m', '1h', '4h', '1d', '1w', '1M']) {
       const last = lastCandleByTf[tf];
       if (last) items = setCloseQualityFromCandle(items, last, tf, verdict);
     }

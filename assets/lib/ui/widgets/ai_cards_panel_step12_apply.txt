@@ -1,0 +1,19 @@
+STEP12 적용(안전 스니펫)
+
+1) ai_cards_panel.dart 상단 import 추가:
+import 'ai_action_card.dart';
+import '../../core/services/ai_action_service.dart';
+
+2) build() 안에서 dto(Map) 만든 뒤, AiCommentLine 아래(추천)에 추가:
+
+final dtoMap = (dto is Map<String, dynamic>) ? dto : <String, dynamic>{};
+final act = AiActionService.build(dtoMap);
+
+AiActionCard(
+  action: act['action'],
+  badge: act['badge'],
+  percent: act['actionP'],
+  detail: act['detail'],
+  triggers: List<String>.from(act['triggers'] ?? const []),
+),
+const SizedBox(height: 8),

@@ -1,0 +1,5 @@
+
+<service
+    android:name="com.fulink.pro.service.ForegroundTradeService"
+    android:exported="false"
+    android:foregroundServiceType="dataSync" />

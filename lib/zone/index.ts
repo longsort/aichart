@@ -1,6 +1,7 @@
 import type { OrderbookSnapshot } from '@/lib/data/collectors/orderbookCollector';
 import type { AggTrade } from '@/lib/data/collectors/tradesCollector';
 import type { OverlayItem, StrongZoneOutput } from '@/types';
+import { OVERLAY_COLORS } from '@/lib/overlayColors';
 import { clusterZones } from './zoneClusterEngine';
 import { computeZoneStrength } from './zoneStrengthEngine';
 import { computeSignalFromZones } from './signalEngine';
@@ -61,16 +62,20 @@ export function strongZonesToOverlays(
     const clamped = clampZoneToRange(z.low, z.high, minPrice, maxPrice);
     if (!clamped) return;
     const volStr = z.volumeUsdt != null && z.volumeUsdt > 0 ? ` · ${formatVolumeUsdt(z.volumeUsdt)}` : '';
+    const holdStr = z.holdProbability != null ? ` 안착${z.holdProbability}%` : '';
+    const closeStr = z.closeSettleProbability != null ? ` 종가${z.closeSettleProbability}%` : '';
     overlays.push({
       id: `strong-buy-${i}`,
       kind: 'demandZone',
-      label: `고래·기관 매수 ${z.probability}%${volStr}`,
+      label: `매수 방어 구간(호가·체결) ${z.probability}%${holdStr}${closeStr}${volStr}`,
       x1,
       y1: toRatio(clamped.high),
       x2,
       y2: toRatio(clamped.low),
+      price1: clamped.high,
+      price2: clamped.low,
       confidence: z.probability,
-      color: 'rgba(98,239,224,0.28)',
+      color: OVERLAY_COLORS.strongZoneBuy,
       category: 'strongZone',
     });
   });
@@ -78,16 +83,21 @@ export function strongZonesToOverlays(
     const clamped = clampZoneToRange(z.low, z.high, minPrice, maxPrice);
     if (!clamped) return;
     const volStr = z.volumeUsdt != null && z.volumeUsdt > 0 ? ` · ${formatVolumeUsdt(z.volumeUsdt)}` : '';
+    const breakStr = z.breakProbability != null ? ` 돌파${z.breakProbability}%` : '';
+    const resStr = z.resistanceProbability != null ? ` 저항${z.resistanceProbability}%` : '';
+    const closeStr = z.closeSettleProbability != null ? ` 종가${z.closeSettleProbability}%` : '';
     overlays.push({
       id: `strong-sell-${i}`,
       kind: 'supplyZone',
-      label: `고래·기관 매도 ${z.probability}%${volStr}`,
+      label: `매도 방어 구간(호가·체결) ${z.probability}%${breakStr}${resStr}${closeStr}${volStr}`,
       x1,
       y1: toRatio(clamped.high),
       x2,
       y2: toRatio(clamped.low),
+      price1: clamped.high,
+      price2: clamped.low,
       confidence: z.probability,
-      color: 'rgba(255,123,123,0.28)',
+      color: OVERLAY_COLORS.strongZoneSell,
       category: 'strongZone',
     });
   });

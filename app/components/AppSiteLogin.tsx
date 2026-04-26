@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import AppDisclaimerBanner from './AppDisclaimerBanner';
 import { setStoredBriefingCredentials } from '@/lib/clientAiCredentials';
 import { useVisitorCount } from '@/lib/useVisitorCount';
 
@@ -10,7 +11,7 @@ type Props = {
 
 /** 사이트 최초 진입 시 ID/비밀번호 (기본: aichart / longshort, 서버 env로 변경 가능) */
 export default function AppSiteLogin({ onLoggedIn }: Props) {
-  const visitorCount = useVisitorCount();
+  const visitor = useVisitorCount();
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +55,8 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
         </h1>
         <p className="subtle" style={{ marginBottom: 20 }}>
           사이트에 접속하려면 아이디와 비밀번호를 입력하세요.
-          {visitorCount != null && (
-            <span style={{ marginLeft: 10, color: 'var(--muted)' }}>· 현재 {visitorCount}명 접속</span>
+          {visitor.count != null && (
+            <span style={{ marginLeft: 10, color: 'var(--muted)' }}>· 현재 {visitor.count}명 접속</span>
           )}
         </p>
         <form onSubmit={submit} className="site-login-form">
@@ -88,6 +89,7 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
             {loading ? '확인 중...' : '접속'}
           </button>
         </form>
+        <AppDisclaimerBanner variant="login" />
       </div>
       <style jsx>{`
         .site-login-wrap {

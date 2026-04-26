@@ -7,8 +7,11 @@ export type PatternVisionType =
   | 'Bear Flag'
   | 'Rising Wedge'
   | 'Falling Wedge'
+  | 'Broadening Formation'
   | 'Double Top'
   | 'Double Bottom'
+  | 'Triple Top'
+  | 'Triple Bottom'
   | 'Head and Shoulders'
   | 'Inverse Head and Shoulders'
   | 'Range'
@@ -19,9 +22,12 @@ export type PatternVisionType =
 
 export type PivotPoint = { index: number; price: number; type: 'high' | 'low' };
 
-export type PatternLine = { startIndex: number; startPrice: number; endIndex: number; endPrice: number; role: 'resistance' | 'support' | 'neckline' };
+export type PatternLine = { startIndex: number; startPrice: number; endIndex: number; endPrice: number; role: 'resistance' | 'support' | 'neckline' | 'entry' | 'target' | 'stop' };
 
 export type PatternZone = { leftIndex: number; rightIndex: number; top: number; bottom: number };
+
+/** 프로스님 자료: Entry/TP/SL 가격 (LuxAlgo 스타일) */
+export type PatternTarget = { type: 'entry' | 'tp' | 'sl'; price: number; startIndex?: number; endIndex?: number };
 
 export type PatternVisionResult = {
   id: string;
@@ -35,6 +41,8 @@ export type PatternVisionResult = {
   zones: PatternZone[];
   label: string;
   reason: string;
+  /** LuxAlgo 스타일: Entry/TP/SL 가격 라인 */
+  targets?: PatternTarget[];
 };
 
 export type DominantPattern = {

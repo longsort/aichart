@@ -1,0 +1,13 @@
+class WhaleInput {
+  final double buyPressure;   // Îß§Ïàò ?ïÎ†• (0~1)
+  final double sellPressure;  // Îß§ÎèÑ ?ïÎ†• (0~1)
+  final bool spoofing;        // ?§Ìë∏???†Ïù∏ ?¨Î?
+  WhaleInput(this.buyPressure, this.sellPressure, this.spoofing);
+}
+
+class WhaleResult {
+  final String state; // SUPPORT / PRESSURE / NEUTRAL / BLOCK
+  final int score;    // 0~100
+  final String note;
+  WhaleResult(this.state, this.score, this.note);
+}

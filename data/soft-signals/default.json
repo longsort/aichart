@@ -1,0 +1,3442 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774605600,
+    "at": 1774607445677
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774607400,
+    "at": 1774607447739
+  },
+  {
+    "symbol": "FETUSDT",
+    "timeframe": "1d",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774569600,
+    "at": 1774607464563
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774569600,
+    "at": 1774607465267
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774607460,
+    "at": 1774607466707
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774607520,
+    "at": 1774607522652
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774607520,
+    "at": 1774607574688
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774607580,
+    "at": 1774607586699
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774607640,
+    "at": 1774607646234
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774607640,
+    "at": 1774607698038
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774607700,
+    "at": 1774607707003
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774607700,
+    "at": 1774607746888
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774607760,
+    "at": 1774607767081
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774607820,
+    "at": 1774607834296
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774607880,
+    "at": 1774607894982
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774607940,
+    "at": 1774607954573
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774608000,
+    "at": 1774608014069
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1768307400,
+    "at": 1774608048368
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774612800,
+    "at": 1774613315028
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774612800,
+    "at": 1774613344047
+  },
+  {
+    "symbol": "SOLUSDT",
+    "timeframe": "1w",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1774224000,
+    "at": 1774613498745
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1774224000,
+    "at": 1774613498779
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1772323200,
+    "at": 1774613553032
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774612800,
+    "at": 1774616112637
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774616400,
+    "at": 1774617434252
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774619220,
+    "at": 1774619231412
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774619220,
+    "at": 1774619270895
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774619280,
+    "at": 1774619332095
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774619340,
+    "at": 1774619406850
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774619460,
+    "at": 1774619483830
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774619460,
+    "at": 1774619526088
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774619580,
+    "at": 1774619603452
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774619580,
+    "at": 1774619633526
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774619640,
+    "at": 1774619703851
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774619700,
+    "at": 1774619714560
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774620120,
+    "at": 1774620148078
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774622820,
+    "at": 1774622896268
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774622880,
+    "at": 1774622946362
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774622940,
+    "at": 1774623006147
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774623000,
+    "at": 1774623049675
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774623060,
+    "at": 1774623104539
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774620000,
+    "at": 1774623214217
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774623600,
+    "at": 1774623713793
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774623960,
+    "at": 1774623967438
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774624080,
+    "at": 1774624103621
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774624140,
+    "at": 1774624174534
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774623600,
+    "at": 1774624186961
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774624260,
+    "at": 1774624264085
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774624740,
+    "at": 1774624756023
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774624860,
+    "at": 1774624863274
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774624860,
+    "at": 1774624923559
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774624980,
+    "at": 1774624984224
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774625940,
+    "at": 1774625962730
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774625940,
+    "at": 1774626007813
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774626000,
+    "at": 1774626051565
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774626060,
+    "at": 1774626115236
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774626120,
+    "at": 1774626157245
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774626180,
+    "at": 1774626210839
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774627200,
+    "at": 1774627245856
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774627200,
+    "at": 1774627326075
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774641600,
+    "at": 1774653869191
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774653300,
+    "at": 1774653975841
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774656000,
+    "at": 1774656072565
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774659000,
+    "at": 1774659234765
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774659000,
+    "at": 1774659254428
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774656000,
+    "at": 1774659316412
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774659300,
+    "at": 1774659391176
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774659600,
+    "at": 1774659689701
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774659900,
+    "at": 1774660089767
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774660200,
+    "at": 1774660313948
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774660800,
+    "at": 1774660821384
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774663200,
+    "at": 1774663441788
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774663200,
+    "at": 1774664034895
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1774656000,
+    "at": 1774664972560
+  },
+  {
+    "symbol": "FETUSDT",
+    "timeframe": "1d",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774656000,
+    "at": 1774664978376
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774665000,
+    "at": 1774665015667
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774665000,
+    "at": 1774665075640
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1772323200,
+    "at": 1774665347451
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774665900,
+    "at": 1774665951566
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774665900,
+    "at": 1774666011735
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774663200,
+    "at": 1774666566585
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774670400,
+    "at": 1774670415137
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774670400,
+    "at": 1774670954845
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774671300,
+    "at": 1774671521715
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774672200,
+    "at": 1774672239135
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774224000,
+    "at": 1774672475863
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774673100,
+    "at": 1774673152114
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774673700,
+    "at": 1774673751136
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774673700,
+    "at": 1774673801356
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774673100,
+    "at": 1774673802088
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774674000,
+    "at": 1774674010968
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774674000,
+    "at": 1774674011654
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774674000,
+    "at": 1774674162230
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774674300,
+    "at": 1774674338988
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774674000,
+    "at": 1774674339695
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774674000,
+    "at": 1774674421830
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774674900,
+    "at": 1774675430937
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774677600,
+    "at": 1774677783967
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774677600,
+    "at": 1774677789463
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774678200,
+    "at": 1774678248740
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774678200,
+    "at": 1774678401634
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774678500,
+    "at": 1774678508227
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774678500,
+    "at": 1774678511408
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774677600,
+    "at": 1774678585587
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774678500,
+    "at": 1774678597475
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774678800,
+    "at": 1774678804634
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774678800,
+    "at": 1774678866192
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774679100,
+    "at": 1774679164318
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774679100,
+    "at": 1774679207183
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774679400,
+    "at": 1774679481141
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774679400,
+    "at": 1774679518431
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774680300,
+    "at": 1774680707023
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774681200,
+    "at": 1774681226015
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774681200,
+    "at": 1774681882866
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774682100,
+    "at": 1774682159613
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774750800,
+    "at": 1774750899213
+  },
+  {
+    "symbol": "SOLUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774749600,
+    "at": 1774751002900
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774742400,
+    "at": 1774751097278
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774749600,
+    "at": 1774751262391
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774742400,
+    "at": 1774751870878
+  },
+  {
+    "symbol": "FETUSDT",
+    "timeframe": "1d",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774742400,
+    "at": 1774751876719
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774753200,
+    "at": 1774753590058
+  },
+  {
+    "symbol": "SOLUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774753200,
+    "at": 1774753595994
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774224000,
+    "at": 1774753598344
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1774753500,
+    "at": 1774753792318
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774754100,
+    "at": 1774754174784
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774754100,
+    "at": 1774754946330
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774756800,
+    "at": 1774756805093
+  },
+  {
+    "symbol": "SOLUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774756800,
+    "at": 1774756811263
+  },
+  {
+    "symbol": "SOLUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774756800,
+    "at": 1774756985976
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774756800,
+    "at": 1774757599021
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774756800,
+    "at": 1774758077855
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774756800,
+    "at": 1774759291699
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774760400,
+    "at": 1774761483761
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1774760400,
+    "at": 1774762026331
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774764000,
+    "at": 1774764707665
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774764000,
+    "at": 1774765527717
+  },
+  {
+    "symbol": "ETHUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774756800,
+    "at": 1774766992157
+  },
+  {
+    "symbol": "ADAUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774742400,
+    "at": 1774767076778
+  },
+  {
+    "symbol": "ADAUSDT",
+    "timeframe": "1M",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1772323200,
+    "at": 1774767175422
+  },
+  {
+    "symbol": "NEARUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774756800,
+    "at": 1774767221947
+  },
+  {
+    "symbol": "XRPUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774767300,
+    "at": 1774767310741
+  },
+  {
+    "symbol": "LINKUSDT",
+    "timeframe": "1w",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774224000,
+    "at": 1774767864612
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774771200,
+    "at": 1774771757849
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774772040,
+    "at": 1774772054179
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774772160,
+    "at": 1774772174071
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774772220,
+    "at": 1774772234087
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774772340,
+    "at": 1774772353838
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774771200,
+    "at": 1774772919969
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1774774800,
+    "at": 1774775076512
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774774800,
+    "at": 1774775119858
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774774800,
+    "at": 1774776773452
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774771200,
+    "at": 1774777682066
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1774778400,
+    "at": 1774780124084
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774782000,
+    "at": 1774782289136
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774782000,
+    "at": 1774782682482
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783380,
+    "at": 1774783410986
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783440,
+    "at": 1774783470812
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783500,
+    "at": 1774783530908
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783560,
+    "at": 1774783590562
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783620,
+    "at": 1774783710607
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783680,
+    "at": 1774783715073
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783740,
+    "at": 1774783770750
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783800,
+    "at": 1774783830841
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783860,
+    "at": 1774783890826
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783920,
+    "at": 1774783950765
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774783980,
+    "at": 1774784010852
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774784040,
+    "at": 1774784071054
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774784100,
+    "at": 1774784130922
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774784160,
+    "at": 1774784220076
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774784220,
+    "at": 1774784231136
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774784280,
+    "at": 1774784335860
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774784340,
+    "at": 1774784430617
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774785600,
+    "at": 1774785695210
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774785600,
+    "at": 1774785965569
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774785600,
+    "at": 1774786081856
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1774785600,
+    "at": 1774786134384
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774785600,
+    "at": 1774787855630
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774800000,
+    "at": 1774800137543
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774800300,
+    "at": 1774800330982
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774800360,
+    "at": 1774800391158
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774800420,
+    "at": 1774800451092
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774800480,
+    "at": 1774800510933
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774800600,
+    "at": 1774800631101
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774800660,
+    "at": 1774800690925
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774800000,
+    "at": 1774804546196
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774814400,
+    "at": 1774814445096
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774815300,
+    "at": 1774815331008
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774857600,
+    "at": 1774870620988
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774872000,
+    "at": 1774872006853
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774872000,
+    "at": 1774873636303
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774872900,
+    "at": 1774873694963
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774877400,
+    "at": 1774878077286
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774875600,
+    "at": 1774878172953
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774872000,
+    "at": 1774879058151
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774879200,
+    "at": 1774879705092
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1774828800,
+    "at": 1774880044045
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774828800,
+    "at": 1774882882827
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774901220,
+    "at": 1774901243596
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774944000,
+    "at": 1774957938145
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774958400,
+    "at": 1774958521057
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774958400,
+    "at": 1774958659722
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774958400,
+    "at": 1774959238278
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774958400,
+    "at": 1774960395864
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774915200,
+    "at": 1774962248060
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774962000,
+    "at": 1774962456834
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774962000,
+    "at": 1774962770652
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774965420,
+    "at": 1774965471317
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774965540,
+    "at": 1774965592471
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774965600,
+    "at": 1774965848688
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774965600,
+    "at": 1774966071697
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774965600,
+    "at": 1774966150704
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774966200,
+    "at": 1774966239859
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774966320,
+    "at": 1774966329285
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774967520,
+    "at": 1774967560531
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774967640,
+    "at": 1774967682518
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774967760,
+    "at": 1774967790327
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774967880,
+    "at": 1774967919817
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774968000,
+    "at": 1774968041362
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774968060,
+    "at": 1774968122036
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1774968300,
+    "at": 1774968593026
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775030400,
+    "at": 1775044448336
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775030400,
+    "at": 1775044515853
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775044200,
+    "at": 1775044529345
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775043900,
+    "at": 1775044598044
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775044800,
+    "at": 1775044875794
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775044800,
+    "at": 1775044967008
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775044800,
+    "at": 1775045086862
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775044800,
+    "at": 1775045668873
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775047500,
+    "at": 1775048151220
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775048400,
+    "at": 1775048410437
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775050200,
+    "at": 1775050629922
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775048400,
+    "at": 1775050652829
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1774828800,
+    "at": 1775051149164
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775051100,
+    "at": 1775051228932
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775052900,
+    "at": 1775053447058
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775054040,
+    "at": 1775054107753
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775053800,
+    "at": 1775054117601
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775116800,
+    "at": 1775129653652
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775127600,
+    "at": 1775129873183
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775116800,
+    "at": 1775130149540
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775001600,
+    "at": 1775130407278
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775131200,
+    "at": 1775131252367
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775131200,
+    "at": 1775131301586
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775131200,
+    "at": 1775131337300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775131200,
+    "at": 1775131373652
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775134260,
+    "at": 1775134295818
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775088000,
+    "at": 1775134552768
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1774828800,
+    "at": 1775135354401
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775203200,
+    "at": 1775216686744
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775217600,
+    "at": 1775217629391
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775217600,
+    "at": 1775217722894
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775217600,
+    "at": 1775218014301
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775217600,
+    "at": 1775219533781
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775217600,
+    "at": 1775219721510
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775174400,
+    "at": 1775219865663
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775221200,
+    "at": 1775221920841
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775223900,
+    "at": 1775224121291
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775224800,
+    "at": 1775224939392
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775227020,
+    "at": 1775227079996
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1M",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775001600,
+    "at": 1775230299688
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775228400,
+    "at": 1775230324967
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775228400,
+    "at": 1775231180451
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775232000,
+    "at": 1775232082203
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775347200,
+    "at": 1775351272649
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775350800,
+    "at": 1775351639206
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775347200,
+    "at": 1775353255975
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775354400,
+    "at": 1775357132285
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775358000,
+    "at": 1775358623090
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775365200,
+    "at": 1775366272912
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775361600,
+    "at": 1775366395830
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775367000,
+    "at": 1775367081930
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775361600,
+    "at": 1775368292634
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775376000,
+    "at": 1775376070226
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775383200,
+    "at": 1775384820309
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775383200,
+    "at": 1775384966543
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775383200,
+    "at": 1775385556552
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775385900,
+    "at": 1775386079280
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775385900,
+    "at": 1775386149730
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775386500,
+    "at": 1775386590900
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775386800,
+    "at": 1775389647205
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775390400,
+    "at": 1775390706314
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775390400,
+    "at": 1775392163847
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775392200,
+    "at": 1775392392332
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775390400,
+    "at": 1775392515544
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775394000,
+    "at": 1775396607954
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775394000,
+    "at": 1775396628890
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775397600,
+    "at": 1775398704926
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775397600,
+    "at": 1775398839143
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775433600,
+    "at": 1775480207533
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775480400,
+    "at": 1775480416610
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775480400,
+    "at": 1775480681886
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775480400,
+    "at": 1775480706234
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775476800,
+    "at": 1775480746368
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775433600,
+    "at": 1775485857353
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775484000,
+    "at": 1775486815010
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775548800,
+    "at": 1775561916122
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775548800,
+    "at": 1775562703139
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775563200,
+    "at": 1775563418502
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775563860,
+    "at": 1775563887640
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775563920,
+    "at": 1775563999854
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775563200,
+    "at": 1775564072442
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775563200,
+    "at": 1775564197875
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775563200,
+    "at": 1775564519822
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775566800,
+    "at": 1775566913048
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775563200,
+    "at": 1775567230394
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775566800,
+    "at": 1775567711372
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775570400,
+    "at": 1775570476802
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775649600,
+    "at": 1775650341127
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775649600,
+    "at": 1775656946822
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775736000,
+    "at": 1775736851834
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775865600,
+    "at": 1775868651202
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775865600,
+    "at": 1775868692653
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775869200,
+    "at": 1775870247703
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775869200,
+    "at": 1775871835786
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775865600,
+    "at": 1775873332980
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775873460,
+    "at": 1775873484008
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775873580,
+    "at": 1775873619545
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775872800,
+    "at": 1775874800799
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775876400,
+    "at": 1775879109885
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775880000,
+    "at": 1775880054662
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775880000,
+    "at": 1775881198943
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775889360,
+    "at": 1775889420661
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775889480,
+    "at": 1775889535707
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775889600,
+    "at": 1775889656736
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775891160,
+    "at": 1775891216623
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775891280,
+    "at": 1775891335823
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1775894400,
+    "at": 1775894422502
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775894400,
+    "at": 1775894697637
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775898000,
+    "at": 1775898615635
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1775898000,
+    "at": 1775899049369
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1775894400,
+    "at": 1775899910437
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1775901600,
+    "at": 1775903880438
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776240000,
+    "at": 1776252584302
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776250800,
+    "at": 1776252612541
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776250800,
+    "at": 1776252688803
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776252600,
+    "at": 1776252838520
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776253500,
+    "at": 1776253550459
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776253500,
+    "at": 1776253647757
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776254400,
+    "at": 1776254448519
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776254400,
+    "at": 1776254500001
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776254400,
+    "at": 1776254969918
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776254400,
+    "at": 1776255198522
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1776254400,
+    "at": 1776256024579
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776255300,
+    "at": 1776256166933
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776256200,
+    "at": 1776256526923
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776257100,
+    "at": 1776257114225
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776258000,
+    "at": 1776260152496
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776258000,
+    "at": 1776260243177
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776427200,
+    "at": 1776432667935
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776456000,
+    "at": 1776467952916
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776470400,
+    "at": 1776473929136
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776478800,
+    "at": 1776478975137
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776481200,
+    "at": 1776481312018
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776484800,
+    "at": 1776486057912
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776484800,
+    "at": 1776489298654
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776499200,
+    "at": 1776500490469
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776552840,
+    "at": 1776552892767
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776552960,
+    "at": 1776553012883
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776553200,
+    "at": 1776553256163
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776553560,
+    "at": 1776553612344
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776571800,
+    "at": 1776571888474
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776571980,
+    "at": 1776572006605
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776580980,
+    "at": 1776581008196
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1776581040,
+    "at": 1776581127981
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776581220,
+    "at": 1776581247399
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776581340,
+    "at": 1776581369926
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776581400,
+    "at": 1776581486030
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776581520,
+    "at": 1776581606379
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776581640,
+    "at": 1776581682961
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776581760,
+    "at": 1776581827395
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776581940,
+    "at": 1776581948932
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776582000,
+    "at": 1776582068725
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776556800,
+    "at": 1776586942761
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776588840,
+    "at": 1776588904872
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776588900,
+    "at": 1776588913161
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776585600,
+    "at": 1776590634954
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776594600,
+    "at": 1776594658591
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776594720,
+    "at": 1776594781692
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776594840,
+    "at": 1776594899428
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776594960,
+    "at": 1776595019037
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776597120,
+    "at": 1776597181820
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776597240,
+    "at": 1776597301487
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1776597360,
+    "at": 1776597421784
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776598200,
+    "at": 1776598241120
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1776686400,
+    "at": 1776688932017
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1776686400,
+    "at": 1776688942365
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776686400,
+    "at": 1776689844083
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776690000,
+    "at": 1776690113837
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1776691440,
+    "at": 1776691471998
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776690000,
+    "at": 1776692981389
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1d",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776729600,
+    "at": 1776772096211
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776859200,
+    "at": 1776861090329
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1776945600,
+    "at": 1776946165865
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776949200,
+    "at": 1776949264491
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1777075200,
+    "at": 1777077944498
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777079700,
+    "at": 1777079810151
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777079820,
+    "at": 1777079886928
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "TRIGGERED",
+    "signalTime": 1777079880,
+    "at": 1777079963150
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777080060,
+    "at": 1777080110849
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777080360,
+    "at": 1777080398507
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777080480,
+    "at": 1777080548558
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777080540,
+    "at": 1777080577252
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1w",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1776643200,
+    "at": 1777080609476
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777080600,
+    "at": 1777080699112
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777080660,
+    "at": 1777080708180
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777080780,
+    "at": 1777080858386
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777080840,
+    "at": 1777080892254
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777080960,
+    "at": 1777081006974
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777081200,
+    "at": 1777081236708
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777081260,
+    "at": 1777081291294
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777081500,
+    "at": 1777081566303
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777081560,
+    "at": 1777081599574
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777081620,
+    "at": 1777081664297
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "4h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1777075200,
+    "at": 1777081979238
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777083360,
+    "at": 1777083405505
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777083420,
+    "at": 1777083452138
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1777086600,
+    "at": 1777086890753
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777086900,
+    "at": 1777087198803
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777087200,
+    "at": 1777087423901
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777087800,
+    "at": 1777087922118
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777088100,
+    "at": 1777088329327
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777088700,
+    "at": 1777088750054
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777089000,
+    "at": 1777089142824
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777103280,
+    "at": 1777103335101
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "direction": "SHORT",
+    "state": "READY",
+    "signalTime": 1777103340,
+    "at": 1777103367821
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1777172400,
+    "at": 1777172811123
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1777186800,
+    "at": 1777187914337
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "READY",
+    "signalTime": 1777190400,
+    "at": 1777190644007
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "direction": "LONG",
+    "state": "TRIGGERED",
+    "signalTime": 1777190400,
+    "at": 1777193570425
+  }
+]

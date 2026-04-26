@@ -1,0 +1,502 @@
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+
+import '../../core/models/fu_state.dart';
+import '../widgets/neon_theme.dart';
+
+/// ì°¨íŠ¸ ?¤ë²„?ˆì´: ë°˜ì‘êµ¬ê°„/êµ¬ì¡°/ë°•ìŠ¤(OB/FVG/BPR)
+///
+/// ëª©ì 
+/// - "ë¯¸ë˜ê²½ë¡œë§? ?ˆëŠ” ?”ë©´???¬ì‹¬???œê±°
+/// - ì´ˆë³´???´í•´ ê°€?¥í•œ ?¨ì–´ë¡? ì§€ì§€/?€??ë°˜ì‘/?¨ì • ?„í—˜???œê°??///
+/// ?¬ìš©
+/// - PathChartLite childBuilder?ì„œ Positioned.fill(CustomPaint(...))ë¡??¹ëŠ”??
+class ReactionZonesPainter extends CustomPainter {
+  final FuState s;
+  final NeonTheme theme;
+  final List<FuCandle> candles;
+
+  /// ì°¨íŠ¸ ì¢Œí‘œê³?  final double Function(int idx) indexToX;
+  final double Function(double price) priceToY;
+
+  /// visible window
+  final int startIndex;
+  final int visibleCount;
+
+  /// ?°ì¸¡ ë¯¸ë˜ PAD(ë§‰ë? ??
+  final int projectionBars;
+
+  /// ?œì‹œ ? ê?(?¬ì‹¬??ê³¼ë???ì¡°ì ˆ)
+  final bool showReaction;
+  final bool showStructure;
+  final bool showBoxes;
+
+  ReactionZonesPainter({
+    required this.s,
+    required this.theme,
+    required this.candles,
+    required this.indexToX,
+    required this.priceToY,
+    required this.startIndex,
+    required this.visibleCount,
+    required this.projectionBars,
+    this.showReaction = true,
+    this.showStructure = true,
+    this.showBoxes = true,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    
+    final _labelStack = <int, double>{};
+if (candles.isEmpty) return;
+
+    // "?„ì¬ êµ¬ê°„"(ë¯¸ë˜ PAD ?œì™¸) ??X
+    final lastIdx = candles.length - 1;
+    final xRight = indexToX(lastIdx);
+
+    // 1) OB/FVG/BPR ë°•ìŠ¤ (ë¨¼ì? ê¹”ê³ )
+    if (showBoxes) {
+      _drawZoneList(canvas, size, s.fvgZones, base: theme.warn, xRight: xRight);
+    _drawZoneList(canvas, size, s.obZones, base: theme.good, xRight: xRight);
+    _drawZoneList(canvas, size, s.bprZones, base: theme.border, xRight: xRight);
+    }
+
+    // 2) ë°˜ì‘êµ¬ê°„(ì§€ì§€/?€????
+    if (showReaction) {
+      _drawReactionBand(canvas, size, xRight);
+    }
+
+    // 3) êµ¬ì¡° ?¼ì¸(CHOCH/BOS/MSB)
+    if (showStructure) {
+      _drawStructureLine(canvas, size, xRight);
+    }
+  }
+
+  void _drawZoneList(Canvas canvas, Size size, List<FuZone> zones,
+      {required Color base, required double xRight}) {
+    if (zones.isEmpty) return;
+
+    for (final z in zones) {
+      final y1 = priceToY(z.high);
+      final y2 = priceToY(z.low);
+      final top = y1 < y2 ? y1 : y2;
+      final bottom = y1 < y2 ? y2 : y1;
+
+      // zone span
+      double x1 = 0;
+      double x2 = xRight;
+      if (z.iStart != null) x1 = indexToX(z.iStart!);
+      if (z.iEnd != null) x2 = indexToX(z.iEnd!);
+      if (x2 < x1) {
+        final tmp = x1;
+        x1 = x2;
+        x2 = tmp;
+      }
+      x1 = x1.clamp(0.0, xRight);
+      x2 = x2.clamp(0.0, xRight);
+      if ((x2 - x1) < 4) continue;
+
+      Color c = base;
+      if (z.dir > 0) c = theme.good;
+      if (z.dir < 0) c = theme.bad;
+
+      final fill = Paint()..color = c.withOpacity(0.10);
+      final stroke = Paint()
+        ..color = c.withOpacity(0.24)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+
+      final r = RRect.fromRectAndRadius(
+        Rect.fromLTRB(x1, top, x2, bottom),
+        const Radius.circular(8),
+      );
+      canvas.drawRRect(r, fill);
+      canvas.drawRRect(r, stroke);
+
+      if (z.label.trim().isNotEmpty) {
+        final ko = _zoneLabelKo(z.label, dir: z.dir);
+        // ?¼ìª½?€ ê°€?¤ì?ê¸??¬ì? ???¤ë¥¸ìª??ë‹¨??ê³ ì •
+        _labelRight(canvas, ko, Offset(x2 - 8, top + 4), c.withOpacity(0.92));
+      }
+    }
+  }
+
+  String _zoneLabelKo(String raw, {required int dir}) {
+    final u = raw.trim().toUpperCase();
+    if (u == 'FVG') return 'ê°?FVG)';
+    if (u == 'OB') return dir >= 0 ? 'ë§¤ìˆ˜êµ¬ê°„(OB)' : 'ë§¤ë„êµ¬ê°„(OB)';
+    if (u == 'BPR') return 'ê²¹ì¹¨êµ¬ê°„(BPR)';
+    return raw;
+  }
+
+  void _drawReactionBand(Canvas canvas, Size size, double xRight) {
+    // reactLow/highê°€ ? íš¨???Œë§Œ
+    final lo = s.reactLow;
+    final hi = s.reactHigh;
+    if (lo <= 0 || hi <= 0 || (hi - lo).abs() < 1e-9) return;
+
+    final y1 = priceToY(hi);
+    final y2 = priceToY(lo);
+    final top = y1 < y2 ? y1 : y2;
+    final bottom = y1 < y2 ? y2 : y1;
+
+    // ë°©í–¥(ì´ˆë³´??: LONG=ë°˜ë“±, SHORT=ë§‰í˜
+    final bias = s.zoneBias.toUpperCase();
+
+    // ?•ë¥ (ë°˜ì‘/?ŒíŒŒ/?¨ì •) + ê·¼ê±° 1ì¤?    final probs = _calcReactionProbs(bias);
+
+    // ë°˜ì‘êµ¬ê°„ ?? LONG=ì´ˆë¡, SHORT=ë¹¨ê°•, ê·????¸ë‘
+    Color c = theme.warn;
+    if (bias == 'LONG') c = theme.good;
+    if (bias == 'SHORT') c = theme.bad;
+
+    // "?ˆíŠ¸ë§??? ?ë‚Œ: ?•ë¥ ???’ì„?˜ë¡ ??ì§„í•˜ê²? ?¨ì • ?’ìœ¼ë©?ë¶‰ì? ?ˆê°œ ì¶”ê?
+    final baseOpacity = (0.06 + (probs.reactP / 100.0) * 0.14).clamp(0.06, 0.22);
+    final trapOpacity = (probs.trapP / 100.0) * 0.10;
+
+    final fill = Paint()..color = c.withOpacity(baseOpacity);
+    final stroke = Paint()
+      ..color = c.withOpacity((baseOpacity + 0.14).clamp(0.18, 0.38))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    final r = RRect.fromRectAndRadius(
+      Rect.fromLTRB(0, top, xRight, bottom),
+      const Radius.circular(10),
+    );
+
+    canvas.drawRRect(r, fill);
+    canvas.drawRRect(r, stroke);
+
+    // ?¨ì •(?©ì˜) ?„í—˜???’ìœ¼ë©?ë¹¨ê°„ hazeë¥??‡ê²Œ ê²¹ì¹œ??
+    if (probs.trapP >= 55) {
+      final haze = Paint()..color = theme.bad.withOpacity(trapOpacity.clamp(0.03, 0.12));
+      canvas.drawRRect(r, haze);
+    }
+
+    // ?•ë¥  ?œì‹œ(ì´ˆë³´??
+    final label = 'ë°˜ì‘ ${probs.reactP}% / ?ŒíŒŒ ${probs.breakP}% / ?¨ì • ${probs.trapP}%';
+    _label(canvas, size, label, Offset(10, top + 6), theme.textPrimary.withOpacity(0.92));
+
+    // ê·¼ê±° 1ì¤??ˆë¬´ ê¸¸ë©´ ?˜ë¦¬ê²?
+    if (probs.reason.trim().isNotEmpty) {
+      _label(canvas, size, probs.reason, Offset(10, top + 24), theme.textSecondary.withOpacity(0.92));
+    }
+
+    // êµ¬ê°„ëª?ì§§ê²Œ)
+    final zoneName = (s.zoneName.trim().isNotEmpty) ? s.zoneName : 'ë°˜ì‘êµ¬ê°„';
+    _label(canvas, size, zoneName, Offset(10, bottom - 18), theme.textSecondary.withOpacity(0.92));
+  }
+
+  _ReactionProbs _calcReactionProbs(String bias) {
+    // ê¸°ë³¸ê°?ê¸°ì¡´ ë¡œì§): zoneLongP/zoneShortP + sweepRisk
+    final longP0 = s.zoneLongP.clamp(0, 100);
+    final shortP0 = s.zoneShortP.clamp(0, 100);
+    final trap0 = s.sweepRisk.clamp(0, 100);
+
+    int reactP;
+    int breakP;
+
+    if (bias == 'LONG') {
+      reactP = longP0;
+      breakP = shortP0;
+    } else if (bias == 'SHORT') {
+      reactP = shortP0;
+      breakP = longP0;
+    } else {
+      reactP = ((longP0 + shortP0) / 2).round();
+      breakP = (100 - reactP).clamp(0, 100);
+    }
+
+    // === ê³ ë„???•í™•???°ì„ ) ===
+    // - ë°˜ì‘: ë°©ì–´/?¡ìˆ˜/?¸ë ¥/ì¢…ê? ?ˆì§ˆ??ì¢‹ì„?˜ë¡ ??    // - ?ŒíŒŒ: ?ŒíŒŒ?ˆì§ˆ/ê±°ë˜??ì§ˆì´ ì¢‹ì„?˜ë¡ ??    // - ?¨ì •: ?¤ìœ• ?„í—˜ + ë¶„ì‚°(?ë‹¨?˜ì§) + ê±°ë˜???½í•  ????
+    // ê³µí†µ ?¤ì???0~100 -> -25~+25)
+    double adjReact = 0;
+    double adjBreak = 0;
+    double adjTrap = 0;
+
+    // ì¢…ê?/?ŒíŒŒ/ê±°ë˜??    adjReact += (s.closeScore - 50) * 0.22;
+    adjBreak += (s.breakoutScore - 50) * 0.30;
+    adjBreak += (s.volumeScore - 50) * 0.22;
+
+    // ?¸ë ¥/?¡ìˆ˜/ë°©ì–´
+    adjReact += (s.forceScore - 50) * 0.18;
+    adjReact += (s.absorptionScore - 50) * 0.20;
+    adjReact += (s.defenseScore - 50) * 0.22;
+
+    // ë¶„ì‚°(?˜ì§)?€ ë°˜ì‘?? ?¨ì •??    adjReact -= (s.distributionScore - 50) * 0.18;
+    adjTrap += (s.distributionScore - 50) * 0.20;
+
+    // ?¤ìœ• ?„í—˜
+    adjTrap += (s.sweepRisk - 50) * 0.35;
+
+    // êµ¬ì¡° ?œê·¸ ë³´ì •: CHOCH???„ì§ ë¶ˆì•ˆ ???¨ì • ?½ê°„?? BOS??? ì??????ŒíŒŒ/ë°˜ì‘ ?Œí­??    final tag = s.structureTag.toUpperCase();
+    if (tag.startsWith('CHOCH')) {
+      adjTrap += 6;
+      adjReact -= 2;
+    }
+    if (tag.startsWith('BOS')) {
+      adjBreak += 4;
+      adjReact += 2;
+    }
+    if (tag.startsWith('MSB')) {
+      // ???„í™˜?´ë©´ ë°˜ì‘(?˜ëŒë¦? ?•ë¥ ???¬ë¼ê°€??ê²½í–¥
+      adjReact += 4;
+    }
+
+    // ë°©í–¥???°ë¥¸ ?´ì„:
+    // LONG?ì„œ??breakP = ?˜ë½ ?´íƒˆ?´ë?ë¡?adjBreakë¥?'ë°˜ì‘ ìª??¼ë¡œ ?¼ë? ?˜ëŒë¦?    // SHORT?ì„œ??breakP = ?ìŠ¹ ?´íƒˆ?´ë?ë¡??™ì¼ ì²˜ë¦¬
+    if (bias == 'LONG' || bias == 'SHORT') {
+      // ?ŒíŒŒ/ê±°ë˜?‰ì´ ê°•í•˜ë©?"?´íƒˆ ?„í—˜"??ì¤„ì–´? ë‹¤ ??breakP ê°ì†Œë¡?ë°˜ì˜
+      breakP = (breakP - adjBreak.round()).clamp(0, 100);
+      reactP = (reactP + adjReact.round()).clamp(0, 100);
+    } else {
+      // ì¤‘ë¦½?´ë©´ ?ŒíŒŒë¥?ê·¸ë?ë¡??´ë‹¤
+      breakP = (breakP + adjBreak.round()).clamp(0, 100);
+      reactP = (reactP + adjReact.round()).clamp(0, 100);
+    }
+
+    // ?¨ì •
+    final trapP = (trap0 + adjTrap.round()).clamp(0, 100);
+
+    // ë°˜ì‘/?ŒíŒŒ ?©ê³„ê°€ ?´ìƒ?˜ë©´ ?¬ì •ê·œí™”(ê°„ë‹¨)
+    final sum = reactP + breakP;
+    if (sum > 100 && sum > 0) {
+      final r = (reactP / sum * 100).round();
+      reactP = r.clamp(0, 100);
+      breakP = (100 - reactP).clamp(0, 100);
+    } else if (sum < 60) {
+      // ?????ˆë¬´ ??²Œ ?˜ì˜¤ë©?ì¤‘ë¦½ ë³´ì •
+      reactP = (reactP + 10).clamp(0, 100);
+      breakP = (breakP + 10).clamp(0, 100);
+    }
+
+    // ê·¼ê±° 1ì¤??ì„±(ì´ˆë³´???¨ì–´)
+    final reasons = <String>[];
+    if (s.defenseScore >= 62) reasons.add('ê°€ê²?ì§€??);
+    if (s.absorptionScore >= 62) reasons.add('ë°›ì•„ì¤??¡ìˆ˜)');
+    if (s.breakoutScore >= 62) reasons.add('?ŒíŒŒ ? ì?');
+    if (s.volumeScore >= 62) reasons.add('ê±°ë˜????);
+    if (s.distributionScore >= 62) reasons.add('?„ì—???˜ì§');
+    if (s.sweepRisk >= 65) reasons.add('?©ì˜ ì£¼ì˜');
+
+    String reason = reasons.isEmpty ? 'ê·¼ê±° ?˜ì§‘ ì¤? : reasons.take(3).join(' Â· ');
+    // bias ?¤ëª…???ì— ë¶™ì—¬ì£¼ê¸°(ì§§ê²Œ)
+    if (bias == 'LONG') reason = 'ë°˜ë“± ìª? $reason';
+    if (bias == 'SHORT') reason = 'ë§‰í˜ ìª? $reason';
+
+    
+
+    // ì¶”ê?: ì§€ì§€/?€???µì‹¬êµ¬ê°„ ?”ì•½(ìµœë? 2ê°?
+    String _fmt(num v) => v >= 1000 ? '${(v / 1000).toStringAsFixed(1)}k' : v.toStringAsFixed(0);
+    // FuState?ëŠ” priceNow/zones ?„ë“œê°€ ?†ì–´?? ?„ì¬ê°€(price) + ì¡?ë¦¬ìŠ¤?¸ë? ?©ì³ ?¬ìš©?œë‹¤.
+    final priceNow = s.price;
+    final allZones = <FuZone>[...s.obZones, ...s.fvgZones, ...s.bprZones, ...s.mbZones];
+    // v22: ?ˆë¬´ ë§ì? ë°•ìŠ¤ê°€ ?”ë©´????? ?Šê²Œ, ?„ì¬ê°€ ê¸°ì? 'ê°€ê¹Œìš´ êµ¬ê°„'ë§?? ë³„
+    final pickedOb2 = _pickNearestZones(s.obZones, priceNow, 2);
+    final pickedFvg2 = _pickNearestZones(s.fvgZones, priceNow, 2);
+    final pickedBpr2 = _pickNearestZones(s.bprZones, priceNow, 2);
+    final pickedMb2  = _pickNearestZones(s.mbZones,  priceNow, 1);
+    final pickedZones = <FuZone>[...pickedOb2, ...pickedFvg2, ...pickedBpr2, ...pickedMb2];
+
+    final obZones = allZones.where((z) => z.label.startsWith('OB')).toList()
+      ..sort((a, b) => a.low.compareTo(b.low));
+    final supports = <String>[];
+    for (final z in obZones) {
+      final mid = (z.low + z.high) / 2.0;
+      if (mid <= priceNow && supports.length < 2) {
+        supports.add('${supports.length + 1}) ${_fmt(z.low)}~${_fmt(z.high)}');
+      }
+    }
+    final resist = <String>[];
+    for (final z in obZones.reversed) {
+      final mid = (z.low + z.high) / 2.0;
+      if (mid >= priceNow && resist.length < 1) {
+        resist.add('${_fmt(z.low)}~${_fmt(z.high)}');
+      }
+    }
+
+    // ì¶”ê?: ??ë°˜ì‘?ë¦¬?¸ì?(ê°„ë‹¨ ?œê·¸)
+    final tags = <String>[];
+    if (allZones.any((z) => z.label.startsWith('OB'))) tags.add('OB');
+    if (allZones.any((z) => z.label.startsWith('FVG'))) tags.add('FVG');
+    if (allZones.any((z) => z.label.startsWith('BPR'))) tags.add('BPR');
+    if (tags.isNotEmpty) {
+      reason = '$reason Â· ${tags.join('+')}';
+    }
+    if (supports.isNotEmpty || resist.isNotEmpty) {
+      final lines = <String>[];
+      if (supports.isNotEmpty) lines.add("ì§€ì§€ ${supports.join(' / ')}");
+      if (resist.isNotEmpty) lines.add("?€??${resist.join(' / ')}");
+      reason = "$reason\n${lines.join(' Â· ')}";
+    }
+return _ReactionProbs(
+      reactP: reactP,
+      breakP: breakP,
+      trapP: trapP,
+      reason: reason,
+    );
+  }
+
+
+  void _drawStructureLine(Canvas canvas, Size size, double xRight) {
+    final lvl = s.breakLevel;
+    if (lvl <= 0) return;
+
+    final y = priceToY(lvl);
+
+    // dashed line
+    final p = Paint()
+      ..color = theme.textSecondary.withOpacity(0.35)
+      ..strokeWidth = 1.2;
+
+    const dashW = 6.0;
+    const dashGap = 6.0;
+    double x = 0;
+    while (x < xRight) {
+      canvas.drawLine(Offset(x, y), Offset((x + dashW).clamp(0.0, xRight), y), p);
+      x += dashW + dashGap;
+    }
+
+    final tag = s.structureTag.toUpperCase();
+    final label = _structureKo(tag);
+    if (label.isEmpty) return;
+    _label(canvas, size, label, Offset(10, y - 18), theme.textPrimary.withOpacity(0.92));
+  }
+
+  String _structureKo(String tag) {
+    if (tag.contains('CHOCH_UP')) return 'ë°©í–¥ ë°”ë€?? í˜¸??;
+    if (tag.contains('CHOCH_DN')) return 'ë°©í–¥ ë°”ë€?? í˜¸??;
+    if (tag.contains('MSB_UP')) return '???„í™˜(?•ì •)??;
+    if (tag.contains('MSB_DN')) return '???„í™˜(?•ì •)??;
+    if (tag.contains('BOS_UP')) return 'ì¶”ì„¸ ? ì?(?ŒíŒŒ)??;
+    if (tag.contains('BOS_DN')) return 'ì¶”ì„¸ ? ì?(?´íƒˆ)??;
+    return '';
+  }
+
+  void _label(Canvas canvas, Size size, String text, Offset at, Color color) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          shadows: const [Shadow(blurRadius: 6, color: Color(0xAA000000))],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '??,
+    )..layout(maxWidth: 520);
+
+    // small dark backing
+    final pad = const EdgeInsets.symmetric(horizontal: 6, vertical: 4);
+    // ?????„ë˜ ?˜ë¦¼ ë°©ì?
+    final double boxW = tp.width + pad.horizontal;
+    final double boxH = tp.height + pad.vertical;
+    final double x = (at.dx - 2).clamp(6.0, (size.width - boxW - 6.0).clamp(6.0, size.width));
+    final double y = (at.dy - 1).clamp(6.0, (size.height - boxH - 6.0).clamp(6.0, size.height));
+    final r = RRect.fromRectAndRadius(
+      Rect.fromLTWH(x, y, boxW, boxH),
+      const Radius.circular(10),
+    );
+    final bg = Paint()..color = const Color(0xAA05060B);
+    canvas.drawRRect(r, bg);
+    tp.paint(canvas, Offset(x + pad.left, y + pad.top));
+  }
+
+  void _labelRight(Canvas canvas, String text, Offset rightTop, Color color) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          shadows: const [Shadow(blurRadius: 6, color: Color(0xAA000000))],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '??,
+    )..layout(maxWidth: 220);
+
+    final pad = const EdgeInsets.symmetric(horizontal: 6, vertical: 4);
+    final w = tp.width + pad.horizontal;
+    final h = tp.height + pad.vertical;
+    final left = (rightTop.dx - w).clamp(6.0, rightTop.dx);
+    final top = rightTop.dy;
+
+    final r = RRect.fromRectAndRadius(
+      Rect.fromLTWH(left, top, w, h),
+      const Radius.circular(10),
+    );
+    canvas.drawRRect(r, Paint()..color = const Color(0xAA05060B));
+    tp.paint(canvas, Offset(left + pad.left, top + pad.top));
+  }
+
+  @override
+  bool shouldRepaint(covariant ReactionZonesPainter oldDelegate) {
+    return oldDelegate.s != s ||
+        oldDelegate.candles.length != candles.length ||
+        oldDelegate.startIndex != startIndex ||
+        oldDelegate.visibleCount != visibleCount ||
+        oldDelegate.projectionBars != projectionBars;
+  }
+}
+
+
+class _ReactionProbs {
+  final int reactP;
+  final int breakP;
+  final int trapP;
+  final String reason;
+
+  const _ReactionProbs({
+    required this.reactP,
+    required this.breakP,
+    required this.trapP,
+    required this.reason,
+  });
+
+}
+
+
+// === Zone helpers (v22) ===
+List<FuZone> _pickNearestZones(List<FuZone> zs, double priceNow, int maxN) {
+  if (zs.isEmpty) return <FuZone>[];
+  final withDist = zs.map((z) {
+    final mid = (z.low + z.high) / 2.0;
+    final d = (mid - priceNow).abs();
+    return MapEntry<FuZone, double>(z, d);
+  }).toList()
+    ..sort((a, b) => a.value.compareTo(b.value));
+  return withDist.take(maxN).map((e) => e.key).toList();
+}
+
+double _clamp(double v, double lo, double hi) {
+  if (v < lo) return lo;
+  if (v > hi) return hi;
+  return v;
+}
+
+Color _zoneFill(String tag) {
+  if (tag.startsWith('OB')) return const Color(0xFF22D3EE).withOpacity(0.10);   // ì²?¡
+  if (tag.startsWith('FVG')) return const Color(0xFFA78BFA).withOpacity(0.10);  // ë³´ë¼
+  if (tag.startsWith('BPR')) return const Color(0xFFFBBF24).withOpacity(0.10);  // ì£¼í™©
+  if (tag.startsWith('MB')) return const Color(0xFFFB7185).withOpacity(0.08);   // ?‘í¬(ë§ˆì¼“ë¸Œë ˆ?´ì»¤ ??
+  return Colors.white.withOpacity(0.06);
+}
+
+Color _zoneStroke(String tag) {
+  if (tag.startsWith('OB')) return const Color(0xFF22D3EE).withOpacity(0.70);
+  if (tag.startsWith('FVG')) return const Color(0xFFA78BFA).withOpacity(0.70);
+  if (tag.startsWith('BPR')) return const Color(0xFFFBBF24).withOpacity(0.70);
+  if (tag.startsWith('MB')) return const Color(0xFFFB7185).withOpacity(0.65);
+  return Colors.white.withOpacity(0.35);
+}
+
+

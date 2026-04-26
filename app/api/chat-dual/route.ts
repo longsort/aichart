@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runDual } from '@/lib/ai/dualEngine';
-import { OPENAI_ROLE_SYSTEM, buildChartContextSummary, buildLearnedPatternsPrompt } from '@/lib/ai/chartContext';
-import { normalizeCurrentPattern } from '@/lib/recall/patternNormalizer';
-import { recallTopPatterns } from '@/lib/recall/patternRecallEngine';
-import type { AnalyzeResponse } from '@/types';
+import { OPENAI_ROLE_SYSTEM } from '@/lib/ai/chartContext';
+import { buildUnifiedChatAnalysisContext } from '@/lib/ai/unifiedChatContext';
+import { resolveOpenAIKey, verifyBriefingLoginIfRequired } from '@/lib/resolveOpenAIKey';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,17 +13,26 @@ function isBriefingRequest(message: string): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const body = await req.json();
+    const loginCheck = await verifyBriefingLoginIfRequired(body as { briefingLogin?: { user?: string; password?: string } });
+    if ('error' in loginCheck) {
+      return NextResponse.json({ error: loginCheck.error }, { status: 403 });
+    }
+
+    const openaiKey = resolveOpenAIKey(
+      (body as { openaiApiKey?: string }).openaiApiKey,
+      process.env.OPENAI_API_KEY
+    );
     const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!openaiKey && !geminiKey) {
       return NextResponse.json(
-        { error: 'OPENAI_API_KEY와 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되지 않았습니다.', missingKey: 'OPENAI_API_KEY' },
+        { error: 'OpenAI·Gemini API 키가 없습니다. OpenAI는 패널에서 키 입력 또는 서버 OPENAI_API_KEY, Gemini는 GEMINI_API_KEY를 설정하세요.', missingKey: 'OPENAI_API_KEY' },
         { status: 500 }
       );
     }
     if (!openaiKey) {
       return NextResponse.json(
-        { error: 'OPENAI_API_KEY가 설정되지 않았습니다. .env.local에 OPENAI_API_KEY를 추가하세요.', missingKey: 'OPENAI_API_KEY' },
+        { error: 'OpenAI API 키가 없습니다. AI 대화 패널에서 키를 입력하거나 서버에 OPENAI_API_KEY를 설정하세요.', missingKey: 'OPENAI_API_KEY' },
         { status: 500 }
       );
     }
@@ -35,27 +43,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
     const {
       message,
-      engine,
+      engine: engineFromBody,
+      analysisResult,
+      symbol = '',
+      timeframe = '',
       includeChartContext = true,
       chartImage = null,
       mode: explicitMode,
-    } = body;
+    } = body as {
+      message?: string;
+      engine?: unknown;
+      analysisResult?: unknown;
+      symbol?: string;
+      timeframe?: string;
+      includeChartContext?: boolean;
+      chartImage?: string | null;
+      mode?: string;
+    };
 
-    const analysis = (engine && typeof engine === 'object' ? engine : null) as AnalyzeResponse | null;
-    let chartContext = includeChartContext && analysis ? buildChartContextSummary(analysis) : '';
-    if (analysis && chartContext) {
-      const learned = (analysis as any).learnedPatternsTop5;
-      if (learned?.length) {
-        chartContext += '\n\n' + buildLearnedPatternsPrompt(learned);
-      } else {
-        const normalized = normalizeCurrentPattern(analysis);
-        const top5 = recallTopPatterns(normalized, undefined, 5);
-        if (top5.length) chartContext += '\n\n' + buildLearnedPatternsPrompt(top5);
-      }
-    }
+    const chartContext = buildUnifiedChatAnalysisContext({
+      includeChartContext: Boolean(includeChartContext),
+      symbol: String(symbol),
+      timeframe: String(timeframe),
+      analysisResult,
+      engineFromBody,
+    });
 
     const briefingMode = explicitMode === 'briefing' || (explicitMode !== 'chat' && isBriefingRequest(message || ''));
     const formatHint = briefingMode

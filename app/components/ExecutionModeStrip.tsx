@@ -50,6 +50,16 @@ const ExecutionModeStripInner = ({
   const rsiDiv = (analysis as any).rsiDivergenceSignal as
     | { verdict: 'LONG' | 'SHORT' | 'WATCH'; longScore: number; shortScore: number }
     | undefined;
+  const beamForecastLabels = (analysis.overlays ?? [])
+    .filter((o) => o.id.startsWith('beam-forecast-') && o.kind === 'label')
+    .slice(0, 3);
+  const beamConfirmLabel = (analysis.overlays ?? []).find((o) => o.id.startsWith('beam-confirm-') && o.kind === 'label');
+  const longBeam = beamForecastLabels.find((o) => o.label.includes('롱빔'));
+  const shortBeam = beamForecastLabels.find((o) => o.label.includes('숏빔'));
+  const beamStateLabel = beamConfirmLabel
+    ? (beamConfirmLabel.label.includes('롱빔확정') ? 'LONG BEAM CONFIRMED' : 'SHORT BEAM CONFIRMED')
+    : (longBeam || shortBeam ? 'BEAM WATCH' : 'NO BEAM');
+  const beamPath = analysis.beamPathForecast;
 
   return (
     <div
@@ -114,6 +124,66 @@ const ExecutionModeStripInner = ({
           </span>
           <span style={{ color: muted, fontSize: 10 }}>
             L {rsiDiv.longScore} · S {rsiDiv.shortScore}
+          </span>
+        </div>
+      )}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '4px 10px',
+          borderRadius: 8,
+          border: `1px solid ${beamConfirmLabel ? (beamConfirmLabel.label.includes('롱빔확정') ? 'rgba(34,197,94,0.45)' : 'rgba(239,68,68,0.45)') : 'rgba(148,163,184,0.35)'}`,
+          background: beamConfirmLabel
+            ? (beamConfirmLabel.label.includes('롱빔확정') ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)')
+            : 'rgba(148,163,184,0.10)',
+        }}
+        title="선행 빔 예측: N캔들 후 롱빔/숏빔"
+      >
+        <span style={{ color: muted, fontSize: 10 }}>빔</span>
+        <span
+          style={{
+            fontWeight: 800,
+            fontSize: 12,
+            color: beamConfirmLabel
+              ? (beamConfirmLabel.label.includes('롱빔확정') ? '#22C55E' : '#EF4444')
+              : '#cbd5e1',
+          }}
+        >
+          {beamStateLabel}
+        </span>
+        <span style={{ color: muted, fontSize: 10 }}>
+          {longBeam ? `${longBeam.label.replace(/^.*롱빔\s*/, 'L ')}` : 'L –'}
+          {' · '}
+          {shortBeam ? `${shortBeam.label.replace(/^.*숏빔\s*/, 'S ')}` : 'S –'}
+        </span>
+      </div>
+      {beamPath && beamPath.points.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '4px 10px',
+            borderRadius: 8,
+            border: '1px solid rgba(148,163,184,0.35)',
+            background: 'rgba(148,163,184,0.10)',
+          }}
+          title="롱빔 예측 경로 (3/5/8 캔들)"
+        >
+          <span style={{ color: muted, fontSize: 10 }}>예측경로</span>
+          <span
+            style={{
+              fontWeight: 800,
+              fontSize: 12,
+              color: beamPath.dominant === 'LONG' ? '#22C55E' : beamPath.dominant === 'SHORT' ? '#EF4444' : '#cbd5e1',
+            }}
+          >
+            {beamPath.dominant} {beamPath.confidence}%
+          </span>
+          <span style={{ color: muted, fontSize: 10 }}>
+            {beamPath.points.map((p) => `H${p.horizon} L${p.longProb}/S${p.shortProb}`).join(' · ')}
           </span>
         </div>
       )}

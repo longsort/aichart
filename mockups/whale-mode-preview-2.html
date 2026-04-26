@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>세력고래 모드 목업 2</title>
+  <style>
+    body{margin:0;background:#081220;color:#e6f1ff;font-family:Segoe UI,system-ui,sans-serif}
+    .wrap{max-width:1200px;margin:20px auto;padding:16px}
+    .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .chip{background:#12263b;border:1px solid #2a425b;border-radius:12px;padding:6px 10px;font-size:12px}
+    .chip.on{background:#1f3a50;border-color:#62efe0;color:#62efe0}
+    .chart{position:relative;height:620px;border:1px solid #1f3448;border-radius:14px;overflow:hidden;background:
+      linear-gradient(180deg,rgba(255,255,255,.04) 1px,transparent 1px) 0 0/100% 52px,
+      linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px) 0 0/72px 100%,
+      #0b1726}
+    .zone{position:absolute;border-radius:10px;border:1px solid}
+    .acc{left:14%;top:40%;width:26%;height:20%;background:#16a34a22;border-color:#22c55e}
+    .dist{left:56%;top:22%;width:30%;height:18%;background:#dc262622;border-color:#ef4444}
+    .futureLong{left:70%;top:36%;width:22%;height:20%;background:#22c55e20;border-color:#22c55e}
+    .futureShort{left:69%;top:14%;width:23%;height:12%;background:#ef444420;border-color:#ef4444}
+    .locked{box-shadow:0 0 0 2px #facc15 inset, 0 0 18px #facc1588}
+    .label{position:absolute;padding:4px 8px;border-radius:8px;font-size:12px;font-weight:700}
+    .l1{left:16%;top:38%;background:#052f1f;color:#7ef8b6;border:1px solid #1f9d67}
+    .l2{left:58%;top:20%;background:#330a0a;color:#fca5a5;border:1px solid #ef4444}
+    .l3{left:71%;top:34%;background:#052f1f;color:#7ef8b6;border:1px solid #1f9d67}
+    .l4{left:70%;top:12%;background:#330a0a;color:#fca5a5;border:1px solid #ef4444}
+    .legend{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+    .card{background:#0f2135;border:1px solid #26405a;border-radius:10px;padding:10px;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <span class="chip on">세력고래 모드</span>
+      <span class="chip on">예고박스 ON</span>
+      <span class="chip on">매집박스 ON</span>
+      <span class="chip on">분배박스 ON</span>
+      <span class="chip on">확정만 표시 ON</span>
+    </div>
+    <div class="chart">
+      <div class="zone acc locked"></div>
+      <div class="zone dist locked"></div>
+      <div class="zone futureLong"></div>
+      <div class="zone futureShort"></div>
+      <div class="label l1">매집 zone (확정 고정)</div>
+      <div class="label l2">분배 zone (확정 고정)</div>
+      <div class="label l3">장대양봉 후보</div>
+      <div class="label l4">장대음봉 후보</div>
+    </div>
+    <div class="legend">
+      <div class="card">목업 2: 매집/분배 + 예고박스 동시 표시. 노란 내부광은 “확정 고정(색 변경 금지)” 상태를 의미.</div>
+      <div class="card">실제 구현에서는 같은 time에 재계산이 와도 확정 박스는 lock 유지, 신규 박스만 추가됩니다.</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,218 @@
+/* 앱 .card / header-card 와 톤 맞춤 — 앰버 + 시안 러닝 하이라이트 */
+.disclaimer {
+  position: relative;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.3),
+    0 0 50px -24px var(--accent-glow-dim, rgba(45, 212, 191, 0.14)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background:
+    linear-gradient(90deg, rgba(251, 191, 36, 0.55) 0, rgba(251, 191, 36, 0.14) 3px, transparent 3px),
+    var(--card-bg);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.disclaimer::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0.45) 0%, #fbbf24 42%, rgba(56, 189, 248, 0.4) 100%);
+  border-radius: 22px 22px 0 0;
+  pointer-events: none;
+  opacity: 0.9;
+  z-index: 1;
+}
+
+.disclaimerLogin {
+  margin-top: 18px;
+  margin-bottom: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+}
+
+.disclaimerMain {
+  margin-top: 0;
+  padding: 16px 18px 18px;
+}
+
+.shell {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.rail {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  font-style: italic;
+  line-height: 1;
+  color: #fbbf24;
+  background: linear-gradient(160deg, rgba(251, 191, 36, 0.2), rgba(45, 212, 191, 0.08));
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  box-shadow: 0 2px 16px rgba(251, 191, 36, 0.1), 0 0 20px -6px var(--accent-glow-dim, rgba(45, 212, 191, 0.12));
+}
+
+.disclaimerLogin .rail {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.inner {
+  flex: 1;
+  min-width: 0;
+}
+
+.disclaimerLogin .kicker {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.mainHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #fbbf24;
+  text-shadow: 0 0 24px rgba(251, 191, 36, 0.25);
+}
+
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.14);
+  color: #fde68a;
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  letter-spacing: 0.02em;
+}
+
+.text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.text strong,
+.list strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 12px;
+  line-height: 1.52;
+  color: var(--muted);
+  list-style: disc;
+}
+
+.list::marker {
+  color: rgba(251, 191, 36, 0.75);
+  font-size: 0.9em;
+}
+
+.list li {
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+.list li:last-child {
+  margin-bottom: 0;
+}
+
+@media (min-width: 981px) {
+  .disclaimerMain {
+    padding: 18px 22px 20px;
+  }
+
+  .list {
+    padding-left: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .list li {
+    margin: 0;
+    padding: 12px 14px 12px 16px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border);
+    position: relative;
+  }
+
+  .list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #fbbf24, rgba(251, 191, 36, 0.35));
+  }
+
+  :global(html[data-theme='light']) .list li {
+    background: rgba(0, 0, 0, 0.03);
+  }
+}
+
+:global(html[data-theme='light']) .disclaimer {
+  background:
+    linear-gradient(90deg, rgba(217, 119, 6, 0.4) 0, rgba(251, 191, 36, 0.2) 3px, transparent 3px),
+    var(--card-bg);
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08), 0 0 40px -20px rgba(6, 182, 212, 0.12);
+}
+
+:global(html[data-theme='light']) .disclaimer::before {
+  background: linear-gradient(90deg, rgba(6, 182, 212, 0.45) 0%, rgba(245, 158, 11, 0.55) 50%, rgba(6, 182, 212, 0.35) 100%);
+  opacity: 0.85;
+}
+
+:global(html[data-theme='light']) .kicker {
+  color: #b45309;
+  text-shadow: none;
+}
+
+:global(html[data-theme='light']) .badge {
+  background: rgba(251, 191, 36, 0.28);
+  color: #78350f;
+  border-color: rgba(217, 119, 6, 0.35);
+}
+
+:global(html[data-theme='light']) .rail {
+  color: #b45309;
+  background: rgba(251, 191, 36, 0.22);
+  border-color: rgba(217, 119, 6, 0.3);
+}

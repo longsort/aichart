@@ -3,6 +3,8 @@
  * 브리핑·차트 분석·종가 마감을 종합해 LONG/SHORT 타점만 필터.
  */
 
+import { latchedClosesAlignedWithVerdict, type LatchedCloseStatesBundle } from '@/lib/closeAlignment';
+
 export type SwingTapPointResult = {
   active: boolean;
   direction: 'LONG' | 'SHORT' | null;
@@ -23,6 +25,8 @@ type AnalysisLike = {
   closeBias?: 'bullish' | 'bearish' | 'neutral';
   dailyState?: string | null;
   weeklyState?: string | null;
+  monthlyState?: string | null;
+  latchedCloseStates?: LatchedCloseStatesBundle;
   timeframe: string;
   confidenceGrade?: string;
 };
@@ -76,14 +80,24 @@ export function computeSwingTapPoint(analysis: AnalysisLike): SwingTapPointResul
   const closeBias = analysis.closeBias;
   const dailyState = analysis.dailyState;
   const weeklyState = analysis.weeklyState;
+  const bundle = analysis.latchedCloseStates;
+  const tf = analysis.timeframe;
+  const latchedLong =
+    bundle != null ? latchedClosesAlignedWithVerdict('LONG', tf, bundle) : false;
+  const latchedShort =
+    bundle != null ? latchedClosesAlignedWithVerdict('SHORT', tf, bundle) : false;
   const closeOkLong =
+    latchedLong ||
     closeBias === 'bullish' ||
     dailyState === 'accepted_above' ||
-    weeklyState === 'accepted_above';
+    weeklyState === 'accepted_above' ||
+    analysis.monthlyState === 'accepted_above';
   const closeOkShort =
+    latchedShort ||
     closeBias === 'bearish' ||
     dailyState === 'accepted_below' ||
-    weeklyState === 'accepted_below';
+    weeklyState === 'accepted_below' ||
+    analysis.monthlyState === 'accepted_below';
   if (direction === 'LONG' && closeOkLong) {
     reasons.push('종가선 위 안착·상승 정배열');
   } else if (direction === 'SHORT' && closeOkShort) {

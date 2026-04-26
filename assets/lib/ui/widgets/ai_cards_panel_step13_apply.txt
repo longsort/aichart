@@ -1,0 +1,33 @@
+STEP13 안정화(필수 2개 묶음) 적용 방법
+
+[추가 파일]
+1) lib/core/utils/ai_safe.dart
+2) lib/ui/widgets/ai_scroll_wrap.dart
+
+[ai_cards_panel.dart 수정 - 딱 3군데]
+A) import 추가:
+import '../../core/utils/ai_safe.dart';
+import 'ai_scroll_wrap.dart';
+
+B) ValueListenableBuilder builder 안에서 dto를 바로 Map으로 변환(상단에 2줄):
+final dtoMap = AiSafe.asMap(dto);
+
+그리고 기존에 _pick/_asInt/_asDouble 같은 로컬 함수 쓰던 곳을
+AiSafe.pick / AiSafe.asInt / AiSafe.asDouble 로 교체하면
+(1) null 에러
+(2) String->double 같은 타입 에러
+가 자동으로 안 남.
+
+예)
+final spreadBp = AiSafe.asInt(AiSafe.pick(dto, 'spreadBp'), 0);
+final bidVol = AiSafe.asDouble(AiSafe.pick(dto, 'orderbookBidVol'), 0);
+
+C) return Column(...) 을 오버플로 방지 래퍼로 감싸기:
+return AiScrollWrap(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [ ...기존 그대로... ],
+  ),
+);
+
+끝.

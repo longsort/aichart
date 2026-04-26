@@ -12,6 +12,8 @@ export type BriefingContext = {
   currentPrice: number;
   signal: string;
   confidence: number;
+  /** 달봉 트렌드 (분·시간·일·주 공통, 상승/하락/횡보) */
+  trend1M?: string | null;
   buyPressure: number;
   sellPressure: number;
   volumeDelta: number;
@@ -56,6 +58,7 @@ export function buildBriefingContext(
     riskFlags?: string[];
     rr?: number;
     mtf?: { summary?: string; alignmentScore?: number };
+    multiTF?: { trend1M?: string | null };
     dominantPattern?: { type: string; label?: string; confidence: number; bias: string } | null;
     learnedPatternsTop5?: Array<{ title: string; score: number; outcome: string }>;
   },
@@ -110,6 +113,7 @@ export function buildBriefingContext(
     currentPrice,
     signal: analysis.verdict,
     confidence: analysis.confidence,
+    trend1M: analysis.multiTF?.trend1M ?? null,
     buyPressure: marketData?.buyPressure ?? 0.5,
     sellPressure: marketData?.sellPressure ?? 0.5,
     volumeDelta: marketData?.volumeDelta ?? 0,
@@ -169,7 +173,7 @@ export function briefingContextToPromptText(ctx: BriefingContext): string {
   const lines = [
     '[Chart context – server engine result only, do not collect or decide]',
     `symbol: ${ctx.symbol} | timeframe: ${ctx.timeframe} | currentPrice: ${ctx.currentPrice}`,
-    `신호: ${ctx.signal} | 신뢰도: ${ctx.confidence}% (${ctx.confidenceGrade})`,
+    `신호: ${ctx.signal} | 신뢰도: ${ctx.confidence}% (${ctx.confidenceGrade})${ctx.trend1M ? ` | 1M 트렌드: ${ctx.trend1M}` : ''}`,
     `buyPressure: ${buyP}% | sellPressure: ${sellP}% | volumeDelta: ${volD} | orderbookImbalance: ${obImb}%`,
     `oiState: ${ctx.oiState} | fundingState: ${ctx.fundingState} | liquidityState: ${ctx.liquidityState}`,
     `bosCount: ${ctx.bosCount} | chochCount: ${ctx.chochCount} | fvgCount: ${ctx.fvgCount} | obCount: ${ctx.obCount} | sweepCount: ${ctx.sweepCount} | patterns: ${ctx.patterns}`,

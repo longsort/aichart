@@ -8,7 +8,7 @@
  * 분·시간·일·주 차트 각 TF별 자동 분석
  */
 
-import type { Candle } from '@/types';
+import type { Candle, OverlayItem } from '@/types';
 import { detectPivots, type PivotPoint } from './trendlineEngine';
 import { atrSeries } from './indicators';
 
@@ -45,6 +45,7 @@ export type RetestPoint = {
 export type BreakoutPoint = {
   zone: HorizontalZone;
   index: number;
+  price: number;
   direction: 'down' | 'up';
   label: string;
 };
@@ -170,6 +171,7 @@ function detectBreakoutsAndRetests(
             zone: z,
             index: i + 1,
             price: next.close,
+            direction: 'down',
             label: '돌파',
           });
           updatedZones[zi] = { ...z, roleReversed: true, label: '상단저항선' };
@@ -180,6 +182,7 @@ function detectBreakoutsAndRetests(
             zone: z,
             index: i + 1,
             price: next.close,
+            direction: 'up',
             label: '돌파',
           });
           updatedZones[zi] = { ...z, roleReversed: true, label: '하단지지선' };
@@ -268,8 +271,8 @@ export function zoneTrendlineToOverlays(
   min: number,
   max: number,
   colors: { support: string; resistance: string; underneath: string; overhead: string; retest: string; breakout: string }
-): Array<{ id: string; kind: string; label: string; x1: number; y1: number; x2: number; y2: number; confidence: number; color: string; category: string; lineDash?: string }> {
-  const items: Array<{ id: string; kind: string; label: string; x1: number; y1: number; x2: number; y2: number; confidence: number; color: string; category: string; lineDash?: string }> = [];
+): OverlayItem[] {
+  const items: OverlayItem[] = [];
   const n = candles.length;
   const denom = Math.max(1, n - 1);
   const range = Math.max(1e-9, max - min);

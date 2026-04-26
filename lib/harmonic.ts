@@ -10,119 +10,22 @@ export type HarmonicLeg = {
   pattern: HarmonicPatternName;
 };
 
-export type ButterflyLeg = HarmonicLeg & { pattern: 'butterfly' };
-
 const TOL = 0.08;
 
-function inRange(val: number, target: number, tol: number) {
-  return val >= target - tol && val <= target + tol;
-}
-
-export function detectButterfly(
-  candles: Candle[],
-  swings: Array<{ type: 'high' | 'low'; index: number; price: number }>
-): ButterflyLeg[] {
-  const hits: ButterflyLeg[] = [];
-  const highs = swings.filter(s => s.type === 'high');
-  const lows = swings.filter(s => s.type === 'low');
-  if (highs.length < 3 || lows.length < 3) return hits;
-
-  for (let xi = 0; xi < highs.length - 2; xi++) {
-    const x = highs[xi];
-    for (let ai = xi + 1; ai < lows.length; ai++) {
-      const a = lows[ai];
-      if (a.index <= x.index) continue;
-      const xa = x.price - a.price;
-      if (xa <= 0) continue;
-      for (let bi = ai + 1; bi < highs.length; bi++) {
-        const b = highs[bi];
-        if (b.index <= a.index) continue;
-        const xbRet = (x.price - b.price) / xa;
-        if (!inRange(xbRet, 0.786, TOL)) continue;
-        const ab = b.price - a.price;
-        if (ab <= 0) continue;
-        for (let ci = bi + 1; ci < lows.length; ci++) {
-          const c = lows[ci];
-          if (c.index <= b.index) continue;
-          const bcRet = (b.price - c.price) / ab;
-          if (bcRet < 0.382 || bcRet > 0.886) continue;
-          const bc = b.price - c.price;
-          const cd1 = bc * 1.618;
-          const cd2 = bc * 2.0;
-          const cd3 = bc * 2.24;
-          const d1 = c.price - cd1;
-          const d2 = c.price - cd2;
-          const d3 = c.price - cd3;
-          const xa127 = xa * 1.27;
-          const dTarget = x.price - xa127;
-          let bestD = d1;
-          let bestScore = 0;
-          for (const d of [d1, d2, d3]) {
-            const dist = Math.abs(d - dTarget) / xa;
-            if (dist < TOL) {
-              const sc = 1 - dist / TOL;
-              if (sc > bestScore) {
-                bestScore = sc;
-                bestD = d;
-              }
-            }
-          }
-          if (bestScore > 0) {
-            const lastLow = Math.min(...candles.slice(c.index, Math.min(c.index + 20, candles.length)).map(cx => cx.low));
-            if (lastLow <= bestD * 1.01 && lastLow >= bestD * 0.99) {
-              hits.push({
-                x: x.index, a: a.index, b: b.index, c: c.index, d: c.index + 5,
-                xPrice: x.price, aPrice: a.price, bPrice: b.price, cPrice: c.price, dPrice: bestD,
-                bias: 'bullish' as const, score: bestScore, pattern: 'butterfly'
-              });
-            }
-          }
-        }
-      }
+/** D점: 목표가에 가장 가깝게 터치한 캔들의 인덱스 (캔들 정렬용) */
+function findTouchIndex(slice: Candle[], targetPrice: number, ext: 'high' | 'low', baseIdx: number): number {
+  if (!slice.length) return baseIdx + 5;
+  let bestIdx = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < slice.length; i++) {
+    const p = ext === 'high' ? slice[i].high : slice[i].low;
+    const d = Math.abs(p - targetPrice);
+    if (d < bestDist) {
+      bestDist = d;
+      bestIdx = i;
     }
   }
-
-  for (let xi = 0; xi < lows.length - 2; xi++) {
-    const x = lows[xi];
-    for (let ai = xi + 1; ai < highs.length; ai++) {
-      const a = highs[ai];
-      if (a.index <= x.index) continue;
-      const xa = a.price - x.price;
-      if (xa <= 0) continue;
-      for (let bi = ai + 1; bi < lows.length; bi++) {
-        const b = lows[bi];
-        if (b.index <= a.index) continue;
-        const xbRet = (b.price - x.price) / xa;
-        if (!inRange(xbRet, 0.786, TOL)) continue;
-        const ab = a.price - b.price;
-        if (ab <= 0) continue;
-        for (let ci = bi + 1; ci < highs.length; ci++) {
-          const c = highs[ci];
-          if (c.index <= b.index) continue;
-          const bcRet = (c.price - b.price) / ab;
-          if (bcRet < 0.382 || bcRet > 0.886) continue;
-          const bc = c.price - b.price;
-          const cd1 = bc * 1.618;
-          const d1 = c.price + cd1;
-          const xa127 = xa * 1.27;
-          const dTarget = x.price + xa127;
-          const dist = Math.abs(d1 - dTarget) / xa;
-          if (dist < TOL) {
-            const lastHigh = Math.max(...candles.slice(c.index, Math.min(c.index + 20, candles.length)).map(cx => cx.high));
-            if (lastHigh >= d1 * 0.99 && lastHigh <= d1 * 1.01) {
-              hits.push({
-                x: x.index, a: a.index, b: b.index, c: c.index, d: c.index + 5,
-                xPrice: x.price, aPrice: a.price, bPrice: b.price, cPrice: c.price, dPrice: d1,
-                bias: 'bearish' as const, score: 1 - dist / TOL, pattern: 'butterfly'
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return hits.map(h => ({ ...h, pattern: 'butterfly' as const }));
+  return baseIdx + bestIdx;
 }
 
 const HARMONIC_SPECS: Record<HarmonicPatternName, { xb: [number, number]; bc: [number, number]; cd: [number, number]; xaAd: [number, number] }> = {
@@ -196,8 +99,10 @@ export function detectAllHarmonics(
               const adRet = (x.price - dPrice) / xa;
               const sc = matchHarmonic(xa, xbRet, bcRet, cdR, adRet, patternName);
               if (sc > 0.5) {
+                const slice = candles.slice(c.index, Math.min(c.index + 30, candles.length));
+                const dIdx = findTouchIndex(slice, dPrice, 'low', c.index);
                 results.push({
-                  x: x.index, a: a.index, b: b.index, c: c.index, d: c.index + 5,
+                  x: x.index, a: a.index, b: b.index, c: c.index, d: dIdx,
                   xPrice: x.price, aPrice: a.price, bPrice: b.price, cPrice: c.price, dPrice,
                   bias: 'bullish', score: sc, pattern: patternName,
                 });
@@ -235,8 +140,10 @@ export function detectAllHarmonics(
               const adRet = (dPrice - x.price) / xa;
               const sc = matchHarmonic(xa, xbRet, bcRet, cdR, adRet, patternName);
               if (sc > 0.5) {
+                const slice = candles.slice(c.index, Math.min(c.index + 30, candles.length));
+                const dIdx = findTouchIndex(slice, dPrice, 'high', c.index);
                 results.push({
-                  x: x.index, a: a.index, b: b.index, c: c.index, d: c.index + 5,
+                  x: x.index, a: a.index, b: b.index, c: c.index, d: dIdx,
                   xPrice: x.price, aPrice: a.price, bPrice: b.price, cPrice: c.price, dPrice,
                   bias: 'bearish', score: sc, pattern: patternName,
                 });

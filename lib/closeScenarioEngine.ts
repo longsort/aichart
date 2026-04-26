@@ -1,8 +1,10 @@
 import type { CloseLevels } from './closeLevelEngine';
 import type { CloseStateResult } from './closeStateEngine';
 
+export type CloseScenarioTf = '1m' | '5m' | '15m' | '1h' | '4h' | 'daily' | 'weekly' | 'monthly';
+
 export type CloseScenarioItem = {
-  tf: 'daily' | 'weekly' | 'monthly';
+  tf: CloseScenarioTf;
   state: string;
   message: string;
 };
@@ -18,10 +20,7 @@ export type CloseScenarioResult = {
 
 /**
  * 종가 레벨 상태를 매수/매도 시나리오에 반영.
- * - 일봉 종가선 위 안착 + 주봉선 위 유지 = 매수 우세 가점
- * - 일봉 종가선 회복 실패 + 주봉선 아래 = 매도 우세 가점
- * - reclaiming = trigger 대기
- * - accepted_below = rejection 가점 (매도 쪽)
+ * 분·시간·일·주·월 동일 규칙: 위 안착 가점, 아래 거절 가점, reclaiming 은 대기.
  */
 export function computeCloseScenario(
   levels: CloseLevels,
@@ -31,24 +30,36 @@ export function computeCloseScenario(
   let buyBoost = 0;
   let sellBoost = 0;
 
-  const add = (tf: 'daily' | 'weekly' | 'monthly', state: string | null, price: number | null) => {
+  const addTf = (
+    tf: CloseScenarioTf,
+    state: string | null | undefined,
+    price: number | null | undefined,
+    label: string,
+    buyW: number,
+    sellW: number
+  ) => {
     if (state == null || price == null) return;
     let message = '';
     if (state === 'accepted_above') {
-      message = `${tf === 'daily' ? '일봉' : tf === 'weekly' ? '주봉' : '월봉'} 종가선 위 안착`;
-      buyBoost += tf === 'daily' ? 5 : tf === 'weekly' ? 8 : 10;
+      message = `${label} 종가선 위 안착`;
+      buyBoost += buyW;
     } else if (state === 'accepted_below') {
-      message = `${tf === 'daily' ? '일봉' : tf === 'weekly' ? '주봉' : '월봉'} 종가선 아래`;
-      sellBoost += tf === 'daily' ? 5 : tf === 'weekly' ? 8 : 10;
+      message = `${label} 종가선 아래`;
+      sellBoost += sellW;
     } else if (state === 'reclaiming') {
-      message = `${tf === 'daily' ? '일봉' : tf === 'weekly' ? '주봉' : '월봉'} 종가선 근처 재진입 테스트`;
+      message = `${label} 종가선 근처 재진입 테스트`;
     }
     if (message) scenarios.push({ tf, state, message });
   };
 
-  add('daily', stateResult.dailyState, levels.dailyCloseLevel);
-  add('weekly', stateResult.weeklyState, levels.weeklyCloseLevel);
-  add('monthly', stateResult.monthlyState, levels.monthlyCloseLevel);
+  addTf('1m', stateResult.state1m, levels.close1m, '1m', 2, 2);
+  addTf('5m', stateResult.state5m, levels.close5m, '5m', 2, 2);
+  addTf('15m', stateResult.state15m, levels.close15m, '15m', 3, 3);
+  addTf('1h', stateResult.state1h, levels.close1h, '1h', 4, 4);
+  addTf('4h', stateResult.state4h, levels.close4h, '4h', 5, 5);
+  addTf('daily', stateResult.dailyState, levels.dailyCloseLevel, '일봉', 5, 5);
+  addTf('weekly', stateResult.weeklyState, levels.weeklyCloseLevel, '주봉', 8, 8);
+  addTf('monthly', stateResult.monthlyState, levels.monthlyCloseLevel, '월봉', 10, 10);
 
   let closeBias: 'bullish' | 'bearish' | 'neutral' = 'neutral';
   if (buyBoost > sellBoost) closeBias = 'bullish';

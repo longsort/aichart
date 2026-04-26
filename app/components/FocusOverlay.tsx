@@ -31,8 +31,8 @@ const FocusOverlayInner = ({ analysis, theme, standalone }: { analysis: AnalyzeR
   const bg = isDark ? 'rgba(15,23,42,0.92)' : 'rgba(255,255,255,0.92)';
   const text = isDark ? '#e2e8f0' : '#1e293b';
   const muted = isDark ? '#94a3b8' : '#64748b';
-  const buyColor = '#62efe0';
-  const sellColor = '#ff7b7b';
+  const buyColor = '#22C55E';
+  const sellColor = '#EF4444';
 
   return (
     <div

@@ -1,5 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ChartExplainRequest } from '@/types/chartExplain';
+import { resolveOpenAIKey, verifyBriefingLoginIfRequired } from '@/lib/resolveOpenAIKey';
+
+type ChartExplainBody = ChartExplainRequest & {
+  detectedVisionPatterns?: unknown[];
+  dominantPattern?: unknown;
+  patternVisionSummary?: string;
+  openaiApiKey?: string;
+  briefingLogin?: { user?: string; password?: string };
+};
+
+function openaiMiniCostUsd(promptTokens: number, completionTokens: number): number {
+  return (promptTokens / 1e6) * 0.15 + (completionTokens / 1e6) * 0.6;
+}
+
+function geminiFlashCostUsd(promptTokens: number, completionTokens: number): number {
+  return (promptTokens / 1e6) * 0.075 + (completionTokens / 1e6) * 0.3;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -52,18 +69,22 @@ function buildUserMessage(data: ChartExplainRequest, visionContext?: { detectedV
 
 export async function POST(req: NextRequest) {
   try {
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const body = (await req.json()) as ChartExplainBody;
+    const loginCheck = await verifyBriefingLoginIfRequired(body);
+    if ('error' in loginCheck) {
+      return NextResponse.json({ error: loginCheck.error }, { status: 403 });
+    }
+
+    const openaiKey = resolveOpenAIKey(body.openaiApiKey, process.env.OPENAI_API_KEY);
     const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     const useGemini = !!geminiKey && !openaiKey;
     const key = useGemini ? geminiKey : openaiKey;
     if (!key) {
       return NextResponse.json(
-        { error: 'OPENAI_API_KEY 또는 GEMINI_API_KEY가 설정되지 않았습니다.' },
+        { error: 'OpenAI API 키가 없습니다. AI 패널에서 키를 입력하거나 서버에 OPENAI_API_KEY / GEMINI_API_KEY를 설정하세요.' },
         { status: 500 }
       );
     }
-
-    const body = (await req.json()) as ChartExplainRequest & { detectedVisionPatterns?: unknown[]; dominantPattern?: unknown; patternVisionSummary?: string };
     if (!body?.symbol || !body?.candleData || !body?.engineData) {
       return NextResponse.json({ error: 'symbol, candleData, engineData 필수' }, { status: 400 });
     }
@@ -92,7 +113,14 @@ export async function POST(req: NextRequest) {
       }
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
-      return NextResponse.json({ explanation: text });
+      const usageMeta = data.usageMetadata || {};
+      const inT = usageMeta.promptTokenCount || 0;
+      const outT = usageMeta.candidatesTokenCount || Math.max(0, (usageMeta.totalTokenCount || 0) - inT);
+      const estimatedCost = geminiFlashCostUsd(inT, outT);
+      return NextResponse.json({
+        explanation: text,
+        usage: { provider: 'gemini', inputTokens: inT, outputTokens: outT, estimatedCost },
+      });
     }
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -118,7 +146,14 @@ export async function POST(req: NextRequest) {
     }
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content?.trim() ?? '';
-    return NextResponse.json({ explanation: text });
+    const usage = data.usage || {};
+    const inT = usage.prompt_tokens || 0;
+    const outT = usage.completion_tokens || 0;
+    const estimatedCost = openaiMiniCostUsd(inT, outT);
+    return NextResponse.json({
+      explanation: text,
+      usage: { provider: 'openai', inputTokens: inT, outputTokens: outT, estimatedCost },
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'chart-explain failed' }, { status: 500 });
   }

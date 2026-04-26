@@ -1,0 +1,519 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../../core/models/fu_state.dart';
+
+/// v6: v5 + PO3(축적/조작/분배) 상태칩 + 멀티TF 합의(%) 칩
+/// - FuState 기존 필드만 사용 (compile-safe)
+/// - PO3는 휴리스틱(스윕/흡수/포스/구조태그)로 산출
+class DecisionHudV6 extends StatelessWidget {
+  final FuState s;
+  const DecisionHudV6({super.key, required this.s});
+
+  String _titleKo() {
+    final t = s.decisionTitle.trim();
+    if (t.isNotEmpty) {
+      return t.replaceAll('롱', '매수').replaceAll('숏', '매도');
+    }
+    final dir = s.signalDir.toUpperCase();
+    if (dir == 'LONG') return '매수 확정';
+    if (dir == 'SHORT') return '매도 확정';
+    return '관망';
+  }
+
+  Color _accent() {
+    final dir = s.signalDir.toUpperCase();
+    if (dir == 'LONG') return const Color(0xFF4DA3FF);
+    if (dir == 'SHORT') return const Color(0xFFFF4D7D);
+    return const Color(0xFFB7BDC6);
+  }
+
+  String _pctStr() => '${s.signalProb.clamp(0, 100)}%';
+
+  List<_EvRow> _evRows() {
+    final bullets = s.signalBullets;
+    final base = s.signalProb.clamp(0, 100).toDouble();
+    final rows = <_EvRow>[];
+
+    for (var i = 0; i < math.min(4, bullets.length); i++) {
+      final w = switch (i) { 0 => 1.0, 1 => 0.78, 2 => 0.60, _ => 0.45 };
+      rows.add(_EvRow(text: bullets[i], value: (base * w).clamp(0, 100)));
+    }
+
+    if (rows.isEmpty) {
+      rows.add(_EvRow(text: '근거가 부족합니다 (관망)', value: base * 0.40));
+      rows.add(_EvRow(text: '다중TF 합의 확인', value: base * 0.35));
+      rows.add(_EvRow(text: '유동성/스윕 리스크 체크', value: base * 0.30));
+    }
+
+    return rows;
+  }
+
+  List<String> _targets() {
+    if (s.zoneTargets.isNotEmpty) {
+      return s.zoneTargets.take(3).map((e) => e.toStringAsFixed(0)).toList();
+    }
+    if (s.target > 0) return [s.target.toStringAsFixed(0)];
+    return const ['-'];
+  }
+
+  _ReactStat _calcReactStat() {
+    final candles = s.candles;
+    final lo = s.reactLow;
+    final hi = s.reactHigh;
+    if (candles.isEmpty || lo <= 0 || hi <= 0 || hi <= lo) {
+      return _ReactStat(pct: s.signalProb.round().clamp(0, 100).toInt(), touches: 0, avgMovePct: 0.0);
+    }
+
+    final int lookback = math.min(140, candles.length);
+    const int horizon = 3;
+    final dir = s.signalDir.toUpperCase();
+
+    final lastClose = candles.last.close;
+    final band = (hi - lo).abs();
+    final minMove = math.max(band * 0.80, lastClose * 0.002);
+
+    int touches = 0;
+    int success = 0;
+    double moveSumPct = 0.0;
+
+    final start = candles.length - lookback;
+    for (int i = start; i < candles.length - horizon; i++) {
+      final c = candles[i];
+      final touched = (c.low <= hi) && (c.high >= lo);
+      if (!touched) continue;
+
+      touches += 1;
+
+      double bestMove = 0.0;
+      if (dir == 'SHORT') {
+        var minLow = candles[i + 1].low;
+        for (int k = 1; k <= horizon; k++) {
+          minLow = math.min(minLow, candles[i + k].low);
+        }
+        bestMove = c.close - minLow;
+      } else {
+        var maxHigh = candles[i + 1].high;
+        for (int k = 1; k <= horizon; k++) {
+          maxHigh = math.max(maxHigh, candles[i + k].high);
+        }
+        bestMove = maxHigh - c.close;
+      }
+
+      final ok = bestMove >= minMove;
+      if (ok) {
+        success += 1;
+        moveSumPct += (bestMove / math.max(1e-9, c.close)) * 100.0;
+      }
+    }
+
+    if (touches == 0) {
+      return _ReactStat(pct: s.signalProb.round().clamp(0, 100).toInt(), touches: 0, avgMovePct: 0.0);
+    }
+
+    final pct = ((success / touches) * 100).round().clamp(0, 100).toInt();
+    final avg = (success == 0) ? 0.0 : (moveSumPct / success).toDouble();
+    return _ReactStat(pct: pct, touches: touches, avgMovePct: avg);
+  }
+
+  /// PO3 휴리스틱: 축적(A) / 조작(M) / 분배(D)
+  _Po3Chip _po3() {
+    final st = s.structureTag.toUpperCase();
+    final risk = s.sweepRisk.clamp(0, 100);
+    final abs = s.absorptionScore.clamp(0, 100);
+    final force = s.forceScore.clamp(0, 100);
+    final prob = s.signalProb.clamp(0, 100);
+
+    String stage = '축적';
+    int prog = abs;
+    Color color = const Color(0xFF48D6A7);
+
+    // 조작: 스윕 리스크가 높거나, CHOCH가 난 상태에서 위험이 올라갈 때
+    if (risk >= 60 || st.contains('CHOCH') || contains('MSB')) {
+      stage = '조작';
+      prog = risk;
+      color = const Color(0xFFB58BFF);
+    }
+
+    // 분배: BOS + 포스/확정도가 높을 때
+    if (st.contains('BOS') && (force >= 55 || prob >= 70) && risk < 80) {
+      stage = '분배';
+      prog = math.max(force, prob).clamp(0, 100);
+      color = const Color(0xFFFFC24D);
+    }
+
+    return _Po3Chip(stage: stage, progress: prog, color: color);
+  }
+
+  int _mtfAgreementPct() {
+    final want = s.signalDir.toUpperCase();
+    if (want != 'LONG' && want != 'SHORT') return 0;
+    final keys = ['5m', '15m', '1h', '4h', '1D'];
+
+    int total = 0;
+    int ok = 0;
+    for (final k in keys) {
+      final p = s.mtfPulse[k];
+      if (p == null) continue;
+      total += 1;
+      final dirOk = p.dir.toUpperCase() == want;
+      final strengthOk = p.strength >= 55;
+      final riskOk = p.risk < 70;
+      if (dirOk && strengthOk && riskOk) ok += 1;
+    }
+    if (total == 0) return 0;
+    return ((ok / total) * 100).round().clamp(0, 100);
+  }
+
+  String _whyLine(_ReactStat rs, int mtfPct, _Po3Chip po3) {
+    final risk = s.sweepRisk.clamp(0, 100);
+    if (s.locked) {
+      return '관망(LOCK): ${s.lockedReason.isNotEmpty ? s.lockedReason : '조건 미충족'}';
+    }
+    if (mtfPct > 0 && mtfPct < 60) {
+      return '관망: TF 합의 ${mtfPct}% · PO3 ${po3.stage} · 반응 ${rs.pct}%';
+    }
+    if (!s.consensusOk) {
+      return '관망: 다중TF 합의 부족 · 반응 ${rs.pct}%';
+    }
+    if (risk >= 65) {
+      return '주의: 스윕/스탑헌트 리스크 ${risk}% · PO3 ${po3.stage}';
+    }
+    if (s.signalDir.toUpperCase() == 'NEUTRAL' || s.signalProb < 60) {
+      return '관망: 확정도 부족(${s.signalProb}%) · 근거 ${s.evidenceHit}/${s.evidenceTotal}';
+    }
+    return '확정 근접: TF ${mtfPct > 0 ? '${mtfPct}%' : 'OK'} · PO3 ${po3.stage} · 반응 ${rs.pct}%';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _accent();
+    final bg = Theme.of(context).colorScheme.surface;
+    final title = _titleKo();
+
+    final g1 = s.confidenceScore.clamp(0, 100);
+    final g2 = (s.evidenceTotal <= 0) ? 0 : ((s.evidenceHit / s.evidenceTotal) * 100).round().clamp(0, 100);
+    final g3 = s.absorptionScore.clamp(0, 100);
+    final g4 = s.forceScore.clamp(0, 100);
+
+    final entry = (s.entry > 0) ? s.entry.toStringAsFixed(0) : '-';
+    final stop = (s.stop > 0) ? s.stop.toStringAsFixed(0) : '-';
+    final tps = _targets();
+
+    final rs = _calcReactStat();
+    final po3 = _po3();
+    final mtfPct = _mtfAgreementPct();
+    final why = _whyLine(rs, mtfPct, po3);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bg.withOpacity(0.80),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withOpacity(0.55), width: 1.2),
+        boxShadow: [
+          BoxShadow(color: accent.withOpacity(0.14), blurRadius: 18, spreadRadius: 1, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: accent.withOpacity(0.55), width: 1),
+                ),
+                child: Text(
+                  '[${title}]',
+                  style: TextStyle(color: accent, fontWeight: FontWeight.w900, letterSpacing: 0.2),
+                ),
+              ),
+              const Spacer(),
+              Text('확정도', style: TextStyle(color: Colors.white.withOpacity(0.72), fontSize: 12)),
+              const SizedBox(width: 6),
+              Text(_pctStr(), style: TextStyle(color: accent, fontSize: 14, fontWeight: FontWeight.w900)),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // PO3 / TF 합의 칩
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ChipPill(
+                label: 'PO3 ${po3.stage}',
+                value: '${po3.progress}%',
+                color: po3.color,
+              ),
+              _ChipPill(
+                label: 'TF 합의',
+                value: mtfPct == 0 ? '-' : '${mtfPct}%',
+                color: (mtfPct >= 60) ? accent : const Color(0xFFB7BDC6),
+              ),
+              _ChipPill(
+                label: '반응',
+                value: rs.touches == 0 ? '-' : '${rs.pct}%',
+                color: (rs.pct >= 70) ? const Color(0xFF48D6A7) : const Color(0xFFB7BDC6),
+              ),
+              if (rs.touches > 0)
+                _ChipPill(
+                  label: '평균',
+                  value: '${rs.avgMovePct.toStringAsFixed(2)}%',
+                  color: const Color(0xFFB7BDC6),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // 큰 퍼센트
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [accent.withOpacity(0.20), Colors.transparent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  _pctStr().replaceAll('%', ''),
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 52,
+                    fontWeight: FontWeight.w900,
+                    height: 1.0,
+                    letterSpacing: -1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  s.signalKo.isNotEmpty ? s.signalKo : '결정 요약',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  why,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white.withOpacity(0.70), fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // 근거 바
+          ..._evRows().map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _EvBar(text: e.text, value: e.value, accent: accent),
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          // 추천 (진입/손절/목표)
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.06)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('추천', style: TextStyle(color: Colors.white.withOpacity(0.78), fontSize: 12, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(child: _kv('진입', entry, accent)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _kv('손절', stop, const Color(0xFFFF7A7A))),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _kv('1차', tps.isNotEmpty ? tps[0] : '-', const Color(0xFF48D6A7))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _kv('2차', tps.length > 1 ? tps[1] : '-', const Color(0xFF48D6A7))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _kv('3차', tps.length > 2 ? tps[2] : '-', const Color(0xFF48D6A7))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // 게이지 4개
+          Row(
+            children: [
+              Expanded(child: _gauge('구조', g1, accent)),
+              const SizedBox(width: 8),
+              Expanded(child: _gauge('근거', g2, accent)),
+              const SizedBox(width: 8),
+              Expanded(child: _gauge('흡수', g3, accent)),
+              const SizedBox(width: 8),
+              Expanded(child: _gauge('세력', g4, accent)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _kv(String k, String v, Color c) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Text(k, style: TextStyle(color: Colors.white.withOpacity(0.70), fontSize: 11, fontWeight: FontWeight.w800)),
+          const Spacer(),
+          Text(v, style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w900)),
+        ],
+      ),
+    );
+  }
+
+  Widget _gauge(String label, int v, Color accent) {
+    final val = v.clamp(0, 100);
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.70), fontSize: 11, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: val / 100.0,
+              minHeight: 8,
+              backgroundColor: Colors.white.withOpacity(0.10),
+              valueColor: AlwaysStoppedAnimation<Color>(accent.withOpacity(0.85)),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text('$val%', style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w900)),
+        ],
+      ),
+    );
+  }
+}
+
+class _EvRow {
+  final String text;
+  final double value;
+  _EvRow({required this.text, required this.value});
+}
+
+class _EvBar extends StatelessWidget {
+  final String text;
+  final double value;
+  final Color accent;
+  const _EvBar({required this.text, required this.value, required this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value.clamp(0, 100);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.white.withOpacity(0.80), fontSize: 12, fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text('${v.toStringAsFixed(0)}%', style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w900)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: v / 100.0,
+            minHeight: 8,
+            backgroundColor: Colors.white.withOpacity(0.10),
+            valueColor: AlwaysStoppedAnimation<Color>(accent.withOpacity(0.88)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReactStat {
+  final int pct;
+  final int touches;
+  final double avgMovePct;
+  _ReactStat({required this.pct, required this.touches, required this.avgMovePct});
+}
+
+class _Po3Chip {
+  final String stage;
+  final int progress;
+  final Color color;
+  _Po3Chip({required this.stage, required this.progress, required this.color});
+}
+
+class _ChipPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _ChipPill({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.78), fontSize: 11, fontWeight: FontWeight.w800)),
+          const SizedBox(width: 6),
+          Text(value, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w900)),
+        ],
+      ),
+    );
+  }
+}

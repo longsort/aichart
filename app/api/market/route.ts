@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCandlesFromServer } from '@/lib/candlesFromServer';
+import { fetchMarketCandles } from '@/lib/market';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,10 +8,9 @@ export async function GET(req: NextRequest) {
   const symbol = (searchParams.get('symbol') || 'BTCUSDT').toUpperCase();
   const timeframe = searchParams.get('timeframe') || '4h';
   try {
-    const candles = await getCandlesFromServer(symbol, timeframe);
-    const list = candles && candles.length > 0 ? candles : [];
-    return NextResponse.json(list.length > 0 ? { ok: true, candles: list } : { ok: false, candles: [] });
-  } catch {
-    return NextResponse.json({ ok: false, candles: [] });
+    const candles = await fetchMarketCandles(symbol, timeframe);
+    return NextResponse.json({ ok: true, candles });
+  } catch (error: any) {
+    return NextResponse.json({ ok: false, candles: [], error: error?.message || 'market fetch failed' }, { status: 500 });
   }
 }

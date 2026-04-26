@@ -1,0 +1,56 @@
+import 'package:flutter/material.dart';
+
+/// ì´ˆë³´??ë°©í–¥ ?œì‹œ(ë¡???ê¸ˆì?)
+/// - ?¤ë¥´??ìª?ì§„ìž… / ?´ë¦¬??ìª?ì§„ìž… / ì§€ê¸ˆì? ?¬ê¸°
+class DirectionBadge extends StatelessWidget {
+  final String decisionTitle; // UltraEngine??Decision.title
+  final bool locked;
+
+  const DirectionBadge({
+    super.key,
+    required this.decisionTitle,
+    required this.locked,
+  });
+
+  ({String label, IconData icon, Color color}) _map() {
+    if (locked || decisionTitle.contains('?¬ê¸°') || decisionTitle.contains('?˜ì?')) {
+      return (label: 'ì§€ê¸ˆì? ?¬ê¸°', icon: Icons.pause_circle_filled, color: const Color(0xFFB0B7C3));
+    }
+    if (decisionTitle.contains('?¤ë¥´??)) {
+      return (label: '?¤ë¥´??ìª?ì§„ìž…', icon: Icons.trending_up, color: const Color(0xFF7CFFB2));
+    }
+    if (decisionTitle.contains('?´ë¦¬??)) {
+      return (label: '?´ë¦¬??ìª?ì§„ìž…', icon: Icons.trending_down, color: const Color(0xFFFF5C7A));
+    }
+    // fallback
+    return (label: 'ê´€ë§?, icon: Icons.visibility, color: const Color(0xFFFFC04D));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = _map();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.28),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: m.color.withOpacity(0.55)),
+        boxShadow: [
+          BoxShadow(color: m.color.withOpacity(0.18), blurRadius: 14),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(m.icon, color: m.color, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            m.label,
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
+}

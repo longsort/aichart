@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { callOpenAI, callOpenAIStream } from '@/lib/ai/dualEngine';
 import { OPENAI_ROLE_SYSTEM } from '@/lib/ai/chartContext';
-import { briefingContextToPromptText, type BriefingContext } from '@/lib/briefingContext';
+import { buildUnifiedChatAnalysisContext } from '@/lib/ai/unifiedChatContext';
+import { resolveOpenAIKey, verifyBriefingLoginIfRequired } from '@/lib/resolveOpenAIKey';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,10 +15,6 @@ function jsonError(error: string, status = 500) {
   return NextResponse.json({ ok: false, error }, { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-function isBriefingContextShape(engine: unknown): engine is BriefingContext {
-  return !!engine && typeof engine === 'object' && 'signal' in engine && 'buyPressure' in engine && 'bosCount' in engine;
-}
-
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try {
@@ -27,8 +24,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const key = process.env.OPENAI_API_KEY;
-    if (!key) return jsonError('OPENAI API 키가 설정되지 않았습니다. .env.local에 OPENAI_API_KEY를 추가하세요.', 500);
+    const loginCheck = await verifyBriefingLoginIfRequired(body as { briefingLogin?: { user?: string; password?: string } });
+    if ('error' in loginCheck) return jsonError(loginCheck.error, 403);
 
     const {
       message,
@@ -41,6 +38,7 @@ export async function POST(req: NextRequest) {
       stream: useStream = false,
       mode: explicitMode,
       recentMessages = [],
+      openaiApiKey: bodyOpenaiKey,
     } = body as {
       message?: string;
       symbol?: string;
@@ -52,51 +50,45 @@ export async function POST(req: NextRequest) {
       stream?: boolean;
       mode?: string;
       recentMessages?: Array<{ role: 'user' | 'assistant'; content: string }>;
+      openaiApiKey?: string;
     };
 
-    const engine = (engineFromBody && typeof engineFromBody === 'object' ? engineFromBody : null) ?? (analysisResult && typeof analysisResult === 'object' && isBriefingContextShape(analysisResult as BriefingContext) ? (analysisResult as BriefingContext) : null);
+    const key = resolveOpenAIKey(bodyOpenaiKey, process.env.OPENAI_API_KEY);
+    if (!key) {
+      return jsonError(
+        'OpenAI API 키가 없습니다. AI 대화 패널에서 키를 입력하거나 서버에 OPENAI_API_KEY를 설정하세요.',
+        500
+      );
+    }
+
     const rawAnalysis = analysisResult && typeof analysisResult === 'object' ? (analysisResult as Record<string, unknown>) : null;
-    const e = engine && typeof engine === 'object' ? (engine as Record<string, unknown>).engine as Record<string, unknown> | undefined : (rawAnalysis?.engine as Record<string, unknown> | undefined);
 
     const history = Array.isArray(recentMessages)
       ? recentMessages.slice(-10).filter((m: unknown) => m && typeof m === 'object' && (m as any).role && (m as any).content)
       : [];
     const conversationHistory = history.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: String(m.content ?? '') }));
 
-    console.log('[api/chat] payload', JSON.stringify({ symbol, timeframe, hasEngine: !!engine, hasAnalysisResult: !!rawAnalysis, includeChartContext, messageLen: typeof message === 'string' ? message.length : 0, stream: useStream, historyCount: conversationHistory.length }));
+    console.log(
+      '[api/chat] payload',
+      JSON.stringify({
+        symbol,
+        timeframe,
+        hasEngineBriefing: !!engineFromBody,
+        hasAnalysisResult: !!rawAnalysis,
+        includeChartContext,
+        messageLen: typeof message === 'string' ? message.length : 0,
+        stream: useStream,
+        historyCount: conversationHistory.length,
+      })
+    );
 
-    const context = (() => {
-      if (!includeChartContext) return `symbol: ${symbol}\ntimeframe: ${timeframe}\n(no chart data)`;
-      if (engine && isBriefingContextShape(engine)) return briefingContextToPromptText(engine);
-      const eng = engine as Record<string, unknown> | null;
-      const src = eng ?? rawAnalysis;
-      const sig = src?.verdict ?? src?.signal ?? '-';
-      const conf = src?.confidence ?? '-';
-      const buyP = src?.buyPressure ?? '-';
-      const sellP = src?.sellPressure ?? '-';
-      const entry = src?.entry ?? '-';
-      const stop = src?.stopLoss ?? '-';
-      const tgs = Array.isArray(src?.targets) ? (src.targets as string[]).join(', ') : (src?.targets ?? '-');
-      const bosN = Array.isArray(e?.bos) ? (e.bos as unknown[]).length : 0;
-      const chochN = Array.isArray(e?.choch) ? (e.choch as unknown[]).length : 0;
-      const fvgN = Array.isArray(e?.fvg) ? (e.fvg as unknown[]).length : 0;
-      const obN = Array.isArray(e?.obs) ? (e.obs as unknown[]).length : 0;
-      return [
-        'symbol: ' + symbol,
-        'timeframe: ' + timeframe,
-        'signal: ' + sig,
-        'confidence: ' + conf,
-        'buyPressure: ' + buyP,
-        'sellPressure: ' + sellP,
-        'bos: ' + bosN,
-        'choch: ' + chochN,
-        'fvg: ' + fvgN,
-        'ob: ' + obN,
-        'entry: ' + entry,
-        'stopLoss: ' + stop,
-        'targets: ' + tgs,
-      ].join('\n');
-    })();
+    const context = buildUnifiedChatAnalysisContext({
+      includeChartContext: Boolean(includeChartContext),
+      symbol: String(symbol ?? ''),
+      timeframe: String(timeframe ?? ''),
+      analysisResult,
+      engineFromBody: engineFromBody,
+    });
 
     const userContent = context + '\n\nUser question:\n' + String(message || '');
 

@@ -4,7 +4,9 @@
  * - bullish/bearish divergence, demand/supply zone, liquidity sweep
  * - bullish/bearish engulfing, hammer, shooting star
  * - 점수: divergence +35, zone +20, sweep +15, candle +15, volume +10, trend +5
- * - 80점+ LONG/SHORT (분·시·일·주·달 동일), 60~79 WATCH, 60 미만 NONE
+ * - LONG/SHORT: TF별 점수 문턱 + **실제 다이버전스(bull/bear)가 있을 때만** L/S 확정 (RSI 다이버 남발 방지)
+ * - 다이버 인정: RSI 차·피벗 간 봉 수 TF별 최소치
+ * - WATCH: 문턱 미만~watch 구간, 다이버 없어도 가능
  */
 import { Candle } from '@/types';
 import { RSI_SWING_LS_THRESHOLD, RSI_SWING_WATCH_THRESHOLD } from './constants';
@@ -43,6 +45,8 @@ export type DivergenceSignalResult = {
   scoreBreakdown: ScoreBreakdownItem[];
   checklistDisplay: ChecklistDisplay;
   divergenceLines?: DivergenceLine[];
+  /** 과거 L/S 후보 히스토리 (어떤 캔들에서 떠야 했는지 표시용) */
+  signalHistory?: Array<{ time: number; verdict: 'LONG' | 'SHORT' }>;
   /** S/L 표시 위치: Sweep 발생 봉 시각 (고점/저점 터치 봉) — 진입 구간 근처에 표시해 신뢰도 향상 */
   signalBarTime?: number;
 };
@@ -60,6 +64,7 @@ const NEAR_LEVEL_PCT = 0.012;
 const VOLUME_SPIKE_RATIO = 1.5;
 const PIVOT_LEFT = 3;
 const PIVOT_RIGHT = 3;
+const MAX_PIVOT_HISTORY = 80;
 
 function pivotHigh(candles: Candle[], index: number, left: number, right: number): boolean {
   if (index - left < 0 || index + right >= candles.length) return false;
@@ -126,13 +131,45 @@ function isPriceInZone(price: number, z: ZoneShape, pct = 0.012): boolean {
   return price >= low * (1 - pct) && price <= high * (1 + pct);
 }
 
+/** 분·시·일·주·달·연 — L/S 점수 문턱 (다이버 필수 조건과 함께 사용) */
+function lsThresholdsByTf(tf: string | undefined): { long: number; short: number; watch: number } {
+  const t = tf ?? '';
+  if (t === '1m') return { long: 82, short: 82, watch: 54 };
+  if (t === '3m') return { long: 83, short: 83, watch: 55 };
+  if (t === '5m') return { long: 83, short: 83, watch: 55 };
+  if (t === '15m') return { long: 82, short: 82, watch: 54 };
+  if (t === '1h') return { long: 83, short: 83, watch: 56 };
+  if (t === '4h') return { long: 84, short: 84, watch: 57 };
+  if (t === '1d') return { long: 85, short: 85, watch: 58 };
+  if (t === '1w') return { long: 86, short: 86, watch: 59 };
+  if (t === '1M') return { long: 87, short: 87, watch: 60 };
+  if (t === '1Y') return { long: 88, short: 88, watch: 62 };
+  return { long: RSI_SWING_LS_THRESHOLD, short: RSI_SWING_LS_THRESHOLD, watch: RSI_SWING_WATCH_THRESHOLD };
+}
+
+/** 약한 다이버(RSI 미세 차이·피벗 너무 가까움) 제거 */
+function divergenceQualityByTf(tf: string | undefined): { minRsiDelta: number; minPivotBars: number } {
+  const t = tf ?? '';
+  if (t === '1m') return { minRsiDelta: 3.2, minPivotBars: 6 };
+  if (t === '3m' || t === '5m') return { minRsiDelta: 3.5, minPivotBars: 6 };
+  if (t === '15m') return { minRsiDelta: 4, minPivotBars: 5 };
+  if (t === '1h') return { minRsiDelta: 4, minPivotBars: 5 };
+  if (t === '4h') return { minRsiDelta: 4.5, minPivotBars: 4 };
+  if (t === '1d') return { minRsiDelta: 5, minPivotBars: 4 };
+  if (t === '1w') return { minRsiDelta: 5.5, minPivotBars: 3 };
+  if (t === '1M') return { minRsiDelta: 6, minPivotBars: 3 };
+  if (t === '1Y') return { minRsiDelta: 7, minPivotBars: 2 };
+  return { minRsiDelta: 4, minPivotBars: 5 };
+}
+
 export function computeDivergenceSignal(input: DivergenceSignalInput): DivergenceSignalResult {
+  const thresholdByTf = lsThresholdsByTf(input.timeframe);
   const {
     candles, swingHighs, swingLows, supportLevel, resistanceLevel, trend,
     sweeps = [], demandZones = [], supplyZones = [],
     rsiPeriod = 14, pivotLeft = PIVOT_LEFT, pivotRight = PIVOT_RIGHT,
     volumeMultiplier = VOLUME_SPIKE_RATIO,
-    longThreshold = RSI_SWING_LS_THRESHOLD, shortThreshold = RSI_SWING_LS_THRESHOLD, watchThreshold = RSI_SWING_WATCH_THRESHOLD,
+    longThreshold = thresholdByTf.long, shortThreshold = thresholdByTf.short, watchThreshold = thresholdByTf.watch,
   } = input;
   const reasons: string[] = [];
   let longScore = 0;
@@ -167,27 +204,28 @@ export function computeDivergenceSignal(input: DivergenceSignalInput): Divergenc
   let pivotHighs: Array<{ index: number; price: number }>;
   let pivotLows: Array<{ index: number; price: number }>;
   if (swingHighs.length >= 2) {
-    pivotHighs = swingHighs.slice(-3);
+    pivotHighs = swingHighs.slice(-MAX_PIVOT_HISTORY);
   } else {
     pivotHighs = [];
     for (let i = pivotLeft; i < visible.length - pivotRight; i++) {
       if (pivotHigh(visible, i, pivotLeft, pivotRight)) pivotHighs.push({ index: i, price: visible[i].high });
-      if (pivotHighs.length >= 3) break;
     }
+    if (pivotHighs.length > MAX_PIVOT_HISTORY) pivotHighs = pivotHighs.slice(-MAX_PIVOT_HISTORY);
   }
   if (swingLows.length >= 2) {
-    pivotLows = swingLows.slice(-3);
+    pivotLows = swingLows.slice(-MAX_PIVOT_HISTORY);
   } else {
     pivotLows = [];
     for (let i = pivotLeft; i < visible.length - pivotRight; i++) {
       if (pivotLow(visible, i, pivotLeft, pivotRight)) pivotLows.push({ index: i, price: visible[i].low });
-      if (pivotLows.length >= 3) break;
     }
+    if (pivotLows.length > MAX_PIVOT_HISTORY) pivotLows = pivotLows.slice(-MAX_PIVOT_HISTORY);
   }
 
   let bullishDiv = false;
   let bearishDiv = false;
   const divLabels: string[] = [];
+  const dq = divergenceQualityByTf(input.timeframe);
 
   if (pivotLows.length >= 2) {
     const p1 = pivotLows[pivotLows.length - 2];
@@ -195,8 +233,9 @@ export function computeDivergenceSignal(input: DivergenceSignalInput): Divergenc
     const priceLower = p2.price < p1.price;
     const rsi1 = rsiVals[p1.index] ?? 50;
     const rsi2 = rsiVals[p2.index] ?? 50;
-    const rsiHigher = rsi2 > rsi1;
-    if (priceLower && rsiHigher) {
+    const rsiDelta = rsi2 - rsi1;
+    const barGap = p2.index - p1.index;
+    if (priceLower && rsiDelta >= dq.minRsiDelta && barGap >= dq.minPivotBars) {
       bullishDiv = true;
       longScore += SCORE.divergence;
       reasons.push(`Bullish divergence (+${SCORE.divergence})`);
@@ -209,8 +248,9 @@ export function computeDivergenceSignal(input: DivergenceSignalInput): Divergenc
     const priceHigher = p2.price > p1.price;
     const rsi1 = rsiVals[p1.index] ?? 50;
     const rsi2 = rsiVals[p2.index] ?? 50;
-    const rsiLower = rsi2 < rsi1;
-    if (priceHigher && rsiLower) {
+    const rsiDelta = rsi1 - rsi2;
+    const barGap = p2.index - p1.index;
+    if (priceHigher && rsiDelta >= dq.minRsiDelta && barGap >= dq.minPivotBars) {
       bearishDiv = true;
       shortScore += SCORE.divergence;
       reasons.push(`Bearish divergence (+${SCORE.divergence})`);
@@ -313,16 +353,42 @@ export function computeDivergenceSignal(input: DivergenceSignalInput): Divergenc
     trend: trend === 'bullish' ? 'Up' : trend === 'bearish' ? 'Down' : '–',
   };
 
-  // Verdict: threshold+ LONG/SHORT, watchThreshold~ WATCH, <watchThreshold NONE
+  // L/S: 다이버전스 실제 성립 + 점수·우세 (RSI 다이버만으로 L/S 취급)
   let verdict: DivergenceSignalVerdict = 'NONE';
-  if (longScore >= longThreshold && longScore > shortScore) verdict = 'LONG';
-  else if (shortScore >= shortThreshold && shortScore > longScore) verdict = 'SHORT';
+  if (bullishDiv && longScore >= longThreshold && longScore > shortScore) verdict = 'LONG';
+  else if (bearishDiv && shortScore >= shortThreshold && shortScore > longScore) verdict = 'SHORT';
   else if (longScore >= watchThreshold || shortScore >= watchThreshold) verdict = 'WATCH';
 
   const winScore = verdict === 'LONG' ? longScore : verdict === 'SHORT' ? shortScore : Math.max(longScore, shortScore);
   const candleShort = candleLabel.includes('Bullish') ? 'Bullish' : candleLabel.includes('Bearish') ? 'Bearish' : candleLabel;
 
   const divergenceLines: DivergenceLine[] = [];
+  const signalHistory: Array<{ time: number; verdict: 'LONG' | 'SHORT' }> = [];
+  // 과거 히스토리 복원: pivot 연속쌍에서 다이버전스가 성립한 모든 지점 기록
+  for (let i = 1; i < pivotLows.length; i++) {
+    const p1 = pivotLows[i - 1];
+    const p2 = pivotLows[i];
+    const priceLower = p2.price < p1.price;
+    const rsi1 = rsiVals[p1.index] ?? 50;
+    const rsi2 = rsiVals[p2.index] ?? 50;
+    const rsiDelta = rsi2 - rsi1;
+    const barGap = p2.index - p1.index;
+    if (priceLower && rsiDelta >= dq.minRsiDelta && barGap >= dq.minPivotBars && visible[p2.index]) {
+      signalHistory.push({ time: visible[p2.index].time as number, verdict: 'LONG' });
+    }
+  }
+  for (let i = 1; i < pivotHighs.length; i++) {
+    const p1 = pivotHighs[i - 1];
+    const p2 = pivotHighs[i];
+    const priceHigher = p2.price > p1.price;
+    const rsi1 = rsiVals[p1.index] ?? 50;
+    const rsi2 = rsiVals[p2.index] ?? 50;
+    const rsiDelta = rsi1 - rsi2;
+    const barGap = p2.index - p1.index;
+    if (priceHigher && rsiDelta >= dq.minRsiDelta && barGap >= dq.minPivotBars && visible[p2.index]) {
+      signalHistory.push({ time: visible[p2.index].time as number, verdict: 'SHORT' });
+    }
+  }
   if (bullishDiv && pivotLows.length >= 2) {
     const p1 = pivotLows[pivotLows.length - 2];
     const p2 = pivotLows[pivotLows.length - 1];
@@ -376,6 +442,22 @@ export function computeDivergenceSignal(input: DivergenceSignalInput): Divergenc
     const sweepBar = sellSweeps[0];
     if (sweepBar != null && visible[sweepBar.index]) signalBarTime = visible[sweepBar.index].time as number;
   }
+  // 스윕이 없어도 신호 봉 위치를 고정할 수 있도록 보조 지정
+  if (signalBarTime == null && (verdict === 'LONG' || verdict === 'SHORT')) {
+    if (verdict === 'LONG' && pivotLows.length > 0) {
+      const p = pivotLows[pivotLows.length - 1];
+      signalBarTime = visible[p.index]?.time as number;
+    } else if (verdict === 'SHORT' && pivotHighs.length > 0) {
+      const p = pivotHighs[pivotHighs.length - 1];
+      signalBarTime = visible[p.index]?.time as number;
+    } else {
+      signalBarTime = visible[lastIdx]?.time as number;
+    }
+  }
+
+  const MAX_SIGNAL_HISTORY = 100;
+  const signalHistoryCapped =
+    signalHistory.length > MAX_SIGNAL_HISTORY ? signalHistory.slice(-MAX_SIGNAL_HISTORY) : signalHistory;
 
   return {
     verdict,
@@ -390,6 +472,7 @@ export function computeDivergenceSignal(input: DivergenceSignalInput): Divergenc
     scoreBreakdown,
     checklistDisplay,
     divergenceLines: divergenceLines.length ? divergenceLines : undefined,
+    signalHistory: signalHistoryCapped.length ? signalHistoryCapped : undefined,
     signalBarTime,
   };
 }

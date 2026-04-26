@@ -30,3 +30,15 @@ export function computeVolumeDelta(trades: AggTrade[]): VolumeDeltaResult {
     tradeCount: trades.length,
   };
 }
+
+/** 시간순 누적 CVD (USDT 명목, 매수 체결 + / 매도 체결 -) */
+export function computeCumulativeCvdUsd(trades: AggTrade[]): number {
+  if (!trades.length) return 0;
+  const sorted = [...trades].sort((a, b) => a.time - b.time);
+  let c = 0;
+  for (const t of sorted) {
+    const v = t.price * t.qty;
+    c += t.isBuyerMaker ? -v : v;
+  }
+  return c;
+}
