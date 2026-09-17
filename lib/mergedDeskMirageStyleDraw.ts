@@ -455,6 +455,18 @@ function keepMirageDeskOverlay(o: OverlayItem): boolean {
   ) {
     return true;
   }
+  /** MTF 폭락감시·반등지지 — 엔진/뷰에서 만들어도 finalize가 지우면 차트에 안 남음 */
+  if (
+    id.startsWith('merged-desk-mtf-dump-') ||
+    extra.includes('merged-desk-mtf-dump-zone') ||
+    extra.includes('merged-desk-crash') ||
+    id.includes('dump-zone')
+  ) {
+    return true;
+  }
+  if (id.startsWith('merged-desk-practice-ai-') || extra.includes('merged-desk-practice-ai')) {
+    return true;
+  }
   if (!id.startsWith('merged-ares-mlsp-tv-')) return false;
   if (id.includes('merged-ares-mlsp-tv-sr-')) return true;
   if (id.includes('-liq-band-') || id.includes('-struct-band-') || id.includes('-dir-verdict')) return kind === 'zone';

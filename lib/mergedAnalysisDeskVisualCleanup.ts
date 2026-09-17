@@ -182,8 +182,19 @@ function isMergedDeskSchoolSchematicOverlay(o: Pick<OverlayItem, 'id' | 'overlay
     id.startsWith('merged-desk-smc-') ||
     id.startsWith('merged-desk-ict-') ||
     id.startsWith('merged-desk-harmonic-') ||
+    id.startsWith('merged-desk-ichimoku-') ||
+    id.startsWith('merged-desk-chan-') ||
+    id.startsWith('merged-desk-fib-') ||
+    id.startsWith('merged-desk-wolfe-') ||
+    id.startsWith('merged-desk-pitchfork-') ||
+    id.startsWith('merged-desk-profile-') ||
+    id.startsWith('merged-desk-pnf-') ||
+    id.startsWith('merged-desk-nison-') ||
     id.startsWith('merged-desk-turtle-') ||
     id.startsWith('merged-desk-albrooks-') ||
+    id.startsWith('merged-desk-brooks-') ||
+    id.startsWith('merged-desk-macro-') ||
+    id.startsWith('merged-desk-classical-') ||
     id.startsWith('merged-desk-vsa-') ||
     id.startsWith('merged-desk-school-')
   ) {
@@ -194,6 +205,7 @@ function isMergedDeskSchoolSchematicOverlay(o: Pick<OverlayItem, 'id' | 'overlay
     extra.includes('merged-desk-reacc') ||
     extra.includes('merged-desk-elliott') ||
     extra.includes('merged-desk-school-schematic') ||
+    extra.includes('merged-desk-school') ||
     extra.includes('schematic-') ||
     extra.includes('-blink-')
   );
@@ -249,6 +261,15 @@ export function filterMergedDeskEngineZoneClutter(
     }
     if (id.startsWith('merged-desk-hotzone-') || extra.includes('merged-hq-entry-zone')) return true;
     if (id.startsWith('merged-desk-reacc-') || extra.includes('merged-desk-reacc')) return true;
+    if (
+      id.startsWith('merged-desk-mtf-dump-') ||
+      extra.includes('merged-desk-mtf-dump-zone') ||
+      extra.includes('merged-desk-crash')
+    ) {
+      return true;
+    }
+    if (isMergedDeskSchoolSchematicOverlay(o)) return true;
+    if (id.startsWith('candle-analysis-') || extra.includes('candle-analysis')) return true;
     if (kind === 'zone' || kind === 'reactionZone' || kind === 'keyLevel') {
       if (id.startsWith('merged-ares-mlsp-tv-') || id.startsWith('merged-ares-zone-')) return false;
       if (id.startsWith('merged-ares-') || extra.includes('merged-ares-zone')) return false;
@@ -355,11 +376,16 @@ export function isMergedDeskRequestedVisibleZone(o: OverlayItem): boolean {
     return true;
   }
   if (
-    /폭락/.test(text) ||
+    /폭락|반등지지|하락확정|상승확정|폭등감시/.test(text) ||
+    id.startsWith('merged-desk-mtf-dump-') ||
     id.includes('dump-zone') ||
+    extra.includes('merged-desk-mtf-dump-zone') ||
     extra.includes('schematic-dump') ||
     extra.includes('merged-desk-crash')
   ) {
+    return true;
+  }
+  if (id.startsWith('merged-desk-practice-ai-') || extra.includes('merged-desk-practice-ai')) {
     return true;
   }
   if (isMergedDeskSchoolSchematicOverlay(o)) return true;
@@ -498,6 +524,22 @@ export function polishMergedDeskChartOverlays(
 
       if (isMergedDeskSchoolSchematicOverlay(raw)) {
         return keepSchoolSchematicOverlay(raw);
+      }
+
+      if (
+        id.startsWith('merged-desk-mtf-dump-') ||
+        extra.includes('merged-desk-mtf-dump-zone') ||
+        extra.includes('merged-desk-crash') ||
+        id.includes('dump-zone')
+      ) {
+        return {
+          ...raw,
+          zoneFillPreserve: true,
+          overlayZoneExtraClass: `${extra
+            .replace(/\bmerged-desk-zone-face-hidden\b/g, '')
+            .replace(/\bmerged-desk-zone-face-minimal\b/g, '')
+            .trim()} merged-desk-zone-label-on merged-desk-zone-pro-hero`.trim(),
+        };
       }
 
       if (id.startsWith('merged-desk-live-practice') || extra.includes('merged-desk-live-practice')) {
