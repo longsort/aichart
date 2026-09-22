@@ -119,12 +119,18 @@ export type ChartUiMode =
   | 'SMART_MONEY_MVP'
   | 'UNIFIED_DESK'
   | 'AI_ZONE'
+  | 'MONTH_START_DESK'
+  | 'ZONE_LINE_PRO'
+  | 'REFERENCE_DESK'
+  | 'FUSION_MODE'
   | 'CANDLE_ANALYSIS'
   | 'BIBLE_MODE'
   | 'HOT_ZONE'
   | 'TAPPOINT'
   | 'EVOLUTION'
-  | 'WHALE';
+  | 'WHALE'
+  | 'MERGED_ANALYSIS_DESK'
+  | 'EAGLE1_TAP_ENGINE';
 
 /** 차트 오버레이에 실제로 보여줄 라벨 (실행 모드 % 숨김 → 선택적 한글 번역) */
 export function overlayDisplayLabel(

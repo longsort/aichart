@@ -1,16 +1,52 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { useEffect, useState, useCallback, useRef, useMemo, startTransition } from 'react';
 import { SYMBOLS, analysisMatchesSymbolAndTf } from '../lib/constants';
+import {
+  isMergedDesk4hSharedAnalysisMode,
+  mergedDeskAnalyzeTimeframe,
+  analysisUsableOnChart,
+  analysisMatchesMergedDesk4hShared,
+  mergedDeskMayApplySharedAnalyzeResult,
+} from '@/lib/mergedDesk4hReferenceAnalysis';
 import ChartView, { type ChartSnapshotRef } from './components/ChartView';
 import { type UIMode } from './components/UIModeSwitcher';
 import AppSiteLogin from './components/AppSiteLogin';
 import AIChatPanel from './components/AIChatPanel';
 import AnalysisBoardHero from './components/AnalysisBoardHero';
+import MonthStartDeskCard from './components/MonthStartDeskCard';
+import MergedAnalysisDeskView from './components/mergedAnalysis/MergedAnalysisDeskView';
+import { OPEN_SURGE_DESK_EVENT } from '@/lib/surgeCoinScan';
+import { PreSurgeHeaderChips } from './components/surge/PreSurgeHeaderChips';
+import type { ReferenceDeskPanelTab, ReferenceDeskPreset } from '@/lib/referenceDeskEngine';
+import type { ReferenceDeskLwcLayer } from '@/lib/referenceDeskLwcLayers';
+import { referenceDeskAllLayersPatch } from '@/lib/referenceDeskLwcLayers';
+
+const MonthDeskAnalysisBoardView = dynamic(() => import('./components/MonthDeskAnalysisBoardView'), {
+  ssr: false,
+});
+const ZoneLineProShell = dynamic(() => import('./components/zoneLinePro/ZoneLineProShell'), {
+  ssr: false,
+});
+const ReferenceDeskBoardView = dynamic(() => import('./components/ReferenceDeskBoardView'), {
+  ssr: false,
+});
+const Eagle1TapointDeskView = dynamic(
+  () => import('./components/eagle1Tapoint/Eagle1TapointDeskView'),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{ padding: 24, color: '#94a3b8', fontSize: 13 }}>타점엔진 로딩…</div>
+    ),
+  }
+);
 import UnifiedDeskDashboardGuide from './components/UnifiedDeskDashboardGuide';
 import AiAnalysisLineHints from './components/AiAnalysisLineHints';
 import FocusOverlay from './components/FocusOverlay';
 import ExecutionBriefingCard from './components/ExecutionBriefingCard';
+import FusionModeCard from './components/FusionModeCard';
 import AutonomousLearningCard from './components/AutonomousLearningCard';
 import CandleCompareCard from './components/CandleCompareCard';
 import SignalBox from './components/SignalBox';
@@ -18,9 +54,14 @@ import VirtualTradeCard from './components/VirtualTradeCard';
 import { TelegramMultiTfWatcher } from './components/TelegramMultiTfWatcher';
 import TelegramMultiTfCard from './components/TelegramMultiTfCard';
 import TradeUnifiedGraph from './components/TradeUnifiedGraph';
+import TradePracticalDesk from './components/TradePracticalDesk';
+import TemporalComparePanel from './components/TemporalComparePanel';
+import TradeConfirmAlertBanner from './components/TradeConfirmAlertBanner';
+import { useTradeConfirmNotifier } from './components/useTradeConfirmNotifier';
 import { useVirtualTradeBackground } from '@/lib/useVirtualTradeBackground';
 import { hydrateFromServer } from '@/lib/virtualTradeStore';
 import ReferenceManager from './components/ReferenceManager';
+import FoldCard from './components/ui/FoldCard';
 import type { AnalyzeResponse, Candle } from '@/types';
 import {
   loadSettings,
@@ -38,10 +79,16 @@ import { DEFAULT_PARKF_TRENDLINE_COLORS, normalizeHex6 } from '@/lib/chartHexCol
 import { DEFAULT_PARKF_TRENDLINE_OPTS, type ParkfTrendlineOpts } from '@/lib/parkfLinregTrendlineEngine';
 import { parkfEngineOptsToQueryDiff, parkfEngineOptsCacheSegment, PARKF_EXTENSION_OPTIONS } from '@/lib/parkfAnalyzeQuery';
 import { SETTINGS_CHANGED_EVENT } from '@/lib/useSettingsChangeTick';
+import { normalizeUiModeIfFusionHidden } from '@/lib/uiModeFusionToggle';
+import { isMobileLikeViewport } from '@/lib/isMobileLikeViewport';
+import { isMonthDeskChartMode, isZoneLineProMode, ZONE_LINE_PRO_MODE_LABEL } from '@/lib/zoneLineProMode';
+import { computeMonthDeskVerdictValidationSummary } from '@/lib/monthDeskClosingEngine';
 import PageLayoutFab from './components/PageLayoutFab';
 import AppDisclaimerBanner from './components/AppDisclaimerBanner';
 import { createPortal } from 'react-dom';
 import { fetchWithRetry } from '@/lib/fetchWithRetry';
+import { prefetchClientMarketCandles } from '@/lib/clientMarketCandleCache';
+import { isBitgetVolumePackActive } from '@/lib/bitgetVolumePack';
 import { getReferenceById } from '@/lib/referenceLibraryStore';
 import { generateAutoBriefing } from '@/lib/autoBriefing';
 import { simulateTrade } from '@/lib/risk/riskCalculator';
@@ -56,8 +103,8 @@ import { pushStructureAlertsFromAnalysis } from '@/lib/alerts/alertEngine';
 import { updateLearningFromAnalysis, syncLearningFromServer } from '@/lib/unifiedTrade';
 
 /** TF 전환 시 /api/analyze: 재시도 1회·짧은 지연(기본 450ms×2는 체감 지연 과다) */
-const ANALYZE_FETCH_RETRIES = 1;
-const ANALYZE_FETCH_RETRY_DELAY_MS = 220;
+const ANALYZE_FETCH_RETRIES = 3;
+const ANALYZE_FETCH_RETRY_DELAY_MS = 1200;
 
 type HistoryItem = {
   symbol: string;
@@ -108,17 +155,41 @@ function parkfColorsQuery(
   return `&pfB=${enc(base)}&pfLg=${enc(large)}&pfMd=${enc(medium)}&pfSm=${enc(small)}&pfTp=${enc(pri)}&pfTs=${enc(sec)}`;
 }
 
-/** 상단 레일(고래/합성/AI분석) — `localStorage`에 저장. 최초(키 없음)는 AI 분석 모드. */
+/** 상단 레일 — `localStorage` 저장. 최초(키 없음)는 통합·분석 데스크. */
 const RAIL_UI_MODE_STORAGE_KEY = 'ailongshort-rail-ui-mode-v1';
+/** 배포 후 1회: 앱 진입 기본을 통합·분석으로 — v3: 폰 EXECUTION 레이스·접기카드 잔상 제거 */
+const MERGED_DESK_LANDING_ONCE_KEY = 'ailongshort-merged-desk-landing-v3';
 function readStoredRailUiMode(): UIMode {
-  if (typeof window === 'undefined') return 'AI_ZONE';
+  if (typeof window === 'undefined') return 'MERGED_ANALYSIS_DESK';
   try {
+    /** 폰은 항상 통합·분석 — PC localStorage 잔상(접기카드·WHALE) 방지 */
+    if (isMobileLikeViewport()) {
+      window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, 'MERGED_ANALYSIS_DESK');
+      window.localStorage.setItem(MERGED_DESK_LANDING_ONCE_KEY, '1');
+      return 'MERGED_ANALYSIS_DESK';
+    }
+    if (!window.localStorage.getItem(MERGED_DESK_LANDING_ONCE_KEY)) {
+      window.localStorage.setItem(MERGED_DESK_LANDING_ONCE_KEY, '1');
+      window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, 'MERGED_ANALYSIS_DESK');
+      return 'MERGED_ANALYSIS_DESK';
+    }
     const v = window.localStorage.getItem(RAIL_UI_MODE_STORAGE_KEY);
-    if (v === 'WHALE' || v === 'UNIFIED_DESK' || v === 'AI_ZONE') return v;
+    if (
+      v === 'WHALE' ||
+      v === 'UNIFIED_DESK' ||
+      v === 'AI_ZONE' ||
+      v === 'FUSION_MODE' ||
+      v === 'MONTH_START_DESK' ||
+      v === 'ZONE_LINE_PRO' ||
+      v === 'REFERENCE_DESK' ||
+      v === 'MERGED_ANALYSIS_DESK' ||
+      v === 'EAGLE1_TAP_ENGINE'
+    )
+      return normalizeUiModeIfFusionHidden(v as UIMode);
   } catch {
     /* ignore */
   }
-  return 'AI_ZONE';
+  return 'MERGED_ANALYSIS_DESK';
 }
 
 export default function HomePageContent() {
@@ -127,11 +198,17 @@ export default function HomePageContent() {
   const [symbol, setSymbol] = useState('BTCUSDT');
   const [timeframe, setTimeframe] = useState('4h');
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
-  /** /api/analyze가 내려주는 visible 캔들 — 통합 롱/숏 `omni_chart_fusion`에 사용 */
+  /** /api/analyze visible 캔들 — 통합분석 15m 공동 분석도 허용 */
   const fusionCandles = useMemo((): Candle[] | null => {
+    if (
+      !analysisMatchesSymbolAndTf(analysis, symbol, timeframe) &&
+      !analysisMatchesMergedDesk4hShared(analysis, symbol, timeframe)
+    ) {
+      return null;
+    }
     const c = analysis?.candles;
     return Array.isArray(c) && c.length >= 2 ? c : null;
-  }, [analysis]);
+  }, [analysis, symbol, timeframe]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -143,6 +220,11 @@ export default function HomePageContent() {
   const [webhookEnabled, setWebhookEnabled] = useState(false);
   const [signalAlertEnabled, setSignalAlertEnabled] = useState(true);
   const [signalSoundEnabled, setSignalSoundEnabled] = useState(true);
+  const [telegramConfirmEnabled, setTelegramConfirmEnabled] = useState(false);
+  const [telegramHqZoneTouchEnabled, setTelegramHqZoneTouchEnabled] = useState(true);
+  const [telegramMergedDeskAutoEnabled, setTelegramMergedDeskAutoEnabled] = useState(true);
+  const [telegramMergedDeskUiCaptureEnabled, setTelegramMergedDeskUiCaptureEnabled] = useState(true);
+  const [telegramConfirmCandidate, setTelegramConfirmCandidate] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [webhookMinConfidence, setWebhookMinConfidence] = useState(70);
   const [zoneSignalSensitivity, setZoneSignalSensitivity] = useState(1.0);
@@ -160,6 +242,8 @@ export default function HomePageContent() {
   const [parkfTrendSecondaryHex, setParkfTrendSecondaryHex] = useState(DEFAULT_PARKF_TRENDLINE_COLORS.trendSecondaryHex);
   const [parkfEngineOpts, setParkfEngineOpts] = useState<Partial<ParkfTrendlineOpts>>({});
   const parkfEngineOptsRef = useRef<Partial<ParkfTrendlineOpts>>({});
+  const applySettingsRef = useRef<((s: ReturnType<typeof loadSettings>) => void) | null>(null);
+  const uiModePersistReadyRef = useRef(typeof window !== 'undefined' && isMobileLikeViewport());
   const [structureBreakoutRocketWithoutRetest, setStructureBreakoutRocketWithoutRetest] = useState(false);
   const [structurePriceLinesMax, setStructurePriceLinesMax] = useState(8);
   const [favoriteSymbols, setFavoriteSymbols] = useState<string[]>([]);
@@ -219,6 +303,11 @@ export default function HomePageContent() {
       setWebhookEnabled(s.webhookEnabled);
       setSignalAlertEnabled(s.signalAlertEnabled ?? true);
       setSignalSoundEnabled(s.signalSoundEnabled ?? true);
+      setTelegramConfirmEnabled(s.telegramConfirmEnabled === true);
+      setTelegramHqZoneTouchEnabled(s.telegramHqZoneTouchEnabled !== false);
+      setTelegramMergedDeskAutoEnabled(s.telegramMergedDeskAutoEnabled !== false);
+      setTelegramMergedDeskUiCaptureEnabled(s.telegramMergedDeskUiCaptureEnabled !== false);
+      setTelegramConfirmCandidate(s.telegramConfirmCandidate ?? false);
       setTheme(s.theme);
       setWebhookMinConfidence(s.webhookMinConfidence ?? 70);
       setZoneSignalSensitivity(s.zoneSignalSensitivity ?? 1.0);
@@ -259,7 +348,19 @@ export default function HomePageContent() {
       setPageLayout(mergePageLayout(s.pageLayout));
     };
     applySettings(loadSettings());
-    void syncSettingsFromServer().then(applySettings).catch(() => {});
+    applySettingsRef.current = applySettings;
+    void syncSettingsFromServer()
+      .then((s) => {
+        applySettings(s);
+        try {
+          window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, 'MERGED_ANALYSIS_DESK');
+        } catch {
+          /* ignore */
+        }
+        uiModePersistReadyRef.current = true;
+        setUiMode('MERGED_ANALYSIS_DESK');
+      })
+      .catch(() => {});
   }, []);
   useEffect(() => {
     hydrateFromServer().then(didHydrate => {
@@ -382,6 +483,7 @@ export default function HomePageContent() {
   const explainDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chartExplainTextRef = useRef<string | null>(null);
   const aiFusionNarrateKeyRef = useRef<string>('');
+  const breakoutFollowNarrateKeyRef = useRef<string>('');
   const [lastExplainRequest, setLastExplainRequest] = useState<ChartExplainRequest | null>(null);
   const [balance, setBalance] = useState(10000);
   const [riskPercent, setRiskPercent] = useState(1);
@@ -389,24 +491,64 @@ export default function HomePageContent() {
   const strategies = generateStrategies();
   type RightPanelTab = 'trade' | 'market' | 'briefing' | 'pattern' | 'ref' | 'etc' | 'learning' | 'virtual' | 'candle';
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('trade');
-  const [uiMode, setUiMode] = useState<UIMode>('AI_ZONE');
-  /** 마운트 시 마지막으로 쓴 상단 모드(고래/합성/AI) 복원 — 서버 HTML은 AI로 맞춰 하이드레이션·첫 요청이 일치 */
+  /**
+   * 폰: 처음부터 통합·분석 (EXECUTION 첫 페인트 → 접기카드만 보이는 버그 방지).
+   * PC: 가벼운 EXECUTION 후 idle에 저장 모드 복원.
+   */
+  const [uiMode, setUiMode] = useState<UIMode>(() =>
+    typeof window !== 'undefined' && isMobileLikeViewport() ? 'MERGED_ANALYSIS_DESK' : 'EXECUTION'
+  );
+  const [referenceDeskFocusChart, setReferenceDeskFocusChart] = useState(0);
+  /** 마운트 후 idle에 저장 모드 복원 (기본 통합·분석) */
   useEffect(() => {
-    setUiMode(readStoredRailUiMode());
+    const restore = () =>
+      startTransition(() => {
+        setUiMode(readStoredRailUiMode());
+        uiModePersistReadyRef.current = true;
+      });
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(restore, { timeout: 600 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(restore, 48);
+    return () => window.clearTimeout(t);
   }, []);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    /** 첫 EXECUTION 페인트가 LS에 박혀 idle 복원을 덮어쓰지 않게 */
+    if (!uiModePersistReadyRef.current) return;
     try {
       window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, uiMode);
     } catch {
       /* ignore */
     }
   }, [uiMode]);
+  const monthDeskChartVerdictValidation = useMemo(() => {
+    if (!isMonthDeskChartMode(uiMode) || !fusionCandles?.length) return null;
+    return computeMonthDeskVerdictValidationSummary(fusionCandles, timeframe);
+  }, [uiMode, fusionCandles, timeframe]);
+
+  const { desk: confirmDesk, lastAlert: confirmLastAlert, dismissAlert: dismissConfirmAlert } =
+    useTradeConfirmNotifier({
+      analysis,
+      candles: fusionCandles,
+      symbol,
+      timeframe,
+      alertEnabled: signalAlertEnabled,
+      soundEnabled: signalSoundEnabled,
+      notifyCandidate: true,
+      telegramEnabled: telegramConfirmEnabled,
+      telegramCandidate: telegramConfirmCandidate,
+      uiMode,
+    });
+
   /** 고래 모드「세트반등」칩·패널이 설정 저장 후 즉시 반영되도록 */
   const [whaleStructureBounceUiTick, setWhaleStructureBounceUiTick] = useState(0);
   /** 최강분석: 우측 AI·트레이드 패널을 잠시 접어 TV처럼 차트만 넓게 */
   const [maxAnalysisWideChart, setMaxAnalysisWideChart] = useState(false);
   const [panelFeatures, setPanelFeatures] = useState({
+    practicalDesk: true,
+    temporalCompare: true,
     unifiedGraph: true,
     signalBox: true,
     executionBriefing: true,
@@ -417,9 +559,30 @@ export default function HomePageContent() {
   });
   /** 사이트 로그인(쿠키) — API 미들웨어와 동기 */
   const [siteAuth, setSiteAuth] = useState<'loading' | 'anon' | 'authed'>('loading');
+  /** 로그인 후에야 서버 설정(aichart1)을 받을 수 있음 — 폰은 로그인 전 sync가 실패해 접기카드/빈 기능으로 남음 */
+  useEffect(() => {
+    if (siteAuth !== 'authed') return;
+    const apply = applySettingsRef.current;
+    if (!apply) return;
+    void syncSettingsFromServer()
+      .then((s) => {
+        apply(s);
+        try {
+          window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, 'MERGED_ANALYSIS_DESK');
+          window.localStorage.setItem(MERGED_DESK_LANDING_ONCE_KEY, '1');
+        } catch {
+          /* ignore */
+        }
+        uiModePersistReadyRef.current = true;
+        setUiMode('MERGED_ANALYSIS_DESK');
+      })
+      .catch(() => {});
+  }, [siteAuth]);
   const visitor = useVisitorCount();
   const [siteUser, setSiteUser] = useState<string>('');
   const timeframeRef = useRef(timeframe);
+  /** 모드만 바뀔 때 load/requestLoad 의존성이 바뀌지 않게 해 이중 requestLoad·/api/analyze 호출 방지 */
+  const uiModeRef = useRef<UIMode>(uiMode);
   const analyzeAbortRef = useRef<AbortController | null>(null);
   const analyzeSeqRef = useRef(0);
   const loadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -448,6 +611,9 @@ export default function HomePageContent() {
     return { ...raw, overlays: [...filtered, ...replayOverlays] };
   }, [briefingSimilarityThreshold, briefingSimilarReplayEnabled]);
   useEffect(() => { timeframeRef.current = timeframe; }, [timeframe]);
+  useEffect(() => {
+    uiModeRef.current = uiMode;
+  }, [uiMode]);
   /** 핫존 1D+1W 듀얼: 차트별 TF는 고정, 부모 timeframe 상태와 분리 */
   const noopSetTimeframeHotZoneDual = useCallback((_tf: string) => {}, []);
   const isExecutionLikeMode =
@@ -461,6 +627,7 @@ export default function HomePageContent() {
     uiMode === 'SMART_MONEY_MVP' ||
     uiMode === 'UNIFIED_DESK' ||
     uiMode === 'AI_ZONE' ||
+    uiMode === 'FUSION_MODE' ||
     uiMode === 'TAPPOINT' ||
     uiMode === 'HOT_ZONE';
   const isTapMode = uiMode === 'TAPPOINT';
@@ -468,7 +635,8 @@ export default function HomePageContent() {
     if (isExecutionLikeMode) setRightPanelTab('trade');
   }, [isExecutionLikeMode]);
   useEffect(() => {
-    if (uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE') setMaxAnalysisWideChart(false);
+    if (uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE' || uiMode === 'FUSION_MODE')
+      setMaxAnalysisWideChart(false);
     else if (
       uiMode !== 'MAX_ANALYSIS' &&
       uiMode !== 'SMC_DESK' &&
@@ -503,6 +671,8 @@ export default function HomePageContent() {
   }, []);
   const setAllPanelFeatures = useCallback((value: boolean) => {
     const next = {
+      practicalDesk: value,
+      temporalCompare: value,
       unifiedGraph: value,
       signalBox: value,
       executionBriefing: value,
@@ -518,9 +688,6 @@ export default function HomePageContent() {
   }, []);
 
   const [persistedSignal, setPersistedSignal] = useState<PersistedSignal | null>(null);
-  const lastConfirmedNotifyKeyRef = useRef<string | null>(null);
-  const lastConfirmedSoundKeyRef = useRef<string | null>(null);
-
   useEffect(() => {
     const raw = window.localStorage.getItem('ai-step12-history');
     if (raw) { try { setHistory(JSON.parse(raw)); } catch {} }
@@ -531,15 +698,39 @@ export default function HomePageContent() {
     if (raw) { try { setPersistedSignal(JSON.parse(raw)); } catch {} }
   }, []);
 
+  const [authRetryTick, setAuthRetryTick] = useState(0);
+  const [authSlow, setAuthSlow] = useState(false);
   useEffect(() => {
-    fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' })
-      .then(r => r.json())
+    const ac = new AbortController();
+    let cancelled = false;
+    const slowTimer = window.setTimeout(() => setAuthSlow(true), 8000);
+    const failTimer = window.setTimeout(() => {
+      ac.abort();
+      if (!cancelled) setSiteAuth((s) => (s === 'loading' ? 'anon' : s));
+    }, 20000);
+    fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin', signal: ac.signal })
+      .then((r) => r.json())
       .then((d: { authenticated?: boolean; user?: string }) => {
+        if (cancelled) return;
         setSiteAuth(d.authenticated ? 'authed' : 'anon');
         setSiteUser(d.user || '');
       })
-      .catch(() => setSiteAuth('anon'));
-  }, []);
+      .catch((e: { name?: string }) => {
+        if (cancelled || e?.name === 'AbortError') return;
+        setSiteAuth((s) => (s === 'authed' ? s : 'anon'));
+      })
+      .finally(() => {
+        window.clearTimeout(slowTimer);
+        window.clearTimeout(failTimer);
+        if (!cancelled) setAuthSlow(false);
+      });
+    return () => {
+      cancelled = true;
+      ac.abort();
+      window.clearTimeout(slowTimer);
+      window.clearTimeout(failTimer);
+    };
+  }, [authRetryTick]);
 
   useEffect(() => {
     if (siteAuth !== 'authed') return;
@@ -547,7 +738,11 @@ export default function HomePageContent() {
   }, [analysis?.learnedPatternsTop5, siteAuth]);
 
   const load = useCallback(async (overrideTf?: string, fastMode = false) => {
-    const requestedTf = overrideTf ?? timeframe;
+    const chartTf = overrideTf ?? timeframe;
+    const modeForAnalyze = uiModeRef.current;
+    /** 통합·분석: 분·시·일·주·월 차트여도 /api/analyze는 항상 15m */
+    const analyzeTf = mergedDeskAnalyzeTimeframe(chartTf, modeForAnalyze);
+    const uses4hShared = isMergedDesk4hSharedAnalysisMode(modeForAnalyze);
     const pfK = parkfColorsCacheKey(
       parkfLinRegBaseHex,
       parkfLinRegLargeHex,
@@ -575,19 +770,24 @@ export default function HomePageContent() {
     const aiVol = sAi.aiCompressionVolumeFilter === true ? 1 : 0;
     const aiSeg = `ai${aiAvg.toFixed(2)}${aiMax.toFixed(2)}${aiImpR.toFixed(2)}${aiImpB.toFixed(2)}v${aiVol}`;
     const amx =
-      uiMode === 'WHALE' ||
-      uiMode === 'MAX_ANALYSIS' ||
-      uiMode === 'SMC_DESK' ||
-      uiMode === 'SMC_DESK_COMPOSITE' ||
-      uiMode === 'SMC_DELTA_DESK' ||
-      uiMode === 'SMART_MONEY_MVP' ||
-      uiMode === 'UNIFIED_DESK' ||
-      uiMode === 'AI_ZONE' ||
-      uiMode === 'BIBLE_MODE' ||
-      uiMode === 'HOT_ZONE'
+      modeForAnalyze === 'WHALE' ||
+      modeForAnalyze === 'MONTH_START_DESK' ||
+      modeForAnalyze === 'MERGED_ANALYSIS_DESK' ||
+      modeForAnalyze === 'ZONE_LINE_PRO' ||
+      modeForAnalyze === 'MAX_ANALYSIS' ||
+      modeForAnalyze === 'SMC_DESK' ||
+      modeForAnalyze === 'SMC_DESK_COMPOSITE' ||
+      modeForAnalyze === 'SMC_DELTA_DESK' ||
+      modeForAnalyze === 'SMART_MONEY_MVP' ||
+      modeForAnalyze === 'UNIFIED_DESK' ||
+      modeForAnalyze === 'AI_ZONE' ||
+      modeForAnalyze === 'FUSION_MODE' ||
+      modeForAnalyze === 'BIBLE_MODE' ||
+      modeForAnalyze === 'HOT_ZONE' ||
+      modeForAnalyze === 'REFERENCE_DESK'
         ? 1
         : 0;
-    const effCp = getEffectiveFeatureToggles(sAi, uiMode);
+    const effCp = getEffectiveFeatureToggles(sAi, modeForAnalyze);
     const cpVolBg = effCp.chartPrimeTrendChannelsVolumeBg === true ? 1 : 0;
     const cpLen = Math.max(2, Math.min(30, Math.round(Number(sAi.chartPrimeTrendChannelsLength) || 8)));
     const cpAuto = sAi.chartPrimeTrendChannelsAutoLength !== false ? 1 : 0;
@@ -603,7 +803,7 @@ export default function HomePageContent() {
     const ddW = sAi.chartDepthDeltaAlignmentWeight === false ? 0 : 1;
     const ddT = sAi.chartDepthDeltaTpAdaptive === false ? 0 : 1;
     const cpSeg = `${cpLen}a${cpAuto}w${cpWait}e${cpExt}s${cpShowLast}v${cpVolBg}f${cpFill}c${cpTop}${cpCtr}${cpBot}W${cpW.toFixed(4)}d${ddF}${ddW}${ddT}`;
-    const cacheKey = `${symbol}|${requestedTf}|${zoneSignalSensitivity.toFixed(2)}|${majorZoneWidth.toFixed(2)}|${majorZoneOpacity.toFixed(2)}|${majorZoneTouches}|sb${structureBreakoutRocketWithoutRetest ? 1 : 0}|tl${trendlineLookback}|p3${pre3SimilarityThreshold.toFixed(3)}|p3c${pre3ConfirmOnCloseOnly ? 1 : 0}|pf${pfK}|pfe${pfEngineSeg}|${aiSeg}|amx${amx}|cp${cpSeg}`;
+    const cacheKey = `${symbol}|${analyzeTf}|${zoneSignalSensitivity.toFixed(2)}|${majorZoneWidth.toFixed(2)}|${majorZoneOpacity.toFixed(2)}|${majorZoneTouches}|sb${structureBreakoutRocketWithoutRetest ? 1 : 0}|tl${trendlineLookback}|p3${pre3SimilarityThreshold.toFixed(3)}|p3c${pre3ConfirmOnCloseOnly ? 1 : 0}|pf${pfK}|pfe${pfEngineSeg}|${aiSeg}|amx${amx}|cp${cpSeg}`;
     const seq = ++analyzeSeqRef.current;
     analyzeInFlightRef.current = true;
     analyzeAbortRef.current?.abort();
@@ -613,7 +813,7 @@ export default function HomePageContent() {
     setError(null);
 
     const analyzeUrl = (collect: number) =>
-      `/api/analyze?symbol=${symbol}&timeframe=${encodeURIComponent(requestedTf)}&collect=${collect}&zoneSensitivity=${encodeURIComponent(zoneSignalSensitivity.toFixed(2))}&majorZoneWidth=${encodeURIComponent(majorZoneWidth.toFixed(2))}&majorZoneOpacity=${encodeURIComponent(majorZoneOpacity.toFixed(2))}&majorZoneTouches=${encodeURIComponent(String(majorZoneTouches))}&structureBreakout=${structureBreakoutRocketWithoutRetest ? 1 : 0}&trendlineLookback=${encodeURIComponent(String(trendlineLookback))}&pre3Sim=${encodeURIComponent(pre3SimilarityThreshold.toFixed(3))}&pre3Close=${pre3ConfirmOnCloseOnly ? 1 : 0}&aiAvg=${encodeURIComponent(aiAvg.toFixed(2))}&aiMax=${encodeURIComponent(aiMax.toFixed(2))}&aiImpR=${encodeURIComponent(aiImpR.toFixed(2))}&aiImpB=${encodeURIComponent(aiImpB.toFixed(2))}&aiVol=${aiVol}${amx ? '&amx=1' : ''}&cpLen=${cpLen}&cpAuto=${cpAuto}&cpWait=${cpWait}&cpExt=${cpExt}&cpShowLast=${cpShowLast}&cpFill=${cpFill}&cpTop=${cpTop}&cpCtr=${cpCtr}&cpBot=${cpBot}&cpW=${encodeURIComponent(cpW.toFixed(4))}&ddF=${ddF}&ddW=${ddW}&ddT=${ddT}${cpVolBg ? '&cpVolBg=1' : ''}${pfQ}${pfEngineQ}`;
+      `/api/analyze?symbol=${symbol}&timeframe=${encodeURIComponent(analyzeTf)}&collect=${collect}&zoneSensitivity=${encodeURIComponent(zoneSignalSensitivity.toFixed(2))}&majorZoneWidth=${encodeURIComponent(majorZoneWidth.toFixed(2))}&majorZoneOpacity=${encodeURIComponent(majorZoneOpacity.toFixed(2))}&majorZoneTouches=${encodeURIComponent(String(majorZoneTouches))}&structureBreakout=${structureBreakoutRocketWithoutRetest ? 1 : 0}&trendlineLookback=${encodeURIComponent(String(trendlineLookback))}&pre3Sim=${encodeURIComponent(pre3SimilarityThreshold.toFixed(3))}&pre3Close=${pre3ConfirmOnCloseOnly ? 1 : 0}&aiAvg=${encodeURIComponent(aiAvg.toFixed(2))}&aiMax=${encodeURIComponent(aiMax.toFixed(2))}&aiImpR=${encodeURIComponent(aiImpR.toFixed(2))}&aiImpB=${encodeURIComponent(aiImpB.toFixed(2))}&aiVol=${aiVol}${amx ? '&amx=1' : ''}&cpLen=${cpLen}&cpAuto=${cpAuto}&cpWait=${cpWait}&cpExt=${cpExt}&cpShowLast=${cpShowLast}&cpFill=${cpFill}&cpTop=${cpTop}&cpCtr=${cpCtr}&cpBot=${cpBot}&cpW=${encodeURIComponent(cpW.toFixed(4))}&ddF=${ddF}&ddW=${ddW}&ddT=${ddT}${cpVolBg ? '&cpVolBg=1' : ''}${pfQ}${pfEngineQ}`;
 
     const parseAnalyzeJson = async (res: Response) => {
       const contentType = res.headers.get('content-type') || '';
@@ -624,9 +824,15 @@ export default function HomePageContent() {
       throw new Error(res.ok ? '서버가 JSON이 아닌 응답을 반환했습니다.' : `서버 오류 (${res.status}). API 경로를 확인하세요.`);
     };
 
+    const chartTfStillValid = () => {
+      const nowTf = timeframeRef.current;
+      if (uses4hShared) return mergedDeskMayApplySharedAnalyzeResult(modeForAnalyze, nowTf);
+      return nowTf === chartTf;
+    };
+
     const applyAnalyzeResult = (data: any, skipHistory: boolean, seqForGuard: number) => {
       if (analyzeSeqRef.current !== seqForGuard) return;
-      if (timeframeRef.current !== requestedTf) return;
+      if (!chartTfStillValid()) return;
       if (data?.engine) {
         queueMicrotask(() => {
           void (async () => {
@@ -634,24 +840,46 @@ export default function HomePageContent() {
               const { matchTopReferences } = await import('@/lib/referenceMatcherAdvanced');
               const topReferences = matchTopReferences(data.engine, 3);
               if (analyzeSeqRef.current !== seqForGuard) return;
-              setAnalysis((prev) => (prev && prev.symbol === data.symbol && prev.timeframe === (data.timeframe ?? requestedTf) ? { ...prev, topReferences } : prev));
+              setAnalysis((prev) =>
+                prev && prev.symbol === data.symbol && prev.timeframe === (data.timeframe ?? analyzeTf)
+                  ? { ...prev, topReferences }
+                  : prev
+              );
             } catch {}
           })();
         });
       }
-      data.timeframe = data.timeframe ?? requestedTf;
+      data.timeframe = data.timeframe ?? analyzeTf;
       analysisCacheRef.current.set(cacheKey, data);
       setAnalysis(decorateAnalysisWithSimilarReplay(data));
       if ((data.verdict === 'LONG' || data.verdict === 'SHORT') && (data.confidence ?? 0) >= MIN_CONFIDENCE_PERSIST) {
-        const ps: PersistedSignal = { symbol: data.symbol ?? symbol, timeframe: data.timeframe ?? requestedTf, verdict: data.verdict, confidence: data.confidence ?? 0, at: new Date().toISOString() };
+        const ps: PersistedSignal = {
+          symbol: data.symbol ?? symbol,
+          timeframe: data.timeframe ?? analyzeTf,
+          verdict: data.verdict,
+          confidence: data.confidence ?? 0,
+          at: new Date().toISOString(),
+        };
         setPersistedSignal(ps);
-        try { window.localStorage.setItem(PERSISTED_SIGNAL_KEY, JSON.stringify(ps)); } catch {}
+        try {
+          window.localStorage.setItem(PERSISTED_SIGNAL_KEY, JSON.stringify(ps));
+        } catch {}
       }
       const queue = pushStructureAlertsFromAnalysis(data.dominantPattern ?? null);
       setStructureAlerts(queue);
       if (!skipHistory) {
         setHistory((prev) => {
-          const next = [{ symbol, timeframe, verdict: data.verdict, confidence: data.confidence, at: new Date().toLocaleTimeString('ko-KR', { hour12: false }), summary: data.summary }, ...prev].slice(0, 20);
+          const next = [
+            {
+              symbol,
+              timeframe: chartTf,
+              verdict: data.verdict,
+              confidence: data.confidence,
+              at: new Date().toLocaleTimeString('ko-KR', { hour12: false }),
+              summary: data.summary,
+            },
+            ...prev,
+          ].slice(0, 20);
           window.localStorage.setItem('ai-step12-history', JSON.stringify(next));
           return next;
         });
@@ -665,7 +893,7 @@ export default function HomePageContent() {
         const data = await parseAnalyzeJson(res);
         if (!res.ok) throw new Error(data.error || data.summary || '분석 실패');
         if (controller.signal.aborted || seq !== analyzeSeqRef.current) return;
-        if (timeframeRef.current !== requestedTf) return;
+        if (!chartTfStillValid()) return;
         applyAnalyzeResult(data, false, seq);
         return;
       }
@@ -679,7 +907,7 @@ export default function HomePageContent() {
       }
       if (fastRes?.ok) {
         const dataFast = await parseAnalyzeJson(fastRes);
-        if (!dataFast?.error && !controller.signal.aborted && seq === analyzeSeqRef.current && timeframeRef.current === requestedTf) {
+        if (!dataFast?.error && !controller.signal.aborted && seq === analyzeSeqRef.current && chartTfStillValid()) {
           applyAnalyzeResult(dataFast, false, seq);
           const bgSeq = seq;
           void (async () => {
@@ -701,13 +929,15 @@ export default function HomePageContent() {
       const data = await parseAnalyzeJson(res);
       if (!res.ok) throw new Error(data.error || data.summary || '분석 실패');
       if (controller.signal.aborted || seq !== analyzeSeqRef.current) return;
-      if (timeframeRef.current !== requestedTf) return;
+      if (!chartTfStillValid()) return;
       applyAnalyzeResult(data, false, seq);
     } catch (e: any) {
       if (controller.signal.aborted || e?.name === 'AbortError') return;
       const msg = e?.message || '';
       if (msg.includes('Unexpected token') || msg.includes('<!DOCTYPE') || msg.includes('is not valid JSON')) {
         setError('서버가 HTML을 반환했습니다. 개발 서버가 실행 중인지, /api/analyze 경로가 정상인지 확인하세요.');
+      } else if (msg === 'Failed to fetch' || msg.includes('fetch')) {
+        setError('서버에 연결할 수 없습니다. 터미널에서 npm run dev 가 실행 중인지 확인한 뒤 http://localhost:3000 으로 접속하세요.');
       } else {
         setError(msg || '연결 오류');
       }
@@ -733,22 +963,27 @@ export default function HomePageContent() {
     parkfTrendPrimaryHex,
     parkfTrendSecondaryHex,
     decorateAnalysisWithSimilarReplay,
-    uiMode,
   ]);
 
-  /** 차트가 먼저 /api/market 응답하도록 서버·캐시 워밍 (ChartView 요청과 중복되어도 in-flight 병합) */
+  /** 차트가 먼저 /api/market 응답하도록 서버·캐시 워밍 (ChartView와 in-flight·TTL 공유) */
   const prefetchMarketCandles = useCallback((tf: string) => {
     if (typeof window === 'undefined') return;
-    void fetch(`/api/market?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(tf)}`, {
-      credentials: 'same-origin',
-      cache: 'no-store',
-    }).catch(() => {});
+    const s = loadSettings();
+    const source = isBitgetVolumePackActive(uiModeRef.current, s, symbol) ? 'bitget' : 'binance';
+    prefetchClientMarketCandles(symbol, tf, source);
+    /** 이웃 TF도 워밍 — 연속 전환 가속 (기능 삭제 아님) */
+    if (isMergedDesk4hSharedAnalysisMode(uiModeRef.current)) {
+      void import('@/lib/clientMarketCandleCache').then(({ prefetchMergedDeskAllMarketTfs }) => {
+        prefetchMergedDeskAllMarketTfs(symbol, source, tf);
+      });
+    }
   }, [symbol]);
 
   const requestLoad = useCallback((overrideTf?: string) => {
     // background poll should not interrupt a running analyze request
     if (overrideTf == null && analyzeInFlightRef.current) return;
-    const requestedTf = overrideTf ?? timeframe;
+    const chartTf = overrideTf ?? timeframe;
+    const analyzeTf = mergedDeskAnalyzeTimeframe(chartTf, uiModeRef.current);
     const pfK = parkfColorsCacheKey(
       parkfLinRegBaseHex,
       parkfLinRegLargeHex,
@@ -766,20 +1001,25 @@ export default function HomePageContent() {
     const aiImpBRl = sAiRl.aiImpulseBodyAtr ?? defaultSettings.aiImpulseBodyAtr;
     const aiVolRl = sAiRl.aiCompressionVolumeFilter === true ? 1 : 0;
     const aiSegRl = `ai${aiAvgRl.toFixed(2)}${aiMaxRl.toFixed(2)}${aiImpRRl.toFixed(2)}${aiImpBRl.toFixed(2)}v${aiVolRl}`;
+    const modeRl = uiModeRef.current;
     const amxRl =
-      uiMode === 'WHALE' ||
-      uiMode === 'MAX_ANALYSIS' ||
-      uiMode === 'SMC_DESK' ||
-      uiMode === 'SMC_DESK_COMPOSITE' ||
-      uiMode === 'SMC_DELTA_DESK' ||
-      uiMode === 'SMART_MONEY_MVP' ||
-      uiMode === 'UNIFIED_DESK' ||
-      uiMode === 'AI_ZONE' ||
-      uiMode === 'BIBLE_MODE' ||
-      uiMode === 'HOT_ZONE'
+      modeRl === 'WHALE' ||
+      modeRl === 'MONTH_START_DESK' ||
+      modeRl === 'MERGED_ANALYSIS_DESK' ||
+      modeRl === 'ZONE_LINE_PRO' ||
+      modeRl === 'MAX_ANALYSIS' ||
+      modeRl === 'SMC_DESK' ||
+      modeRl === 'SMC_DESK_COMPOSITE' ||
+      modeRl === 'SMC_DELTA_DESK' ||
+      modeRl === 'SMART_MONEY_MVP' ||
+      modeRl === 'UNIFIED_DESK' ||
+      modeRl === 'AI_ZONE' ||
+      modeRl === 'FUSION_MODE' ||
+      modeRl === 'BIBLE_MODE' ||
+      modeRl === 'HOT_ZONE'
         ? 1
         : 0;
-    const effCpRl = getEffectiveFeatureToggles(sAiRl, uiMode);
+    const effCpRl = getEffectiveFeatureToggles(sAiRl, modeRl);
     const cpVolBgRl = effCpRl.chartPrimeTrendChannelsVolumeBg === true ? 1 : 0;
     const cpLenRl = Math.max(2, Math.min(30, Math.round(Number(sAiRl.chartPrimeTrendChannelsLength) || 8)));
     const cpAutoRl = sAiRl.chartPrimeTrendChannelsAutoLength !== false ? 1 : 0;
@@ -795,19 +1035,31 @@ export default function HomePageContent() {
     const ddWRl = sAiRl.chartDepthDeltaAlignmentWeight === false ? 0 : 1;
     const ddTRl = sAiRl.chartDepthDeltaTpAdaptive === false ? 0 : 1;
     const cpSegRl = `${cpLenRl}a${cpAutoRl}w${cpWaitRl}e${cpExtRl}s${cpShowLastRl}v${cpVolBgRl}f${cpFillRl}c${cpTopRl}${cpCtrRl}${cpBotRl}W${cpWRl.toFixed(4)}d${ddFRl}${ddWRl}${ddTRl}`;
-    const cacheKey = `${symbol}|${requestedTf}|${zoneSignalSensitivity.toFixed(2)}|${majorZoneWidth.toFixed(2)}|${majorZoneOpacity.toFixed(2)}|${majorZoneTouches}|sb${structureBreakoutRocketWithoutRetest ? 1 : 0}|tl${trendlineLookback}|p3${pre3SimilarityThreshold.toFixed(3)}|p3c${pre3ConfirmOnCloseOnly ? 1 : 0}|pf${pfK}|pfe${pfEngineSegRl}|${aiSegRl}|amx${amxRl}|cp${cpSegRl}`;
+    /** 통합분석: 분·시·일·주·달 모두 15m 분석 캐시 키를 공유 → TF 전환 시 재요청 없이 즉시 적용 */
+    const cacheKey = `${symbol}|${analyzeTf}|${zoneSignalSensitivity.toFixed(2)}|${majorZoneWidth.toFixed(2)}|${majorZoneOpacity.toFixed(2)}|${majorZoneTouches}|sb${structureBreakoutRocketWithoutRetest ? 1 : 0}|tl${trendlineLookback}|p3${pre3SimilarityThreshold.toFixed(3)}|p3c${pre3ConfirmOnCloseOnly ? 1 : 0}|pf${pfK}|pfe${pfEngineSegRl}|${aiSegRl}|amx${amxRl}|cp${cpSegRl}`;
     const cached = analysisCacheRef.current.get(cacheKey);
     if (overrideTf && cached) {
       setAnalysis(decorateAnalysisWithSimilarReplay(cached));
       setLoading(false);
       setError(null);
+      /**
+       * 통합·분석: 차트 TF만 바뀌고 15m 분석 캐시가 있으면 /api/analyze 생략.
+       * (캔들은 ChartView가 /api/market 으로 로드 — 기능 삭제 아님)
+       */
+      if (isMergedDesk4hSharedAnalysisMode(uiModeRef.current)) {
+        if (loadDebounceRef.current) {
+          clearTimeout(loadDebounceRef.current);
+          loadDebounceRef.current = null;
+        }
+        return;
+      }
     }
     if (loadDebounceRef.current) clearTimeout(loadDebounceRef.current);
     /** 분·시·일·주·달 클릭 시 캔들+분석이 바로 나가도록 지연 없음 (자동 폴링만 80ms) */
     const debounceMs = overrideTf != null ? 0 : 80;
     loadDebounceRef.current = setTimeout(() => {
       loadDebounceRef.current = null;
-      void load(overrideTf ?? timeframe, false);
+      void load(chartTf, false);
     }, debounceMs);
   }, [
     load,
@@ -827,7 +1079,6 @@ export default function HomePageContent() {
     parkfLinRegSmallHex,
     parkfTrendPrimaryHex,
     parkfTrendSecondaryHex,
-    uiMode,
   ]);
 
   const handleUiModeChange = useCallback(
@@ -843,8 +1094,80 @@ export default function HomePageContent() {
         raw === 'AI 분석'
           ? 'AI_ZONE'
           : raw;
-      const nextMode: UIMode = normalized === 'WHALE' ? 'WHALE' : normalized === 'AI_ZONE' ? 'AI_ZONE' : 'UNIFIED_DESK';
-      setUiMode(nextMode);
+              const nextMode: UIMode =
+        normalized === 'WHALE'
+          ? 'WHALE'
+          : normalized === 'AI_ZONE'
+            ? 'AI_ZONE'
+            : normalized === 'FUSION_MODE'
+              ? 'FUSION_MODE'
+              : normalized === 'MONTH_START_DESK'
+                ? 'MONTH_START_DESK'
+                : normalized === 'EAGLE1_TAP_ENGINE' ||
+                    normalized === '타점엔진' ||
+                    normalized === 'TAP_ENGINE'
+                  ? 'EAGLE1_TAP_ENGINE'
+                : normalized === 'MERGED_ANALYSIS_DESK' ||
+                    normalized === '통합분석' ||
+                    normalized === '통합·분석'
+                  ? 'MERGED_ANALYSIS_DESK'
+                : normalized === 'ZONE_LINE_PRO' || normalized === '존·라인' || normalized === '존라인'
+                  ? 'ZONE_LINE_PRO'
+                : normalized === 'REFERENCE_DESK'
+                  ? 'REFERENCE_DESK'
+                  : normalized === 'UNIFIED_DESK'
+                    ? 'UNIFIED_DESK'
+                    : 'UNIFIED_DESK';
+      const normalizedNext = normalizeUiModeIfFusionHidden(nextMode);
+      if (normalizedNext === uiModeRef.current) return;
+      startTransition(() => {
+        uiModeRef.current = normalizedNext;
+        setUiMode(normalizedNext);
+      });
+      /** /api/analyze는 uiMode를 받지 않음 — 모드 클릭마다 collect 0+1 재호출하면 UI가 멈춤 */
+    },
+    []
+  );
+
+  const handleApplyReferencePreset = useCallback(
+    (preset: ReferenceDeskPreset) => {
+      if (preset.settingsPatch) saveSettings(preset.settingsPatch);
+      if (preset.id === 'lwc-pure') {
+        saveSettings({
+          showRsiPanel: true,
+          chartVolumeMaPeriod: 20,
+          chartVolumeIntelligence: true,
+          chartTradeAtlasEnabled: true,
+          chartTradeAtlasShowZones: true,
+          chartTradeAtlasShowLevels: true,
+          chartTradeAtlasShowHud: true,
+          ...referenceDeskAllLayersPatch(true),
+          chartReferenceDeskAssetsDrawingGuide: true,
+        });
+      }
+      if (preset.focusChart) {
+        setReferenceDeskFocusChart((n) => n + 1);
+      }
+      if (preset.targetMode !== 'REFERENCE_DESK') {
+        handleUiModeChange(preset.targetMode);
+      } else if (preset.panelTab) {
+        setRightPanelTab(preset.panelTab);
+      }
+      if (preset.targetMode !== 'REFERENCE_DESK' && preset.panelTab) {
+        window.setTimeout(() => setRightPanelTab(preset.panelTab!), 80);
+      }
+      requestLoad();
+    },
+    [handleUiModeChange, requestLoad]
+  );
+
+  const handleOpenReferencePanelTab = useCallback((tab: ReferenceDeskPanelTab) => {
+    setRightPanelTab(tab);
+  }, []);
+
+  const handleReferenceDeskShowLayer = useCallback(
+    (_layer: ReferenceDeskLwcLayer) => {
+      setReferenceDeskFocusChart((n) => n + 1);
       requestLoad();
     },
     [requestLoad]
@@ -920,7 +1243,7 @@ export default function HomePageContent() {
     };
   }, [parkfEngineOpts, trendlineLookback]);
 
-  const analysisReadyForCurrentTf = analysisMatchesSymbolAndTf(analysis, symbol, timeframe);
+  const analysisReadyForCurrentTf = analysisUsableOnChart(analysis, symbol, timeframe, uiMode);
 
   useEffect(() => {
     if (!analysis) {
@@ -1043,6 +1366,7 @@ export default function HomePageContent() {
   /** AI 종합 신호: 규칙 기반 narrative를 Gemini로 자연스러운 한글 1~2문장으로 보강 */
   useEffect(() => {
     if (siteAuth !== 'authed') return;
+    if (isMonthDeskChartMode(uiMode)) return;
     const a = analysis;
     if (!a?.aiFusionSignal || !a.symbol || !a.timeframe) return;
     const f = a.aiFusionSignal;
@@ -1054,11 +1378,14 @@ export default function HomePageContent() {
     const sym = a.symbol;
     const tf = a.timeframe;
     void (async () => {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 8000);
       try {
         const res = await fetch('/api/ai-fusion-narrate', {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             symbol: sym,
             timeframe: tf,
@@ -1082,6 +1409,66 @@ export default function HomePageContent() {
         });
       } catch {
         /* 키 없음·네트워크 실패 시 규칙 narrative만 사용 */
+      } finally {
+        window.clearTimeout(timer);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [siteAuth, analysis]);
+
+  /** 돌파·연동 체인 — 상·하방 경로를 Gemini로 자동 설명 (마감·안착·AI존 공통) */
+  useEffect(() => {
+    if (siteAuth !== 'authed') return;
+    if (isMonthDeskChartMode(uiMode)) return;
+    const a = analysis;
+    const bf = a?.breakoutFollow;
+    if (!a?.symbol || !a?.timeframe || !bf || bf.phase === 'idle') return;
+    if (bf.narrativeLlm) return;
+    const dedupeKey = `${a.symbol}|${a.timeframe}|${bf.phase}|${bf.bias}|${bf.headlineKo}|${bf.actionLineKo}`;
+    if (breakoutFollowNarrateKeyRef.current === dedupeKey) return;
+    breakoutFollowNarrateKeyRef.current = dedupeKey;
+    let cancelled = false;
+    const sym = a.symbol;
+    const tf = a.timeframe;
+    void (async () => {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 8000);
+      try {
+        const res = await fetch('/api/breakout-follow-narrate', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            symbol: sym,
+            timeframe: tf,
+            breakoutFollow: bf,
+            briefingLogin: {
+              user: getStoredBriefingUser().trim(),
+              password: getStoredBriefingPassword(),
+            },
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || cancelled) return;
+        const text = typeof data.narrative === 'string' ? data.narrative.replace(/\s+/g, ' ').trim().slice(0, 400) : '';
+        if (!text) return;
+        const usage = data.usage as { estimatedCost?: number } | undefined;
+        if (usage?.estimatedCost && usage.estimatedCost > 0) addEstimatedCostUsd(usage.estimatedCost);
+        setAnalysis((prev) => {
+          if (!prev || prev.symbol !== sym || prev.timeframe !== tf || !prev.breakoutFollow) return prev;
+          if (prev.breakoutFollow.narrativeLlm) return prev;
+          return {
+            ...prev,
+            breakoutFollow: { ...prev.breakoutFollow, narrativeLlm: text },
+          };
+        });
+      } catch {
+        /* 키 없음·네트워크 실패 시 규칙 문구만 */
+      } finally {
+        window.clearTimeout(timer);
       }
     })();
     return () => {
@@ -1100,10 +1487,25 @@ export default function HomePageContent() {
     const TIMEFRAMES = ['1m', '3m', '5m', '15m', '1h', '4h', '1d', '1w', '1M', '1Y'];
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'r' || e.key === 'R') { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); requestLoad(); }
+      if (e.key === 'r' || e.key === 'R') {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        requestLoad();
+      }
       const idx = TIMEFRAMES.indexOf(timeframe);
-      if (e.key === 'ArrowLeft' && idx > 0) { e.preventDefault(); setTimeframe(TIMEFRAMES[idx - 1]); }
-      if (e.key === 'ArrowRight' && idx >= 0 && idx < TIMEFRAMES.length - 1) { e.preventDefault(); setTimeframe(TIMEFRAMES[idx + 1]); }
+      if (e.key === 'ArrowLeft' && idx > 0) {
+        e.preventDefault();
+        const next = TIMEFRAMES[idx - 1];
+        timeframeRef.current = next;
+        setTimeframe(next);
+      }
+      const lastTfIdx = TIMEFRAMES.length - 1;
+      if (e.key === 'ArrowRight' && idx >= 0 && lastTfIdx > idx) {
+        e.preventDefault();
+        const next = TIMEFRAMES[idx + 1];
+        timeframeRef.current = next;
+        setTimeframe(next);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -1117,83 +1519,6 @@ export default function HomePageContent() {
     if (isTapMode && !(analysis as any)?.confirmedSignal?.confirmed) return;
     sendWebhook();
   }, [analysis?.verdict, analysis?.confidence, (analysis as any)?.confirmedSignal?.confirmed, webhookEnabled, webhookSent, webhookMinConfidence, isTapMode]);
-
-  useEffect(() => {
-    if (!analysis || !signalAlertEnabled) return;
-    const hasSignal = analysis.verdict === 'LONG' || analysis.verdict === 'SHORT';
-    if (!hasSignal) return;
-    const confirmed = (analysis as any)?.confirmedSignal?.confirmed === true;
-    if (!confirmed) return;
-    const base = [
-      analysis.symbol,
-      analysis.timeframe,
-      analysis.verdict,
-      analysis.entry,
-      analysis.stopLoss,
-      ...(analysis.targets || []),
-    ].join('|');
-    const key = `confirmed|${base}`;
-    if (lastConfirmedNotifyKeyRef.current === key) return;
-    lastConfirmedNotifyKeyRef.current = key;
-
-    try {
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate(confirmed ? [220, 90, 220, 90, 260] : [90]);
-      }
-    } catch {}
-    try {
-      if (typeof window !== 'undefined' && 'Notification' in window) {
-        const title = `확정 ${analysis.verdict} 신호`;
-        const body = `${analysis.symbol} ${analysis.timeframe} · E ${analysis.entry} / SL ${analysis.stopLoss}`;
-        if (Notification.permission === 'granted') {
-          new Notification(title, { body });
-        } else if (Notification.permission === 'default') {
-          Notification.requestPermission().then((perm) => {
-            if (perm === 'granted') new Notification(title, { body });
-          }).catch(() => {});
-        }
-      }
-    } catch {}
-  }, [analysis, signalAlertEnabled]);
-
-  useEffect(() => {
-    if (!analysis || !signalSoundEnabled) return;
-    const hasSignal = analysis.verdict === 'LONG' || analysis.verdict === 'SHORT';
-    if (!hasSignal) return;
-    const confirmed = (analysis as any)?.confirmedSignal?.confirmed === true;
-    if (!confirmed) return;
-    const base = [
-      analysis.symbol,
-      analysis.timeframe,
-      analysis.verdict,
-      analysis.entry,
-      analysis.stopLoss,
-      ...(analysis.targets || []),
-    ].join('|');
-    const key = `confirmed|${base}`;
-    if (lastConfirmedSoundKeyRef.current === key) return;
-    lastConfirmedSoundKeyRef.current = key;
-
-    try {
-      const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
-      const beep = (startSec: number, durationSec: number, freq: number, gainVal: number) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.value = gainVal;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(ctx.currentTime + startSec);
-        osc.stop(ctx.currentTime + startSec + durationSec);
-      };
-      beep(0, 0.13, 980, 0.06);
-      beep(0.18, 0.14, 1240, 0.07);
-      setTimeout(() => { try { ctx.close(); } catch {} }, 600);
-    } catch {}
-  }, [analysis, signalSoundEnabled]);
 
   useEffect(() => {
     if (!analysis) return;
@@ -1229,6 +1554,8 @@ export default function HomePageContent() {
       const aV = sM.aiCompressionVolumeFilter === true ? 1 : 0;
       const amxMtf =
         uiMode === 'WHALE' ||
+        uiMode === 'MONTH_START_DESK' ||
+        uiMode === 'ZONE_LINE_PRO' ||
         uiMode === 'MAX_ANALYSIS' ||
         uiMode === 'SMC_DESK' ||
         uiMode === 'SMC_DESK_COMPOSITE' ||
@@ -1236,8 +1563,10 @@ export default function HomePageContent() {
         uiMode === 'SMART_MONEY_MVP' ||
         uiMode === 'UNIFIED_DESK' ||
         uiMode === 'AI_ZONE' ||
+        uiMode === 'FUSION_MODE' ||
         uiMode === 'BIBLE_MODE' ||
-        uiMode === 'HOT_ZONE'
+        uiMode === 'HOT_ZONE' ||
+        uiMode === 'REFERENCE_DESK'
           ? '&amx=1'
           : '';
       const effM = getEffectiveFeatureToggles(sM, uiMode);
@@ -1448,8 +1777,12 @@ export default function HomePageContent() {
 
   const pl = pageLayout;
   /** 통합작도: 전체·카드·AI 패널을 한 화면에 묶음 — 우측 스택은 항상 표시(최강분석만 '차트만 넓게'로 숨김) */
+  /** 타점엔진(VMAX): 자동매매 데스크만 전체폭 — 홈 우측 AI·분석 카드 숨김 */
   const showRightStack =
     pl.showRightPanel &&
+    uiMode !== 'MERGED_ANALYSIS_DESK' &&
+    uiMode !== 'EAGLE1_TAP_ENGINE' &&
+    !isZoneLineProMode(uiMode) &&
     !(
       (uiMode === 'MAX_ANALYSIS' ||
         uiMode === 'SMC_DESK' ||
@@ -1491,6 +1824,7 @@ export default function HomePageContent() {
           key={m.tf}
           onClick={() => {
             prefetchMarketCandles(m.tf);
+            timeframeRef.current = m.tf;
             setTimeframe(m.tf);
             requestLoad(m.tf);
           }}
@@ -1500,6 +1834,7 @@ export default function HomePageContent() {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
               prefetchMarketCandles(m.tf);
+              timeframeRef.current = m.tf;
               setTimeframe(m.tf);
               requestLoad(m.tf);
             }
@@ -1574,6 +1909,66 @@ export default function HomePageContent() {
           >
             소리 {signalSoundEnabled ? 'ON' : 'OFF'}
           </button>
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button ${telegramMergedDeskAutoEnabled ? 'tool-chip-active' : ''}`}
+            onClick={() => {
+              const next = !telegramMergedDeskAutoEnabled;
+              setTelegramMergedDeskAutoEnabled(next);
+              saveSettings({ telegramMergedDeskAutoEnabled: next });
+            }}
+            title="서버가 통합·분석(스윙중투)을 자동 분석해 롱/숏 자리·TP·무효 시 차트 캡처→텔레그램 (앱 미접속). 기본 ON"
+          >
+            통합텔레 {telegramMergedDeskAutoEnabled ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button ${telegramMergedDeskUiCaptureEnabled ? 'tool-chip-active' : ''}`}
+            onClick={() => {
+              const next = !telegramMergedDeskUiCaptureEnabled;
+              setTelegramMergedDeskUiCaptureEnabled(next);
+              saveSettings({ telegramMergedDeskUiCaptureEnabled: next });
+            }}
+            title="ON=통합·분석 tv-frame 실제 UI 캡처→텔레(Playwright). OFF=SVG만. 이미지는 전송 후 저장 안 함"
+          >
+            UI캡처 {telegramMergedDeskUiCaptureEnabled ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button ${telegramHqZoneTouchEnabled ? 'tool-chip-active' : ''}`}
+            onClick={() => {
+              const next = !telegramHqZoneTouchEnabled;
+              setTelegramHqZoneTouchEnabled(next);
+              saveSettings({ telegramHqZoneTouchEnabled: next });
+            }}
+            title="고확률 진입존 터치 텔레. 통합텔레 ON이면 되돌림 자리 보조. 통합텔레 OFF+이 ON이면 진입존만"
+          >
+            진입존텔레 {telegramHqZoneTouchEnabled ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button ${telegramConfirmEnabled ? 'tool-chip-active' : ''}`}
+            onClick={() => {
+              const next = !telegramConfirmEnabled;
+              setTelegramConfirmEnabled(next);
+              saveSettings({ telegramConfirmEnabled: next });
+            }}
+            title="레거시 롱/숏 확정·타점 텔레 (통합텔레·진입존텔레 OFF일 때만). TELEGRAM_BOT_TOKEN·CHAT_ID 필요"
+          >
+            텔레확정 {telegramConfirmEnabled ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button ${telegramConfirmCandidate ? 'tool-chip-active' : ''}`}
+            onClick={() => {
+              const next = !telegramConfirmCandidate;
+              setTelegramConfirmCandidate(next);
+              saveSettings({ telegramConfirmCandidate: next });
+            }}
+            title="텔레에 「후보 4/5」 단계도 전송"
+          >
+            텔레후보 {telegramConfirmCandidate ? 'ON' : 'OFF'}
+          </button>
         </>
       )}
       {pl.showGroupSymbol && (
@@ -1586,14 +1981,14 @@ export default function HomePageContent() {
               type="text"
               className="select-pill"
               style={{ width: 148, minWidth: 120, padding: '8px 12px', fontSize: 12 }}
-              placeholder="심볼 검색"
+              placeholder="BTC · USDKRW…"
               value={symbolSearchQuery}
               onChange={(e) => {
                 setSymbolSearchQuery(e.target.value);
                 setSymbolSearchOpen(true);
               }}
               onFocus={() => setSymbolSearchOpen(true)}
-              aria-label="바이낸스 USDT 현물 심볼 검색"
+              aria-label="코인·환율 심볼 검색"
               autoComplete="off"
               spellCheck={false}
             />
@@ -1648,6 +2043,20 @@ export default function HomePageContent() {
           <button className="tool-chip tool-chip-button" onClick={() => toggleFavorite(symbol)} title={favoriteSymbols.includes(symbol) ? '즐겨찾기 해제' : '즐겨찾기 추가'}>
             {favoriteSymbols.includes(symbol) ? '\u2605' : '\u2606'}
           </button>
+          <button
+            type="button"
+            className="tool-chip tool-chip-button"
+            title="급등코인 창구 — 통합분석으로 열어 종목 클릭"
+            style={{ fontWeight: 800, borderColor: 'rgba(251,191,36,0.5)', color: '#fde68a' }}
+            onClick={() => {
+              handleUiModeChange('MERGED_ANALYSIS_DESK');
+              window.setTimeout(() => {
+                window.dispatchEvent(new Event(OPEN_SURGE_DESK_EVENT));
+              }, 80);
+            }}
+          >
+            급등
+          </button>
         </>
       )}
       {pl.showGroupStatus && (
@@ -1663,6 +2072,13 @@ export default function HomePageContent() {
               {visitor.count}명 접속
             </div>
           )}
+          <PreSurgeHeaderChips
+            activeSymbol={symbol}
+            onPick={(sym) => {
+              pickSymbolFromSearch(sym);
+              handleUiModeChange('MERGED_ANALYSIS_DESK');
+            }}
+          />
           {visitor.users.length > 0 && (
             <div className="badge" title="현재 접속 중인 아이디">
               방문 ID: {visitor.users.join(', ')}
@@ -1685,26 +2101,64 @@ export default function HomePageContent() {
       <div style={{ minHeight: '50vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--muted)' }}>
         접속 확인 중…
         {visitor.count != null && <span style={{ fontSize: 12 }}>현재 {visitor.count}명 접속</span>}
+        {authSlow && (
+          <button
+            type="button"
+            onClick={() => {
+              setAuthSlow(false);
+              setAuthRetryTick((n) => n + 1);
+            }}
+            style={{ marginTop: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 13 }}
+          >
+            응답 없음 — 다시 시도
+          </button>
+        )}
       </div>
     );
   }
 
   if (siteAuth === 'anon') {
-    return <AppSiteLogin onLoggedIn={() => setSiteAuth('authed')} />;
+    return (
+      <AppSiteLogin
+        onLoggedIn={(u) => {
+          setSiteUser(u || '');
+          setSiteAuth('authed');
+        }}
+      />
+    );
   }
 
   return (
     <>
       <TelegramMultiTfWatcher />
       <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
-      <main id="main-content" role="main">
+      <main
+        id="main-content"
+        role="main"
+        className={
+          uiMode === 'MERGED_ANALYSIS_DESK' || uiMode === 'EAGLE1_TAP_ENGINE'
+            ? 'main--desk-bleed'
+            : undefined
+        }
+      >
         <AppDisclaimerBanner variant="main" />
+        {confirmLastAlert && panelFeatures.practicalDesk && (
+          <div style={{ position: 'sticky', top: 0, zIndex: 8400, padding: '0 0 10px' }} data-trade-confirm-banner="1">
+            <TradeConfirmAlertBanner alert={confirmLastAlert} onDismiss={dismissConfirmAlert} />
+          </div>
+        )}
         {showHeaderCard && (
           <div className={`card header-card${!pl.showPageTitle ? ' header-card--toolbar-only' : ''}`}>
             {pl.showPageTitle && (
-              <div>
+              <div className="header-brand">
+                <div className="ai-kicker">AI Analysis Desk</div>
                 <div className="title">독수리1호 분석 엔진</div>
                 <div className="subtle">SMC · 멀티타임프레임 · 스마트머니 · 신호 분석 · Ctrl+R 새로고침 · ←→ 타임프레임</div>
+                <div className="subtle" style={{ marginTop: 6 }}>
+                  <Link href="/dashboard" prefetch={false} style={{ color: 'var(--accent, #38bdf8)' }}>
+                    재고관리(WMS)
+                  </Link>
+                </div>
               </div>
             )}
             {anyMainToolbar && !pl.mainToolbarFloat && (
@@ -1797,7 +2251,7 @@ export default function HomePageContent() {
 
         {error && (
           <div className="card panel-pad" role="alert" style={{ background: 'rgba(255,123,123,0.1)', border: '1px solid rgba(255,123,123,0.3)' }}>
-            <div className="section-title">\u26A0\uFE0F 연결 오류</div>
+            <div className="section-title">연결 오류</div>
             <div className="subtle" style={{ marginTop: 8 }}>{error}</div>
             <button type="button" onClick={() => requestLoad()} style={{ marginTop: 12, padding: '8px 16px', cursor: 'pointer' }}>다시 시도</button>
           </div>
@@ -1805,14 +2259,29 @@ export default function HomePageContent() {
 
         <div className={showRightStack ? 'grid' : 'grid grid--single'}>
           <div className="left-stack">
-            <div className="card panel-pad">
+            <div className={`card panel-pad${uiMode === 'MERGED_ANALYSIS_DESK' ? ' card--merged-desk' : ''}`}>
               {pl.showChartCardHeader && (
                 <div className="space-between">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
                     <div>
-                      <div className="section-title">코인 차트</div>
+                      <div className="section-title">
+                        {uiMode === 'ZONE_LINE_PRO'
+                          ? `${ZONE_LINE_PRO_MODE_LABEL} · 개선`
+                          : uiMode === 'MONTH_START_DESK'
+                          ? '마감 · 안착'
+                          : uiMode === 'REFERENCE_DESK'
+                            ? '벤치마크 · 레퍼런스'
+                            : '코인 차트'}
+                      </div>
                       <div className="subtle">
-                        {symbol} \u00B7 {uiMode === 'HOT_ZONE' ? '1D + 1W 듀얼' : timeframe} \u00B7 실시간
+                        {symbol} \u00B7{' '}
+                        {uiMode === 'HOT_ZONE'
+                          ? '1D + 1W 듀얼'
+                          : isMonthDeskChartMode(uiMode)
+                            ? `${timeframe} · ${uiMode === 'ZONE_LINE_PRO' ? '존·라인 차트' : '분석 보드'}`
+                            : uiMode === 'REFERENCE_DESK'
+                              ? 'OSS · 차트 · 기능 비교'
+                              : `${timeframe} · 실시간`}
                       </div>
                     </div>
                     {(uiMode === 'MAX_ANALYSIS' ||
@@ -1856,9 +2325,84 @@ export default function HomePageContent() {
                   )}
                 </div>
               )}
-              {uiMode === 'HOT_ZONE' ? (
+              {uiMode === 'REFERENCE_DESK' ? (
+                <div className="chart-wrap chart-wrap--reference-desk-board">
+                  <ReferenceDeskBoardView
+                    uiMode={uiMode}
+                    onUiModeChange={handleUiModeChange}
+                    symbol={symbol}
+                    timeframe={timeframe}
+                    theme={theme}
+                    analysis={analysis}
+                    loading={loading}
+                    patternStats={patternStats}
+                    backtest={backtest}
+                    settings={{
+                      telegramConfirmEnabled,
+                      virtualTradeEnabled,
+                    }}
+                    onApplyPreset={handleApplyReferencePreset}
+                    onOpenPanelTab={handleOpenReferencePanelTab}
+                    onShowLayerOnChart={handleReferenceDeskShowLayer}
+                    onRequestLoad={requestLoad}
+                    focusChartNonce={referenceDeskFocusChart}
+                    chartSlot={() => (
+                      <ChartView
+                        ref={chartSnapshotRef}
+                        symbol={symbol}
+                        timeframe={timeframe}
+                        analysis={analysis}
+                        setTimeframe={setTimeframe}
+                        onTimeframeChange={(tf) => {
+                          timeframeRef.current = tf;
+                          prefetchMarketCandles(tf);
+                          requestLoad(tf);
+                        }}
+                        theme={theme}
+                        onChartPointClick={handleChartPointClick}
+                        uiMode={uiMode}
+                        onUiModeChange={handleUiModeChange}
+                        zoneSignalSensitivity={zoneSignalSensitivity}
+                        onZoneSignalSensitivityChange={(v) => {
+                          setZoneSignalSensitivity(v);
+                          saveSettings({ zoneSignalSensitivity: v });
+                        }}
+                        pre3SimilarityThreshold={pre3SimilarityThreshold}
+                        onPre3SimilarityChange={(v) => {
+                          const t = Math.max(0.55, Math.min(0.98, v));
+                          setPre3SimilarityThreshold(t);
+                          saveSettings({ pre3SimilarityThreshold: t });
+                          requestLoad();
+                        }}
+                        pre3ConfirmOnCloseOnly={pre3ConfirmOnCloseOnly}
+                        onPre3ConfirmOnCloseChange={(v) => {
+                          setPre3ConfirmOnCloseOnly(v);
+                          saveSettings({ pre3ConfirmOnCloseOnly: v });
+                          requestLoad();
+                        }}
+                        structurePriceLinesMax={structurePriceLinesMax}
+                        mtfSignals={mtfSignals}
+                      />
+                    )}
+                  />
+                </div>
+              ) : uiMode === 'HOT_ZONE' ? (
+                <div className="chart-wrap chart-wrap--hot-zone-dual">
+                  {panelFeatures.practicalDesk && (
+                    <TradePracticalDesk
+                      symbol={symbol}
+                      timeframe={timeframe}
+                      analysis={analysis}
+                      candles={fusionCandles}
+                      theme={theme}
+                      uiMode={uiMode}
+                      compact
+                      confirmDesk={confirmDesk}
+                      lastAlert={confirmLastAlert}
+                      onDismissAlert={dismissConfirmAlert}
+                    />
+                  )}
                 <div
-                  className="chart-wrap chart-wrap--hot-zone-dual"
                   style={{ display: 'flex', gap: 10, alignItems: 'stretch', flexWrap: 'wrap', width: '100%' }}
                 >
                   <div style={{ flex: '1 1 340px', minWidth: 280, position: 'relative' }}>
@@ -1932,8 +2476,228 @@ export default function HomePageContent() {
                     />
                   </div>
                 </div>
+                </div>
+              ) : uiMode === 'ZONE_LINE_PRO' ? (
+              <div className="chart-wrap chart-wrap--zone-line-pro">
+                <ZoneLineProShell
+                  uiMode={uiMode}
+                  onUiModeChange={handleUiModeChange}
+                  symbol={symbol}
+                  timeframe={timeframe}
+                  theme={theme}
+                  chartSlot={() => (
+                    <ChartView
+                      ref={chartSnapshotRef}
+                      symbol={symbol}
+                      timeframe={timeframe}
+                      analysis={analysis}
+                      setTimeframe={setTimeframe}
+                      onTimeframeChange={(tf) => {
+                        timeframeRef.current = tf;
+                        prefetchMarketCandles(tf);
+                        requestLoad(tf);
+                      }}
+                      theme={theme}
+                      onChartPointClick={handleChartPointClick}
+                      uiMode={uiMode}
+                      onUiModeChange={handleUiModeChange}
+                      zoneSignalSensitivity={zoneSignalSensitivity}
+                      onZoneSignalSensitivityChange={(v) => {
+                        setZoneSignalSensitivity(v);
+                        saveSettings({ zoneSignalSensitivity: v });
+                      }}
+                      pre3SimilarityThreshold={pre3SimilarityThreshold}
+                      onPre3SimilarityChange={(v) => {
+                        const t = Math.max(0.55, Math.min(0.98, v));
+                        setPre3SimilarityThreshold(t);
+                        saveSettings({ pre3SimilarityThreshold: t });
+                        requestLoad();
+                      }}
+                      pre3ConfirmOnCloseOnly={pre3ConfirmOnCloseOnly}
+                      onPre3ConfirmOnCloseChange={(v) => {
+                        setPre3ConfirmOnCloseOnly(v);
+                        saveSettings({ pre3ConfirmOnCloseOnly: v });
+                        requestLoad();
+                      }}
+                      structurePriceLinesMax={structurePriceLinesMax}
+                      mtfSignals={mtfSignals}
+                    />
+                  )}
+                />
+              </div>
+              ) : uiMode === 'EAGLE1_TAP_ENGINE' ? (
+              <div className="chart-wrap chart-wrap--eagle1-tap">
+                <Eagle1TapointDeskView
+                  symbol={symbol}
+                  timeframe={timeframe}
+                  theme={theme === 'light' ? 'light' : 'dark'}
+                  uiMode={uiMode}
+                  onUiModeChange={handleUiModeChange}
+                  setTimeframe={setTimeframe}
+                  onRequestChartTf={(tf) => {
+                    timeframeRef.current = tf;
+                    setTimeframe(tf);
+                  }}
+                  onSymbolChange={(sym) => {
+                    setSymbol(sym);
+                  }}
+                />
+              </div>
+              ) : uiMode === 'MERGED_ANALYSIS_DESK' ? (
+              <div className="chart-wrap chart-wrap--merged-analysis chart-wrap--eagle1-structure">
+                <MergedAnalysisDeskView
+                  wrapEagle1Hud
+                  shareMergedServerChart
+                  uiMode={uiMode}
+                  onUiModeChange={handleUiModeChange}
+                  symbol={symbol}
+                  timeframe={timeframe}
+                  theme={theme}
+                  analysis={analysis}
+                  loading={loading}
+                  fusionCandles={fusionCandles}
+                  chartSnapshotRef={chartSnapshotRef}
+                  onRequestChartTf={(tf) => {
+                    prefetchMarketCandles(tf);
+                    timeframeRef.current = tf;
+                    setTimeframe(tf);
+                    requestLoad(tf);
+                  }}
+                  onSymbolChange={(sym) => {
+                    setSymbol(sym);
+                    requestLoad(timeframeRef.current);
+                  }}
+                  chartSlot={({
+                    mergedDeskPack,
+                    mergedStrikeBundle,
+                    onMirageZoneSelect,
+                    selectedMirageZoneId,
+                    onMergedDeskChartCandlesChange,
+                  }) => (
+                    <ChartView
+                      ref={chartSnapshotRef}
+                      useParentMergedDeskPack
+                      mergedDeskPack={mergedDeskPack}
+                      mergedStrikeBundle={mergedStrikeBundle}
+                      onMirageZoneSelect={onMirageZoneSelect}
+                      selectedMirageZoneId={selectedMirageZoneId}
+                      onMergedDeskChartCandlesChange={onMergedDeskChartCandlesChange}
+                      symbol={symbol}
+                      timeframe={timeframe}
+                      analysis={analysis}
+                      setTimeframe={setTimeframe}
+                      onTimeframeChange={(tf) => {
+                        timeframeRef.current = tf;
+                        prefetchMarketCandles(tf);
+                        requestLoad(tf);
+                      }}
+                      theme={theme}
+                      onChartPointClick={handleChartPointClick}
+                      uiMode={uiMode}
+                      onUiModeChange={handleUiModeChange}
+                      zoneSignalSensitivity={zoneSignalSensitivity}
+                      onZoneSignalSensitivityChange={(v) => {
+                        setZoneSignalSensitivity(v);
+                        saveSettings({ zoneSignalSensitivity: v });
+                      }}
+                      pre3SimilarityThreshold={pre3SimilarityThreshold}
+                      onPre3SimilarityChange={(v) => {
+                        const t = Math.max(0.55, Math.min(0.98, v));
+                        setPre3SimilarityThreshold(t);
+                        saveSettings({ pre3SimilarityThreshold: t });
+                        requestLoad();
+                      }}
+                      pre3ConfirmOnCloseOnly={pre3ConfirmOnCloseOnly}
+                      onPre3ConfirmOnCloseChange={(v) => {
+                        setPre3ConfirmOnCloseOnly(v);
+                        saveSettings({ pre3ConfirmOnCloseOnly: v });
+                        requestLoad();
+                      }}
+                      structurePriceLinesMax={structurePriceLinesMax}
+                      mtfSignals={mtfSignals}
+                    />
+                  )}
+                />
+              </div>
+              ) : uiMode === 'MONTH_START_DESK' ? (
+              <div className="chart-wrap chart-wrap--month-desk-board">
+                <MonthDeskAnalysisBoardView
+                  uiMode={uiMode}
+                  onUiModeChange={handleUiModeChange}
+                  symbol={symbol}
+                  timeframe={timeframe}
+                  theme={theme}
+                  analysis={analysis}
+                  loading={loading}
+                  fusionCandles={fusionCandles}
+                  chartVerdictValidation={monthDeskChartVerdictValidation}
+                  confirmDesk={confirmDesk}
+                  lastAlert={confirmLastAlert}
+                  onDismissAlert={dismissConfirmAlert}
+                  soundEnabled={signalSoundEnabled}
+                  showTemporalCompare={panelFeatures.temporalCompare}
+                  onRequestChartTf={(tf) => {
+                    prefetchMarketCandles(tf);
+                    timeframeRef.current = tf;
+                    setTimeframe(tf);
+                    requestLoad(tf);
+                  }}
+                  chartSlot={() => (
+                    <ChartView
+                      ref={chartSnapshotRef}
+                      symbol={symbol}
+                      timeframe={timeframe}
+                      analysis={analysis}
+                      setTimeframe={setTimeframe}
+                      onTimeframeChange={(tf) => {
+                        timeframeRef.current = tf;
+                        prefetchMarketCandles(tf);
+                        requestLoad(tf);
+                      }}
+                      theme={theme}
+                      onChartPointClick={handleChartPointClick}
+                      uiMode={uiMode}
+                      onUiModeChange={handleUiModeChange}
+                      zoneSignalSensitivity={zoneSignalSensitivity}
+                      onZoneSignalSensitivityChange={(v) => {
+                        setZoneSignalSensitivity(v);
+                        saveSettings({ zoneSignalSensitivity: v });
+                      }}
+                      pre3SimilarityThreshold={pre3SimilarityThreshold}
+                      onPre3SimilarityChange={(v) => {
+                        const t = Math.max(0.55, Math.min(0.98, v));
+                        setPre3SimilarityThreshold(t);
+                        saveSettings({ pre3SimilarityThreshold: t });
+                        requestLoad();
+                      }}
+                      pre3ConfirmOnCloseOnly={pre3ConfirmOnCloseOnly}
+                      onPre3ConfirmOnCloseChange={(v) => {
+                        setPre3ConfirmOnCloseOnly(v);
+                        saveSettings({ pre3ConfirmOnCloseOnly: v });
+                        requestLoad();
+                      }}
+                      structurePriceLinesMax={structurePriceLinesMax}
+                      mtfSignals={mtfSignals}
+                    />
+                  )}
+                />
+              </div>
               ) : (
               <div className="chart-wrap">
+                {panelFeatures.practicalDesk && (
+                  <TradePracticalDesk
+                    symbol={symbol}
+                    timeframe={timeframe}
+                    analysis={analysis}
+                    candles={fusionCandles}
+                    theme={theme}
+                    uiMode={uiMode}
+                    compact
+                    confirmDesk={confirmDesk}
+                    lastAlert={confirmLastAlert}
+                    onDismissAlert={dismissConfirmAlert}
+                  />
+                )}
                 <ChartView
                   ref={chartSnapshotRef}
                   symbol={symbol}
@@ -1941,9 +2705,8 @@ export default function HomePageContent() {
                   analysis={analysis}
                   setTimeframe={setTimeframe}
                   onTimeframeChange={(tf) => {
-                    prefetchMarketCandles(tf);
-                    setTimeframe(tf);
                     timeframeRef.current = tf;
+                    prefetchMarketCandles(tf);
                     requestLoad(tf);
                   }}
                   theme={theme}
@@ -1980,7 +2743,14 @@ export default function HomePageContent() {
                     aria-live="polite"
                     aria-busy="true"
                   >
-                    분석 로딩 중… (차트 데이터는 계속 로드)
+                    분석 로딩 중…
+                    {uiMode === 'ZONE_LINE_PRO'
+                      ? ' (존·라인 차트)'
+                      : uiMode === 'MONTH_START_DESK'
+                      ? ' (마감·안착 보드)'
+                      : uiMode === 'REFERENCE_DESK'
+                        ? ' (벤치마크 보드)'
+                        : ' (차트 데이터는 계속 로드)'}
                   </div>
                 )}
               </div>
@@ -1988,9 +2758,27 @@ export default function HomePageContent() {
 
           {showRightStack && (
           <div className="right-stack">
-            <AIChatPanel analysis={analysis} symbol={symbol} timeframe={timeframe} chartSnapshotRef={chartSnapshotRef} triggerSendMessage={triggerChatMessage} onTriggerSendConsumed={() => setTriggerChatMessage('')} />
+            <FoldCard
+              id="home-ai-chat"
+              title="AI 대화"
+              subtitle="차트 스냅샷 · 브리핑 질문"
+              defaultOpen={false}
+            >
+              <AIChatPanel analysis={analysis} symbol={symbol} timeframe={timeframe} chartSnapshotRef={chartSnapshotRef} triggerSendMessage={triggerChatMessage} onTriggerSendConsumed={() => setTriggerChatMessage('')} />
+            </FoldCard>
 
-            <div className="card panel-pad" style={{ display: 'flex', flexDirection: 'column', minHeight: 380, maxHeight: 'min(86vh, 920px)' }}>
+            <FoldCard
+              id="home-right-analysis"
+              title="분석 패널"
+              subtitle="트레이드 · 시장 · 브리핑 · 학습 · 가상매매"
+              defaultOpen
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 380,
+                maxHeight: 'min(86vh, 920px)',
+              }}
+            >
               <div className="panel-tabs" role="tablist">
                 {(['trade', 'market', 'briefing', 'pattern', 'ref', 'etc', 'learning', 'virtual', 'candle'] as const).map((tab) => (
                   <button key={tab} type="button" role="tab" aria-selected={rightPanelTab === tab} className={`panel-tab ${rightPanelTab === tab ? 'active' : ''}`} onClick={() => setRightPanelTab(tab)}>
@@ -2009,6 +2797,8 @@ export default function HomePageContent() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, marginBottom: 8 }}>
                 <button type="button" className="tool-chip tool-chip-button" onClick={() => setAllPanelFeatures(true)}>기능 전체 ON</button>
                 <button type="button" className="tool-chip tool-chip-button" onClick={() => setAllPanelFeatures(false)}>기능 전체 OFF</button>
+                <button type="button" className={`tool-chip tool-chip-button ${panelFeatures.practicalDesk ? 'tool-chip-active' : ''}`} onClick={() => updatePanelFeature('practicalDesk', !panelFeatures.practicalDesk)}>실전카드</button>
+                <button type="button" className={`tool-chip tool-chip-button ${panelFeatures.temporalCompare ? 'tool-chip-active' : ''}`} onClick={() => updatePanelFeature('temporalCompare', !panelFeatures.temporalCompare)} title="유사 과거·현재 구조·미래 경로/빔 비교">시간축</button>
                 <button type="button" className={`tool-chip tool-chip-button ${panelFeatures.unifiedGraph ? 'tool-chip-active' : ''}`} onClick={() => updatePanelFeature('unifiedGraph', !panelFeatures.unifiedGraph)}>통합그래프</button>
                 <button type="button" className={`tool-chip tool-chip-button ${panelFeatures.signalBox ? 'tool-chip-active' : ''}`} onClick={() => updatePanelFeature('signalBox', !panelFeatures.signalBox)}>신호박스</button>
                 <button type="button" className={`tool-chip tool-chip-button ${panelFeatures.executionBriefing ? 'tool-chip-active' : ''}`} onClick={() => updatePanelFeature('executionBriefing', !panelFeatures.executionBriefing)}>실행카드</button>
@@ -2020,7 +2810,61 @@ export default function HomePageContent() {
               <div className="panel-tab-content">
                 {rightPanelTab === 'trade' && (
                   <>
-                    <AnalysisBoardHero analysis={analysis} symbol={symbol} timeframe={timeframe} loading={loading} />
+                    {panelFeatures.practicalDesk && (
+                      <FoldCard
+                        id="home-practical-desk"
+                        title="실전 데스크"
+                        subtitle="커맨드 · 확정 · 알림"
+                        defaultOpen
+                      >
+                        <TradePracticalDesk
+                          symbol={symbol}
+                          timeframe={timeframe}
+                          analysis={analysis}
+                          candles={fusionCandles}
+                          theme={theme}
+                          uiMode={uiMode}
+                          compact={isMonthDeskChartMode(uiMode)}
+                          confirmDesk={confirmDesk}
+                          lastAlert={confirmLastAlert}
+                          onDismissAlert={dismissConfirmAlert}
+                          chartVerdictValidation={monthDeskChartVerdictValidation}
+                        />
+                      </FoldCard>
+                    )}
+                    {panelFeatures.temporalCompare &&
+                      (uiMode === 'AI_ZONE' ||
+                        isMonthDeskChartMode(uiMode) ||
+                        uiMode === 'MAX_ANALYSIS' ||
+                        uiMode === 'UNIFIED_DESK' ||
+                        uiMode === 'FUSION_MODE') && (
+                        <TemporalComparePanel
+                          analysis={analysis}
+                          symbol={symbol}
+                          timeframe={timeframe}
+                          chartVerdictValidation={monthDeskChartVerdictValidation}
+                          compact={isMonthDeskChartMode(uiMode)}
+                        />
+                      )}
+                    {!isMonthDeskChartMode(uiMode) && !panelFeatures.practicalDesk && (
+                      <AnalysisBoardHero analysis={analysis} symbol={symbol} timeframe={timeframe} loading={loading} />
+                    )}
+                    {uiMode === 'MONTH_START_DESK' && (
+                      <div
+                        style={{
+                          marginBottom: 12,
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          border: '1px solid rgba(167,139,250,0.28)',
+                          background: 'rgba(30,27,75,0.35)',
+                          fontSize: 11,
+                          color: '#c4b5fd',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        마감·안착 분석 보드는 왼쪽 메인 영역에 표시됩니다. 차트가 필요하면 「차트 보기」 탭을 사용하세요.
+                      </div>
+                    )}
                     {(uiMode === 'WHALE' || uiMode === 'AI_ZONE') && (
                       <div
                         style={{
@@ -2398,7 +3242,9 @@ export default function HomePageContent() {
                         )}
                       </div>
                     )}
-                    {(uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE') && (
+                    {(uiMode === 'UNIFIED_DESK' ||
+                      uiMode === 'AI_ZONE' ||
+                      uiMode === 'FUSION_MODE') && (
                       <>
                         <UnifiedDeskDashboardGuide />
                         <AiAnalysisLineHints analysis={analysis} />
@@ -2415,23 +3261,42 @@ export default function HomePageContent() {
                         requestLoad(tf);
                       }}
                     />}
-                    {panelFeatures.signalBox && <SignalBox analysis={analysis} candles={fusionCandles} panelFeatures={panelFeatures} />}
+                    {panelFeatures.signalBox && (
+                      <FoldCard
+                        id="home-signal-box"
+                        title="신호박스"
+                        subtitle="롱숏 합성 · 등급 · 조건"
+                        defaultOpen
+                      >
+                        <SignalBox analysis={analysis} candles={fusionCandles} panelFeatures={panelFeatures} />
+                      </FoldCard>
+                    )}
                     {panelFeatures.executionBriefing && analysis && (
-                      <div style={{ marginBottom: 12 }}>
-                        <ExecutionBriefingCard
-                          analysis={analysis}
-                          candles={fusionCandles}
-                          theme={theme}
-                          isTapMode={isTapMode}
-                          swingSeedUsdt={swingSeedUsdt}
-                          panelFeatures={panelFeatures}
-                          onSwingSeedChange={(v) => {
-                            setSwingSeedUsdt(v);
-                            saveSettings({ swingSeedUsdt: v });
-                          }}
-                          onSwingSeedBlur={() => saveSettings({ swingSeedUsdt })}
-                        />
-                      </div>
+                      <FoldCard
+                        id="home-execution-briefing"
+                        title="실행 브리핑"
+                        subtitle="진입 · 손절 · 목표 · 사이즈"
+                        defaultOpen={false}
+                      >
+                        <div style={{ marginBottom: 4 }}>
+                          <ExecutionBriefingCard
+                            analysis={analysis}
+                            candles={fusionCandles}
+                            theme={theme}
+                            isTapMode={isTapMode}
+                            swingSeedUsdt={swingSeedUsdt}
+                            panelFeatures={panelFeatures}
+                            onSwingSeedChange={(v) => {
+                              setSwingSeedUsdt(v);
+                              saveSettings({ swingSeedUsdt: v });
+                            }}
+                            onSwingSeedBlur={() => saveSettings({ swingSeedUsdt })}
+                          />
+                        </div>
+                      </FoldCard>
+                    )}
+                    {uiMode === 'FUSION_MODE' && analysis && (
+                      <FusionModeCard analysis={analysis} candles={fusionCandles} />
                     )}
                     {isExecutionLikeMode && (analysis as any)?.rsiDivergenceSignal && (
                       <div className="rsi-div-panel" style={{ padding: '16px 18px', marginBottom: 14, border: '1px solid rgba(98,239,224,0.3)', background: 'rgba(15,23,42,0.98)', borderRadius: 12 }}>
@@ -2821,8 +3686,8 @@ export default function HomePageContent() {
                                 </div>
                                 <div style={{ marginTop: 4, fontSize: 10, color: '#64748b' }}>최근 N개 세트업만 축에 표시 (과밀 방지)</div>
                               </div>
-                              <button type="button" className="tool-chip tool-chip-button" style={{ width: '100%', marginTop: 14, padding: '10px 16px', fontSize: 13 }} onClick={() => (document.querySelector('[title="차트 표시 옵션 및 라벨 설정"]') as HTMLButtonElement)?.click()}>
-                                설정
+                              <button type="button" className="tool-chip tool-chip-button" style={{ width: '100%', marginTop: 14, padding: '10px 16px', fontSize: 13 }} onClick={() => chartSnapshotRef.current?.openSettings?.()}>
+                                ⚙ 차트 설정
                               </button>
                             </>
                           );
@@ -2876,13 +3741,14 @@ export default function HomePageContent() {
                       uiMode === 'SMC_DELTA_DESK' ||
                       uiMode === 'SMART_MONEY_MVP' ||
                       uiMode === 'UNIFIED_DESK' ||
-                      uiMode === 'AI_ZONE') &&
+                      uiMode === 'AI_ZONE' ||
+                      uiMode === 'FUSION_MODE') &&
                       analysis?.aiModeAutoAnalysis && (
                       <>
                         <div className="section-title" style={{ marginTop: 14 }}>
                           {uiMode === 'WHALE'
                             ? '고래 모드 · 자동 분석'
-                            : (uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE')
+                            : (uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE' || uiMode === 'FUSION_MODE')
                               ? '통합작도 · 자동 분석'
                               : uiMode === 'SMC_DESK_COMPOSITE'
                                 ? '데스크합성 · 자동 분석'
@@ -3112,7 +3978,9 @@ export default function HomePageContent() {
                 )}
                 {rightPanelTab === 'market' && (
                   <>
-                    {(uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE') && (
+                    {(uiMode === 'UNIFIED_DESK' ||
+                      uiMode === 'AI_ZONE' ||
+                      uiMode === 'FUSION_MODE') && (
                       <div style={{ marginBottom: 12 }}>
                         <UnifiedDeskDashboardGuide />
                         <AiAnalysisLineHints analysis={analysis} />
@@ -3148,7 +4016,7 @@ export default function HomePageContent() {
                     </div>
                     {analysis ? (() => {
                       const sim = (analysis as any).similarBriefing as AnalyzeResponse['similarBriefing'];
-                      const briefingInput = sim && (sim.similarity ?? 0) < briefingSimilarityThreshold
+                      const briefingInput = sim && briefingSimilarityThreshold > (sim.similarity ?? 0)
                         ? ({ ...analysis, similarBriefing: null } as AnalyzeResponse)
                         : analysis;
                       const txt = generateAutoBriefing(briefingInput);
@@ -3188,17 +4056,55 @@ export default function HomePageContent() {
                 {rightPanelTab === 'virtual' && (
                   <div style={{ marginTop: isExecutionLikeMode ? 0 : 8 }}>
                     <TelegramMultiTfCard />
-                    {panelFeatures.virtualCard ? virtualTradeCardNode : <div className="subtle">가상매매 카드 OFF</div>}
+                    {panelFeatures.virtualCard ? (
+                      <FoldCard
+                        id="home-virtual-trade"
+                        title="가상매매"
+                        subtitle="시드 · TP/SL · 심볼 멀티"
+                        defaultOpen
+                      >
+                        {virtualTradeCardNode}
+                      </FoldCard>
+                    ) : (
+                      <div className="subtle">가상매매 카드 OFF</div>
+                    )}
                   </div>
                 )}
                 {rightPanelTab === 'learning' && (
-                  panelFeatures.learningCard ? <AutonomousLearningCard analysis={analysis} /> : <div className="subtle">자율학습 카드 OFF</div>
+                  panelFeatures.learningCard ? (
+                    <FoldCard
+                      id="home-autonomous-learning"
+                      title="자율학습"
+                      subtitle="로그 · 피드백 · 가중 조정"
+                      defaultOpen
+                    >
+                      <AutonomousLearningCard analysis={analysis} />
+                    </FoldCard>
+                  ) : (
+                    <div className="subtle">자율학습 카드 OFF</div>
+                  )
                 )}
                 {rightPanelTab === 'candle' && (
-                  panelFeatures.candleCompareCard ? <CandleCompareCard symbol={symbol} /> : <div className="subtle">캔들비교 카드 OFF</div>
+                  panelFeatures.candleCompareCard ? (
+                    <FoldCard
+                      id="home-candle-compare"
+                      title="캔들비교"
+                      subtitle="유사 봉 · 패턴"
+                      defaultOpen
+                    >
+                      <CandleCompareCard symbol={symbol} />
+                    </FoldCard>
+                  ) : (
+                    <div className="subtle">캔들비교 카드 OFF</div>
+                  )
                 )}
                 {rightPanelTab === 'etc' && (
-                  <>
+                  <FoldCard
+                    id="home-etc-tools"
+                    title="기타 · 백테스트"
+                    subtitle="포지션 · 기록 · 메뉴판"
+                    defaultOpen={false}
+                  >
                     <div className="section-title" style={{ marginTop: 0 }}>포지션 관리</div>
                     {analysis && <div className="subtle" style={{ marginTop: 8 }}>잔고 {balance} \u00B7 리스크 {riskPercent}%</div>}
                     <button className="tool-chip tool-chip-button" onClick={runBacktest} disabled={backtestLoading} style={{ marginTop: 8 }}>{backtestLoading ? '실행 중...' : '백테스트 실행'}</button>
@@ -3220,10 +4126,10 @@ export default function HomePageContent() {
                       <div className="list-item"><span className="badge">돌파 확률</span> 라인/구간을 뚫을 가능성</div>
                       <div className="list-item"><span className="badge">함정 위험</span> 가짜 신호일 가능성</div>
                     </div>
-                  </>
+                  </FoldCard>
                 )}
               </div>
-            </div>
+            </FoldCard>
 
             {refDetailId && (() => {
               const ref = getReferenceById(refDetailId);
@@ -3242,7 +4148,14 @@ export default function HomePageContent() {
               );
             })()}
 
-            <ReferenceManager />
+            <FoldCard
+              id="home-reference-manager"
+              title="참조 관리"
+              subtitle="벤치마크 · 예시 브리핑"
+              defaultOpen={false}
+            >
+              <ReferenceManager />
+            </FoldCard>
           </div>
           )}
 

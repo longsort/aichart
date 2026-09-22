@@ -3,6 +3,7 @@ import { DEFAULT_PARKF_TRENDLINE_COLORS } from './chartHexColor';
 import type { ParkfTrendlineOpts } from './parkfLinregTrendlineEngine';
 import type { AiCompressionPresetId } from './aiCompressionPresets';
 import type { EternyMacdAdxHistogramMode } from './eternyMacdAdxPro';
+import { normalizeAvwapUserPins, AVWAP_USER_PIN_MAX } from './mergedDeskAnchoredVwap';
 
 const KEY = 'ailongshort-settings';
 const USER_KEY = 'ailongshort-briefing-user';
@@ -53,6 +54,18 @@ export type UIMode =
   | 'UNIFIED_DESK'
   /** AI 분석(AI_ZONE): 합성(최강) 엔진 수집 + 고래 툴킷(핫존·핵심 S/R·DRS·LQB 등) + AI 요약·사다리 브리핑 */
   | 'AI_ZONE'
+  /**
+   * 월초 데스크: 전월 마감 품질·월봉 개장일 안착/실패 판단 카드 중심.
+   * 차트·엔진 수집은 AI_ZONE과 동일 프리셋(amx·고래 툴킷).
+   */
+  | 'MONTH_START_DESK'
+  /**
+   * 존·라인 개선: LinReg 추세선 + CP 밴드 채널 + HotZone + Strike E/SL/TP + 안착캔들.
+   * 마감·안착 대비 차트에 parkf·cptc·hotzone을 유지(Strike 레이어는 이 3종을 숨김).
+   */
+  | 'ZONE_LINE_PRO'
+  /** 캔들+브리핑 융합 모드: 캔들 흐름 요약과 실행 브리핑을 한 카드로 결합 */
+  | 'FUSION_MODE'
   | 'CANDLE_ANALYSIS'
   /** Bible mode: textbook-style candle pattern callouts merged with execution-style engine overlays. */
   | 'BIBLE_MODE'
@@ -79,7 +92,22 @@ export type UIMode =
   /**
    * 세력·고래·상승시작 MVP: 기존 레이어는 잠금, 전용 점수·진입/SL/TP 오버레이만 표시.
    */
-  | 'SMART_MONEY_MVP';
+  | 'SMART_MONEY_MVP'
+  /**
+   * 벤치마크·레퍼런스: GitHub OSS·차트 라이브러리·ailongshort 기능 대조 보드.
+   * 차트 엔진 수집(amx) 없음 — 정적 레퍼런스·비교 UI 중심.
+   */
+  | 'REFERENCE_DESK'
+  /**
+   * 통합·분석: 차트 캔들분석(존·아이콘·구조·밴드) + 카드분석(롱/숏·고래·VRVP·타임라인) ARES/TV식 한 화면.
+   * amx=1 · monthDesk 통합펄스 + mergedAdvanced 레이어.
+   */
+  | 'MERGED_ANALYSIS_DESK'
+  /**
+   * 독수리1호 타점엔진: 위치·유동성·구조·흐름·역사 분리 판단.
+   * 기존 통합·분석·신호A/B/C 삭제 없음 · 새 자동매매 모드.
+   */
+  | 'EAGLE1_TAP_ENGINE';
 
 /** 화면 고정(fixed) 패널 좌표(px) */
 export type PageLayoutPoint = { left: number; top: number };
@@ -316,7 +344,7 @@ export type UserSettings = {
   overlayLabelEditMode: boolean;
   /** 전체 라벨 기본 글자 크기 (8~24) */
   overlayLabelFontSize: number;
-  /** 우측 축·시간축 등 차트 스케일 글자 크기 (lightweight-charts layout.fontSize, 10~18) */
+  /** 우측 축·시간축 등 차트 스케일 글자 크기 (lightweight-charts layout.fontSize, 1~20 사용자 입력) */
   chartScaleFontSize: number;
   /** 존/줄 옆 오버레이 가격 표시 글자 크기 (8~18) */
   overlayPriceStripFontSize: number;
@@ -329,8 +357,66 @@ export type UserSettings = {
   /** 확정/준비 신호 시 소리 알림 */
   signalSoundEnabled: boolean;
   /**
+   * 롱/숏 확정·타점 단계(후보/확정/타점진입/무효) 시 텔레그램 본문 알림.
+   * `telegramMergedDeskAutoEnabled` ON이면 통합·분석 경로가 우선(이 설정 무시).
+   * `telegramHqZoneTouchEnabled` 가 ON이고 통합텔레 OFF이면 무시됨(진입존만 발송).
+   * `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` 필요.
+   */
+  telegramConfirmEnabled: boolean;
+  /** 텔레 확정 알림에 「후보 4/5」 단계도 포함 */
+  telegramConfirmCandidate: boolean;
+  /** 확정·★타점·TP·진입존 터치 텔레에 캔들 PNG 첨부 (기본 ON). */
+  telegramConfirmChartImageEnabled: boolean;
+  /**
+   * 통합·분석 **실제 UI(tv-frame)** 캡처 → 텔레 PNG (Playwright headless).
+   * ON=앱 화면과 동일 · OFF=SVG 폴백만. 이미지는 전송 후 메모리에서만 사용(저장 없음).
+   * `telegramConfirmChartImageEnabled` OFF면 무시.
+   */
+  telegramMergedDeskUiCaptureEnabled: boolean;
+  /**
+   * 서버 크론: 통합·분석 스윙중투 ENTER·★타점·TP·무효를 앱 미접속으로 분석→차트 PNG→텔레그램.
+   * 기본 ON. OFF면 레거시 HQ/확정/HTF 경로.
+   */
+  telegramMergedDeskAutoEnabled: boolean;
+  /** 통합텔레 — 플랜 ENTER(자리 대기) 발송 */
+  telegramSendPlanEnterEnabled: boolean;
+  /** 통합텔레 — E 접촉·★타점·돌파안착 발송 */
+  telegramSendAtEntryEnabled: boolean;
+  /** 통합텔레 — TP1/2/3 도달 발송 */
+  telegramSendTpHitEnabled: boolean;
+  /** 통합텔레 — 무효/INV 이탈 발송 + PNG */
+  telegramSendInvalidEnabled: boolean;
+  /** 통합텔레 — ENTER류는 ActiveTrade 진입허용 필수 */
+  telegramSendRequireEntryAllowed: boolean;
+  /** 통합텔레 — 마스터 잠금/WAIT면 ENTER류 스킵 */
+  telegramSendRequireMasterUnlock: boolean;
+  /** 통합텔레 — 뉴스 임박 창이면 ENTER류 스킵 */
+  telegramSendNewsSkipEnter: boolean;
+  /**
+   * 고확률 롱/숏 진입 zone 터치 시 서버 크론이 차트 캡처→텔레그램 (앱 미접속).
+   * 통합텔레 ON이면 ENTER와 함께 보조(되돌림 터치). 기본 OFF(스팸 방지).
+   * 통합텔레 OFF + 이 설정 ON이면 기존처럼 진입존만 발송.
+   */
+  telegramHqZoneTouchEnabled: boolean;
+  /**
+   * 기관밴드 반응·HotZone·안착구간 터치 시 서버가 차트 PNG를 텔레그램으로 전송 (앱 미접속).
+   * 기본 ON. 크론 `/api/cron/telegram-auto-alert`.
+   */
+  telegramZoneTouchAlertEnabled: boolean;
+  /**
+   * 핵심 추천: 롱/숏 진입자리 · $$$$ 돈구간 첫 터치 → 텔레그램(+PNG).
+   * 서버 크론 자동스캔 · 앱 미접속. 기본 ON.
+   */
+  telegramMoneyEntryTouchEnabled: boolean;
+  /**
+   * 폭락구간 · 정밀E · 빅롱/숏 2차 터짐 터치·근접 → 텔레(+PNG).
+   * TF: 15m·1h·4h·1d·1w·1M (1m~5m 제외). 서버 자체루프/크론 · 앱 미접속. 기본 ON.
+   */
+  telegramPrecisionTouchEnabled: boolean;
+  /**
    * 1분 봉(BTC/ETH): 로켓·기관밴드·HotZone·존/선 접근·OB/구조 확정이 잡힐 때 텔레그램 자동 전송.
    * 수동 테스트 버튼과 무관 — 사용자가 여기만 켜면 동작.
+   * HQ 진입존 모드 ON이면 비활성.
    */
   telegramAuto1mEnabled: boolean;
   /**
@@ -346,17 +432,23 @@ export type UserSettings = {
    * 위 팩을 **직전 마감봉** 기준으로만 평가(기본). 끄면 형성 중인 봉 기준(알림 빈도↑).
    */
   telegramHtfSealedBarOnly: boolean;
-  /**
-   * HTF(1h~1M) 멀티: `telegramMultiTfSymbols`×`telegramMultiTfTimeframes`마다 /api/analyze로 백그라운드 감지, 조건 충족 시 텔레(본문만, 차트 캡처 없음).
-   * **현재 차트에 켜 둔 TF와 무관**하게 지정한 조합만 순회.
+  /** 멀티 TF: `telegramMultiTfSymbols`×`telegramMultiTfTimeframes`마다 /api/analyze로 백그라운드 감지.
+   * 허용 TF: 15m·1h·4h·1d·1w·1M. 진입존텔레 ON이면 HQ 터치 경로가 우선.
    */
   telegramMultiTfEnabled: boolean;
   /** 멀티TF 텔레 심볼(엔진 HTF 자동과 동일하게 BTC/ETHUSDT 권장). */
   telegramMultiTfSymbols: string[];
-  /** 멀티TF 텔레 타임프레임(1h·4h·1d·1w·1M 권장 — 그 외·저번 TF는 워처에서 제외). */
+  /** 멀티TF 텔레 타임프레임 — 15m·1h·4h·1d·1w·1M (1m~5m는 워처에서 제외). */
   telegramMultiTfTimeframes: string[];
   /** 멀티TF: 심볼×TF **한 바퀴** 끝난 뒤 다음 루프까지 대기(초, 30~600). */
   telegramMultiTfIntervalSec: number;
+  /**
+   * 서버 크론(`/api/cron/mtf-board-telegram`): MTF 보드 카드를 PNG로 텔레 전송.
+   * `telegramMultiTfSymbols` 를 사용합니다.
+   */
+  telegramMtfBoardImageEnabled: boolean;
+  /** MTF 보드 PNG 전송 최소 간격(분, 5~180). */
+  telegramMtfBoardMinIntervalMin: number;
   favoriteSymbols: string[];
   /** 스윙 타점 레버리지 계산용 시드(USDT). 사용자 입력. */
   swingSeedUsdt: number;
@@ -472,6 +564,11 @@ export type UserSettings = {
    * SMC 데스크: LinReg 근접 + 엔진 OB + 최근 BOS/CHOCH **2/3 이상** 합류 시 전용 마커·존(기존 로켓·L 마커와 별도 id).
    */
   showSmcDeskConfluenceLs: boolean;
+  /**
+   * TV 캡처형 구조 롱/숏: EMA200 + 리본(8/55) + BOS/CHOCH/MSB 정렬 시 L/S 핀·스탠스(참고·확정 아님).
+   * 통합·분석 데스크에서는 엔진에 기본 포함.
+   */
+  showTvStructureLs: boolean;
   /**
    * SMC 데스크: 최신 캔들 근처 **볼배** 라벨 오버레이(종합·SMC합류·MTF·확정게이트 요약은 툴팁).
    * 기본 끔 — 툴바에서만 켬.
@@ -764,12 +861,16 @@ export type UserSettings = {
   chartVolumeRvolSpikeMarkers: boolean;
   /** 거래량 대비 작은 몸통(흡수·클라이맥스 후보) 막대 위 라벨 */
   chartVolumeAbsorptionMarkers: boolean;
+  /** 볼트·거래량 컨플루언스(통합작도 데스크) */
+  chartBoltVolumeConfluence: boolean;
   /** 바이낸스 등 taker 매수 체결량이 있을 때 체결 우세 막대 라벨 */
   chartVolumeTakerFlowMarkers: boolean;
   /** 존 돌파 인정 시 최소 몸통/레인지 비율(%). 0이면 필터 없음 */
   chartVolumeZoneBreakMinBodyPct: number;
   /** 거래량 패널 마커 최소 봉 간격(0=제한 없음, 2=기본·인접 봉은 우선순위로 압축) */
   chartVolumeMarkerMinBarGap: number;
+  /** 통합작도(병합 고급 데스크): 집중 덱 모드 — 끄면 최강분석급 풀 병합 */
+  chartMergedAdvancedFocusDeck: boolean;
   /** classic 모드 상승 캔들 #RRGGBB */
   chartCandleClassicUpHex: string;
   /** classic 모드 하락 캔들 #RRGGBB */
@@ -789,6 +890,420 @@ export type UserSettings = {
   chartLineZoneProximitySensitivity: number;
   /** 구조 돌파 직후 몇 봉까지 연한 trace 톤(0이면 끔). */
   chartSmcStructureTraceBars: number;
+  /**
+   * 마감·안착: 스윙 EQ50(중투) 참고대 + 무효 + TP1~3 가로선(클라이언트 전용, 참고용).
+   */
+  chartMonthDeskTypeomEnabled: boolean;
+  /**
+   * 마감 타점 존·가로선: time2에서 **시간축 가시 우끝(빈 축)** 까지 채우는 비율(0~100).
+   * 0=time2에서 멈춤, 100=우끝까지(마지막 봉 X가 아닌 플롯 우측 기준).
+   */
+  chartMonthDeskTypeomRightExtendPct: number;
+  /**
+   * 마감·안착 HUD 세션 기준 문구: `chart_candle`=선택 TF 봉 종가, `utc_calendar`=UTC 일 경계 근사(참고만).
+   */
+  chartMonthDeskSessionBasis: 'chart_candle' | 'utc_calendar';
+  /**
+   * 마감·안착: `pullbackHotZoneEngine`(phz-*) 눌림 핫존 차트·우측 HUD 표시. 끄면 엔진 계산도 생략.
+   */
+  chartMonthDeskPullbackHotZoneEnabled: boolean;
+  /**
+   * 모든 TF 차트: 롱/숏 구간 + 핵심 타점(E) + 손절(SL) + TP1~3 가로선·HUD(Trade Atlas).
+   * 분·시·일·주·월 봉 공통 — analyze·존·ATR·구조 교차 합성(참고용).
+   */
+  chartTradeAtlasEnabled: boolean;
+  chartTradeAtlasShowHud: boolean;
+  chartTradeAtlasShowZones: boolean;
+  chartTradeAtlasShowLevels: boolean;
+  /** 벤치마크 LWC — 구조(BOS/CHoCH·키레벨·S/R) */
+  chartReferenceDeskLayerStructure: boolean;
+  /** 벤치마크 LWC — 존(FVG·OB·반응·major S/R) */
+  chartReferenceDeskLayerZones: boolean;
+  /** 벤치마크 LWC — 패턴(하모닉·patternVision) */
+  chartReferenceDeskLayerPatterns: boolean;
+  /** 벤치마크 LWC — MTF 마커(보드 신호·multiTF 요약) */
+  chartReferenceDeskLayerMtfMarkers: boolean;
+  /** assets/CHART_OVERLAY_KEYS 작도 규칙(EQL 점선·BPR·OB 완화·PRZ 색) */
+  chartReferenceDeskAssetsDrawingGuide: boolean;
+  /** 마감·안착: 여러 존 중 핵심 롱 지지·반등 구간 1곳 강조 */
+  chartMonthDeskCoreLongHighlightEnabled: boolean;
+  /** 마감·안착: SMC 교재식 CHoCH·BOS·OB·플레이북 단계 차트·범례 */
+  chartMonthDeskSmcDiagramEnabled: boolean;
+  /** 마감·안착 SMC 밀도 — lite: CHoCH·BOS 2개·OB 1·타점존 1 / full: 플레이북 전체 존 */
+  chartMonthDeskSmcDiagramDensity: 'lite' | 'full';
+  /** 마감·안착: $$$$ 롱/숏 돈구간(EQH·EQL·내부구간·스윕 유동성 풀) */
+  chartMonthDeskMoneyZoneEnabled: boolean;
+  /**
+   * 마감·안착 **간결+요약** 한 칩 — 라인요약(우측 카드·E/SL/TP) ON/OFF만.
+   * zone·차트 존은 이 칩과 무관(번갈아 사라지지 않음). 차트 밀도는 chartMonthDeskOverlayDensity 별도.
+   */
+  chartMonthDeskClearSummaryEnabled: boolean;
+  /**
+   * 마감·안착 차트 밀도: `clear`는 타점과 겹치는 phz 장식(TP 라벨·경로 번호·핫태그 등)을 빼고 그리기 순서 정리(기본).
+   * `rich`는 핫존 모드와 동일하게 phz 전부 표시.
+   */
+  chartMonthDeskOverlayDensity: 'clear' | 'rich';
+  /**
+   * 마감·안착: SMC $$$$·BOS/CHOCH·풀 zone을 차트에 전부 표시.
+   * true = 풀별 zone·마크 표시 / false(기본) = 핵심 $$$$ 1개 + 연합 E·SL·TP만 병합.
+   */
+  chartMonthDeskFullSmcLayers: boolean;
+  /**
+   * 마감·안착: 연합·타입옴 zone 숨김·라벨 축소(옵트인). 기본 false=분석 레이어 전부 유지.
+   */
+  chartMonthDeskCompactOverlayLabels: boolean;
+  /** 마감·안착: 플랜·핵심 라인 우측 `[상향 실패]`·`[마감 성공]` 등 기능별 마감·안착 라벨. */
+  chartMonthDeskFeatureSettleLabels: boolean;
+  /**
+   * 우측 라인 마감·안착 칩 밀도.
+   * `summary`(기본): 진입·손절 + 도달한 TP만 — TP마다 [실패] 남발 방지.
+   * `full`: 모든 라인에 칩. `off`: 칩 없음(가격만).
+   */
+  chartMonthDeskSettleLabelMode: 'off' | 'summary' | 'full';
+  /** 마감·안착: 좌측 상단 기능별 상태 스트립(우측 라벨과 중복). 기본 OFF. */
+  chartMonthDeskSettleFeatureStrip: boolean;
+  /** 마감·안착: 돌파·안착 단계를 캔들 본체 색으로 표시. 기본 OFF(라벨 우선). */
+  chartMonthDeskSettleCandlePaint: boolean;
+  /** 마감·안착 차트 레이어 — strike(타점만) / standard / full */
+  chartMonthDeskLayerMode: 'strike' | 'standard' | 'full' | 'zoneLinePro';
+  /** 마감·안착 Strike Desk — 핵심 롱·숏 E/SL/TP 통합 레이어·HUD. */
+  chartMonthDeskStrikeDeskEnabled: boolean;
+  /**
+   * 마감·안착 차트 플로팅 HUD(게이지·Strike카드·핫존카드 등).
+   * false(기본)=캔들·zone·line만. true=기존 차트 카드 HUD 복원.
+   */
+  chartMonthDeskFloatingHudEnabled: boolean;
+  /** 마감·안착 — 보드+캔들+Strike 병합 시그널 (zone·line HTML 오버레이) */
+  chartMonthDeskMergedSignalEnabled: boolean;
+  /**
+   * 연합 데스크 밴드 — 기관밴드·로켓 유지, CP·LinReg·HotZone·Strike·보드·캔들을
+   * **별도 LineSeries** 스텝 밴드로 표시 (기관밴드와 색·가격 분리).
+   */
+  chartMonthDeskFusionDeskBandEnabled: boolean;
+  /** Triple·연합밴드 — BigBeluga 시그널 밴드 (1=안쪽, 2=중간, 3=바깥, all=전부) */
+  chartTripleTrendSignalBand: '1' | '2' | '3' | 'all';
+  /** Triple·연합밴드 — 추세 전환 세로 점선 (BigBeluga trend_change) */
+  chartTripleTrendChangeLinesEnabled: boolean;
+  /** 통합·분석 — 초록/빨강 기관 SuperTrend 존상·존하 밴드 (마감·안착에서 이전) */
+  chartMergedInstitutionalBandEnabled: boolean;
+  /**
+   * 깔끔 zone·line — 카드·글자 없이 존 터치 고합류 롱/숏만 캔들 ▲/▼ 아이콘.
+   * 기관밴드·연합밴드·로켓·Strike 존 면은 유지.
+   */
+  chartMonthDeskCleanIconSignalsEnabled: boolean;
+  /**
+   * 아틀라스 펄스 데스크 — 기관밴드·로켓 유지, 돌파⚡·안착◆·확인★·E/SL/TP·▲▼ 타점을
+   * 카드 없이 차트 zone·line·아이콘만으로 통합 표시.
+   */
+  chartMonthDeskAtlasPulseDeskEnabled: boolean;
+  /**
+   * 통합 펄스 엔진 — 상단 칩(Strike·밴드·안착·존·가로선 등)을 하나로 병합.
+   * 기관밴드·로켓 유지, 차트는 ⚡◆★▲▼ + E/SL/TP만.
+   */
+  chartMonthDeskUnifiedPulseEngineEnabled: boolean;
+  /** 마감·안착 — 차트 클릭 시 MTF 정밀 핫존·타점·반등 zone·line */
+  chartMonthDeskClickPrecisionEnabled: boolean;
+  /** 마감·안착: 핵심 숏 저항·하락 zone·라인 강조. */
+  chartMonthDeskCoreShortHighlightEnabled: boolean;
+  /** 마감·안착: 돌파 후 상·하방 연동 경로 점선(↑↓ TP 체인). 기본 ON. */
+  chartMonthDeskBreakoutFollowPath: boolean;
+  /** 마감·안착: ParkF LinReg + 고래 ALR 추세·채널 (미래 연장). 기본 OFF — 고래 차트 팩 사용 */
+  chartMonthDeskLinRegTrendlinesEnabled: boolean;
+  /** 마감·안착: 고래 모드 ChartPrime(cptc) + ParkF 피벗 TL + AI 압축 존. 기본 ON */
+  chartMonthDeskWhaleChartPackEnabled: boolean;
+/** 마감·안착: 차트 OHLC·거래량 = Bitget USDT-M (.P). OFF면 바이낸스 현물(환율은 Yahoo) */
+  chartMonthDeskBitgetCandles: boolean;
+  /** 마감·안착: 미래 예측(고스트) 캔들 + 타점 라벨 (피벗 채널 추세선 없음) */
+  chartMonthDeskAdvancedPathEnabled: boolean;
+  /**
+   * 통합·분석 Mirage zone 면 라벨 — 짧은 표시(기본 ON).
+   * OFF면 기존처럼 긴 한글 면 라벨.
+   */
+  chartMirageZoneFaceCompact: boolean;
+  /** Mirage zone 면 라벨 언어 — ko 짧은 한글 / en 약어 */
+  chartMirageZoneFaceLang: 'ko' | 'en';
+  /**
+   * Mirage zone 면 신호 표시 — progressive: 모바일에서 접근·선택 시만 2번째 토큰.
+   * always: 항상 2토큰까지 표시.
+   */
+  chartMirageZoneFaceReveal: 'always' | 'progressive';
+  /** 통합·분석 — 고신뢰 캔들 패턴 1개 + 넥라인 (데스크 방향 정렬) */
+  chartMergedDeskActionablePatternEnabled: boolean;
+  /** 통합·분석 — 패턴 실루엣·피봇 스탬프 (카드 없음) */
+  chartMergedDeskPatternSilhouetteEnabled: boolean;
+  /** 통합·분석 — 와이코프/엘리엇/삼각·쐐기 사이클 상단 진행 + TR 면·가격선 */
+  chartMergedDeskCycleProgressEnabled: boolean;
+  /** 통합·분석 — 실전연습 큐(금지/지정가/E체결후보). 자동주문 아님 */
+  chartMergedDeskLivePracticeCueEnabled: boolean;
+  /** 통합·분석 — 차트 위 존·면 글자 라벨 ON/OFF (면·선은 유지) */
+  chartMergedDeskOverlayLabelsEnabled: boolean;
+  /**
+   * 통합·분석 — 우측 가격축 알약(E/SL/TP·종가마감 createPriceLine 제목) ON/OFF.
+   * 차트 본문 HTML 라벨(`chartMergedDeskOverlayLabelsEnabled`)과 분리.
+   */
+  chartMergedDeskRightAxisPricesEnabled: boolean;
+  /**
+   * 통합·분석 VRVP 최다거래(POC) 막대 길이.
+   * short=좌측 짧은 막대 / extend20=마지막 봉+우측 20봉까지 가로 연장
+   */
+  chartMergedDeskVrvpPocExtend: 'short' | 'extend20';
+  /**
+   * 통합·분석 가로 점선 시각 정리(삭제·숨김 아님).
+   * classic=기존 전폭 / soft=전폭·연하게 / tail=1차선 전폭·보조선 우측꼬리(+20)
+   */
+  chartMergedDeskHLineClean: 'classic' | 'soft' | 'tail';
+  /**
+   * AI 파랑빨강띠 매매 스타일 — 단타(단기)·스윙·중투(장기) 표결·호라이즌 가중.
+   */
+  chartMergedDeskRbTradeStyle: 'scalp' | 'swing' | 'mid';
+  /** 통합·분석 — assets 353 이미지 참조 AI 자동 작도 */
+  chartMergedDeskAssetsChartAiEnabled: boolean;
+  /** 통합·분석 — Super AI (353 전체 융합·실시간 적응 작도) */
+  chartMergedDeskSuperAiEnabled: boolean;
+  /** 통합·분석 — AI 분석 ZONE만 (통합존·홀드확률·플랜 진입, Mirage 전체 제외) */
+  chartMergedDeskAiAnalysisZoneEnabled: boolean;
+  /** 통합·분석 — ★·Money·HQ 클래식 zone 면 (AI ZONE과 독립) */
+  chartMergedDeskClassicZoneEnabled: boolean;
+  /** 통합·분석 — Zone Battle AI 카드(HUD) 표시 */
+  chartMergedDeskZoneBattleHudEnabled: boolean;
+  /** 통합·분석 — 통합구름(롱초록·숏빨강 ST 구름, SMC 작도와 별도) */
+  chartMergedDeskUnifiedCloudEnabled: boolean;
+  /** 통합·분석 — btccion 스타일 캔들 작도(반응/돌파/무효/헌트/경로/빔) */
+  chartMergedDeskBtccionDrawEnabled: boolean;
+  /** 통합·분석 — 파란·빨간 평행채널 띠 */
+  chartMergedDeskBlueRedChannelsEnabled: boolean;
+  /** 통합·분석 — 파동 이동경로(카탈로그 매칭·다음경로 점선). 파랑빨강띠 ON일 때 의미 있음 */
+  chartMergedDeskWavePathEnabled: boolean;
+  /** REAL CANDLE BATTLE — 이미지형 전투 레이어(실캔들·실테이커·게이트). 가짜데이터 금지 */
+  chartMergedDeskCandleBattleEnabled: boolean;
+  /** 통합·분석 — AI톤 팔레트(배경·기능색). OFF면 기존색 유지 */
+  chartMergedDeskAiToneEnabled: boolean;
+  /**
+   * 통합차트 유로맵 — 레이어별 ON/OFF·색·농도.
+   * 키는 `lib/mergedDeskEuromapStyle.ts` 레이어 id.
+   */
+  chartMergedDeskEuromap: Record<string, { on?: boolean; hex?: string; opacity?: number }>;
+  /** 통합차트 존·면 전체 농도(15~100). 낮을수록 연함 */
+  chartMergedDeskZoneFillOpacity: number;
+  /** 파란·빨간 띠 — 단기 채널 표시 */
+  chartMergedDeskRbShowShort: boolean;
+  /** 파란·빨간 띠 — 장기 채널 표시 */
+  chartMergedDeskRbShowLong: boolean;
+  /** 파란·빨간 띠 — 단기∩장기 중착 복도 표시 */
+  chartMergedDeskRbShowConfluence: boolean;
+  /** 파란·빨간 띠 — 상/하 경계선 표시 */
+  chartMergedDeskRbShowEdges: boolean;
+  /** 파란·빨간 띠 — 중심선 표시 */
+  chartMergedDeskRbShowMid: boolean;
+  /** 파란·빨간 띠 — 채널 라벨 표시 */
+  chartMergedDeskRbShowLabels: boolean;
+  /** 파란·빨간 띠 — 상승 통로(초록) 색 */
+  chartMergedDeskRbBullHex: string;
+  /** 파란·빨간 띠 — 하락 통로(빨강) 색 */
+  chartMergedDeskRbBearHex: string;
+  /** 파란·빨간 띠 — 중착 복도 색 */
+  chartMergedDeskRbConfluenceHex: string;
+  /** 파란·빨간 띠 — 면 투명도(0~60%, 0=무색·윤곽만) */
+  chartMergedDeskRbFillOpacity: number;
+  /**
+   * 통로 안 망(해치) — off=없음(권장) · soft=아주 연함 · on=기존 망
+   * AI ZONE·채널 박스권 가독용
+   */
+  chartMergedDeskRbHatchMode: 'off' | 'soft' | 'on';
+  /** 파란·빨간 띠 — 경계선 굵기(1~4px) */
+  chartMergedDeskRbLineWidth: number;
+  /** 파란·빨간 띠 — 채널 폭 배율(0.5~2.0x) */
+  chartMergedDeskRbWidthScale: number;
+  /** 파란·빨간 띠 — 최소 품질(이하 채널 숨김, 0=전부) */
+  chartMergedDeskRbMinQuality: number;
+  /** 파란·빨간 띠 눌림 진입 zone (기관밴드·$$$$·로켓·거래량 합류) */
+  chartMergedDeskRbPullbackEntryEnabled: boolean;
+  /** 눌림 타점 — E/SL/TP/무효 가격선 표시 */
+  chartMergedDeskRbPullbackLinesEnabled: boolean;
+  /** 눌림 타점 — 이 점수 미만이면 작도하지 않음 */
+  chartMergedDeskRbPullbackMinScore: number;
+  /** 눌림 타점 — 상위 채널 역행 보조 타점도 표시 */
+  chartMergedDeskRbPullbackCounterTrend: boolean;
+  /** 라벨 개별 이동 — 켜면 저장된 라벨 위치가 적용되고 차트에서 드래그로 옮길 수 있다 */
+  chartLabelIndividualMove: boolean;
+  /** 파랑·빨강 띠 레일을 붙일 자리 — 자동/꼬리/몸통 */
+  chartMergedDeskRbAnchorMode: 'auto' | 'wick' | 'body';
+  /** 파랑·빨강 띠 라벨 글자 크기(px) */
+  chartMergedDeskRbLabelFontSize: number;
+  /** 파랑·빨강 띠 라벨 좌우 이동(px, 음수는 왼쪽) */
+  chartMergedDeskRbLabelShiftX: number;
+  /** 파랑·빨강 띠 라벨 위아래 이동(px, 음수는 위) */
+  chartMergedDeskRbLabelShiftY: number;
+  /**
+   * Anchored VWAP — 주/일 절대고·저(시가+고가/저가) · 분·시봉 공용.
+   * 기본 ON · chart_both
+   */
+  chartMergedDeskAnchoredVwapEnabled: boolean;
+  chartMergedDeskAnchoredVwapMode:
+    | 'chart_both'
+    | 'chart_high'
+    | 'chart_low'
+    | 'swing_high'
+    | 'swing_low'
+    | 'range_start'
+    | 'manual';
+  /** 앵커 상위 TF — 1d | 1w (차트 TF가 이미 일/주면 자기 자신) */
+  chartMergedDeskAnchoredVwapHtf: '1d' | '1w';
+  /** manual 모드 클릭 앵커 unix sec */
+  chartMergedDeskAnchoredVwapManualTime: number | null;
+  /**
+   * 자동 절대고/저 AVWAP (일·주 극값 탐색).
+   * false=TradingView식 수동 찍기만 (기본). true면 앵커일/주 자동선 추가.
+   */
+  chartMergedDeskAvwapAutoExtremeEnabled: boolean;
+  /** AVWAP 찍기 모드 — ON 후 차트 클릭으로 핀 추가 */
+  chartMergedDeskAvwapPlaceArmed: boolean;
+  /** 사용자 더블클릭 AVWAP 핀 (고·저 자유, 소스=고가+시가, n=1·2·…) */
+  chartMergedDeskAvwapUserPins: Array<{
+    id: string;
+    n: number;
+    time: number;
+    /** 찍은 차트 TF — 주봉 찍기 → 1h에 투영 */
+    anchorTf: string;
+    role: 'high' | 'low';
+    hidden: boolean;
+  }>;
+  /** 사용자 핀 일괄 숨김 (자동 일/주 AVWAP와 별개) */
+  chartMergedDeskAvwapUserPinsHidden: boolean;
+  /** 툴바에서 선택한 찍기 핀 id (다중 선택 후 삭제) */
+  chartMergedDeskAvwapSelectedPinIds: string[];
+  /** AVWAP POI 밴드(고가↔시가) 면 표시 — 기존 선 유지 */
+  chartMergedDeskVwapPoiBandEnabled: boolean;
+  /** UTC 세션 VWAP 선 — Anchored와 병행 */
+  chartMergedDeskSessionVwapEnabled: boolean;
+  /** AVWAP 동일색 피보·골든·헌팅 선/면 (기본 OFF — 지저분, 합류존이 대신) */
+  chartMergedDeskAvwapFibEnabled: boolean;
+  /** 다중분석 합류 지지/저항 zone (근거≥3~4) */
+  chartMergedDeskEvidenceZonesEnabled: boolean;
+  /** 실전 AI 플랜 — 안착×합류×ActiveTrade×통계 (기본 ON) */
+  chartMergedDeskPracticeAiPlanEnabled: boolean;
+  /**
+   * 존 라벨 숫자만(가격) — 면 글자. 전체 이름·상태는 tooltip·신호칸.
+   * 좌우 이동·글자 크기는 기존 차트설정(존 라벨·overlayLabelFontSize) 사용.
+   */
+  chartMergedDeskZonePriceOnlyLabels: boolean;
+  /**
+   * 폭락구간 가격라벨 가로 위치(0=좌 ~ 50=중 ~ 100=우).
+   * 존 너비 % — 줌/축소해도 존에 붙음.
+   */
+  chartMergedDeskDumpLabelPosPct: number;
+  /** MTF 폭락구간 — 상위 TF 형성 zone을 현재 TF 차트에 투영 */
+  chartMergedDeskMtfDumpZoneEnabled: boolean;
+  /**
+   * 폭락 표시 모드 — path=확실지지→반등가능→저항 1세트(기본) · mtf=TF 전체 존.
+   * 엔진·레지스트리는 동일, 차트 작도만 다름.
+   */
+  chartMergedDeskMtfDumpDisplayMode: 'path' | 'mtf';
+  /** 폭락구간 레지스트리 — 폰·PC 로그인 설정 공유 */
+  chartMergedDeskMtfDumpRegistry: Record<string, unknown>;
+  /** E/SL/TP 무효 라벨 표시 */
+  chartMergedDeskTradeShowInvalidLabel: boolean;
+  /** TP2·TP3 라벨 표시 */
+  chartMergedDeskTradeShowTp2Tp3: boolean;
+  /** E/SL/TP 접근 시 축·선 반짝 */
+  chartMergedDeskTradeApproachPulse: boolean;
+  /** TP1/2/3 터치 축하(🎆) */
+  chartMergedDeskTradeTpCelebrate: boolean;
+  /** 채널 핵심 — 돌파해야 할 자리·안착 zone */
+  chartMergedDeskRbCoreZonesEnabled: boolean;
+  /** 파랑빨강띠 × MSB·OB·BB·MB 이미지 작도 (채널 안 우선) */
+  chartMergedDeskRbSmcPoisEnabled: boolean;
+  /** 요만큼·이만큼 — 마지막 15봉 좌·우 측정 작도 */
+  chartMergedDeskThisMuchEnabled: boolean;
+  /** 모든 오버레이 라벨 좌우 일괄 이동(px, +오른쪽) */
+  chartMergedDeskGlobalLabelShiftX: number;
+  /** 파란·빨간 띠 ↔ 거래량 도식(상승=초록 / 하락=빨강 / 횡보=수급비율, 수급 합류) */
+  chartMergedDeskRbVolumeSyncEnabled: boolean;
+  /** 통합·분석 — 선진 거래량(매수/매도 스택 + 진입참고 마커). 자동주문 아님 */
+  chartMergedDeskAdvVolumeEnabled: boolean;
+  /** 통합·분석 — 거래량 폭등·횡보·관망·소진·폭락·예고숏·패턴 글자/존 (엔진 유지, 차트만) */
+  chartMergedDeskVolumePatternChartEnabled: boolean;
+  /** 선진거래량 — 스윙앵커 빅롱/빅숏 V±% (확정 피벗·게이트). 확정 수익 아님 */
+  chartMergedDeskSwingAnchorVolumeEnabled: boolean;
+  /**
+   * AI 캔들 테두리 — 거래량·분석·카드플랜·빔 합류로 녹/적/노랑/무색.
+   * 본봉 색과 분리. 확정 수익 아님. 전 UI 모드 공통.
+   */
+  chartAiCandleBorderEnabled: boolean;
+  /**
+   * 200x 타점 — micro-SL · 청산선 · ARMED/FIRE (가격선 중심).
+   * 고정 승률·수익 보장 없음.
+   */
+  chartMergedDeskScalp200Enabled: boolean;
+  /**
+   * 자동초단 페이퍼 — 폭락터치→SFP→로켓→TP1/TP2.
+   * 실주문은 자동매매 창 liveArmed+API.
+   */
+  chartMergedDeskAutoScalpPaperEnabled: boolean;
+  /**
+   * 통합모드 자동매매 창/엔진.
+   * 칩 클릭 시 창. 페이퍼 기본 · API+ARM 시 실주문.
+   */
+  chartMergedDeskAutoTradeEnabled: boolean;
+  /** 자동매매 사용자 레버리지 */
+  chartMergedDeskAutoTradeLeverage: number;
+  /** 회당 증거금 USDT (fixed 모드) */
+  chartMergedDeskAutoTradeMarginUsdt: number;
+  /** 계좌자산 대비 단타(초단) 회당 증거금 비중 % (기본 5) */
+  chartMergedDeskAutoTradeEquityPct: number;
+  /** 독수리1호 회당 증거금 비중 % */
+  chartMergedDeskAutoTradeDoksuriEquityPct: number;
+  /** 200x 타점 — 최대 레버리지 상한 (실제는 리스크 역산) */
+  chartMergedDeskScalp200MaxLeverage: number;
+  /** 200x 타점 — 계좌 리스크 % (swingSeedUsdt 기준) */
+  chartMergedDeskScalp200RiskPct: number;
+  /** 200x 타점 — 최소 RR (net 구조) */
+  chartMergedDeskScalp200MinRr: number;
+  /** 통합·분석 — 차트 위 통계·FVG/OB/CHoCH 칩 HUD */
+  chartMergedDeskStatsHudEnabled: boolean;
+  /** 차트 FVG 존 표시 */
+  chartMergedDeskChartFvgEnabled: boolean;
+  /** 차트 Order Block 표시 */
+  chartMergedDeskChartObEnabled: boolean;
+  /** 차트 CHoCH 표시 */
+  chartMergedDeskChartChochEnabled: boolean;
+  /** 차트 BOS 표시 */
+  chartMergedDeskChartBosEnabled: boolean;
+  /** 차트 채널(파랑빨강 테두리·면) 표시 — 마지막봉+10봉에서 정지 */
+  chartMergedDeskChartChannelEnabled: boolean;
+  /**
+   * 독수리1호 BIG MONEY BATTLE BRIEFING (FACT→전황).
+   * 데스크 카드·텔레그램 전황. 기본 ON. 확정 승률 아님.
+   */
+  chartMergedDeskDoksuri1BriefingEnabled: boolean;
+  /** 독수리1호 — OI/CVD CASE 문장 (데이터 BAD면 생략) */
+  chartMergedDeskDoksuri1DerivEnabled: boolean;
+  /** 독수리1호 — 오더플로·흡수 점수 (데이터 BAD면 생략) */
+  chartMergedDeskDoksuri1OrderflowEnabled: boolean;
+  /**
+   * 독수리1호 텔레그램·카드 — 계좌 리스크 % (swingSeedUsdt 기준).
+   * 포지션=리스크USDT÷손절폭%. 기본 5. 확정 권유 아님.
+   */
+  chartMergedDeskDoksuri1RiskPct: number;
+  /**
+   * 통합·분석 — AI DYNAMIC MARKET ZONE ENGINE (신규 칩).
+   * 기존 zone/OB/mirage와 독립 레이어. 확정 승률 아님.
+   */
+  chartMergedDeskAiMarketZoneEnabled: boolean;
+  /** 파랑·빨강 띠 — Zone패널(전투·수급·돌파) 합류 AI 채널 면 */
+  chartMergedDeskRbAiZoneFaceEnabled: boolean;
+  /** 채널 핵심 — 돌파/안착/실패 봉 위아래 이모티콘 */
+  chartMergedDeskRbCoreMarkersEnabled: boolean;
+  /** 채널 핵심 — 돌파·안착·실패 캔들 색 */
+  chartMergedDeskRbCoreCandlePaintEnabled: boolean;
+  /** 통합·분석 — 스윙작도 레이어 */
+  chartMergedDeskSwingDrawEnabled: boolean;
+  /** 통합·분석 — 라벨 기본 정렬(좌·중·우). 개별 저장값이 있으면 개별 우선 */
+  chartMergedDeskLabelAlignDefault: 'left' | 'center' | 'right';
+  /** 고래 모드: Multi-Anchored LinReg 채널(ALR) */
+  whaleAnchoredLinRegEnabled: boolean;
+  /** 고래 ALR: 로그 스케일 회귀 */
+  whaleAlrLogScale: boolean;
   /** 크로스헤어 위 봉의 캔들 색 규칙 설명(검증·교육용). */
   chartCandleRuleDebug: boolean;
   /** 메인 페이지 레이아웃(헤더·MTF·차트 카드 헤더·우측 패널 표시·플로팅) */
@@ -854,14 +1369,32 @@ export const defaultSettings: UserSettings = {
   webhookMinConfidence: 70,
   signalAlertEnabled: true,
   signalSoundEnabled: true,
+  telegramConfirmEnabled: false,
+  telegramConfirmCandidate: false,
+  telegramConfirmChartImageEnabled: true,
+  telegramMergedDeskUiCaptureEnabled: true,
+  telegramMergedDeskAutoEnabled: true,
+  telegramSendPlanEnterEnabled: true,
+  telegramSendAtEntryEnabled: true,
+  telegramSendTpHitEnabled: true,
+  telegramSendInvalidEnabled: true,
+  telegramSendRequireEntryAllowed: true,
+  telegramSendRequireMasterUnlock: true,
+  telegramSendNewsSkipEnter: true,
+  telegramHqZoneTouchEnabled: false,
+  telegramZoneTouchAlertEnabled: true,
+  telegramMoneyEntryTouchEnabled: true,
+  telegramPrecisionTouchEnabled: true,
   telegramAuto1mEnabled: false,
   telegramAuto1mImageMode: 'smart',
-  telegramHtfZonePackEnabled: true,
+  telegramHtfZonePackEnabled: false,
   telegramHtfSealedBarOnly: true,
   telegramMultiTfEnabled: false,
-  telegramMultiTfSymbols: ['BTCUSDT', 'ETHUSDT'],
-  telegramMultiTfTimeframes: ['1h', '4h', '1d', '1w', '1M'],
+  telegramMultiTfSymbols: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'USDKRW', 'CNYKRW'],
+  telegramMultiTfTimeframes: ['15m', '1h', '4h', '1d', '1w', '1M'],
   telegramMultiTfIntervalSec: 120,
+  telegramMtfBoardImageEnabled: false,
+  telegramMtfBoardMinIntervalMin: 15,
   favoriteSymbols: [],
   swingSeedUsdt: 3000,
   virtualTradeSeedUsdt: 1000,
@@ -910,6 +1443,7 @@ export const defaultSettings: UserSettings = {
   showSmcDeskZoneStrength: false,
   chartSmcDeskAiFusionPanel: true,
   showSmcDeskConfluenceLs: true,
+  showTvStructureLs: false,
   showSmcDeskBallboyHud: false,
   showSmcDeskRangeBreakoutZones: false,
   showSmcDeskEntryPlaybook: true,
@@ -1052,6 +1586,8 @@ export const defaultSettings: UserSettings = {
   chartVolumeTakerFlowMarkers: true,
   chartVolumeZoneBreakMinBodyPct: 0,
   chartVolumeMarkerMinBarGap: 2,
+  chartMergedAdvancedFocusDeck: true,
+  chartBoltVolumeConfluence: true,
   chartCandleClassicUpHex: '#22C55E',
   chartCandleClassicDownHex: '#EF4444',
   chartCandleMonoUpHex: '#FFFFFF',
@@ -1060,9 +1596,200 @@ export const defaultSettings: UserSettings = {
   chartCandleCompositeLayers: true,
   chartLineZoneProximitySensitivity: 1,
   chartSmcStructureTraceBars: 2,
+  chartMonthDeskTypeomEnabled: true,
+  chartMonthDeskTypeomRightExtendPct: 0,
+  chartMonthDeskSessionBasis: 'chart_candle',
+  chartMonthDeskPullbackHotZoneEnabled: true,
+  chartTradeAtlasEnabled: true,
+  chartTradeAtlasShowHud: true,
+  chartTradeAtlasShowZones: true,
+  chartTradeAtlasShowLevels: true,
+  chartReferenceDeskLayerStructure: true,
+  chartReferenceDeskLayerZones: true,
+  chartReferenceDeskLayerPatterns: true,
+  chartReferenceDeskLayerMtfMarkers: true,
+  chartReferenceDeskAssetsDrawingGuide: true,
+  chartMonthDeskCoreLongHighlightEnabled: true,
+  chartMonthDeskSmcDiagramEnabled: true,
+  chartMonthDeskSmcDiagramDensity: 'lite',
+  chartMonthDeskMoneyZoneEnabled: true,
+  chartMonthDeskClearSummaryEnabled: false,
+  chartMonthDeskOverlayDensity: 'clear',
+  chartMonthDeskFullSmcLayers: true,
+  chartMonthDeskCompactOverlayLabels: false,
+  chartMonthDeskFeatureSettleLabels: false,
+  chartMonthDeskSettleLabelMode: 'off',
+  chartMonthDeskSettleFeatureStrip: false,
+  chartMonthDeskSettleCandlePaint: true,
+  chartMonthDeskLayerMode: 'strike',
+  chartMonthDeskStrikeDeskEnabled: true,
+  chartMonthDeskFloatingHudEnabled: false,
+  chartMonthDeskClickPrecisionEnabled: true,
+  chartMonthDeskMergedSignalEnabled: false,
+  chartMonthDeskFusionDeskBandEnabled: true,
+  chartTripleTrendSignalBand: '3',
+  chartTripleTrendChangeLinesEnabled: false,
+  chartMergedInstitutionalBandEnabled: true,
+  chartMonthDeskCleanIconSignalsEnabled: true,
+  chartMonthDeskAtlasPulseDeskEnabled: true,
+  chartMonthDeskUnifiedPulseEngineEnabled: true,
+  chartMonthDeskCoreShortHighlightEnabled: true,
+  chartMonthDeskBreakoutFollowPath: true,
+  chartMonthDeskLinRegTrendlinesEnabled: false,
+  chartMonthDeskWhaleChartPackEnabled: true,
+  chartMonthDeskBitgetCandles: true,
+  chartMonthDeskAdvancedPathEnabled: true,
+  chartMirageZoneFaceCompact: true,
+  chartMirageZoneFaceLang: 'ko',
+  chartMirageZoneFaceReveal: 'progressive',
+  chartMergedDeskActionablePatternEnabled: true,
+  chartMergedDeskPatternSilhouetteEnabled: true,
+  chartMergedDeskCycleProgressEnabled: true,
+  chartMergedDeskLivePracticeCueEnabled: true,
+  chartMergedDeskOverlayLabelsEnabled: true,
+  chartMergedDeskRightAxisPricesEnabled: true,
+  chartMergedDeskVrvpPocExtend: 'short',
+  chartMergedDeskHLineClean: 'tail',
+  chartMergedDeskRbTradeStyle: 'swing',
+  chartMergedDeskAssetsChartAiEnabled: true,
+  chartMergedDeskSuperAiEnabled: true,
+  chartMergedDeskAiAnalysisZoneEnabled: true,
+  chartMergedDeskClassicZoneEnabled: true,
+  chartMergedDeskZoneBattleHudEnabled: true,
+  chartMergedDeskUnifiedCloudEnabled: true,
+  chartMergedDeskBtccionDrawEnabled: true,
+  chartMergedDeskBlueRedChannelsEnabled: true,
+  chartMergedDeskWavePathEnabled: false,
+  chartMergedDeskCandleBattleEnabled: true,
+  chartMergedDeskAiToneEnabled: false,
+  chartMergedDeskEuromap: {},
+  chartMergedDeskZoneFillOpacity: 28,
+  chartMergedDeskRbShowShort: true,
+  chartMergedDeskRbShowLong: true,
+  chartMergedDeskRbShowConfluence: true,
+  chartMergedDeskRbShowEdges: true,
+  chartMergedDeskRbShowMid: true,
+  chartMergedDeskRbShowLabels: true,
+  chartMergedDeskRbBullHex: '#22C55E',
+  chartMergedDeskRbBearHex: '#EF4444',
+  chartMergedDeskRbConfluenceHex: '#CA8A04',
+  chartMergedDeskRbFillOpacity: 6,
+  chartMergedDeskRbHatchMode: 'off',
+  chartMergedDeskRbLineWidth: 1.25,
+  chartMergedDeskRbWidthScale: 1,
+  chartMergedDeskRbMinQuality: 0,
+  chartMergedDeskRbPullbackEntryEnabled: true,
+  chartMergedDeskRbPullbackLinesEnabled: true,
+  chartMergedDeskRbPullbackMinScore: 45,
+  chartMergedDeskRbPullbackCounterTrend: true,
+  chartLabelIndividualMove: false,
+  chartMergedDeskRbAnchorMode: 'auto',
+  chartMergedDeskRbLabelFontSize: 10,
+  chartMergedDeskRbLabelShiftX: 0,
+  chartMergedDeskRbLabelShiftY: 0,
+  chartMergedDeskAnchoredVwapEnabled: true,
+  chartMergedDeskAnchoredVwapMode: 'chart_both',
+  chartMergedDeskAnchoredVwapHtf: '1d',
+  chartMergedDeskAnchoredVwapManualTime: null,
+  chartMergedDeskAvwapAutoExtremeEnabled: false,
+  chartMergedDeskAvwapPlaceArmed: false,
+  chartMergedDeskAvwapUserPins: [],
+  chartMergedDeskAvwapUserPinsHidden: false,
+  chartMergedDeskAvwapSelectedPinIds: [],
+  chartMergedDeskVwapPoiBandEnabled: false,
+  chartMergedDeskSessionVwapEnabled: false,
+  chartMergedDeskAvwapFibEnabled: false,
+  chartMergedDeskEvidenceZonesEnabled: true,
+  chartMergedDeskPracticeAiPlanEnabled: true,
+  chartMergedDeskZonePriceOnlyLabels: false,
+  chartMergedDeskDumpLabelPosPct: 100,
+  chartMergedDeskMtfDumpZoneEnabled: true,
+  /** mtf=TF별 floor·ceiling 전부 · path=확실지지→저항 1세트만 */
+  chartMergedDeskMtfDumpDisplayMode: 'mtf',
+  chartMergedDeskMtfDumpRegistry: {},
+  chartMergedDeskTradeShowInvalidLabel: true,
+  chartMergedDeskTradeShowTp2Tp3: true,
+  chartMergedDeskTradeApproachPulse: true,
+  chartMergedDeskTradeTpCelebrate: true,
+  chartMergedDeskRbCoreZonesEnabled: true,
+  chartMergedDeskRbSmcPoisEnabled: true,
+  chartMergedDeskThisMuchEnabled: true,
+  chartMergedDeskGlobalLabelShiftX: 0,
+  chartMergedDeskRbVolumeSyncEnabled: true,
+  chartMergedDeskAdvVolumeEnabled: true,
+  chartMergedDeskVolumePatternChartEnabled: false,
+  chartMergedDeskSwingAnchorVolumeEnabled: true,
+  chartAiCandleBorderEnabled: true,
+  chartMergedDeskScalp200Enabled: false,
+  chartMergedDeskAutoScalpPaperEnabled: false,
+  chartMergedDeskAutoTradeEnabled: false,
+  chartMergedDeskAutoTradeLeverage: 10,
+  chartMergedDeskAutoTradeMarginUsdt: 20,
+  chartMergedDeskAutoTradeEquityPct: 5,
+  chartMergedDeskAutoTradeDoksuriEquityPct: 5,
+  chartMergedDeskScalp200MaxLeverage: 200,
+  chartMergedDeskScalp200RiskPct: 1,
+  chartMergedDeskScalp200MinRr: 2,
+  chartMergedDeskStatsHudEnabled: false,
+  chartMergedDeskChartFvgEnabled: true,
+  chartMergedDeskChartObEnabled: true,
+  chartMergedDeskChartChochEnabled: true,
+  chartMergedDeskChartBosEnabled: true,
+  chartMergedDeskChartChannelEnabled: true,
+  chartMergedDeskDoksuri1BriefingEnabled: true,
+  chartMergedDeskDoksuri1DerivEnabled: true,
+  chartMergedDeskDoksuri1OrderflowEnabled: false,
+  chartMergedDeskDoksuri1RiskPct: 5,
+  chartMergedDeskAiMarketZoneEnabled: false,
+  chartMergedDeskRbAiZoneFaceEnabled: true,
+  chartMergedDeskRbCoreMarkersEnabled: false,
+  chartMergedDeskRbCoreCandlePaintEnabled: true,
+  chartMergedDeskSwingDrawEnabled: true,
+  chartMergedDeskLabelAlignDefault: 'right',
+  whaleAnchoredLinRegEnabled: true,
+  whaleAlrLogScale: false,
   chartCandleRuleDebug: false,
   pageLayout: { ...defaultPageLayout },
 };
+
+/** 간결+요약 — 라인요약 UI만 묶음 (zone·차트 레이어는 건드리지 않음) */
+export type MonthDeskClearSummaryBundleSettings = Pick<
+  UserSettings,
+  | 'chartMonthDeskClearSummaryEnabled'
+  | 'chartMonthDeskSettleLabelMode'
+  | 'chartMonthDeskFeatureSettleLabels'
+>;
+
+export function isMonthDeskClearSummaryBundleOn(
+  settings: Pick<UserSettings, 'chartMonthDeskClearSummaryEnabled'>
+): boolean {
+  return settings.chartMonthDeskClearSummaryEnabled !== false;
+}
+
+/** ON: 라인요약(카드+우측E/SL/TP) 전부 동시 / OFF: 라인요약 전부 끔 — zone은 유지 */
+export function monthDeskClearSummaryBundlePatch(enabled: boolean): MonthDeskClearSummaryBundleSettings {
+  if (enabled) {
+    return {
+      chartMonthDeskClearSummaryEnabled: true,
+      chartMonthDeskSettleLabelMode: 'full',
+      chartMonthDeskFeatureSettleLabels: true,
+    };
+  }
+  return {
+    chartMonthDeskClearSummaryEnabled: false,
+    chartMonthDeskSettleLabelMode: 'off',
+    chartMonthDeskFeatureSettleLabels: false,
+  };
+}
+
+function migrateMonthDeskClearSummaryBundle(merged: UserSettings, parsed: Partial<UserSettings>): void {
+  if (!('chartMonthDeskClearSummaryEnabled' in parsed)) {
+    merged.chartMonthDeskClearSummaryEnabled =
+      merged.chartMonthDeskOverlayDensity !== 'rich' &&
+      merged.chartMonthDeskSettleLabelMode === 'summary' &&
+      merged.chartMonthDeskFeatureSettleLabels !== false;
+  }
+}
 
 /**
  * 최강분석·통합작도 공통: `/api/analyze`·amx 수집은 그대로(데이터 풍부) — **화면은 TV·작도식으로 읽기 쉽게** 잡음 레이어는 기본 OFF.
@@ -1300,6 +2027,8 @@ function effectiveFeatureTogglesWhale(settings: UserSettings) {
     whaleDynamicRsProEnabled: true,
     whaleLiquidityBiasEnabled: true,
     whaleStructureBounceEnabled: true,
+    whaleAnchoredLinRegEnabled: true,
+    whaleAlrLogScale: settings.whaleAlrLogScale,
   };
 }
 
@@ -1362,6 +2091,11 @@ export function getEffectiveFeatureToggles(settings: UserSettings, uiMode: UIMod
     const aiZone = effectiveFeatureTogglesAiZone(settings);
     const overrides = settings.modeFeatureOverrides?.[uiMode];
     return overrides ? { ...aiZone, ...overrides } : aiZone;
+  }
+  if (uiMode === 'FUSION_MODE') {
+    const fusionMode = effectiveFeatureTogglesAiZone(settings);
+    const overrides = settings.modeFeatureOverrides?.[uiMode];
+    return overrides ? { ...fusionMode, ...overrides } : fusionMode;
   }
   const base = {
     showStructure:
@@ -1489,6 +2223,374 @@ export function getEffectiveFeatureToggles(settings: UserSettings, uiMode: UIMod
     };
     return overrides ? { ...hz, ...overrides } : hz;
   }
+  /** 마감·안착 데스크: 차트 맑음 기본 — 핫존과 동일 프리셋. ⚙ 오버라이드로 레이어 개별 활성화 가능. */
+  if (uiMode === 'MONTH_START_DESK') {
+    const md = {
+      ...base,
+      showStructure: false,
+      showZones: false,
+      showLabels: false,
+      showScenario: false,
+      showFib: false,
+      showRsi: false,
+      showHarmonic: false,
+      showChartPrimeTrendChannels: true,
+      chartPrimeTrendChannelsVolumeBg: true,
+      showPo3: false,
+      showCandle: false,
+      showBpr: false,
+      showVision: false,
+      showVisionTriangle: false,
+      showVisionFlag: false,
+      showVisionWedge: false,
+      showVisionReversal: false,
+      showVisionRange: false,
+      /** 반응구간(노랑·파랑) — 숏 우선 반응대·진입대. 핵심 보드 참고 패널과 동일 소스 */
+      showReactionZone: true,
+      showWhaleZone: false,
+      showLvrb: false,
+      showVolatilityTrendScore: false,
+      showTailongClose: false,
+      showTailongCloseBreakout: false,
+      showTailongCloseWick: false,
+      showTailongCloseBody: false,
+      showTailongCloseFlow: false,
+      /** 고래 모드와 동일 볼륨 Hot Zone — 마감·안착 차트에 기본 표시(모드 오버라이드로 끔 가능) */
+      whaleHotZoneEnabled: true,
+      whaleCoreSrZoneEnabled: false,
+      whaleHyperTrendEnabled: false,
+      whaleDynamicRsProEnabled: false,
+      whaleLiquidityBiasEnabled: false,
+      whaleStructureBounceEnabled: false,
+      /** Strike Desk — 핵심 롱·숏 E/SL/TP 최우선 */
+      chartMonthDeskLayerMode: 'strike' as const,
+      chartMonthDeskStrikeDeskEnabled: true,
+      chartMonthDeskFloatingHudEnabled: false,
+      chartMonthDeskClickPrecisionEnabled: true,
+  chartMonthDeskMergedSignalEnabled: false,
+  chartMonthDeskFusionDeskBandEnabled: false,
+  chartTripleTrendSignalBand: '3',
+  chartTripleTrendChangeLinesEnabled: false,
+  chartMergedInstitutionalBandEnabled: false,
+  chartMonthDeskCleanIconSignalsEnabled: true,
+  chartMonthDeskAtlasPulseDeskEnabled: true,
+  chartMonthDeskUnifiedPulseEngineEnabled: true,
+      chartMonthDeskCoreShortHighlightEnabled: true,
+      chartMonthDeskSettleCandlePaint: true,
+      chartSmcStructurePhaseCandles: true,
+      chartMonthDeskClearSummaryEnabled: true,
+      chartMonthDeskSettleFeatureStrip: false,
+      chartTradeAtlasShowHud: false,
+      chartMonthDeskOverlayDensity: 'clear' as const,
+      chartMonthDeskMoneyZoneEnabled: true,
+      chartMonthDeskCoreLongHighlightEnabled: true,
+    };
+    return overrides ? { ...md, ...overrides } : md;
+  }
+  if (uiMode === 'EAGLE1_TAP_ENGINE') {
+    const tap = {
+      ...base,
+      showStructure: false,
+      showZones: false,
+      showLabels: false,
+      showScenario: false,
+      showFib: false,
+      showRsi: false,
+      showHarmonic: false,
+      showPo3: false,
+      showCandle: false,
+      showBpr: false,
+      showVision: false,
+      showWhaleZone: false,
+      showLvrb: false,
+      showReactionZone: true,
+      showTailongClose: true,
+    };
+    return overrides ? { ...tap, ...overrides } : tap;
+  }
+  /** 통합·분석: ARES/TV식 — Strike·펄스 + 기관밴드·CP/LinReg 줄선 */
+  if (uiMode === 'MERGED_ANALYSIS_DESK') {
+    const mad = {
+      ...base,
+      showStructure: false,
+      showZones: false,
+      showLabels: false,
+      showScenario: false,
+      showFib: false,
+      showRsi: false,
+      showHarmonic: false,
+      showChartPrimeTrendChannels: true,
+      chartPrimeTrendChannelsVolumeBg: true,
+      showPo3: false,
+      showCandle: false,
+      showBpr: false,
+      showVision: false,
+      showVisionTriangle: false,
+      showVisionFlag: false,
+      showVisionWedge: false,
+      showVisionReversal: false,
+      showVisionRange: false,
+      showReactionZone: true,
+      showWhaleZone: false,
+      showLvrb: false,
+      showVolatilityTrendScore: false,
+      showTailongClose: true,
+      showTailongCloseBreakout: true,
+      showTailongCloseWick: false,
+      showTailongCloseBody: false,
+      showTailongCloseFlow: false,
+      whaleHotZoneEnabled: false,
+      whaleCoreSrZoneEnabled: false,
+      whaleHyperTrendEnabled: false,
+      whaleDynamicRsProEnabled: false,
+      whaleLiquidityBiasEnabled: false,
+      whaleStructureBounceEnabled: false,
+      chartMonthDeskLayerMode: 'full' as const,
+      chartMonthDeskStrikeDeskEnabled: true,
+      chartMonthDeskFloatingHudEnabled: true,
+      chartMonthDeskClickPrecisionEnabled: true,
+      chartMonthDeskMergedSignalEnabled: true,
+      chartMonthDeskCleanIconSignalsEnabled: true,
+      chartMonthDeskAtlasPulseDeskEnabled: true,
+      chartMonthDeskUnifiedPulseEngineEnabled: true,
+      chartMonthDeskCoreShortHighlightEnabled: true,
+      chartMonthDeskSettleCandlePaint: true,
+      chartSmcStructurePhaseCandles: true,
+      chartMonthDeskClearSummaryEnabled: false,
+      chartMonthDeskSettleFeatureStrip: false,
+      chartTradeAtlasShowHud: false,
+      chartMonthDeskOverlayDensity: 'clear' as const,
+      chartMonthDeskMoneyZoneEnabled: true,
+      chartMonthDeskCoreLongHighlightEnabled: true,
+      chartMergedAdvancedFocusDeck: true,
+      chartMonthDeskBitgetCandles: settings.chartMonthDeskBitgetCandles !== false,
+      /** 표시·일괄·레이어는 사용자 저장값 우선 (차트설정에서 전부 조절) */
+      chartBulkHideLabels: settings.chartBulkHideLabels === true,
+      chartBulkHideZones: settings.chartBulkHideZones === true,
+      chartBulkHideHLines: settings.chartBulkHideHLines === true,
+      chartMirageZoneFaceCompact: settings.chartMirageZoneFaceCompact !== false,
+      chartMirageZoneFaceLang: settings.chartMirageZoneFaceLang === 'en' ? ('en' as const) : ('ko' as const),
+      chartMirageZoneFaceReveal:
+        settings.chartMirageZoneFaceReveal === 'always' ? ('always' as const) : ('progressive' as const),
+      chartMergedInstitutionalBandEnabled: settings.chartMergedInstitutionalBandEnabled !== false,
+      chartMonthDeskFusionDeskBandEnabled: settings.chartMonthDeskFusionDeskBandEnabled !== false,
+      chartMergedDeskActionablePatternEnabled: settings.chartMergedDeskActionablePatternEnabled !== false,
+      chartMergedDeskPatternSilhouetteEnabled: settings.chartMergedDeskPatternSilhouetteEnabled !== false,
+      chartMergedDeskCycleProgressEnabled: settings.chartMergedDeskCycleProgressEnabled !== false,
+      chartMergedDeskLivePracticeCueEnabled: settings.chartMergedDeskLivePracticeCueEnabled !== false,
+      chartMergedDeskOverlayLabelsEnabled: settings.chartMergedDeskOverlayLabelsEnabled !== false,
+      chartMergedDeskRightAxisPricesEnabled: settings.chartMergedDeskRightAxisPricesEnabled !== false,
+      chartMergedDeskVrvpPocExtend:
+        settings.chartMergedDeskVrvpPocExtend === 'extend20' ? ('extend20' as const) : ('short' as const),
+      chartMergedDeskHLineClean:
+        settings.chartMergedDeskHLineClean === 'classic' || settings.chartMergedDeskHLineClean === 'soft'
+          ? settings.chartMergedDeskHLineClean
+          : ('tail' as const),
+      chartMergedDeskRbTradeStyle:
+        settings.chartMergedDeskRbTradeStyle === 'scalp' || settings.chartMergedDeskRbTradeStyle === 'mid'
+          ? settings.chartMergedDeskRbTradeStyle
+          : ('swing' as const),
+      chartMergedDeskAssetsChartAiEnabled: settings.chartMergedDeskAssetsChartAiEnabled !== false,
+      chartMergedDeskSuperAiEnabled: settings.chartMergedDeskSuperAiEnabled !== false,
+      chartMergedDeskAiAnalysisZoneEnabled: settings.chartMergedDeskAiAnalysisZoneEnabled !== false,
+      chartMergedDeskClassicZoneEnabled: settings.chartMergedDeskClassicZoneEnabled !== false,
+      chartMergedDeskZoneBattleHudEnabled: settings.chartMergedDeskZoneBattleHudEnabled !== false,
+      chartMergedDeskUnifiedCloudEnabled: settings.chartMergedDeskUnifiedCloudEnabled !== false,
+      chartMergedDeskBtccionDrawEnabled: settings.chartMergedDeskBtccionDrawEnabled !== false,
+      chartMergedDeskBlueRedChannelsEnabled: settings.chartMergedDeskBlueRedChannelsEnabled !== false,
+      chartMergedDeskWavePathEnabled: settings.chartMergedDeskWavePathEnabled === true,
+      chartMergedDeskCandleBattleEnabled: settings.chartMergedDeskCandleBattleEnabled !== false,
+      chartMergedDeskRbVolumeSyncEnabled: settings.chartMergedDeskRbVolumeSyncEnabled !== false,
+      chartMergedDeskAdvVolumeEnabled: settings.chartMergedDeskAdvVolumeEnabled !== false,
+      chartMergedDeskVolumePatternChartEnabled:
+        settings.chartMergedDeskVolumePatternChartEnabled === true,
+      chartMergedDeskSwingAnchorVolumeEnabled:
+        settings.chartMergedDeskSwingAnchorVolumeEnabled !== false,
+      chartAiCandleBorderEnabled: settings.chartAiCandleBorderEnabled !== false,
+      chartMergedDeskScalp200Enabled: settings.chartMergedDeskScalp200Enabled === true,
+      chartMergedDeskAutoScalpPaperEnabled: settings.chartMergedDeskAutoScalpPaperEnabled === true,
+      chartMergedDeskAutoTradeEnabled: settings.chartMergedDeskAutoTradeEnabled === true,
+      chartMergedDeskAutoTradeLeverage: Math.max(
+        1,
+        Math.min(125, Number(settings.chartMergedDeskAutoTradeLeverage) || 10)
+      ),
+      chartMergedDeskAutoTradeMarginUsdt: Math.max(
+        1,
+        Math.min(50000, Number(settings.chartMergedDeskAutoTradeMarginUsdt) || 20)
+      ),
+      chartMergedDeskAutoTradeEquityPct: Math.max(
+        0.5,
+        Math.min(100, Number(settings.chartMergedDeskAutoTradeEquityPct) || 5)
+      ),
+      chartMergedDeskAutoTradeDoksuriEquityPct: Math.max(
+        0.5,
+        Math.min(
+          100,
+          Number(settings.chartMergedDeskAutoTradeDoksuriEquityPct) ||
+            Number(settings.chartMergedDeskAutoTradeEquityPct) ||
+            5
+        )
+      ),
+      chartMergedDeskScalp200MaxLeverage: Math.max(
+        1,
+        Math.min(200, Number(settings.chartMergedDeskScalp200MaxLeverage) || 200)
+      ),
+      chartMergedDeskScalp200RiskPct: Math.max(
+        0.2,
+        Math.min(5, Number(settings.chartMergedDeskScalp200RiskPct) || 1)
+      ),
+      chartMergedDeskScalp200MinRr: Math.max(
+        1.5,
+        Math.min(4, Number(settings.chartMergedDeskScalp200MinRr) || 2)
+      ),
+      chartMergedDeskStatsHudEnabled: settings.chartMergedDeskStatsHudEnabled === true,
+      chartMergedDeskChartFvgEnabled: settings.chartMergedDeskChartFvgEnabled !== false,
+      chartMergedDeskChartObEnabled: settings.chartMergedDeskChartObEnabled !== false,
+      chartMergedDeskChartChochEnabled: settings.chartMergedDeskChartChochEnabled !== false,
+      chartMergedDeskChartBosEnabled: settings.chartMergedDeskChartBosEnabled !== false,
+      chartMergedDeskChartChannelEnabled: settings.chartMergedDeskChartChannelEnabled !== false,
+      chartMergedDeskDoksuri1BriefingEnabled:
+        settings.chartMergedDeskDoksuri1BriefingEnabled !== false,
+      chartMergedDeskDoksuri1DerivEnabled: settings.chartMergedDeskDoksuri1DerivEnabled !== false,
+      chartMergedDeskDoksuri1OrderflowEnabled:
+        settings.chartMergedDeskDoksuri1OrderflowEnabled === true,
+      chartMergedDeskDoksuri1RiskPct: Math.max(
+        0.5,
+        Math.min(10, Number(settings.chartMergedDeskDoksuri1RiskPct) || 5)
+      ),
+      chartMergedDeskAiMarketZoneEnabled: settings.chartMergedDeskAiMarketZoneEnabled === true,
+      chartMergedDeskAiToneEnabled: settings.chartMergedDeskAiToneEnabled === true,
+      chartMergedDeskEuromap:
+        settings.chartMergedDeskEuromap && typeof settings.chartMergedDeskEuromap === 'object'
+          ? settings.chartMergedDeskEuromap
+          : {},
+      chartMergedDeskZoneFillOpacity: Math.max(
+        15,
+        Math.min(100, Number(settings.chartMergedDeskZoneFillOpacity) || 46)
+      ),
+      chartMergedDeskSwingDrawEnabled: settings.chartMergedDeskSwingDrawEnabled !== false,
+      chartMergedDeskLabelAlignDefault:
+        settings.chartMergedDeskLabelAlignDefault === 'left' ||
+        settings.chartMergedDeskLabelAlignDefault === 'center'
+          ? settings.chartMergedDeskLabelAlignDefault
+          : ('right' as const),
+      overlayLabelFontSize: settings.overlayLabelFontSize,
+      chartScaleFontSize: Math.max(1, Math.min(20, Math.round(Number(settings.chartScaleFontSize) || 12))),
+      overlayPriceStripFontSize: settings.overlayPriceStripFontSize,
+      zoneFillSupplyHex: settings.zoneFillSupplyHex,
+      zoneFillDemandHex: settings.zoneFillDemandHex,
+      zoneFillNeutralHex: settings.zoneFillNeutralHex,
+      zoneFillWarningHex: settings.zoneFillWarningHex,
+      showRsiPanel: true,
+      showMacdPanel: true,
+    };
+    return overrides ? { ...mad, ...overrides } : mad;
+  }
+  /** 존·라인 개선: LinReg + CP + HotZone + Strike — 잡음(phz·SMC 다이어그램) 기본 OFF */
+  if (uiMode === 'ZONE_LINE_PRO') {
+    const zlp = {
+      ...base,
+      showStructure: false,
+      showZones: false,
+      showLabels: false,
+      showScenario: false,
+      showFib: false,
+      showRsi: false,
+      showHarmonic: false,
+      showChartPrimeTrendChannels: true,
+      chartPrimeTrendChannelsVolumeBg: true,
+      showPo3: false,
+      showCandle: false,
+      showBpr: false,
+      showVision: false,
+      showVisionTriangle: false,
+      showVisionFlag: false,
+      showVisionWedge: false,
+      showVisionReversal: false,
+      showVisionRange: false,
+      showReactionZone: true,
+      showWhaleZone: false,
+      showLvrb: false,
+      showVolatilityTrendScore: false,
+      showTailongClose: false,
+      showTailongCloseBreakout: false,
+      showTailongCloseWick: false,
+      showTailongCloseBody: false,
+      showTailongCloseFlow: false,
+      whaleHotZoneEnabled: true,
+      whaleCoreSrZoneEnabled: true,
+      whaleHyperTrendEnabled: false,
+      whaleDynamicRsProEnabled: false,
+      whaleLiquidityBiasEnabled: false,
+      whaleStructureBounceEnabled: true,
+      chartMonthDeskLayerMode: 'zoneLinePro' as const,
+      chartMonthDeskStrikeDeskEnabled: true,
+      chartMonthDeskFloatingHudEnabled: false,
+      chartMonthDeskClickPrecisionEnabled: true,
+  chartMonthDeskMergedSignalEnabled: false,
+  chartMonthDeskFusionDeskBandEnabled: true,
+  chartTripleTrendSignalBand: '3',
+  chartTripleTrendChangeLinesEnabled: false,
+  chartMonthDeskCleanIconSignalsEnabled: true,
+  chartMonthDeskAtlasPulseDeskEnabled: true,
+  chartMonthDeskUnifiedPulseEngineEnabled: true,
+      chartMonthDeskCoreShortHighlightEnabled: true,
+      chartMonthDeskSettleCandlePaint: true,
+      chartSmcStructurePhaseCandles: true,
+      chartMonthDeskClearSummaryEnabled: true,
+      chartMonthDeskSettleFeatureStrip: false,
+      chartTradeAtlasShowHud: false,
+      chartMonthDeskOverlayDensity: 'clear' as const,
+      chartMonthDeskMoneyZoneEnabled: false,
+      chartMonthDeskCoreLongHighlightEnabled: true,
+      chartMonthDeskPullbackHotZoneEnabled: true,
+      chartBulkHideZones: false,
+      chartBulkHideLabels: false,
+      chartBulkHideHLines: false,
+      showInstitutionalTrendBadge: false,
+    };
+    return overrides ? { ...zlp, ...overrides } : zlp;
+  }
+  /** 벤치마크·레퍼런스: 차트 레이어 전부 OFF — 보드만 표시 */
+  if (uiMode === 'REFERENCE_DESK') {
+    const rd = {
+      ...base,
+      showStructure: false,
+      showZones: false,
+      showLabels: false,
+      showScenario: false,
+      showFib: false,
+      showRsi: false,
+      showHarmonic: false,
+      showChartPrimeTrendChannels: false,
+      chartPrimeTrendChannelsVolumeBg: false,
+      showPo3: false,
+      showCandle: false,
+      showBpr: false,
+      showVision: false,
+      showVisionTriangle: false,
+      showVisionFlag: false,
+      showVisionWedge: false,
+      showVisionReversal: false,
+      showVisionRange: false,
+      showReactionZone: false,
+      showWhaleZone: false,
+      showLvrb: false,
+      showVolatilityTrendScore: false,
+      showTailongClose: false,
+      showTailongCloseBreakout: false,
+      showTailongCloseWick: false,
+      showTailongCloseBody: false,
+      showTailongCloseFlow: false,
+      whaleHotZoneEnabled: false,
+      whaleCoreSrZoneEnabled: false,
+      whaleHyperTrendEnabled: false,
+      whaleDynamicRsProEnabled: false,
+      whaleLiquidityBiasEnabled: false,
+      whaleStructureBounceEnabled: false,
+    };
+    return overrides ? { ...rd, ...overrides } : rd;
+  }
   /** 고래 모드: 깔끔·핵심 프리셋 — DRS+HotZone+핵심S/R+LQB+CP·정밀 (잡도형·비전·박스 등 끔). 오버라이드로 복원 가능. */
   if (uiMode === 'WHALE') {
     const w = effectiveFeatureTogglesWhale(settings);
@@ -1522,6 +2624,19 @@ function migrateLegacyModeFeatureOverrides(mfo: ModeFeatureOverrides | undefined
   return next as ModeFeatureOverrides;
 }
 
+/** 비어 있는 통로 색만 기본값. 사용자·옛 파랑 등 저장된 hex는 절대 덮지 않음 */
+function migrateMergedDeskRbCorridorPalette(
+  merged: UserSettings,
+  parsed: Partial<UserSettings>
+): void {
+  const bull = String(parsed.chartMergedDeskRbBullHex || '').trim();
+  const bear = String(parsed.chartMergedDeskRbBearHex || '').trim();
+  const conf = String(parsed.chartMergedDeskRbConfluenceHex || '').trim();
+  if (!bull) merged.chartMergedDeskRbBullHex = defaultSettings.chartMergedDeskRbBullHex;
+  if (!bear) merged.chartMergedDeskRbBearHex = defaultSettings.chartMergedDeskRbBearHex;
+  if (!conf) merged.chartMergedDeskRbConfluenceHex = defaultSettings.chartMergedDeskRbConfluenceHex;
+}
+
 export function loadSettings(): UserSettings {
   try {
     const parsed =
@@ -1545,8 +2660,137 @@ export function loadSettings(): UserSettings {
         merged.institutionalBandTouchReinforced =
           merged.institutionalBandTouchPrecision === true || merged.institutionalBandTouchConfluence === true;
       }
-      coerceInstitutionalBandTouchTierMask(merged);
-      return merged;
+    coerceInstitutionalBandTouchTierMask(merged);
+    migrateMonthDeskClearSummaryBundle(merged, { ...parsed, ...merged });
+    Object.assign(
+      merged,
+      monthDeskClearSummaryBundlePatch(merged.chartMonthDeskClearSummaryEnabled !== false)
+    );
+    /** TT 추세 전환 세로 점선 — 차트에서 항상 비표시 (설정·서버값 무시) */
+    merged.chartTripleTrendChangeLinesEnabled = false;
+    migrateMergedDeskRbCorridorPalette(merged, parsed);
+    {
+      const hm = String(merged.chartMergedDeskRbHatchMode || '');
+    merged.chartMergedDeskRbHatchMode =
+      hm === 'soft' || hm === 'on' ? hm : 'off';
+      const fo = Number(merged.chartMergedDeskRbFillOpacity);
+      merged.chartMergedDeskRbFillOpacity = Number.isFinite(fo)
+        ? Math.max(0, Math.min(60, Math.round(fo)))
+        : 14;
+      merged.chartMergedDeskRbSmcPoisEnabled =
+        merged.chartMergedDeskRbSmcPoisEnabled !== false;
+      merged.chartMergedDeskThisMuchEnabled =
+        merged.chartMergedDeskThisMuchEnabled !== false;
+      {
+        const gx = Number(merged.chartMergedDeskGlobalLabelShiftX);
+        merged.chartMergedDeskGlobalLabelShiftX = Number.isFinite(gx)
+          ? Math.max(-240, Math.min(240, Math.round(gx)))
+          : 0;
+      }
+    }
+    merged.chartScaleFontSize = Math.max(
+      1,
+      Math.min(20, Math.round(Number(merged.chartScaleFontSize) || 12))
+    );
+    merged.chartMergedDeskVrvpPocExtend =
+      merged.chartMergedDeskVrvpPocExtend === 'extend20' ? 'extend20' : 'short';
+    merged.chartMergedDeskHLineClean =
+      merged.chartMergedDeskHLineClean === 'classic' || merged.chartMergedDeskHLineClean === 'soft'
+        ? merged.chartMergedDeskHLineClean
+        : 'tail';
+    merged.chartMergedDeskRbTradeStyle =
+      merged.chartMergedDeskRbTradeStyle === 'scalp' || merged.chartMergedDeskRbTradeStyle === 'mid'
+        ? merged.chartMergedDeskRbTradeStyle
+        : 'swing';
+    const avwapModes = new Set([
+      'chart_both',
+      'chart_high',
+      'chart_low',
+      'swing_high',
+      'swing_low',
+      'range_start',
+      'manual',
+    ]);
+    if (!avwapModes.has(String(merged.chartMergedDeskAnchoredVwapMode))) {
+      merged.chartMergedDeskAnchoredVwapMode = 'chart_both';
+    }
+    merged.chartMergedDeskAnchoredVwapHtf =
+      merged.chartMergedDeskAnchoredVwapHtf === '1w' ? '1w' : '1d';
+    if (
+      merged.chartMergedDeskAnchoredVwapManualTime != null &&
+      !Number.isFinite(Number(merged.chartMergedDeskAnchoredVwapManualTime))
+    ) {
+      merged.chartMergedDeskAnchoredVwapManualTime = null;
+    }
+    /** 기본 수동 — 자동 극값 탐색 OFF (TradingView 앵커식) */
+    merged.chartMergedDeskAvwapAutoExtremeEnabled =
+      merged.chartMergedDeskAvwapAutoExtremeEnabled === true;
+    merged.chartMergedDeskAvwapPlaceArmed = merged.chartMergedDeskAvwapPlaceArmed === true;
+    merged.chartMergedDeskAvwapUserPinsHidden = merged.chartMergedDeskAvwapUserPinsHidden === true;
+    merged.chartMergedDeskAvwapUserPins = normalizeAvwapUserPins(merged.chartMergedDeskAvwapUserPins);
+    merged.chartMergedDeskAvwapSelectedPinIds = Array.isArray(merged.chartMergedDeskAvwapSelectedPinIds)
+      ? merged.chartMergedDeskAvwapSelectedPinIds
+          .map((x) => String(x || '').trim())
+          .filter(Boolean)
+          .slice(0, AVWAP_USER_PIN_MAX)
+      : [];
+    merged.chartMergedDeskVwapPoiBandEnabled = merged.chartMergedDeskVwapPoiBandEnabled === true;
+    merged.chartMergedDeskSessionVwapEnabled = merged.chartMergedDeskSessionVwapEnabled === true;
+    merged.chartMergedDeskAvwapFibEnabled = merged.chartMergedDeskAvwapFibEnabled === true;
+    merged.chartMergedDeskEvidenceZonesEnabled =
+      merged.chartMergedDeskEvidenceZonesEnabled !== false;
+    merged.chartMergedDeskPracticeAiPlanEnabled =
+      merged.chartMergedDeskPracticeAiPlanEnabled !== false;
+    merged.chartMergedDeskZonePriceOnlyLabels =
+      merged.chartMergedDeskZonePriceOnlyLabels === true;
+    {
+      const p = Number(merged.chartMergedDeskDumpLabelPosPct);
+      let nextPct = Number.isFinite(p) ? Math.max(0, Math.min(100, Math.round(p))) : 100;
+      /** 예전 기본(좌=0) → 맨 우측 모서리(100) 1회 이전 */
+      try {
+        if (typeof window !== 'undefined') {
+          const migKey = 'ailongshort-dump-label-pos-right-v1';
+          if (!window.localStorage.getItem(migKey)) {
+            if (!Number.isFinite(p) || p === 0) nextPct = 100;
+            window.localStorage.setItem(migKey, '1');
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      merged.chartMergedDeskDumpLabelPosPct = nextPct;
+    }
+      merged.chartMergedDeskMtfDumpZoneEnabled =
+      merged.chartMergedDeskMtfDumpZoneEnabled !== false;
+    /** path=1세트만(4h·1d·1w 공동표시 안 됨) → MTF전체 1회 강제 */
+    try {
+      if (typeof window !== 'undefined') {
+        const migKey = 'ailongshort-mtf-dump-display-mtf-v2';
+        if (!window.localStorage.getItem(migKey)) {
+          merged.chartMergedDeskMtfDumpDisplayMode = 'mtf';
+          merged.chartMergedDeskMtfDumpZoneEnabled = true;
+          window.localStorage.setItem(migKey, '1');
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    merged.chartMergedDeskMtfDumpDisplayMode =
+      merged.chartMergedDeskMtfDumpDisplayMode === 'mtf' ? 'mtf' : 'path';
+    merged.chartMergedDeskMtfDumpRegistry =
+      merged.chartMergedDeskMtfDumpRegistry &&
+      typeof merged.chartMergedDeskMtfDumpRegistry === 'object'
+        ? merged.chartMergedDeskMtfDumpRegistry
+        : {};
+    merged.chartMergedDeskTradeShowInvalidLabel =
+      merged.chartMergedDeskTradeShowInvalidLabel !== false;
+    merged.chartMergedDeskTradeShowTp2Tp3 =
+      merged.chartMergedDeskTradeShowTp2Tp3 !== false;
+    merged.chartMergedDeskTradeApproachPulse =
+      merged.chartMergedDeskTradeApproachPulse !== false;
+    merged.chartMergedDeskTradeTpCelebrate =
+      merged.chartMergedDeskTradeTpCelebrate !== false;
+    return merged;
     }
   } catch {}
   const d = { ...defaultSettings };
@@ -1563,6 +2807,66 @@ export function saveSettings(s: Partial<UserSettings>) {
       ...(s.pageLayout && typeof s.pageLayout === 'object' ? s.pageLayout : {}),
     });
     coerceInstitutionalBandTouchTierMask(next);
+    Object.assign(
+      next,
+      monthDeskClearSummaryBundlePatch(next.chartMonthDeskClearSummaryEnabled !== false)
+    );
+    next.chartTripleTrendChangeLinesEnabled = false;
+    next.chartScaleFontSize = Math.max(
+      1,
+      Math.min(20, Math.round(Number(next.chartScaleFontSize) || 12))
+    );
+    next.chartMergedDeskVrvpPocExtend =
+      next.chartMergedDeskVrvpPocExtend === 'extend20' ? 'extend20' : 'short';
+    next.chartMergedDeskHLineClean =
+      next.chartMergedDeskHLineClean === 'classic' || next.chartMergedDeskHLineClean === 'soft'
+        ? next.chartMergedDeskHLineClean
+        : 'tail';
+    next.chartMergedDeskRbTradeStyle =
+      next.chartMergedDeskRbTradeStyle === 'scalp' || next.chartMergedDeskRbTradeStyle === 'mid'
+        ? next.chartMergedDeskRbTradeStyle
+        : 'swing';
+    next.chartMergedDeskAvwapAutoExtremeEnabled = next.chartMergedDeskAvwapAutoExtremeEnabled === true;
+    next.chartMergedDeskAvwapPlaceArmed = next.chartMergedDeskAvwapPlaceArmed === true;
+    next.chartMergedDeskAvwapUserPinsHidden = next.chartMergedDeskAvwapUserPinsHidden === true;
+    next.chartMergedDeskAvwapUserPins = normalizeAvwapUserPins(next.chartMergedDeskAvwapUserPins);
+    next.chartMergedDeskAvwapSelectedPinIds = Array.isArray(next.chartMergedDeskAvwapSelectedPinIds)
+      ? next.chartMergedDeskAvwapSelectedPinIds
+          .map((x) => String(x || '').trim())
+          .filter(Boolean)
+          .slice(0, AVWAP_USER_PIN_MAX)
+      : [];
+    next.chartMergedDeskVwapPoiBandEnabled = next.chartMergedDeskVwapPoiBandEnabled === true;
+    next.chartMergedDeskSessionVwapEnabled = next.chartMergedDeskSessionVwapEnabled === true;
+    next.chartMergedDeskAvwapFibEnabled = next.chartMergedDeskAvwapFibEnabled === true;
+    next.chartMergedDeskEvidenceZonesEnabled =
+      next.chartMergedDeskEvidenceZonesEnabled !== false;
+    next.chartMergedDeskPracticeAiPlanEnabled =
+      next.chartMergedDeskPracticeAiPlanEnabled !== false;
+    next.chartMergedDeskZonePriceOnlyLabels =
+      next.chartMergedDeskZonePriceOnlyLabels === true;
+    {
+      const p = Number(next.chartMergedDeskDumpLabelPosPct);
+      next.chartMergedDeskDumpLabelPosPct = Number.isFinite(p)
+        ? Math.max(0, Math.min(100, Math.round(p)))
+        : 100;
+    }
+    next.chartMergedDeskMtfDumpZoneEnabled =
+      next.chartMergedDeskMtfDumpZoneEnabled !== false;
+    next.chartMergedDeskMtfDumpDisplayMode =
+      next.chartMergedDeskMtfDumpDisplayMode === 'mtf' ? 'mtf' : 'path';
+    next.chartMergedDeskMtfDumpRegistry =
+      next.chartMergedDeskMtfDumpRegistry && typeof next.chartMergedDeskMtfDumpRegistry === 'object'
+        ? next.chartMergedDeskMtfDumpRegistry
+        : {};
+    next.chartMergedDeskTradeShowInvalidLabel =
+      next.chartMergedDeskTradeShowInvalidLabel !== false;
+    next.chartMergedDeskTradeShowTp2Tp3 =
+      next.chartMergedDeskTradeShowTp2Tp3 !== false;
+    next.chartMergedDeskTradeApproachPulse =
+      next.chartMergedDeskTradeApproachPulse !== false;
+    next.chartMergedDeskTradeTpCelebrate =
+      next.chartMergedDeskTradeTpCelebrate !== false;
     if (typeof window !== 'undefined') {
       const payload = JSON.stringify(next);
       window.localStorage.setItem(currentSettingsKey(), payload);
@@ -1590,18 +2894,68 @@ export async function syncSettingsFromServer(): Promise<UserSettings> {
     if (!res.ok) return local;
     const data = await res.json() as { settings?: Partial<UserSettings> };
     const srv = data.settings || {};
-    const merged = { ...defaultSettings, ...local, ...srv };
-    merged.pageLayout = mergePageLayout({
-      ...defaultPageLayout,
-      ...(local.pageLayout && typeof local.pageLayout === 'object' ? local.pageLayout : {}),
-      ...(srv.pageLayout && typeof srv.pageLayout === 'object' ? srv.pageLayout : {}),
-    });
+    const srvKeys = Object.keys(srv);
+    /**
+     * 로그인 후 서버(aichart1)가 기준 — localhost와 폰/PC가 동일하게 보이도록
+     * 서버에 통합모드 키가 있으면 localStorage보다 서버를 우선(거의 전체 교체).
+     */
+    const serverCanonical =
+      srvKeys.length >= 30 ||
+      'chartMergedDeskMtfDumpZoneEnabled' in srv ||
+      'chartMergedDeskBlueRedChannelsEnabled' in srv;
+    const merged = serverCanonical
+      ? ({ ...defaultSettings, ...srv } as UserSettings)
+      : ({ ...defaultSettings, ...local, ...srv } as UserSettings);
+    if (serverCanonical && local.pageLayout && typeof local.pageLayout === 'object' && !srv.pageLayout) {
+      merged.pageLayout = mergePageLayout({
+        ...defaultPageLayout,
+        ...local.pageLayout,
+      });
+    } else {
+      merged.pageLayout = mergePageLayout({
+        ...defaultPageLayout,
+        ...(srv.pageLayout && typeof srv.pageLayout === 'object'
+          ? srv.pageLayout
+          : local.pageLayout && typeof local.pageLayout === 'object'
+            ? local.pageLayout
+            : {}),
+      });
+    }
+    if (srv.chartMergedDeskMtfDumpDisplayMode === 'mtf' || serverCanonical) {
+      merged.chartMergedDeskMtfDumpDisplayMode = 'mtf';
+    }
+    if (srv.chartMergedDeskMtfDumpZoneEnabled !== false) {
+      merged.chartMergedDeskMtfDumpZoneEnabled = true;
+    }
+    if (srv.chartMergedDeskMtfDumpRegistry && typeof srv.chartMergedDeskMtfDumpRegistry === 'object') {
+      merged.chartMergedDeskMtfDumpRegistry = srv.chartMergedDeskMtfDumpRegistry as Record<string, unknown>;
+      void import('@/lib/mergedDeskMtfDumpZoneRegistry')
+        .then(({ hydrateMtfDumpZoneRegistryFromCloud }) => {
+          hydrateMtfDumpZoneRegistryFromCloud(srv.chartMergedDeskMtfDumpRegistry);
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    }
     merged.modeFeatureOverrides = migrateLegacyModeFeatureOverrides(merged.modeFeatureOverrides);
     coerceInstitutionalBandTouchTierMask(merged);
+    migrateMonthDeskClearSummaryBundle(merged, srv);
+    Object.assign(
+      merged,
+      monthDeskClearSummaryBundlePatch(merged.chartMonthDeskClearSummaryEnabled !== false)
+    );
+    merged.chartTripleTrendChangeLinesEnabled = false;
     const payload = JSON.stringify(merged);
     window.localStorage.setItem(currentSettingsKey(), payload);
     window.localStorage.setItem(scopedKey(BACKUP_KEY), payload);
     window.localStorage.setItem(scopedKey(LAST_GOOD_KEY), payload);
+    /** 기기별 UI 모드도 통합·분석으로 맞춤 — 폰/PC 동일 랜딩 */
+    try {
+      window.localStorage.setItem('ailongshort-rail-ui-mode-v1', 'MERGED_ANALYSIS_DESK');
+      window.localStorage.setItem('ailongshort-mtf-dump-display-mtf-v2', '1');
+    } catch {
+      /* ignore */
+    }
     window.dispatchEvent(new Event(SETTINGS_CHANGED_EVENT));
     return merged;
   } catch {
