@@ -986,6 +986,22 @@ export type UserSettings = {
   chartTripleTrendChangeLinesEnabled: boolean;
   /** 통합·분석 — 초록/빨강 기관 SuperTrend 존상·존하 밴드 (마감·안착에서 이전) */
   chartMergedInstitutionalBandEnabled: boolean;
+  /** 타점엔진 공동 — 장바구니세트(🛒/⚡) 마커 ON/OFF (타점 전용, 기존 타점기능 유지) */
+  tapointSharedCartBasketEnabled: boolean;
+  /** 타점엔진 공동 — SFP 스윕회수 마커 ON/OFF (타점 전용) */
+  tapointSharedSfpEnabled: boolean;
+  /**
+   * 타점 기관밴드2 — 통합분석 SuperTrend 초록↔빨강 전환선 (존상·존하 쌍선과 별개).
+   */
+  tapointSharedInstitutionalBand2Enabled: boolean;
+  /** 타점 차트 라벨 글자 크기(px, 7~16) — BOS/CHoCH/SWEEP·존 */
+  tapointChartLabelFontSize: number;
+  /** 타점 차트 라벨 글자색. 빈 문자열이면 기능색 */
+  tapointChartLabelColor: string;
+  /** 타점 — 전투구간(Battle) 배경 농도 0(투명)~100(불투명) */
+  tapointBattleZoneFillOpacity: number;
+  /** 타점 — 전투구간 테두리 색 (#hex) */
+  tapointBattleZoneBorderColor: string;
   /**
    * 깔끔 zone·line — 카드·글자 없이 존 터치 고합류 롱/숏만 캔들 ▲/▼ 아이콘.
    * 기관밴드·연합밴드·로켓·Strike 존 면은 유지.
@@ -1072,6 +1088,11 @@ export type UserSettings = {
   chartMergedDeskBtccionDrawEnabled: boolean;
   /** 통합·분석 — 파란·빨간 평행채널 띠 */
   chartMergedDeskBlueRedChannelsEnabled: boolean;
+  /**
+   * 독수리1호 Parallel Channel Engine — Pivot·점수·Strong/Valid/Weak.
+   * 파랑빨강띠와 독립 칩. CHANNEL≠ENTRY.
+   */
+  chartMergedDeskParallelChannelEngineEnabled: boolean;
   /** 통합·분석 — 파동 이동경로(카탈로그 매칭·다음경로 점선). 파랑빨강띠 ON일 때 의미 있음 */
   chartMergedDeskWavePathEnabled: boolean;
   /** REAL CANDLE BATTLE — 이미지형 전투 레이어(실캔들·실테이커·게이트). 가짜데이터 금지 */
@@ -1192,6 +1213,18 @@ export type UserSettings = {
    * 존 너비 % — 줌/축소해도 존에 붙음.
    */
   chartMergedDeskDumpLabelPosPct: number;
+  /** 폭락존 상·하 테두리 가격 숫자 크기(px, 7~18) — TF 면 라벨은 그대로 */
+  chartMergedDeskDumpEdgePriceFontSize: number;
+  /** 폭락존 상·하 테두리 가격 숫자 색 (#hex) */
+  chartMergedDeskDumpEdgePriceColor: string;
+  /** 폭락존 면색 — auto=엔진(라이프·TF) · custom=사용자 면·테두리 */
+  chartMergedDeskDumpZoneColorMode: 'auto' | 'custom';
+  /** 폭락존 면 색 (#hex) — custom 모드 */
+  chartMergedDeskDumpZoneFillColor: string;
+  /** 폭락존 테두리 색 (#hex) — custom 모드 */
+  chartMergedDeskDumpZoneBorderColor: string;
+  /** 폭락존 TF 면 라벨(분·시·일·주·달) 글자 크기(px, 7~18) */
+  chartMergedDeskDumpFaceLabelFontSize: number;
   /** MTF 폭락구간 — 상위 TF 형성 zone을 현재 TF 차트에 투영 */
   chartMergedDeskMtfDumpZoneEnabled: boolean;
   /**
@@ -1630,6 +1663,13 @@ export const defaultSettings: UserSettings = {
   chartTripleTrendSignalBand: '3',
   chartTripleTrendChangeLinesEnabled: false,
   chartMergedInstitutionalBandEnabled: true,
+  tapointSharedCartBasketEnabled: true,
+  tapointSharedSfpEnabled: true,
+  tapointSharedInstitutionalBand2Enabled: true,
+  tapointChartLabelFontSize: 9,
+  tapointChartLabelColor: '',
+  tapointBattleZoneFillOpacity: 14,
+  tapointBattleZoneBorderColor: '#facc15',
   chartMonthDeskCleanIconSignalsEnabled: true,
   chartMonthDeskAtlasPulseDeskEnabled: true,
   chartMonthDeskUnifiedPulseEngineEnabled: true,
@@ -1659,6 +1699,7 @@ export const defaultSettings: UserSettings = {
   chartMergedDeskUnifiedCloudEnabled: true,
   chartMergedDeskBtccionDrawEnabled: true,
   chartMergedDeskBlueRedChannelsEnabled: true,
+  chartMergedDeskParallelChannelEngineEnabled: true,
   chartMergedDeskWavePathEnabled: false,
   chartMergedDeskCandleBattleEnabled: true,
   chartMergedDeskAiToneEnabled: false,
@@ -1703,6 +1744,12 @@ export const defaultSettings: UserSettings = {
   chartMergedDeskPracticeAiPlanEnabled: true,
   chartMergedDeskZonePriceOnlyLabels: false,
   chartMergedDeskDumpLabelPosPct: 100,
+  chartMergedDeskDumpEdgePriceFontSize: 8,
+  chartMergedDeskDumpEdgePriceColor: '#fef08a',
+  chartMergedDeskDumpZoneColorMode: 'custom',
+  chartMergedDeskDumpZoneFillColor: '#38bdf8',
+  chartMergedDeskDumpZoneBorderColor: '#38bdf8',
+  chartMergedDeskDumpFaceLabelFontSize: 9,
   chartMergedDeskMtfDumpZoneEnabled: true,
   /** mtf=TF별 floor·ceiling 전부 · path=확실지지→저항 1세트만 */
   chartMergedDeskMtfDumpDisplayMode: 'mtf',
@@ -2287,29 +2334,8 @@ export function getEffectiveFeatureToggles(settings: UserSettings, uiMode: UIMod
     };
     return overrides ? { ...md, ...overrides } : md;
   }
-  if (uiMode === 'EAGLE1_TAP_ENGINE') {
-    const tap = {
-      ...base,
-      showStructure: false,
-      showZones: false,
-      showLabels: false,
-      showScenario: false,
-      showFib: false,
-      showRsi: false,
-      showHarmonic: false,
-      showPo3: false,
-      showCandle: false,
-      showBpr: false,
-      showVision: false,
-      showWhaleZone: false,
-      showLvrb: false,
-      showReactionZone: true,
-      showTailongClose: true,
-    };
-    return overrides ? { ...tap, ...overrides } : tap;
-  }
-  /** 통합·분석: ARES/TV식 — Strike·펄스 + 기관밴드·CP/LinReg 줄선 */
-  if (uiMode === 'MERGED_ANALYSIS_DESK') {
+  /** 통합·분석 + 타점엔진: 동일 차트 기능·칩 (타점엔진은 자동매매 바만 추가) */
+  if (uiMode === 'MERGED_ANALYSIS_DESK' || uiMode === 'EAGLE1_TAP_ENGINE') {
     const mad = {
       ...base,
       showStructure: false,
@@ -2373,6 +2399,28 @@ export function getEffectiveFeatureToggles(settings: UserSettings, uiMode: UIMod
       chartMirageZoneFaceReveal:
         settings.chartMirageZoneFaceReveal === 'always' ? ('always' as const) : ('progressive' as const),
       chartMergedInstitutionalBandEnabled: settings.chartMergedInstitutionalBandEnabled !== false,
+      tapointSharedCartBasketEnabled: settings.tapointSharedCartBasketEnabled !== false,
+      tapointSharedSfpEnabled: settings.tapointSharedSfpEnabled !== false,
+      tapointSharedInstitutionalBand2Enabled:
+        settings.tapointSharedInstitutionalBand2Enabled !== false,
+      tapointChartLabelFontSize: Math.max(
+        7,
+        Math.min(16, Math.round(Number(settings.tapointChartLabelFontSize) || 9))
+      ),
+      tapointChartLabelColor:
+        typeof settings.tapointChartLabelColor === 'string' &&
+        /^#[0-9a-fA-F]{6}$/.test(settings.tapointChartLabelColor)
+          ? settings.tapointChartLabelColor
+          : '',
+      tapointBattleZoneFillOpacity: Math.max(
+        0,
+        Math.min(100, Math.round(Number(settings.tapointBattleZoneFillOpacity) || 14))
+      ),
+      tapointBattleZoneBorderColor:
+        typeof settings.tapointBattleZoneBorderColor === 'string' &&
+        /^#[0-9a-fA-F]{6}$/.test(settings.tapointBattleZoneBorderColor)
+          ? settings.tapointBattleZoneBorderColor
+          : '#facc15',
       chartMonthDeskFusionDeskBandEnabled: settings.chartMonthDeskFusionDeskBandEnabled !== false,
       chartMergedDeskActionablePatternEnabled: settings.chartMergedDeskActionablePatternEnabled !== false,
       chartMergedDeskPatternSilhouetteEnabled: settings.chartMergedDeskPatternSilhouetteEnabled !== false,
@@ -2398,6 +2446,8 @@ export function getEffectiveFeatureToggles(settings: UserSettings, uiMode: UIMod
       chartMergedDeskUnifiedCloudEnabled: settings.chartMergedDeskUnifiedCloudEnabled !== false,
       chartMergedDeskBtccionDrawEnabled: settings.chartMergedDeskBtccionDrawEnabled !== false,
       chartMergedDeskBlueRedChannelsEnabled: settings.chartMergedDeskBlueRedChannelsEnabled !== false,
+      chartMergedDeskParallelChannelEngineEnabled:
+        settings.chartMergedDeskParallelChannelEngineEnabled !== false,
       chartMergedDeskWavePathEnabled: settings.chartMergedDeskWavePathEnabled === true,
       chartMergedDeskCandleBattleEnabled: settings.chartMergedDeskCandleBattleEnabled !== false,
       chartMergedDeskRbVolumeSyncEnabled: settings.chartMergedDeskRbVolumeSyncEnabled !== false,
@@ -2760,6 +2810,29 @@ export function loadSettings(): UserSettings {
       }
       merged.chartMergedDeskDumpLabelPosPct = nextPct;
     }
+    {
+      const fs = Number(merged.chartMergedDeskDumpEdgePriceFontSize);
+      merged.chartMergedDeskDumpEdgePriceFontSize = Number.isFinite(fs)
+        ? Math.max(7, Math.min(18, Math.round(fs)))
+        : 8;
+      const col = merged.chartMergedDeskDumpEdgePriceColor;
+      merged.chartMergedDeskDumpEdgePriceColor =
+        typeof col === 'string' && /^#[0-9a-fA-F]{6}$/.test(col) ? col : '#fef08a';
+      merged.chartMergedDeskDumpZoneColorMode =
+        merged.chartMergedDeskDumpZoneColorMode === 'auto' ? 'auto' : 'custom';
+      const fill = merged.chartMergedDeskDumpZoneFillColor;
+      merged.chartMergedDeskDumpZoneFillColor =
+        typeof fill === 'string' && /^#[0-9a-fA-F]{6}$/.test(fill) ? fill : '#38bdf8';
+      const border = merged.chartMergedDeskDumpZoneBorderColor;
+      merged.chartMergedDeskDumpZoneBorderColor =
+        typeof border === 'string' && /^#[0-9a-fA-F]{6}$/.test(border)
+          ? border
+          : merged.chartMergedDeskDumpZoneFillColor;
+      const faceFs = Number(merged.chartMergedDeskDumpFaceLabelFontSize);
+      merged.chartMergedDeskDumpFaceLabelFontSize = Number.isFinite(faceFs)
+        ? Math.max(7, Math.min(18, Math.round(faceFs)))
+        : 9;
+    }
       merged.chartMergedDeskMtfDumpZoneEnabled =
       merged.chartMergedDeskMtfDumpZoneEnabled !== false;
     /** path=1세트만(4h·1d·1w 공동표시 안 됨) → MTF전체 1회 강제 */
@@ -2850,6 +2923,29 @@ export function saveSettings(s: Partial<UserSettings>) {
       next.chartMergedDeskDumpLabelPosPct = Number.isFinite(p)
         ? Math.max(0, Math.min(100, Math.round(p)))
         : 100;
+    }
+    {
+      const fs = Number(next.chartMergedDeskDumpEdgePriceFontSize);
+      next.chartMergedDeskDumpEdgePriceFontSize = Number.isFinite(fs)
+        ? Math.max(7, Math.min(18, Math.round(fs)))
+        : 8;
+      const col = next.chartMergedDeskDumpEdgePriceColor;
+      next.chartMergedDeskDumpEdgePriceColor =
+        typeof col === 'string' && /^#[0-9a-fA-F]{6}$/.test(col) ? col : '#fef08a';
+      next.chartMergedDeskDumpZoneColorMode =
+        next.chartMergedDeskDumpZoneColorMode === 'auto' ? 'auto' : 'custom';
+      const fill = next.chartMergedDeskDumpZoneFillColor;
+      next.chartMergedDeskDumpZoneFillColor =
+        typeof fill === 'string' && /^#[0-9a-fA-F]{6}$/.test(fill) ? fill : '#38bdf8';
+      const border = next.chartMergedDeskDumpZoneBorderColor;
+      next.chartMergedDeskDumpZoneBorderColor =
+        typeof border === 'string' && /^#[0-9a-fA-F]{6}$/.test(border)
+          ? border
+          : next.chartMergedDeskDumpZoneFillColor;
+      const faceFs = Number(next.chartMergedDeskDumpFaceLabelFontSize);
+      next.chartMergedDeskDumpFaceLabelFontSize = Number.isFinite(faceFs)
+        ? Math.max(7, Math.min(18, Math.round(faceFs)))
+        : 9;
     }
     next.chartMergedDeskMtfDumpZoneEnabled =
       next.chartMergedDeskMtfDumpZoneEnabled !== false;
