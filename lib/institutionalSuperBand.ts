@@ -44,13 +44,18 @@ export type InstitutionalTrendSegment = {
   dir: InstitutionalTrendDir;
 };
 
-type SuperTrendCore = {
+/** SuperTrend ATR 밴드 내부 상태 — 마감·안착 등에서 한 번만 계산해 재사용 */
+export type InstitutionalSuperTrendCore = {
   trend: number[];
   finalUpper: number[];
   finalLower: number[];
 };
 
-function computeSuperTrendCore(candles: Candle[], period: number, mult: number): SuperTrendCore | null {
+function computeSuperTrendCore(
+  candles: Candle[],
+  period: number,
+  mult: number
+): InstitutionalSuperTrendCore | null {
   const n = candles.length;
   if (n < 2) return null;
   const p = Math.max(2, Math.min(50, Math.round(period)));
@@ -86,6 +91,25 @@ function computeSuperTrendCore(candles: Candle[], period: number, mult: number):
     else trend[i] = trend[i - 1];
   }
   return { trend, finalUpper, finalLower };
+}
+
+/** 마감·안착 등: 동일 캔들에 대해 SuperTrend 코어를 한 번만 계산할 때 사용 */
+export function computeInstitutionalSuperTrendCore(
+  candles: Candle[],
+  period = INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+  mult = INSTITUTIONAL_BAND_DEFAULT_MULT
+): InstitutionalSuperTrendCore | null {
+  return computeSuperTrendCore(candles, period, mult);
+}
+
+function resolveSuperTrendCore(
+  candles: Candle[],
+  period: number,
+  mult: number,
+  reuse?: InstitutionalSuperTrendCore | null
+): InstitutionalSuperTrendCore | null {
+  if (reuse && reuse.trend.length === candles.length) return reuse;
+  return computeSuperTrendCore(candles, period, mult);
 }
 
 /**
@@ -173,6 +197,664 @@ export function computeInstitutionalSuperBandData(
   return { long, short };
 }
 
+/**
+ * SuperTrend ATR 상·하한 스텝 — 마감 존 **면 채움**(두 경계 사이)용.
+ * 활성 추세선(`computeInstitutionalSuperBandData`)과 동일 `computeSuperTrendCore`.
+ */
+export function computeInstitutionalSuperTrendEnvelopeStepData(
+  candles: Candle[],
+  period = 10,
+  mult = 3
+): { upper: LineData<UTCTimestamp>[]; lower: LineData<UTCTimestamp>[] } {
+  const upper: LineData<UTCTimestamp>[] = [];
+  const lower: LineData<UTCTimestamp>[] = [];
+  const core = computeSuperTrendCore(candles, period, mult);
+  if (!core) return { upper, lower };
+  const { finalUpper, finalLower } = core;
+  const n = candles.length;
+  for (let i = 0; i < n; i++) {
+    const t = candles[i].time as UTCTimestamp;
+    upper.push({ time: t, value: finalUpper[i] });
+    lower.push({ time: t, value: finalLower[i] });
+  }
+  return { upper, lower };
+}
+
+/** SuperTrend 상·하한의 중간 — 스텝과 동일 봉 정렬(마감·안착 보조선) */
+export function computeInstitutionalSuperTrendMidLineData(
+  candles: Candle[],
+  period = INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+  mult = INSTITUTIONAL_BAND_DEFAULT_MULT,
+  reuseCore?: InstitutionalSuperTrendCore | null
+): LineData<UTCTimestamp>[] {
+  const core = resolveSuperTrendCore(candles, period, mult, reuseCore ?? undefined);
+  if (!core) return [];
+  const { finalUpper, finalLower } = core;
+  const out: LineData<UTCTimestamp>[] = [];
+  for (let i = 0; i < candles.length; i++) {
+    out.push({
+      time: candles[i].time as UTCTimestamp,
+      value: (finalUpper[i] + finalLower[i]) * 0.5,
+    });
+  }
+  return out;
+}
+
+/** 마감존 상·하한을 SuperTrend 롱/숏 구간으로 나눈 조각 — 구간마다 선 색만 바꿔 그릴 때 사용 */
+export type InstitutionalEnvelopeTrendSegment = {
+  dir: 'long' | 'short';
+  upper: LineData<UTCTimestamp>[];
+  lower: LineData<UTCTimestamp>[];
+};
+
+/**
+ * 마감 존 스텝(상·하한 전체)을 추세 전환마다 분할.
+ * 인접 구간은 경계 봉을 한 번 겹쳐 스텝이 끊기지 않게 함.
+ */
+export function computeInstitutionalSuperTrendEnvelopeSegmentsByTrend(
+  candles: Candle[],
+  period = INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+  mult = INSTITUTIONAL_BAND_DEFAULT_MULT
+): InstitutionalEnvelopeTrendSegment[] {
+  const core = computeSuperTrendCore(candles, period, mult);
+  if (!core) return [];
+  const { trend, finalUpper, finalLower } = core;
+  const n = candles.length;
+  if (n < 1) return [];
+
+  const slice = (a: number, b: number): InstitutionalEnvelopeTrendSegment => {
+    const dir: 'long' | 'short' = trend[a] === 1 ? 'long' : 'short';
+    const upper: LineData<UTCTimestamp>[] = [];
+    const lower: LineData<UTCTimestamp>[] = [];
+    for (let j = a; j <= b; j++) {
+      const t = candles[j].time as UTCTimestamp;
+      upper.push({ time: t, value: finalUpper[j] });
+      lower.push({ time: t, value: finalLower[j] });
+    }
+    return { dir, upper, lower };
+  };
+
+  const segments: InstitutionalEnvelopeTrendSegment[] = [];
+  let runStart = 0;
+  for (let i = 1; i < n; i++) {
+    if (trend[i] !== trend[runStart]) {
+      const end = i - 1;
+      segments.push(slice(runStart, end));
+      runStart = end;
+    }
+  }
+  segments.push(slice(runStart, n - 1));
+  return segments;
+}
+
+/** 마감·안착 밴드 색 구간 융합 — 구조/분석/시나리오 입력. 성과·승률 수치는 부여하지 않음. */
+export type MonthDeskBandFusionHighlight = {
+  bias: 'bullish' | 'bearish';
+  phase: string;
+  tag?: string;
+};
+
+export type MonthDeskBandFusionContext = {
+  analyzeVerdict?: string | null;
+  closingScenarioBias?: 'LONG' | 'SHORT' | 'NEUTRAL' | null;
+  /** 마지막 봉 마감 판정(안착/실패/불안) — 최근 구간 존선 색 가중 */
+  lastClosingVerdict?: ClosingEnvelopeVerdictKo | null;
+  /** 차트 TF — 데드밴드·최소 구간 길이 튜닝 */
+  timeframe?: string | null;
+  structureByTime?: ReadonlyMap<number, MonthDeskBandFusionHighlight> | null;
+  /** 차트 구조 로켓(🚀/📉)과 동일 — 봉 open time → LONG|SHORT */
+  rocketByBarTime?: ReadonlyMap<number, 'LONG' | 'SHORT'> | null;
+  /** Chart Prime 채널 엔진 봉별 편향 — `computeChartPrimeBiasScoreSeries` */
+  cpBiasScores?: number[] | null;
+  /** ParkF LinReg 미드 대비 종가 편향 — 롤링 구간 */
+  linRegBiasScores?: number[] | null;
+  /**
+   * 고래 Hot Zone과 동일 볼륨 프로파일 → 구간별 과거 방향 통계 기반 편향(OHLCV, 호가 원장 아님).
+   */
+  hotZoneBiasScores?: number[] | null;
+  /** analyze와 동일 규칙의 유효 FVG + 구조검증 OB에 가격이 맞닿을 때 편향 */
+  obFvgBiasScores?: number[] | null;
+  /**
+   * HTF 포락(기관밴드) → LTF 봉 투영 편향.
+   * 상위 TF 추세·밴드 위치를 차트 TF 색 구간에 연동 (확정 수익 아님).
+   */
+  htfEnvelopeBiasScores?: number[] | null;
+};
+
+type MonthDeskZoneFusionTuning = {
+  deadband: number;
+  minRunBars: number;
+  smoothAlpha: number;
+  recentTailBars: number;
+  verdictBoost: number;
+};
+
+function monthDeskZoneFusionTuning(timeframe?: string | null): MonthDeskZoneFusionTuning {
+  const tf = normalizeChartTimeframe(timeframe ?? '1h');
+  const table: Record<string, MonthDeskZoneFusionTuning> = {
+    '1m': { deadband: 0.56, minRunBars: 3, smoothAlpha: 0.31, recentTailBars: 28, verdictBoost: 0.72 },
+    '3m': { deadband: 0.55, minRunBars: 3, smoothAlpha: 0.3, recentTailBars: 26, verdictBoost: 0.74 },
+    '5m': { deadband: 0.54, minRunBars: 3, smoothAlpha: 0.29, recentTailBars: 24, verdictBoost: 0.76 },
+    '15m': { deadband: 0.52, minRunBars: 3, smoothAlpha: 0.28, recentTailBars: 22, verdictBoost: 0.78 },
+    '30m': { deadband: 0.5, minRunBars: 3, smoothAlpha: 0.27, recentTailBars: 20, verdictBoost: 0.8 },
+    '1h': { deadband: 0.48, minRunBars: 3, smoothAlpha: 0.26, recentTailBars: 18, verdictBoost: 0.82 },
+    '2h': { deadband: 0.46, minRunBars: 4, smoothAlpha: 0.25, recentTailBars: 16, verdictBoost: 0.84 },
+    '4h': { deadband: 0.42, minRunBars: 4, smoothAlpha: 0.24, recentTailBars: 14, verdictBoost: 0.88 },
+    '6h': { deadband: 0.4, minRunBars: 4, smoothAlpha: 0.23, recentTailBars: 12, verdictBoost: 0.9 },
+    '8h': { deadband: 0.38, minRunBars: 4, smoothAlpha: 0.22, recentTailBars: 12, verdictBoost: 0.9 },
+    '12h': { deadband: 0.36, minRunBars: 4, smoothAlpha: 0.21, recentTailBars: 10, verdictBoost: 0.92 },
+    '1d': { deadband: 0.34, minRunBars: 5, smoothAlpha: 0.2, recentTailBars: 10, verdictBoost: 0.94 },
+    '3d': { deadband: 0.32, minRunBars: 5, smoothAlpha: 0.19, recentTailBars: 8, verdictBoost: 0.96 },
+    '1w': { deadband: 0.3, minRunBars: 5, smoothAlpha: 0.18, recentTailBars: 8, verdictBoost: 0.96 },
+    '1M': { deadband: 0.28, minRunBars: 5, smoothAlpha: 0.17, recentTailBars: 6, verdictBoost: 0.98 },
+  };
+  return table[tf] ?? table['1h']!;
+}
+
+function applyMonthDeskVerdictTailBoost(
+  scores: number[],
+  trend: number[],
+  tailBars: number,
+  verdict: ClosingEnvelopeVerdictKo | null | undefined,
+  boost: number
+): void {
+  if (!verdict || tailBars < 1) return;
+  const n = scores.length;
+  const start = Math.max(0, n - tailBars);
+  for (let i = start; i < n; i++) {
+    const stSign = trend[i] === 1 ? 1 : -1;
+    if (verdict === '안착') scores[i] += stSign * boost;
+    else if (verdict === '실패') scores[i] -= stSign * (boost * 1.15);
+    else scores[i] *= 0.94;
+  }
+}
+
+function monthDeskFusionHasAuxiliarySignals(ctx: MonthDeskBandFusionContext): boolean {
+  const v = ctx.analyzeVerdict;
+  if (v === 'LONG' || v === 'SHORT') return true;
+  const b = ctx.closingScenarioBias;
+  if (b === 'LONG' || b === 'SHORT') return true;
+  if ((ctx.structureByTime?.size ?? 0) > 0) return true;
+  if ((ctx.rocketByBarTime?.size ?? 0) > 0) return true;
+  if (ctx.htfEnvelopeBiasScores && ctx.htfEnvelopeBiasScores.some((x) => Number.isFinite(x) && Math.abs(x) > 0.2)) {
+    return true;
+  }
+  return false;
+}
+
+function smaVolumeAt(candles: Candle[], endIdx: number, len: number): number {
+  const start = Math.max(0, endIdx - len + 1);
+  let sum = 0;
+  let c = 0;
+  for (let k = start; k <= endIdx; k++) {
+    const v = Number(candles[k]?.volume ?? 0);
+    if (Number.isFinite(v)) {
+      sum += v;
+      c++;
+    }
+  }
+  return c > 0 ? sum / c : 0;
+}
+
+/** 1봉짜리 색 뒤집힘 제거 — 양옆이 같으면 그쪽으로 흡수, 시작·끝은 인접 구간 색 따름 */
+function mergeShortTrendRuns(raw: number[], minBars: number): number[] {
+  const n = raw.length;
+  if (n === 0 || minBars <= 1) return raw.slice();
+  const runs: { start: number; end: number; val: number }[] = [];
+  let i = 0;
+  while (i < n) {
+    let j = i + 1;
+    while (j < n && raw[j] === raw[i]) j++;
+    runs.push({ start: i, end: j - 1, val: raw[i] });
+    i = j;
+  }
+  const out = raw.slice();
+  for (let r = 0; r < runs.length; r++) {
+    const len = runs[r].end - runs[r].start + 1;
+    if (len >= minBars) continue;
+    const prevVal = r > 0 ? runs[r - 1].val : null;
+    const nextVal = r + 1 < runs.length ? runs[r + 1].val : null;
+    const replacement =
+      prevVal != null && nextVal != null
+        ? prevVal
+        : prevVal != null
+          ? prevVal
+          : nextVal != null
+            ? nextVal
+            : runs[r].val;
+    for (let k = runs[r].start; k <= runs[r].end; k++) out[k] = replacement;
+  }
+  return out;
+}
+
+/**
+ * SuperTrend 상·하한 **가격**은 그대로 두고, 롱/숏 **색 구간**은 RSI·밴드 내 종가에 더해
+ * TF verdict·마감존 편향·BOS/CHOCH/MSB 단계·구조 로켓(동일 봉)·거래량(SMA 대비)을 가중한다.
+ * 양방향 스무딩 + 짧은 구간 병합으로 시각적 노이즈를 줄인다.
+ */
+export function computeInstitutionalSuperTrendEnvelopeSegmentsFused(
+  candles: Candle[],
+  period = INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+  mult = INSTITUTIONAL_BAND_DEFAULT_MULT,
+  fusion?: MonthDeskBandFusionContext | null,
+  reuseCore?: InstitutionalSuperTrendCore | null
+): InstitutionalEnvelopeTrendSegment[] {
+  const core = resolveSuperTrendCore(candles, period, mult, reuseCore ?? undefined);
+  if (!core) return [];
+  const { trend, finalUpper, finalLower } = core;
+  const n = candles.length;
+  if (n < 1) return [];
+
+  const useAuxBoost = fusion != null && monthDeskFusionHasAuxiliarySignals(fusion);
+  const rsi = computeRsiWilderSeries(candles, 14);
+  const scores = new Array(n).fill(0);
+
+  for (let i = 0; i < n; i++) {
+    const stSign = trend[i] === 1 ? 1 : -1;
+    let s = 6.35 * stSign;
+
+    const cl = Number(candles[i].close);
+    const fu = finalUpper[i];
+    const fl = finalLower[i];
+    const bw = fu - fl;
+    if (Number.isFinite(cl) && Number.isFinite(fu) && Number.isFinite(fl) && bw > 1e-12) {
+      const mid = (fu + fl) / 2;
+      const pos = (cl - mid) / bw;
+      s += Math.max(-1, Math.min(1, pos)) * 1.45;
+    }
+
+    const rv = rsi[i];
+    if (rv != null && Number.isFinite(rv)) {
+      if (rv >= 56) s += 1.2;
+      else if (rv <= 44) s -= 1.2;
+      else if (rv >= 52) s += 0.45;
+      else if (rv <= 48) s -= 0.45;
+    }
+
+    const cpSc = fusion?.cpBiasScores?.[i];
+    const lrSc = fusion?.linRegBiasScores?.[i];
+    if (cpSc != null && Number.isFinite(cpSc)) s += cpSc * 1.22;
+    if (lrSc != null && Number.isFinite(lrSc)) s += lrSc * 1.14;
+    if (
+      cpSc != null &&
+      lrSc != null &&
+      Number.isFinite(cpSc) &&
+      Number.isFinite(lrSc) &&
+      cpSc * lrSc > 0 &&
+      Math.abs(cpSc) > 0.2 &&
+      Math.abs(lrSc) > 0.2
+    ) {
+      s += cpSc > 0 ? 0.48 : -0.48;
+    }
+
+    const hzSc = fusion?.hotZoneBiasScores?.[i];
+    const obFvgSc = fusion?.obFvgBiasScores?.[i];
+    const htfEnvSc = fusion?.htfEnvelopeBiasScores?.[i];
+    if (hzSc != null && Number.isFinite(hzSc)) s += hzSc * 1.08;
+    if (obFvgSc != null && Number.isFinite(obFvgSc)) s += obFvgSc * 1.05;
+    if (htfEnvSc != null && Number.isFinite(htfEnvSc)) s += htfEnvSc * 1.18;
+    if (
+      hzSc != null &&
+      obFvgSc != null &&
+      Number.isFinite(hzSc) &&
+      Number.isFinite(obFvgSc) &&
+      hzSc * obFvgSc > 0 &&
+      Math.abs(hzSc) > 0.18 &&
+      Math.abs(obFvgSc) > 0.18
+    ) {
+      s += hzSc > 0 ? 0.38 : -0.38;
+    }
+    if (
+      htfEnvSc != null &&
+      Number.isFinite(htfEnvSc) &&
+      Math.abs(htfEnvSc) > 0.35 &&
+      ((htfEnvSc > 0 && stSign > 0) || (htfEnvSc < 0 && stSign < 0))
+    ) {
+      s += htfEnvSc > 0 ? 0.42 : -0.42;
+    }
+
+    if (
+      obFvgSc != null &&
+      cpSc != null &&
+      Number.isFinite(obFvgSc) &&
+      Number.isFinite(cpSc) &&
+      obFvgSc * cpSc > 0 &&
+      Math.abs(obFvgSc) > 0.22 &&
+      Math.abs(cpSc) > 0.22
+    ) {
+      s += cpSc > 0 ? 0.28 : -0.28;
+    }
+
+    const bt = Number(candles[i].time);
+    const structHere =
+      Number.isFinite(bt) && fusion?.structureByTime ? fusion.structureByTime.get(bt) : undefined;
+
+    if (useAuxBoost && fusion) {
+      const av = fusion.analyzeVerdict;
+      if (av === 'LONG') s += 1.25;
+      else if (av === 'SHORT') s -= 1.25;
+
+      const cb = fusion.closingScenarioBias;
+      if (cb === 'LONG') s += 1.05;
+      else if (cb === 'SHORT') s -= 1.05;
+
+      if (structHere && structHere.phase !== 'failed') {
+        const bull = structHere.bias === 'bullish';
+        let w = 1.65;
+        if (structHere.phase === 'confirmed') w = 3.35;
+        else if (structHere.phase === 'settling') w = 2.45;
+        else if (structHere.phase === 'breakout') w = 2.05;
+        else if (structHere.phase === 'trace') w = 1.35;
+        const tag = structHere.tag;
+        if (tag === 'MSB') w *= 1.14;
+        else if (tag === 'CHOCH') w *= 1.08;
+        s += bull ? w : -w;
+      }
+
+      /** CP 채널 편향 부호가 구조 방향과 같을 때 소량 가산(BOS/CHOCH/MSB 태그별 미세 차등) */
+      if (
+        structHere &&
+        structHere.phase !== 'failed' &&
+        cpSc != null &&
+        Number.isFinite(cpSc) &&
+        Math.abs(cpSc) > 0.24
+      ) {
+        const bullS = structHere.bias === 'bullish';
+        const bearS = structHere.bias === 'bearish';
+        const cpBull = cpSc > 0;
+        if ((bullS && cpBull) || (bearS && !cpBull)) {
+          let syn = 0.26;
+          if (structHere.tag === 'MSB') syn += 0.1;
+          else if (structHere.tag === 'CHOCH') syn += 0.07;
+          else if (structHere.tag === 'BOS') syn += 0.05;
+          s += bullS ? syn : -syn;
+        }
+      }
+    }
+
+    /** 구조 로켓 봉 + 거래량 확인 — 차트 마커와 동일 소스(`rocketByBarTime`) */
+    if (fusion?.rocketByBarTime && Number.isFinite(bt)) {
+      const rk = fusion.rocketByBarTime.get(bt);
+      if (rk === 'LONG' || rk === 'SHORT') {
+        const smaV = smaVolumeAt(candles, i, 20);
+        const vi = Number(candles[i].volume ?? 0);
+        const vr = smaV > 1e-20 && Number.isFinite(vi) ? vi / smaV : 1;
+        let bump = 2.62;
+        if (vr >= 1.58) bump += 1.52;
+        else if (vr >= 1.24) bump += 0.88;
+        else if (vr <= 0.66) bump *= 0.55;
+        if (rk === 'LONG') {
+          s += bump;
+          if (structHere && structHere.phase !== 'failed' && structHere.bias === 'bullish') {
+            s += 1.42;
+          }
+        } else {
+          s -= bump;
+          if (structHere && structHere.phase !== 'failed' && structHere.bias === 'bearish') {
+            s -= 1.42;
+          }
+        }
+      }
+    }
+
+    scores[i] = s;
+  }
+
+  const tuning = monthDeskZoneFusionTuning(fusion?.timeframe ?? null);
+  applyMonthDeskVerdictTailBoost(
+    scores,
+    trend,
+    tuning.recentTailBars,
+    fusion?.lastClosingVerdict ?? null,
+    tuning.verdictBoost
+  );
+
+  const alpha = tuning.smoothAlpha;
+  const fwd = new Array(n).fill(0);
+  fwd[0] = scores[0];
+  for (let i = 1; i < n; i++) {
+    fwd[i] = alpha * scores[i] + (1 - alpha) * fwd[i - 1];
+  }
+  const bwd = new Array(n).fill(0);
+  bwd[n - 1] = scores[n - 1];
+  for (let i = n - 2; i >= 0; i--) {
+    bwd[i] = alpha * scores[i] + (1 - alpha) * bwd[i + 1];
+  }
+  const smooth = new Array(n);
+  for (let i = 0; i < n; i++) {
+    smooth[i] = (fwd[i] + bwd[i]) * 0.5;
+  }
+
+  const deadband = useAuxBoost ? tuning.deadband : Math.min(0.62, tuning.deadband + 0.08);
+  let fusedTrend = new Array(n).fill(1);
+  for (let i = 0; i < n; i++) {
+    const stSign = trend[i] === 1 ? 1 : -1;
+    if (Math.abs(smooth[i]) < deadband) fusedTrend[i] = stSign;
+    else fusedTrend[i] = smooth[i] >= 0 ? 1 : -1;
+  }
+
+  fusedTrend = mergeShortTrendRuns(fusedTrend, tuning.minRunBars);
+
+  const slice = (a: number, b: number): InstitutionalEnvelopeTrendSegment => {
+    const dir: 'long' | 'short' = fusedTrend[a] === 1 ? 'long' : 'short';
+    const upper: LineData<UTCTimestamp>[] = [];
+    const lower: LineData<UTCTimestamp>[] = [];
+    for (let j = a; j <= b; j++) {
+      const t = candles[j].time as UTCTimestamp;
+      upper.push({ time: t, value: finalUpper[j] });
+      lower.push({ time: t, value: finalLower[j] });
+    }
+    return { dir, upper, lower };
+  };
+
+  const segments: InstitutionalEnvelopeTrendSegment[] = [];
+  let runStart = 0;
+  for (let i = 1; i < n; i++) {
+    if (fusedTrend[i] !== fusedTrend[runStart]) {
+      const end = i - 1;
+      segments.push(slice(runStart, end));
+      runStart = end;
+    }
+  }
+  segments.push(slice(runStart, n - 1));
+  return segments;
+}
+
+/** 마감·안착 차트 마커용 — 종가 vs SuperTrend 상·하한(참고 휴리스틱, 확정 신호 아님) */
+export type ClosingEnvelopeVerdictKo = '안착' | '실패' | '불안';
+
+/** 오버레이·툴팁용 짧은 판정 문자열 */
+export function closingEnvelopeVerdictStripLabel(v: ClosingEnvelopeVerdictKo): string {
+  return v;
+}
+
+export function computeClosingEnvelopeVerdictMarkers(
+  candles: Candle[],
+  period = INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+  mult = INSTITUTIONAL_BAND_DEFAULT_MULT,
+  options?: { recentBars?: number; /** 기본 240. 마감·안착 패널 등에서 더 긴 구간을 볼 때만 상향 */
+    recentBarsMax?: number }
+): { time: UTCTimestamp; verdict: ClosingEnvelopeVerdictKo }[] {
+  const core = computeSuperTrendCore(candles, period, mult);
+  if (!core) return [];
+  const { trend, finalUpper, finalLower } = core;
+  const n = candles.length;
+  const hardCap = Math.max(24, Math.min(1200, options?.recentBarsMax ?? 240));
+  const desired = Math.max(24, Math.floor(options?.recentBars ?? 120));
+  const recent = Math.min(hardCap, desired);
+  const start = Math.max(0, n - recent);
+  const out: { time: UTCTimestamp; verdict: ClosingEnvelopeVerdictKo }[] = [];
+  for (let i = start; i < n; i++) {
+    const c = candles[i];
+    const cl = Number(c.close);
+    const hi = Number(c.high);
+    const lo = Number(c.low);
+    const fu = finalUpper[i];
+    const fl = finalLower[i];
+    if (!Number.isFinite(cl) || !Number.isFinite(fu) || !Number.isFinite(fl)) continue;
+    const bw = Math.max(fu - fl, 1e-12);
+    const eps = Math.max(bw * 0.03, Math.abs(cl) * 1e-8);
+    let verdict: ClosingEnvelopeVerdictKo;
+    if (trend[i] === 1) {
+      if (cl < fl) verdict = '실패';
+      else if (Number.isFinite(lo) && lo <= fl + eps) verdict = '안착';
+      else verdict = '불안';
+    } else {
+      if (cl > fu) verdict = '실패';
+      else if (Number.isFinite(hi) && hi >= fu - eps) verdict = '안착';
+      else verdict = '불안';
+    }
+    out.push({ time: c.time as UTCTimestamp, verdict });
+  }
+  return out;
+}
+
+/** 마감존(SuperTrend 상·하한) + 진행 추세로 만든 선물 대응 **참고 시나리오**(확정 신호·수익 보장 아님) */
+export type ClosingEnvelopeFuturesBias = 'LONG' | 'SHORT' | 'NEUTRAL';
+
+export type ClosingEnvelopeFuturesScenario = {
+  bias: ClosingEnvelopeFuturesBias;
+  /** 무효화 판단용 기준 가격(종가 전후 참고) */
+  invalidationPrice: number;
+  invalidationSide: 'below' | 'above';
+  summaryKo: string;
+  bulletsKo: string[];
+  lastVerdict: ClosingEnvelopeVerdictKo;
+  trendLong: boolean;
+};
+
+function fmtClosingScenarioPx(n: number): string {
+  const a = Math.abs(n);
+  const frac = a >= 1000 ? 2 : a >= 1 ? 4 : 6;
+  return n.toLocaleString(undefined, { maximumFractionDigits: frac });
+}
+
+/**
+ * 마지막 봉 기준 — 존하·존상과 종가 관계로 롱/숏 **편향**만 표현.
+ * 실거래·레버리지는 본인 판단; 상위 TF·체결·뉴스 등 별도 검증 필요.
+ */
+export function computeClosingEnvelopeFuturesScenario(
+  candles: Candle[],
+  period = INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+  mult = INSTITUTIONAL_BAND_DEFAULT_MULT,
+  reuseCore?: InstitutionalSuperTrendCore | null
+): ClosingEnvelopeFuturesScenario | null {
+  const core = resolveSuperTrendCore(candles, period, mult, reuseCore ?? undefined);
+  if (!core) return null;
+  const n = candles.length;
+  const i = n - 1;
+  const { trend, finalUpper, finalLower } = core;
+  const c = candles[i];
+  const cl = Number(c.close);
+  const hi = Number(c.high);
+  const lo = Number(c.low);
+  const fu = finalUpper[i];
+  const fl = finalLower[i];
+  if (!Number.isFinite(cl) || !Number.isFinite(fu) || !Number.isFinite(fl)) return null;
+  const bw = Math.max(fu - fl, 1e-12);
+  const eps = Math.max(bw * 0.03, Math.abs(cl) * 1e-8);
+  let verdict: ClosingEnvelopeVerdictKo;
+  if (trend[i] === 1) {
+    if (cl < fl) verdict = '실패';
+    else if (Number.isFinite(lo) && lo <= fl + eps) verdict = '안착';
+    else verdict = '불안';
+  } else {
+    if (cl > fu) verdict = '실패';
+    else if (Number.isFinite(hi) && hi >= fu - eps) verdict = '안착';
+    else verdict = '불안';
+  }
+  const trendLong = trend[i] === 1;
+  const mid = (fu + fl) / 2;
+
+  let bias: ClosingEnvelopeFuturesBias;
+  let invalidationPrice: number;
+  let invalidationSide: 'below' | 'above';
+  let summaryKo: string;
+  const bulletsKo: string[] = [];
+
+  if (trendLong) {
+    if (verdict === '안착') {
+      bias = 'LONG';
+      invalidationPrice = fl;
+      invalidationSide = 'below';
+      summaryKo = '마감존하 안착 국면 — 롱 편향 참고, 무효는 존하 아래 종가';
+      bulletsKo.push('참고 시나리오: 롱 우위(SuperTrend 롱 + 존하 지지)');
+      bulletsKo.push(`무효화 참고: ${fmtClosingScenarioPx(fl)} 아래로 종가 마감 시 롱 전제 약화`);
+    } else if (verdict === '실패') {
+      bias = 'SHORT';
+      invalidationPrice = fl;
+      invalidationSide = 'above';
+      summaryKo = '마감존하 이탈 — 숏·되돌림 편향 참고, 무효는 존하 위 종가 회복';
+      bulletsKo.push('참고 시나리오: 숏 우위(존하 붕괴)');
+      bulletsKo.push(`무효화 참고: ${fmtClosingScenarioPx(fl)} 위로 종가 회복 시 숏 전제 약화`);
+    } else {
+      if (cl >= mid) {
+        bias = 'LONG';
+        invalidationPrice = fl;
+        invalidationSide = 'below';
+        summaryKo = '존 중상단·불안 — 약한 롱 편향, 무효는 존하 아래 종가';
+      } else {
+        bias = 'NEUTRAL';
+        invalidationPrice = fl;
+        invalidationSide = 'below';
+        summaryKo = '존 중하단·불안 — 분기 구간, 존하·존상 종가 확인';
+      }
+      bulletsKo.push('마감존 상태: 불안 — 확정 신호 아님');
+      bulletsKo.push(
+        bias === 'LONG'
+          ? `약한 롱 편향: 무효 ${fmtClosingScenarioPx(fl)} 아래 종가`
+          : `중립: ${fmtClosingScenarioPx(fl)} / ${fmtClosingScenarioPx(fu)} 양쪽 종가로 방향 가름`
+      );
+    }
+  } else {
+    if (verdict === '안착') {
+      bias = 'SHORT';
+      invalidationPrice = fu;
+      invalidationSide = 'above';
+      summaryKo = '마감존상 안착 국면 — 숏 편향 참고, 무효는 존상 위 종가';
+      bulletsKo.push('참고 시나리오: 숏 우위(SuperTrend 숏 + 존상 저항)');
+      bulletsKo.push(`무효화 참고: ${fmtClosingScenarioPx(fu)} 위로 종가 마감 시 숏 전제 약화`);
+    } else if (verdict === '실패') {
+      bias = 'LONG';
+      invalidationPrice = fu;
+      invalidationSide = 'below';
+      summaryKo = '마감존상 돌파 — 롱·반등 편향 참고, 무효는 존상 아래 종가';
+      bulletsKo.push('참고 시나리오: 롱 우위(존상 돌파)');
+      bulletsKo.push(`무효화 참고: ${fmtClosingScenarioPx(fu)} 아래로 종가 되돌림 시 롱 전제 약화`);
+    } else {
+      if (cl <= mid) {
+        bias = 'SHORT';
+        invalidationPrice = fu;
+        invalidationSide = 'above';
+        summaryKo = '존 중하단·불안 — 약한 숏 편향, 무효는 존상 위 종가';
+      } else {
+        bias = 'NEUTRAL';
+        invalidationPrice = fu;
+        invalidationSide = 'above';
+        summaryKo = '존 중상단·불안 — 분기 구간, 존상·존하 종가 확인';
+      }
+      bulletsKo.push('마감존 상태: 불안 — 확정 신호 아님');
+      bulletsKo.push(
+        bias === 'SHORT'
+          ? `약한 숏 편향: 무효 ${fmtClosingScenarioPx(fu)} 위 종가`
+          : `중립: ${fmtClosingScenarioPx(fl)} / ${fmtClosingScenarioPx(fu)} 양쪽 종가로 방향 가름`
+      );
+    }
+  }
+
+  bulletsKo.push('진입·레버·청산은 본인 리스크이며 승률·수익을 보장하지 않습니다.');
+
+  return {
+    bias,
+    invalidationPrice,
+    invalidationSide,
+    summaryKo,
+    bulletsKo,
+    lastVerdict: verdict,
+    trendLong,
+  };
+}
+
 /** 마지막 봉 기준 SuperTrend 밴드 상·하한(참고용 힌트·융합 문구용) */
 export function getLastInstitutionalBandEdges(
   candles: Candle[],
@@ -235,18 +917,21 @@ export function institutionalBandTouchMinGapBars(timeframe: string): number {
 }
 
 function isSwingLow5(candles: Candle[], i: number): boolean {
-  if (i < 2 || i >= candles.length - 2) return false;
+  if (i < 2) return false;
   const v = candles[i].low;
-  for (let k = i - 2; k <= i + 2; k++) {
+  /** 오른쪽 봉이 있으면 그때만 비교. 없는 미래 봉으로 확정을 미루지 않는다. */
+  const right = Math.min(2, candles.length - 1 - i);
+  for (let k = i - 2; k <= i + right; k++) {
     if (k !== i && candles[k].low < v) return false;
   }
   return true;
 }
 
 function isSwingHigh5(candles: Candle[], i: number): boolean {
-  if (i < 2 || i >= candles.length - 2) return false;
+  if (i < 2) return false;
   const v = candles[i].high;
-  for (let k = i - 2; k <= i + 2; k++) {
+  const right = Math.min(2, candles.length - 1 - i);
+  for (let k = i - 2; k <= i + right; k++) {
     if (k !== i && candles[k].high > v) return false;
   }
   return true;
@@ -387,7 +1072,8 @@ type Candidate = {
 /**
  * 기관밴드(SuperTrend) 활성선과의 **의미 있는** 접촉·반등/거절 후보.
  * - 점수·A/B/C 등급, 위크 스윕·스윙·거래량 가중.
- * - 점수 상위부터 채택하며 `minBarsBetween` 간격 유지.
+ * - 터치 봉에 바로 표시(선반영). 뒤 2봉을 기다리지 않는다.
+ * - 이미 확정된 별은 유지하고, 최근 2봉 별은 그 위에 추가로만 붙인다.
  */
 export function computeInstitutionalBandInteractionMarkers(
   candles: Candle[],
@@ -455,7 +1141,7 @@ export function computeInstitutionalBandInteractionMarkers(
 
   const candidates: Candidate[] = [];
 
-  for (let i = 2; i < candles.length - 2; i++) {
+  for (let i = 2; i < candles.length; i++) {
     const atr = atrArr[i] || 0;
     if (atr <= 0) continue;
     const t = candles[i].time as number;
@@ -597,19 +1283,27 @@ export function computeInstitutionalBandInteractionMarkers(
     }
   }
 
-  candidates.sort((a, b) => b.sortScore - a.sortScore);
+  const confirmedCut = Math.max(0, candles.length - 2);
+  const confirmed = candidates.filter((c) => c.i < confirmedCut);
+  const live = candidates.filter((c) => c.i >= confirmedCut);
+  confirmed.sort((a, b) => b.sortScore - a.sortScore);
+  live.sort((a, b) => b.sortScore - a.sortScore);
 
   const accepted: Candidate[] = [];
-  for (const c of candidates) {
-    let clash = false;
-    for (const a of accepted) {
-      if (Math.abs(c.i - a.i) < minGap) {
-        clash = true;
-        break;
+  const take = (list: Candidate[]) => {
+    for (const c of list) {
+      let clash = false;
+      for (const a of accepted) {
+        if (Math.abs(c.i - a.i) < minGap) {
+          clash = true;
+          break;
+        }
       }
+      if (!clash) accepted.push(c);
     }
-    if (!clash) accepted.push(c);
-  }
+  };
+  take(confirmed);
+  take(live);
 
   accepted.sort((a, b) => a.i - b.i);
 
