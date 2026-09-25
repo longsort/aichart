@@ -1,0 +1,4 @@
+UI Responsive Patch v1
+- 상단 상태바: 한글/축약 + 가로 스크롤로 오버플로 방지
+- 차트 오버레이: safeBottomPad 적용 -> 하단 핸들/결정바 영역 라벨 침범 방지
+- UltraHomeLayoutV1: 차트 영역 bottom padding 자동(안드/윈도우 화면 자동)

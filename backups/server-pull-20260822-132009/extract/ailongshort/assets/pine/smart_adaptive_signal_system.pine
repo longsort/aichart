@@ -1,0 +1,171 @@
+//@version=5
+indicator("Smart Adaptive Signal System", overlay=true)
+
+// User Settings
+period = input.int(20, "Analysis Period", minval=1)
+percentageThreshold = input.float(6.8, "Minimum Change %", minval=0.4, step=0.4)
+forwardBars = input.int(10, "Forward Bars", minval=1, maxval=50)
+maType = input.string("SMA", "Moving Average Type", options=["SMA", "EMA", "WMA"])
+
+// Daily Close Price
+dailyClose = request.security(syminfo.tickerid, "D", close)
+
+// Moving Average Calculation
+var float avg = na
+if maType == "SMA"
+    avg := ta.sma(dailyClose, period)
+else if maType == "EMA"
+    avg := ta.ema(dailyClose, period)
+else if maType == "WMA"
+    avg := ta.wma(dailyClose, period)
+
+// VWAP Calculation
+vwap = ta.vwap(close)
+
+// AMA Calculation
+fastLength = input.int(10, "Fast EMA Period", minval=1)
+slowLength = input.int(30, "Slow EMA Period", minval=1)
+ama = ta.ema(close, fastLength) * 0.5 + ta.ema(close, slowLength) * 0.5
+
+// Weights
+vwapWeight = input.float(0.6, "VWAP Weight", minval=0, maxval=1)
+amaWeight = input.float(0.4, "AMA Weight", minval=0, maxval=1)
+
+// Combined Average
+combinedAverage = (vwap * vwapWeight) + (ama * amaWeight)
+
+// Convert to Current Timeframe
+currentAvg = request.security(syminfo.tickerid, timeframe.period, avg, barmerge.gaps_on)
+
+// Percentage Difference Between Price and Average
+pctDiff = ((close - currentAvg) / currentAvg) * 100
+
+// Volatility Calculation (Standard Deviation)
+volatility = ta.stdev(close, period)
+
+// ──────────────────────────────
+// Signal Conditions
+// ──────────────────────────────
+
+// Sınırlama aralığı (3% ile 10% arasında)
+percentageThreshold := math.min(math.max(percentageThreshold, 3.0), 10.0)
+
+// Adaptive Threshold Calculation (Volatility-Based)
+adaptiveBuyThreshold = percentageThreshold + volatility * 0.1  // Buy threshold
+adaptiveSellThreshold = percentageThreshold + volatility * 0.1  // Sell threshold
+
+// Dynamic Signal Thresholds
+var float buySignalTarget = adaptiveBuyThreshold   // Buy threshold
+var float sellSignalTarget = adaptiveSellThreshold // Sell threshold
+
+// Reset Mechanism: If price direction changes, reset opposing threshold
+if pctDiff > 0
+    buySignalTarget := adaptiveBuyThreshold
+if pctDiff < 0
+    sellSignalTarget := adaptiveSellThreshold
+
+// Signal Conditions
+buySignal = pctDiff <= -buySignalTarget
+sellSignal = pctDiff >= sellSignalTarget
+
+// Increase Thresholds Upon Signal Trigger
+if buySignal
+    buySignalTarget += 6
+if sellSignal
+    sellSignalTarget += 6
+
+// Dynamic Threshold Reset
+resetThresholdBars = input.int(50, "Threshold Reset Interval", minval=1)
+useTrendReset = input.bool(true, "Use Trend-Based Reset")
+trendUpCondition = ta.rising(close, 5)
+trendDownCondition = ta.falling(close, 5)
+
+if (bar_index % resetThresholdBars == 0) or (useTrendReset and (trendUpCondition or trendDownCondition))
+    buySignalTarget := adaptiveBuyThreshold // Reset buy threshold to initial value
+    sellSignalTarget := adaptiveSellThreshold // Reset sell threshold to initial value
+
+// ──────────────────────────────
+// Smart Target Price Calculation
+// ──────────────────────────────
+
+// Momentum-based price prediction (Momentum + Volatility)
+momentum = (close - close[1]) / close[1] * 100
+momentumFactor = 1 + momentum / 100
+
+// Combine with volatility to adjust target prediction
+targetPrice = combinedAverage + (volatility * momentumFactor * 1.5) // Volatility and momentum-based target
+
+// Prediction smoothing (optional)
+var float smoothedTargetPrice = na
+smoothingFactor = input.float(0.7, "Smoothing Factor", minval=0, maxval=1)
+smoothedTargetPrice := na(smoothedTargetPrice[1]) ? targetPrice : (smoothingFactor * targetPrice + (1 - smoothingFactor) * smoothedTargetPrice[1])
+
+// ──────────────────────────────
+// Linear Regression (Manually Calculated)
+// ──────────────────────────────
+
+slope = ta.sma(close - close[1], period)
+intercept = close[period]
+
+// Regression Line Calculation (Linear Formula: y = mx + b)
+regressionLine = slope * (bar_index - bar_index[period]) + intercept
+
+// Trend direction using regression line slope
+regressionTrendUp = slope > 0
+regressionTrendDown = slope < 0
+
+// Hedef fiyat çizgisi
+var line predictedLine = na
+
+// For buy and sell signals, create separate target price lines
+if buySignal
+    predictedLine := line.new(bar_index + forwardBars, smoothedTargetPrice, bar_index + forwardBars * 8, smoothedTargetPrice, color=color.green, width=1)
+
+if sellSignal
+    predictedLine := line.new(bar_index + forwardBars, smoothedTargetPrice, bar_index + forwardBars * 8, smoothedTargetPrice, color=color.red, width=1)
+
+// ──────────────────────────────
+// Signal Drawings (롱=황소 🐂, 숏=독수리 🦅 — plotshape는 커스텀 아이콘 불가 → label 사용)
+// ──────────────────────────────
+bullEmoji = "🐂"
+eagleEmoji = "🦅"
+
+if buySignal
+    label.new(
+         bar_index, low, bullEmoji,
+         xloc=xloc.bar_index,
+         yloc=yloc.price,
+         style=label.style_label_up,
+         color=color.new(color.green, 20),
+         textcolor=color.white,
+         size=size.large
+     )
+
+if sellSignal
+    label.new(
+         bar_index, high, eagleEmoji,
+         xloc=xloc.bar_index,
+         yloc=yloc.price,
+         style=label.style_label_down,
+         color=color.new(color.red, 20),
+         textcolor=color.white,
+         size=size.large
+     )
+
+// Link triangle to target line with different line for each signal
+if buySignal
+    line.new(bar_index, close, bar_index + forwardBars, smoothedTargetPrice, color=color.green, width=1, style=line.style_dotted)
+
+if sellSignal
+    line.new(bar_index, close, bar_index + forwardBars, smoothedTargetPrice, color=color.red, width=1, style=line.style_dotted)
+
+// ALERT COMMANDS
+alertcondition(buySignal, "Buy Signal", "A buy signal has been triggered!")
+alertcondition(sellSignal, "Sell Signal", "A sell signal has been triggered!")
+
+// Average Label
+var label lastAvgLabel = na
+if barstate.islast and not na(currentAvg)
+    if lastAvgLabel != na
+        label.delete(lastAvgLabel)
+    lastAvgLabel := label.new(bar_index + forwardBars, currentAvg, "◀--Prediction: " + str.tostring(currentAvg, "#.#####"), color=color.new(color.purple, 0), style=label.style_label_left, textcolor=color.white, yloc=yloc.price)

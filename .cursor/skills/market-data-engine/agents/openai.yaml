@@ -1,0 +1,3 @@
+interface:
+  display_name: "Market Data Engine"
+  short_description: "BTC futures app: market data engine"

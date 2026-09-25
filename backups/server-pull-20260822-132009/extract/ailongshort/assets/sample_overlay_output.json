@@ -1,0 +1,42 @@
+{
+  "bos": 91200,
+  "choch": 90500,
+  "eqh": [91250, 91300],
+  "eql": [89800, 89750],
+  "sweep": 89800,
+  "levelFlips": [
+    {"price": 90000, "type": "RES_TO_SUP", "time": 1738800000},
+    {"price": 91200, "type": "SUP_TO_RES", "time": 1738886400}
+  ],
+  "trendlineSegments": [
+    {"t1": 1738700000, "p1": 89500, "t2": 1738900000, "p2": 90500, "label": "up"}
+  ],
+  "entryLow": 90350,
+  "entryHigh": 90450,
+  "stop": 89500,
+  "tp1": 91200,
+  "tp2": 92000,
+  "tp3": 92800,
+  "side": "LONG",
+  "boxTop": 91500,
+  "boxBottom": 89500,
+  "triangleType": "ASCENDING",
+  "triangleLine": 90200,
+  "triangleTarget": 92500,
+  "flagType": null,
+  "flagTop": null,
+  "flagBottom": null,
+  "flagTarget": null,
+  "hsType": null,
+  "hsNeckline": null,
+  "hsTarget": null,
+  "vTurns": [
+    {"price": 89800, "time": 1738800000, "isBottom": true}
+  ],
+  "tailongLevels": [{"high": 91200, "low": 89800, "close": 90400, "open": 90000, "tf": "current", "verdict": "long"}],
+  "tailongSupport": 89800,
+  "tailongResistance": 91500,
+  "tailongBreakPrice": 91500,
+  "tailongBreakDirection": "bullish",
+  "gannFan": {"t0": 1738600000, "p0": 89000, "slope1x1": 50, "isFromLow": true}
+}

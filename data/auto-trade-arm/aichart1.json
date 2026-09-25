@@ -20,13 +20,13 @@
   "scalpTp1RoePct": 8,
   "scalpSlRoePct": 8,
   "tapOnly": true,
-  "updatedAt": 1790345781261,
+  "updatedAt": 1790346679924,
   "lastStatusKo": "자동매매 동작 중 · 지금은 들어갈 자리 없음",
-  "lastTickAt": 1790345781261,
+  "lastTickAt": 1790346679924,
   "watchBoard": {
     "verdictKo": "자동매매 동작 중 · 지금은 들어갈 자리 없음",
     "alive": true,
-    "updatedAt": 1790345781261,
+    "updatedAt": 1790346679924,
     "coins": [
       {
         "symbol": "BTCUSDT",
@@ -50,13 +50,13 @@
         "symbol": "XRPUSDT",
         "coin": "XRP",
         "tone": "wait",
-        "lineKo": "15분밴드자동 · READY 아님 · WATCH_SHORT"
+        "lineKo": "15분밴드자동(BAND15_AUTO) 롱 · Paper · LIVE아님"
       },
       {
         "symbol": "SOLUSDT",
         "coin": "SOL",
         "tone": "wait",
-        "lineKo": "15분밴드자동(BAND15_AUTO) 롱 · Paper · LIVE아님"
+        "lineKo": "15분밴드자동 · READY 아님 · WATCH_LONG"
       }
     ]
   }

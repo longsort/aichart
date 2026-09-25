@@ -1,0 +1,15 @@
+STEP11 적용(안전 스니펫)
+
+1) ai_cards_panel.dart 상단 import 추가:
+import 'ai_comment_line.dart';
+import '../../core/services/ai_comment_service.dart';
+
+2) build() 안에서 dto(Map) 만든 뒤, AiDecisionLine/AiGauges 사이(추천)에 추가:
+
+final dtoMap = (dto is Map<String, dynamic>) ? dto : <String, dynamic>{};
+final comment = AiCommentService.build(dtoMap);
+
+AiCommentLine(text: comment),
+const SizedBox(height: 8),
+
+※ dto가 Map이 아닐 때는 빈 Map으로 처리해서 에러 없이 동작함.

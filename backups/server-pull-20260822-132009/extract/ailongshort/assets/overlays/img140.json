@@ -1,0 +1,23 @@
+{
+  "source": "photo_2024-09-24_14-44-26.jpg",
+  "catalogId": "img140",
+  "category": "unknown",
+  "chartable": false,
+  "titleKo": "photo_2024-09-24_14-44-2 참조",
+  "tags": [
+    "unknown"
+  ],
+  "structureFeatures": {
+    "bos": false,
+    "choch": false,
+    "fvg": 0,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": null,
+  "analyzedAt": "2026-06-26"
+}

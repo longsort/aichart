@@ -20,13 +20,13 @@
   "scalpTp1RoePct": 8,
   "scalpSlRoePct": 8,
   "tapOnly": true,
-  "updatedAt": 1790345778568,
+  "updatedAt": 1790346678572,
   "lastStatusKo": "자동매매 안 됨 · 거래소 키 확인",
-  "lastTickAt": 1790345778568,
+  "lastTickAt": 1790346678572,
   "watchBoard": {
     "verdictKo": "자동매매 안 됨 · 거래소 키 확인",
     "alive": false,
-    "updatedAt": 1790345778568,
+    "updatedAt": 1790346678572,
     "coins": [
       {
         "symbol": "BTCUSDT",

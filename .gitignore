@@ -51,18 +51,10 @@ node_modules
 /data/exchange-keys/
 /data/auto-scalp-paper/
 
-# secrets / local env
+
+# === local secrets / VPS mirror (on disk only; never commit) ===
 .env.local
 .env*.local
 deploy_today.py
 .next/
-
-
-# Large local market dumps (synced on disk from VPS; too large for git)
-data/bitget-futures/BTCUSDT_1min.csv
-data/bitget-futures/BTCUSDT_5m.csv
-data/eagle1/freeze/BTCUSDT_1m.json
-data/eagle1/freeze/BTCUSDT_5m.json
-data/eagle1/freeze/BTCUSDT_3m.json
-data/pattern-memory/ohlcv/BTCUSDT_15m.jsonl
-/trade-journal-*.json
+.env*.bak*

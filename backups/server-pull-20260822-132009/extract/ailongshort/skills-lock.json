@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "skills": {
+    "cakebaba-crypto-skill": {
+      "source": "kelvin6365/cakebaba-crypto-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "fe0a76bc986738130b8bc0df8da1d18d21e5d83b41148868a955635f3703ab75"
+    },
+    "chart": {
+      "source": "starchild-ai-agent/official-skills",
+      "sourceType": "github",
+      "skillPath": "chart/SKILL.md",
+      "computedHash": "d892f914f6aea4b54040e6cae50f26a128db284641141cb686051e3c36268d6e"
+    },
+    "longbridge-technical": {
+      "source": "longbridge/skills",
+      "sourceType": "github",
+      "skillPath": "skills/longbridge-technical/SKILL.md",
+      "computedHash": "c3af14137baead88fd5dcd356a5134af3806708ddab833200fc9008634531374"
+    },
+    "macro-analyst": {
+      "source": "bitgetlimited/agent_hub",
+      "sourceType": "github",
+      "skillPath": "packages/bitget-skill-hub/skills/macro-analyst/SKILL.md",
+      "computedHash": "a15d2fd708e7ff8901c97e1b1b8b3fed99e1615e9105aaeff53d273197055ebb"
+    },
+    "market-structure-ta": {
+      "source": "starchild-ai-agent/official-skills",
+      "sourceType": "github",
+      "skillPath": "market-structure-ta/SKILL.md",
+      "computedHash": "8e777ce7bb4c3faa4bdf1a2eefbc7d4a5ce364e499e2b17b95799ba910d2d674"
+    },
+    "mmt-tradingview-charts": {
+      "source": "emeraldls/mmt-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mmt-tradingview-charts/SKILL.md",
+      "computedHash": "1f00c293e2843f152b0bdc87fab09ef35ab4e33083421ad3cd71e7e01957e638"
+    },
+    "technical-analysis": {
+      "source": "bitgetlimited/agent_hub",
+      "sourceType": "github",
+      "skillPath": "packages/bitget-skill-hub/skills/technical-analysis/SKILL.md",
+      "computedHash": "645648975614e98790a387e16731705620c200a873ab27fc7e03efc798e39904"
+    },
+    "technical-analyst": {
+      "source": "fabio29t/trading-skills",
+      "sourceType": "github",
+      "skillPath": "skills/technical-analyst/SKILL.md",
+      "computedHash": "3950c190e9fc03eabc1886b7e497f090bf31472e1e7db13bc81abc5a69fb29dd"
+    },
+    "trading-visualization": {
+      "source": "agiprolabs/claude-trading-skills",
+      "sourceType": "github",
+      "skillPath": "skills/trading-visualization/SKILL.md",
+      "computedHash": "7705ab2ef76d0608c81e666e8ef6bb3de718a9285f5afdcbe42c0df283bba70a"
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "source": "image-1.png",
+  "harmonicPrzLines": [
+    {
+      "price": 22141.6
+    },
+    {
+      "price": 22466.7,
+      "label": "0.618"
+    },
+    {
+      "price": 22667.7
+    }
+  ],
+  "harmonicPoints": {
+    "type": "Bat",
+    "x": 22667.7,
+    "a": 22141.6,
+    "b": 22466.7,
+    "c": 22342.6,
+    "d": 22555.1,
+    "timeX": "2024-01-01",
+    "timeA": "2024-01-05",
+    "timeB": "2024-01-10",
+    "timeC": "2024-01-12",
+    "timeD": "2024-01-15",
+    "target": 22800
+  },
+  "catalogId": "img110",
+  "category": "smc_candle",
+  "chartable": true,
+  "titleKo": "SMC 구조 참조",
+  "tags": [
+    "smc_candle",
+    "smc",
+    "bos",
+    "choch",
+    "fvg",
+    "ob"
+  ],
+  "structureFeatures": {
+    "bos": true,
+    "choch": true,
+    "fvg": 1,
+    "ob": 1,
+    "sweep": true,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "absolute_prices",
+    "elements": [
+      {
+        "type": "hline",
+        "role": "prz",
+        "price": 22141.6,
+        "label": "PRZ1"
+      },
+      {
+        "type": "hline",
+        "role": "prz",
+        "price": 22466.7,
+        "label": "0.618"
+      },
+      {
+        "type": "hline",
+        "role": "prz",
+        "price": 22667.7,
+        "label": "PRZ3"
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
+}

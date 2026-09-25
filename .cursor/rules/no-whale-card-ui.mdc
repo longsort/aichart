@@ -1,0 +1,11 @@
+---
+description: Bitget 고래 DNA — 카드/HUD/레일 UI 금지, 캔들·거래량만
+alwaysApply: true
+---
+
+# Bitget 고래 DNA — 카드 UI 금지
+
+- **사용자 명시 지시 없이** Bitget 거래량·고래 DNA 관련 **카드, HUD, 레일, 패널, bottom strip, 플로팅 글자 박스**를 만들거나 복원하지 마세요.
+- 표시는 **캔들(SVG 구간·화살·가격선)**, **거래량(막대 색·마커)**, **가격축 라벨**만 허용합니다.
+- 스킬: `.cursor/skills/bitget-whale-dna/SKILL.md` 를 whale/bitget/거래량 DNA 작업 시 먼저 읽으세요.
+- zone/SMC/OB 기능은 사용자 삭제 지시 전까지 건드리지 마세요.

@@ -1,0 +1,16 @@
+# The Aegis - Server pipeline (Data Ingestion + Microstructure)
+# Python 3.10+
+
+# Async & networking
+websockets>=12.0
+aiohttp>=3.9.0
+
+# Redis (real-time cache)
+redis>=5.0.0
+
+# Data
+numpy>=1.24.0
+
+# Optional: PostgreSQL for history (uncomment when needed)
+# asyncpg>=0.29.0
+# psycopg2-binary>=2.9.0

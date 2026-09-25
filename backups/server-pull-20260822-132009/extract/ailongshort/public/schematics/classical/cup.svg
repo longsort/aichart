@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Cup and Handle</text>
+  <path d="M80 120 C 180 120, 220 380, 400 380 C 580 380, 620 120, 720 120 L 780 180 L 900 70" fill="none" stroke="#0f172a" stroke-width="2.6"/>
+  <text x="380" y="408" font-family="Segoe UI, sans-serif" font-size="14" font-weight="800">CUP</text>
+  <text x="760" y="210" font-family="Segoe UI, sans-serif" font-size="14" font-weight="800">HANDLE</text>
+  <line x1="80" y1="120" x2="900" y2="120" stroke="#94a3b8" stroke-dasharray="4 3"/>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">U-rounded base then small handle. Break of rim. Heuristic.</text>
+</svg>

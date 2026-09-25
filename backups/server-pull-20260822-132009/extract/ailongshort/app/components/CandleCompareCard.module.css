@@ -1,0 +1,548 @@
+/* 캔들 비교 카드 — 대시보드 느낌 (모션 최소화 설정 시 비활성화) */
+
+@keyframes borderPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 18px 50px rgba(2, 132, 199, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 22px 58px rgba(34, 211, 238, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  }
+}
+
+@keyframes gradientSweep {
+  0% {
+    background-position: 0% 40%;
+  }
+  50% {
+    background-position: 100% 60%;
+  }
+  100% {
+    background-position: 0% 40%;
+  }
+}
+
+@keyframes badgeGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 14px 2px rgba(34, 211, 238, 0.15);
+    transform: scale(1.02);
+  }
+}
+
+@keyframes dotPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+}
+
+.root {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  background:
+    radial-gradient(1200px 420px at -5% -20%, rgba(56, 189, 248, 0.22), transparent 55%),
+    radial-gradient(900px 360px at 105% 0%, rgba(236, 72, 153, 0.2), transparent 52%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98));
+  animation: borderPulse 4.5s ease-in-out infinite;
+}
+
+.root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.09) 28%,
+    transparent 48%,
+    rgba(236, 72, 153, 0.08) 72%,
+    transparent 100%
+  );
+  background-size: 220% 220%;
+  animation: gradientSweep 14s ease-in-out infinite;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+}
+
+.titleRow {
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.titleMain {
+  color: #22d3ee;
+  text-shadow: 0 0 24px rgba(34, 211, 238, 0.35);
+}
+
+.badge {
+  font-size: 10px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.18);
+  color: #67e8f9;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  animation: badgeGlow 2.8s ease-in-out infinite;
+}
+
+.liveDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #22d3ee;
+  vertical-align: middle;
+  animation: dotPulse 1.4s ease-in-out infinite;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.alignCard {
+  margin: 0;
+  flex: 1 1 220px;
+  border: 1px solid rgba(34, 197, 94, 0.38);
+  background: rgba(15, 118, 110, 0.14);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.alignCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(34, 197, 94, 0.12);
+}
+
+.btnCyan {
+  font-size: 11px;
+  border-color: #22d3ee !important;
+  color: #67e8f9 !important;
+}
+
+.btnRose {
+  font-size: 11px;
+  margin-top: 8px;
+  border-color: #fb7185 !important;
+  color: #fda4af !important;
+}
+
+.btnGreen {
+  font-size: 11px;
+  border-color: #4ade80 !important;
+  color: #86efac !important;
+}
+
+.tableWrap {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table thead tr {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  color: #bae6fd;
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: 6px 8px;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.15s ease;
+}
+
+.table tbody tr:hover {
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.section {
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+.sectionPink {
+  border-top: 1px solid rgba(251, 113, 133, 0.4);
+}
+
+.sectionGreen {
+  border-top: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.sectionTitlePink {
+  margin-top: 0;
+  font-size: 13px;
+  color: #fda4af;
+}
+
+.sectionTitleGreen {
+  margin-top: 0;
+  font-size: 13px;
+  color: #86efac;
+}
+
+.smallTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.smallTable thead tr {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+  text-align: left;
+}
+
+.smallTable th,
+.smallTable td {
+  padding: 4px 6px;
+}
+
+.smallTable tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.smallTable tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sampleWarn {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}
+
+.dynamicHint {
+  margin-top: 6px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #fbcfe8;
+}
+
+.regimeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.regimeBadge {
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.scoreBlock {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.scoreLabel {
+  font-size: 10px;
+  color: #fecdd3;
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.scoreTrack {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  border: 1px solid rgba(251, 113, 133, 0.35);
+}
+
+.scoreFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(251, 113, 133, 0.5), rgba(244, 63, 94, 0.95));
+  transition: width 0.35s ease;
+}
+
+.heatWrap {
+  margin-top: 12px;
+}
+
+.heatTitle {
+  font-size: 10px;
+  color: #fbcfe8;
+  margin-bottom: 6px;
+}
+
+.heatGrid {
+  display: grid;
+  grid-template-columns: 72px repeat(3, 1fr);
+  gap: 4px;
+  font-size: 9px;
+  align-items: stretch;
+}
+
+.heatHead {
+  color: #fda4af;
+  font-weight: 700;
+  padding: 4px;
+  text-align: center;
+}
+
+.heatLabel {
+  color: #fecdd3;
+  padding: 4px 2px;
+  line-height: 1.3;
+}
+
+.heatCell {
+  border-radius: 6px;
+  padding: 6px 4px;
+  text-align: center;
+  font-weight: 700;
+  color: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.cellStack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cellSub {
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.rowBest {
+  background: rgba(244, 63, 94, 0.08) !important;
+  outline: 1px solid rgba(251, 113, 133, 0.35);
+}
+
+.toolbarRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.toggleLabel {
+  font-size: 10px;
+  color: #fecdd3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.probBarWrap {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-top: 4px;
+  max-width: 120px;
+}
+
+.probBarFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.35), rgba(74, 222, 128, 0.95));
+}
+
+/* 모바일·좁은 폭: 표·히트맵 가로 스크롤 */
+.tableScroll {
+  margin-top: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.tableScroll .smallTable {
+  min-width: 520px;
+}
+
+.heatScroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  margin-left: -2px;
+  margin-right: -2px;
+  padding-bottom: 4px;
+}
+
+.heatScroll .heatGrid {
+  min-width: 280px;
+}
+
+.ciHint {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #fbcfe8;
+  margin-bottom: 8px;
+}
+
+.ciSub {
+  color: #e9d5ff;
+}
+
+.cellCi {
+  font-size: 9px;
+  color: #a8b9d4;
+  line-height: 1.35;
+}
+
+.sampleCell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.trustBadge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+}
+
+.trust_high {
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.55);
+  background: rgba(34, 197, 94, 0.14);
+}
+
+.trust_medium {
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.55);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.trust_low {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.vsBody,
+.pfBody {
+  position: relative;
+}
+
+.vsBodyBusy,
+.pfBodyBusy {
+  pointer-events: none;
+  user-select: none;
+}
+
+.busyOverlay,
+.busyOverlayGreen {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.busyOverlayGreen {
+  background: rgba(15, 23, 42, 0.68);
+}
+
+.skelBlock {
+  width: min(100%, 240px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skelBar {
+  height: 9px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  background-size: 200% 100%;
+  animation: skelShimmer 1.1s ease-in-out infinite;
+}
+
+.busyLabel,
+.busyLabelGreen {
+  font-size: 11px;
+  color: #fecdd3;
+  font-weight: 600;
+}
+
+.busyLabelGreen {
+  color: #bbf7d0;
+}
+
+@keyframes skelShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .root::before,
+  .badge,
+  .liveDot {
+    animation: none !important;
+  }
+
+  .skelBar {
+    animation: none !important;
+    opacity: 0.45;
+  }
+}

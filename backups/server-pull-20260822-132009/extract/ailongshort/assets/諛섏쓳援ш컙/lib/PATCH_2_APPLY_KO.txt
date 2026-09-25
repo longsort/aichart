@@ -1,0 +1,14 @@
+PATCH-2 (실시간 체결/오더북 연결)
+
+포함:
+- lib/core/services/bitget_flow_ws.dart (신규)
+- lib/core/services/bitget_public.dart (수정: WS 캐시 우선 사용)
+
+동작:
+- USDT-FUTURES에서 getOrderBook / getRecentFills 호출 시,
+  1) WS에서 최근 3초 내 캐시가 있으면 그걸 사용
+  2) 없으면 기존 REST로 폴백
+
+주의:
+- 기존 UI/엔진 로직 삭제 없음
+- PATCH-1(데모 차단) 적용 후에 붙이면, '세력/체결'이 실제 데이터 기반으로 더 안정적으로 반응합니다.

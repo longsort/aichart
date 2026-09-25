@@ -1,0 +1,3 @@
+// STEP10 patch: MTF 합의 배지 삽입용 helper
+import 'ai_mtf_badge.dart';
+import '../../core/services/ai_mtf_consensus_service.dart';

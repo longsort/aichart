@@ -1,0 +1,121 @@
+안녕하세요. Yonsei_dent 입니다.
+
+지난 번 패턴이해 #1에서는 기본적인 상승( Bullish ) 과 하락( Bearish ) 패턴 중 flag pattern 대한 교육자료를 준비해 보았는데요.
+
+오늘 패턴이해 #2에서는 상승( Bullish ) 과 하락( Bearish ) 패턴이 아닌, 반전 ( Reversal ) 패턴에 대해 준비해 보았습니다. 그 중 오늘 소개 드릴 패턴은 Head and Shoulders & Inverse(Reverse) H&S Pattern 입니다.
+
+누구나 읽을 수 있을 정도로 쉽게 작성할 예정이니 많은 관심 및 좋아요 부탁드립니다 :)
+
+-----------------------------------------------------------------
+
+< 목 차 >
+I. Head and Shoulders⁠ & Inverse H&S pattern에 대한 이해
+I-1. Head and Shoulders pattern의 기초 (구성요소)
+I-2. Inverse H&S pattern의 기초 (구성요소)⁠⁠
+I-3. Head and Shoulders (& Inverse) pattern의 6가지 Key-point
+I-4. 트레이딩 활용 - 진입 지점 찾기 (Finding Entries)
+I-5. 실제 사례 분석
+I-6. Head and Shoulders (& Inverse)⁠ pattern의 장점과 한계
+
+-----------------------------------------------------------------
+
+I. Head and Shoulders⁠ & Inverse H&S pattern에 대한 이해
+
+Head and Shoulders pattern은 상승 추세가 소진된 후 반전이 언제 진행될 수 있는지 식별하는데 도움이 되는 가격 역전 패턴입니다. 이 패턴은 반전 ( Reversal ) 패턴 중 가장 일관성 있다고 여겨지는 패턴 중 하나로, 초보와 경험자 트레이더 모두 자주 사용할 수 있는 패턴입니다.
+
+Inverse H&S pattern은 H&S과 동일한 구조를 갖지만, 역방향으로 하락 추세에서 관찰할 수 있으며, 더 높은 흐름이 생성될 때 하락 추세가 역전될 수 있는 가능성을 나타냅니다.
+
+두 패턴 모두 동일한 유용성을 가지며, 이후 설명할 구성요소 및 Key points 역시 동일한 process를 따르니, 역 ( Inverse )으로 이해하시면 될 것 같습니다.
+
+-----------------------------------------------------------------
+
+1. Head and Shoulders pattern의 기초 (구성요소)
+먼저 간략한 모식도를 통해 Head and Shoulders pattern을 구성하는 요소들에 대해 확인해 보겠습니다.
+
+https://www.tradingview.com/x/x1Wdaeid/
+
+＊ Head and Shoulders pattern은 “왼쪽 어깨 (Lt. Shoulder)”, “머리 (Head)”, “오른쪽 어깨 (Rt. Shoulder)”, “목 라인 (Neck line)” 형태로 이루어 집니다.
+＊ 머리에서의 거래량이 왼쪽 어깨에서의 거래량에 비해 상대적으로 작아집니다. (거래량 감소)
+＊ Neck line 출현 빈도 : 우상향 > 수평
+
+-----------------------------------------------------------------
+
+2. Inverse H&S pattern의 기초 (구성요소)
+
+다음은 Inverse H&S pattern의 간략한 모식도이며, H&S pattern의 구성요소를 대칭적으로 mirroring 하였다고 이해하시면 될 것 같습니다.
+
+https://www.tradingview.com/x/daMQhvGI/
+
+＊머리에서의 거래량이 왼쪽 어깨에서의 거래량에 비해 상대적으로 커집니다. (거래량 증가)
+＊Neck line 출현 빈도 : 우하향 > 수평
+
+----------------------------------------------------------------
+
+3. Head and Shoulders (& Inverse) pattern의 6가지 Key-point
+
+(1) Head and Shoulders pattern
+https://www.tradingview.com/x/R9yAtLVa/
+
+(2) Inverse H&S pattern
+https://www.tradingview.com/x/60l6zccN/
+
+(3) 6가지 Key points (위 (1), (2) 차트에 표시된 숫자를 확인하며 보세요~)
+1) Price action 및 기술지표를 이용하여 전반적인 시장 동향을 파악하라.
+- H&S pattern : 이전의 상승세를 확인
+- Inverse H&S pattern : 이전의 하락세를 확인
+
+2) “Head”, “Shoulders” 등 구성요소를 구분하라.
+
+3) “Head”와 양측 “Shoulders” 간의 거리는 가능한 같아야 한다. (꼭 같은 것은 아니에요!)
+
+4) 양측 “Shoulders” 사이의 낮은( 또는 높은 ) 지점에 neck line을 작도하라.
+- Lt. Shoulder의 Lt. side 저점 (또는 고점), Rt. shoulder의 Rt. side의 저점 (또는 고점)
+- 가급적 수평이면 좋지만, 의무 사항은 아님.
+
+5) Stop level = Right shoulder의 고점 (cf. Inverse의 경우 저점)
+
+6) Limit level 값(거리) = Head의 고점 ( 또는 저점 ) ~ neck line 까지의 거리.
+- Entry (진입구간)에서 Limit level을 이용하여 매매 기준점(구간) 설정 하라.
+
+-----------------------------------------------------------------
+
+4. 트레이딩 활용 - 진입 지점 찾기 (Finding Entries)
+
+(1) Head and Shoulders pattern
+https://www.tradingview.com/x/MiI8FAtI/
+
+(2) Inverse H&S pattern
+https://www.tradingview.com/x/LiOwxTyD/
+
+-----------------------------------------------------------------
+
+5. 실제 사례 분석
+
+(1) Head and Shoulders pattern
+https://www.tradingview.com/x/qgoXkbha/
+
+위 차트는, BTCUSDT 의 2021년 일봉 차트입니다.
+3월 이전 부터 전반적 상승세를 유지하고 있었으나, LS에서 HEAD로 갈수록, 거래량 감소 및 RSI 하락 다이버전스가 출현하는 것을 확인할 수 있습니다.
+Neck line에서 Head 까지의 거리는 약 18.1K 이며, Rt. shoulder의 저점을 Entry로 설정 하였을 때, Limit level과 거의 동일한 범위인 18.2K까지 반전이 일어난 것을 확인할 수 있습니다. Neck line 설정에 따라, Limit level 오차가 생길 수 있음을 고려할 때 거의 동일한 수준으로 하락 반전이 발생한 것을 확인할 수 있습니다.
+
+(2) Inverse H&S pattern
+https://www.tradingview.com/x/DGtTOiG7/
+
+위 차트는 애플의 2015~2017년도 주봉 차트입니다.
+2015년~2016년 초까지 하락세를 보였으나, LS에서 HEAD로 갈수록 거래량이 증가 및 RSI 상승 다이버전스가 출현하는 것을 확인할 수 있습니다.
+Neck line에서 Head 까지의 거리는 약 $7.2 이며, Rt. shoulder의 고점을 Entry로 설정 하였을 때, Limit level과 거의 동일한 범위인 $6.9까지 반전이 일어난 후 Limit level에서 저항 및 조정 받는 것을 확인할 수 있습니다.
+-----------------------------------------------------------------
+
+6. Head and Shoulders (& Reverse)⁠ pattern의 장점과 한계
+(1) 장점
+- 리스크가 제한적이며, 수익 level의 파악이 가능함.
+- 대규모 시장 움직임에 대한 적용이 가능함.
+- 모든 시장에서 사용 가능. (Fx., Stock, Crypto, etc.)
+
+(2) 한계
+- Entry 진입 시의 Confirmation 캔들이 neck line을 넘을 경우, stop loss 구간 설정의 추가적인 검토가 필요함.
+- Price가 종종 기존의 neck line을 수정하게 하여 초보 트레이더의 경우 헷갈릴 수 있음.
+- Risk-reward ration (위험 보상 비율)이 항상 유리하진 않음.
+
+-----------------------------------------------------------------
+이상입니다. 감사합니다.

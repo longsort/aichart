@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "doc": "단계 id·labelKo·순서는 여기서 편집. 엔진 완료 플래그는 types.SmcPlaybookStepId 와 동기화.",
+  "short": [
+    { "order": 1, "id": "htf_poi", "labelKo": "① HTF POI" },
+    { "order": 2, "id": "bos", "labelKo": "② BOS↓" },
+    { "order": 3, "id": "idm", "labelKo": "③ 인듀스먼트(EQH)" },
+    { "order": 4, "id": "lqs", "labelKo": "④ LQS·스윕" },
+    { "order": 5, "id": "mss_choch", "labelKo": "⑤ MSS/CHoCH↓" },
+    { "order": 6, "id": "ifvg", "labelKo": "⑥ IFVG(역갭·참고)" },
+    { "order": 7, "id": "ob_fvg", "labelKo": "⑦ OB·FVG 타점" },
+    { "order": 8, "id": "ote", "labelKo": "⑧ OTE 62~79%" },
+    { "order": 9, "id": "ltf_poi", "labelKo": "⑨ LTF POI(좁은 밴드)" },
+    { "order": 10, "id": "mitigation", "labelKo": "⑩ 존 재터치·완화" },
+    { "order": 11, "id": "lq_pool", "labelKo": "⑪ 유동성 타깃(EQL)" },
+    { "order": 12, "id": "target", "labelKo": "⑫ 목표" }
+  ],
+  "long": [
+    { "order": 1, "id": "htf_poi", "labelKo": "① HTF POI" },
+    { "order": 2, "id": "bos", "labelKo": "② BOS↑" },
+    { "order": 3, "id": "idm", "labelKo": "③ 인듀스먼트(EQL)" },
+    { "order": 4, "id": "lqs", "labelKo": "④ LQS·스윕" },
+    { "order": 5, "id": "mss_choch", "labelKo": "⑤ MSS/CHoCH↑" },
+    { "order": 6, "id": "ifvg", "labelKo": "⑥ IFVG(역갭·참고)" },
+    { "order": 7, "id": "ob_fvg", "labelKo": "⑦ OB·FVG 타점" },
+    { "order": 8, "id": "ote", "labelKo": "⑧ OTE 62~79%" },
+    { "order": 9, "id": "ltf_poi", "labelKo": "⑨ LTF POI(좁은 밴드)" },
+    { "order": 10, "id": "mitigation", "labelKo": "⑩ 존 재터치·완화" },
+    { "order": 11, "id": "lq_pool", "labelKo": "⑪ 유동성 타깃(EQH)" },
+    { "order": 12, "id": "target", "labelKo": "⑫ 목표" }
+  ]
+}

@@ -1,0 +1,68 @@
+[
+  {
+    "user": "masteradmin",
+    "passwordHash": "436828765618ee077a2d27425c406a5295f2ad8838459c075c37901202f6cda3",
+    "role": "master_admin",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart1",
+    "passwordHash": "76a918a961714c51134250d223a50dde5c9601707f7f1a00de8b4b438b0c7d68",
+    "role": "master_admin",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart2",
+    "passwordHash": "fc8700e25eeb4a4a4186aea0d87e2dc47c57303134d7264be092f6b8b56d3db5",
+    "role": "user",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart3",
+    "passwordHash": "ffc0816469a0d1a9e40e997629374506b5cfe29b0bb786db9ffa1211e7281e97",
+    "role": "user",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart4",
+    "passwordHash": "d7079c417d6a2b939d2710318b207335aa97f2d83985219ecdb1efe5141a1721",
+    "role": "user",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart5",
+    "passwordHash": "c793515d6d11558e064d1fbfd44a5a827283f6af607a1cd1fd3f8d27210cf3f2",
+    "role": "user",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart6",
+    "passwordHash": "04cce4bb103aa81c36a619068b9275e785021e601e88511a29c25e3964432dfd",
+    "role": "user",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart7",
+    "passwordHash": "683d21ea7a5bb7cce7812de97f4c1b30013358e6ef40f3a51adb24dbf91025b4",
+    "role": "user",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart8",
+    "passwordHash": "e92260cdfccdb1e02e804fee0e3d549d1a73ffcbff3d41c09891a65f3d6453ce",
+    "role": "user",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart9",
+    "passwordHash": "48aa9fe17d6782720391b971c5d18bcd47d837507ad530087b9f3cb452bce344",
+    "role": "user",
+    "createdAt": 1774521823965
+  },
+  {
+    "user": "aichart10",
+    "passwordHash": "5205bffb340df03126f1b29413e1701392f75f41086d8e2c93b2ad7182383556",
+    "role": "user",
+    "createdAt": 1774521823965
+  }
+]

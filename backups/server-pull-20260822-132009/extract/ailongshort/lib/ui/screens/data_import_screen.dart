@@ -1,0 +1,136 @@
+import 'package:flutter/material.dart';
+import '../../core/symbol_controller.dart';
+import '../../data/offline/offline_loader.dart';
+
+class DataImportScreen extends StatefulWidget {
+  const DataImportScreen({super.key});
+
+  @override
+  State<DataImportScreen> createState() => _DataImportScreenState();
+}
+
+class _DataImportScreenState extends State<DataImportScreen> {
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final symbol = SymbolController.I.symbol.value;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('?∞Ïù¥??Í∞Ä?∏Ïò§Í∏?)),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            _howToCard(symbol),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _loading
+                        ? null
+                        : () async {
+                            setState(() => _loading = true);
+                            try {
+                              await OfflineLoader.I.load(symbol: symbol);
+                            } finally {
+                              if (mounted) setState(() => _loading = false);
+                            }
+                          },
+                    icon: const Icon(Icons.cloud_download),
+                    label: Text(_loading ? 'Í≤Ä?¨Ï§ë...' : 'CSV Í≤Ä??, style: const TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ValueListenableBuilder<OfflineLoadResult?>(
+                valueListenable: OfflineLoader.I.last,
+                builder: (context, res, _) {
+                  if (res == null) {
+                    return Center(
+                      child: Text('?ÑÏßÅ Í≤Ä???ÑÏûÖ?àÎã§.\n???àÎÇ¥?ÄÎ°?CSVÎ•??£Í≥† ?úCSV Í≤Ä?¨‚ÄùÎ? ?åÎü¨Ï£ºÏÑ∏??',
+                          textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withOpacity(0.70))),
+                    );
+                  }
+
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white.withOpacity(0.10)),
+                      color: Colors.white.withOpacity(0.04),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('?¥Îçî: ${res.folder}', style: TextStyle(color: Colors.white.withOpacity(0.65))),
+                          const SizedBox(height: 10),
+                          const Text('Í≤Ä??Í≤∞Í≥º', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+                          const SizedBox(height: 10),
+                          ...res.rowsByFile.entries.map((e) => Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  children: [
+                                    Expanded(child: Text(e.key, style: const TextStyle(fontWeight: FontWeight.w700))),
+                                    Text('${e.value}Ï§?,
+                                        style: TextStyle(color: Colors.white.withOpacity(0.70), fontWeight: FontWeight.w800)),
+                                  ],
+                                ),
+                              )),
+                          if (res.missing.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Text('?ÜÏùå(?ÑÎùΩ)', style: TextStyle(color: Colors.redAccent.withOpacity(0.9), fontWeight: FontWeight.w900)),
+                            const SizedBox(height: 6),
+                            ...res.missing.map((m) => Text('??$m', style: TextStyle(color: Colors.white.withOpacity(0.75)))),
+                          ] else ...[
+                            const SizedBox(height: 12),
+                            Text('???ÑÏàò ?åÏùº Ï°¥Ïû¨ ?ïÏù∏ ?ÑÎ£å', style: TextStyle(color: Colors.greenAccent.withOpacity(0.9), fontWeight: FontWeight.w900)),
+                          ],
+                          const SizedBox(height: 10),
+                          Text('?§Ïùå ?®Í≥Ñ: ???∞Ïù¥?∞Î? ?¥Ïö©???úÎ????Ä?ÑÌîÑ?àÏûÑ ?©Ïùò + CVD/OI/?Ä???ÑÌÑ∞?ùÎ? ?îÏßÑ???∞Í≤∞?©Îãà??',
+                              style: TextStyle(color: Colors.white.withOpacity(0.55))),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _howToCard(String symbol) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+        color: Colors.white.withOpacity(0.04),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('?£Îäî Î∞©Î≤ï(Ï¥àÎ≥¥??', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+          const SizedBox(height: 8),
+          Text('1) PC?êÏÑú ?ÑÎûò ?¥ÎçîÎ•?Ï∞æÍ∏∞\n2) fulink_data ?¥Îçî ÎßåÎì§Í∏?n3) CSV ?åÏùº???¥Î¶Ñ Í∑∏Î?Î°?Î≥µÏÇ¨',
+              style: TextStyle(color: Colors.white.withOpacity(0.70), height: 1.35, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          Text('?ÑÏàò ?åÏùº ?àÏãú(?¨Î≥º: $symbol)', style: TextStyle(color: Colors.white.withOpacity(0.70), fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Text('$symbol' '_1m.csv, ' '$symbol' '_15m.csv, ' '$symbol' '_1h.csv, ' '$symbol' '_4h.csv, ...',
+              style: TextStyle(color: Colors.white.withOpacity(0.55))),
+          const SizedBox(height: 10),
+          Text('???¥Î¶Ñ???§Î•¥Î©??∏Ïãù?????©Îãà??\n??ÏßÄÍ∏??îÎ©¥?Ä ?úÏ°¥???âÏàò?ùÎßå Í≤Ä?¨Ìï©?àÎã§(Îπ†Î¶Ñ).',
+              style: TextStyle(color: Colors.white.withOpacity(0.50))),
+        ],
+      ),
+    );
+  }
+}

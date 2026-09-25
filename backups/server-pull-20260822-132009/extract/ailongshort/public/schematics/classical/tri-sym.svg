@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Symmetrical Triangle</text>
+  <line x1="120" y1="80" x2="780" y2="240" stroke="#0f172a" stroke-width="2"/>
+  <line x1="120" y1="420" x2="780" y2="250" stroke="#0f172a" stroke-width="2"/>
+  <polyline fill="none" stroke="#2563eb" stroke-width="2.2" points="150,100 230,380 330,140 420,340 530,180 620,300 700,230"/>
+  <text x="400" y="70" font-family="Segoe UI, sans-serif" font-size="13">contracting range</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Coil. Direction = break. Apex timeout weakens pattern.</text>
+</svg>

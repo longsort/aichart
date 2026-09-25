@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>세력고래 모드 목업 1</title>
+  <style>
+    body{margin:0;background:#081220;color:#e6f1ff;font-family:Segoe UI,system-ui,sans-serif}
+    .wrap{max-width:1200px;margin:20px auto;padding:16px}
+    .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .chip{background:#12263b;border:1px solid #2a425b;border-radius:12px;padding:6px 10px;font-size:12px}
+    .chip.on{background:#1f3a50;border-color:#62efe0;color:#62efe0}
+    .chart{position:relative;height:620px;border:1px solid #1f3448;border-radius:14px;overflow:hidden;background:
+      linear-gradient(180deg,rgba(255,255,255,.04) 1px,transparent 1px) 0 0/100% 52px,
+      linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px) 0 0/72px 100%,
+      #0b1726}
+    .candles{position:absolute;inset:40px 120px 80px 40px}
+    .candles:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,#58d68d55,#58d68d00 30%,#f8717155 55%,#f8717100 80%)}
+    .zone{position:absolute;border-radius:10px;border:1px solid}
+    .zone.long{left:58%;top:35%;width:34%;height:22%;background:#22c55e2b;border-color:#22c55e}
+    .zone.short{left:57%;top:14%;width:35%;height:15%;background:#ef44442e;border-color:#ef4444}
+    .label{position:absolute;padding:4px 8px;border-radius:8px;font-size:12px;font-weight:700}
+    .label.long{left:61%;top:33%;background:#052f1f;color:#7ef8b6;border:1px solid #1f9d67}
+    .label.short{left:60%;top:12%;background:#330a0a;color:#fca5a5;border:1px solid #ef4444}
+    .legend{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+    .card{background:#0f2135;border:1px solid #26405a;border-radius:10px;padding:10px;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <span class="chip on">세력고래 모드</span>
+      <span class="chip on">예고박스 ON</span>
+      <span class="chip">매집박스 OFF</span>
+      <span class="chip">분배박스 OFF</span>
+      <span class="chip">확정만 표시 OFF</span>
+    </div>
+    <div class="chart">
+      <div class="candles"></div>
+      <div class="zone long"></div>
+      <div class="zone short"></div>
+      <div class="label long">장대양봉 후보 (+2~3캔)</div>
+      <div class="label short">장대음봉 후보 (+2~3캔)</div>
+    </div>
+    <div class="legend">
+      <div class="card">목업 1: 예고 박스 화면. 현재 2~3캔들 + 거래량 조건 충족 시 우측에 반투명 후보 zone 표시.</div>
+      <div class="card">초록 박스: 상승 장대봉 후보 / 빨강 박스: 하락 장대봉 후보. 실제 구현 시 신뢰도 점수로 투명도 조절.</div>
+    </div>
+  </div>
+</body>
+</html>

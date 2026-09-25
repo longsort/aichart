@@ -1,0 +1,5 @@
+﻿phase0 backup
+created: 20260821-203857
+engine: eagle1-core-0.23.1
+rollback: copy files from this folder back over workspace paths
+git_head: d4045b7

@@ -1,0 +1,15 @@
+
+PATCH-5 적용 요약 (자동 복기/통계 UI)
+
+1) pubspec.yaml 확인:
+   - path_provider: 이미 있으면 OK. 없으면 추가:
+     path_provider: ^2.1.0
+
+2) decision_hud_v11.dart(또는 현재 HUD 파일)에 아래 2줄 추가:
+   import 'stats_card_v1.dart';  // 경로는 프로젝트 구조에 맞게
+
+3) HUD build() 맨 아래(리턴 Column 마지막)에 아래 위젯 추가:
+   const StatsCardV1(),
+
+※ 컴파일 에러 나면, HUD 파일명이 v11이 아닐 수 있음:
+   decision_hud_* 파일에서 동일하게 넣으면 됨.

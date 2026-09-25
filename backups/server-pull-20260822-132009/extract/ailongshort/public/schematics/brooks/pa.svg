@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Al Brooks — Trend · PB · H1/H2 · Trading Range</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.4" points="60,360 140,200 200,260 280,120 340,190 420,80 500,200 700,180 780,220 860,160"/>
+  <rect x="500" y="140" width="280" height="120" fill="none" stroke="#64748b" stroke-dasharray="4 3"/>
+  <text x="140" y="190" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700">trend</text>
+  <text x="200" y="280" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700">PB</text>
+  <text x="280" y="108" font-family="Segoe UI, sans-serif" font-size="13" font-weight="800">H1</text>
+  <text x="420" y="70" font-family="Segoe UI, sans-serif" font-size="13" font-weight="800">H2</text>
+  <text x="600" y="130" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700">TR</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">H2=second attempt in trend. TR=tight range. Climax bars can fail.</text>
+</svg>

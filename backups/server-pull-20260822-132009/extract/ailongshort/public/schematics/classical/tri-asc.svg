@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Ascending Triangle</text>
+  <line x1="120" y1="120" x2="820" y2="120" stroke="#0f172a" stroke-width="2"/>
+  <line x1="120" y1="380" x2="820" y2="140" stroke="#0f172a" stroke-width="2"/>
+  <polyline fill="none" stroke="#2563eb" stroke-width="2.2" points="140,350 220,130 320,280 400,130 520,210 600,130 700,170"/>
+  <text x="500" y="108" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700">flat resistance</text>
+  <text x="200" y="400" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700">rising lows</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Often bullish continuation. Break either side possible.</text>
+</svg>

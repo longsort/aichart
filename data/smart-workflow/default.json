@@ -1,150 +1,6 @@
 [
   {
     "symbol": "BTCUSDT",
-    "timeframe": "5m",
-    "state": "IDLE",
-    "at": 1789868537118,
-    "score": 39,
-    "probabilityEdge": 80,
-    "signalTime": 1789868400
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "5m",
-    "state": "SETUP",
-    "at": 1789868565293,
-    "score": 51,
-    "probabilityEdge": 80,
-    "signalTime": 1789868400
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "1m",
-    "state": "IDLE",
-    "at": 1789868566103,
-    "score": 43,
-    "probabilityEdge": 80,
-    "signalTime": 1789868520
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "5m",
-    "state": "IDLE",
-    "at": 1789868596139,
-    "score": 47,
-    "probabilityEdge": 80,
-    "signalTime": 1789868400
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "1m",
-    "state": "INVALID",
-    "at": 1789868627708,
-    "score": 50,
-    "probabilityEdge": -80,
-    "signalTime": 1789868580
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "1Y",
-    "state": "IDLE",
-    "at": 1789868688668,
-    "score": 27,
-    "probabilityEdge": 0,
-    "signalTime": 1789867800
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "4h",
-    "state": "INVALID",
-    "at": 1789868718706,
-    "score": 39,
-    "probabilityEdge": -80,
-    "signalTime": 1782547200
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "4h",
-    "state": "IDLE",
-    "at": 1789868744377,
-    "score": 45,
-    "probabilityEdge": 76,
-    "signalTime": 1789862400
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "3m",
-    "state": "INVALID",
-    "at": 1789868830765,
-    "score": 32,
-    "probabilityEdge": 80,
-    "signalTime": 1789868160
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "3m",
-    "state": "IDLE",
-    "at": 1789868890263,
-    "score": 42,
-    "probabilityEdge": 80,
-    "signalTime": 1789868340
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "1m",
-    "state": "IDLE",
-    "at": 1789868897537,
-    "score": 42,
-    "probabilityEdge": 80,
-    "signalTime": 1789868880
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "1m",
-    "state": "INVALID",
-    "at": 1789869022803,
-    "score": 34,
-    "probabilityEdge": -80,
-    "signalTime": 1789869000
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "1m",
-    "state": "IDLE",
-    "at": 1789870047072,
-    "score": 50,
-    "probabilityEdge": 80,
-    "signalTime": 1789870020
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "1h",
-    "state": "INVALID",
-    "at": 1789870051537,
-    "score": 47,
-    "probabilityEdge": -60,
-    "signalTime": 1789869600
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "1m",
-    "state": "INVALID",
-    "at": 1789872236085,
-    "score": 32,
-    "probabilityEdge": 80,
-    "signalTime": 1789872180
-  },
-  {
-    "symbol": "BTCUSDT",
-    "timeframe": "5m",
-    "state": "INVALID",
-    "at": 1789872247953,
-    "score": 32,
-    "probabilityEdge": 80,
-    "signalTime": 1789872000
-  },
-  {
-    "symbol": "BTCUSDT",
     "timeframe": "3m",
     "state": "INVALID",
     "at": 1789872256937,
@@ -35983,20 +35839,164 @@
   },
   {
     "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1790345836386,
+    "score": 47,
+    "probabilityEdge": 80,
+    "signalTime": 1782558000
+  },
+  {
+    "symbol": "BTCUSDT",
     "timeframe": "5m",
     "state": "INVALID",
-    "at": 1790345803123,
-    "score": 46,
-    "probabilityEdge": -80,
+    "at": 1790345860658,
+    "score": 51,
+    "probabilityEdge": -60,
+    "signalTime": 1790345700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "INVALID",
+    "at": 1790345861978,
+    "score": 51,
+    "probabilityEdge": -64,
+    "signalTime": 1782558000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1790345973264,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1790344800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "SETUP",
+    "at": 1790346161534,
+    "score": 51,
+    "probabilityEdge": 80,
     "signalTime": 1790345700
   },
   {
     "symbol": "BTCUSDT",
     "timeframe": "15m",
     "state": "IDLE",
-    "at": 1790345804611,
-    "score": 47,
+    "at": 1790346276362,
+    "score": 45,
     "probabilityEdge": 80,
     "signalTime": 1790345700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1790346337158,
+    "score": 51,
+    "probabilityEdge": 0,
+    "signalTime": 1790346300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "INVALID",
+    "at": 1790346338083,
+    "score": 51,
+    "probabilityEdge": -64,
+    "signalTime": 1782558000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1790346389067,
+    "score": 46,
+    "probabilityEdge": -80,
+    "signalTime": 1790346300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1h",
+    "state": "IDLE",
+    "at": 1790346390314,
+    "score": 48,
+    "probabilityEdge": 80,
+    "signalTime": 1790344800
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "SETUP",
+    "at": 1790346467824,
+    "score": 55,
+    "probabilityEdge": 80,
+    "signalTime": 1782558000
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "INVALID",
+    "at": 1790346469389,
+    "score": 40,
+    "probabilityEdge": 80,
+    "signalTime": 1790346420
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "SETUP",
+    "at": 1790346470964,
+    "score": 58,
+    "probabilityEdge": 0,
+    "signalTime": 1790346300
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "1m",
+    "state": "IDLE",
+    "at": 1790346522253,
+    "score": 40,
+    "probabilityEdge": 80,
+    "signalTime": 1790346480
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "IDLE",
+    "at": 1790346525763,
+    "score": 39,
+    "probabilityEdge": 80,
+    "signalTime": 1786710600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "IDLE",
+    "at": 1790346532580,
+    "score": 45,
+    "probabilityEdge": 80,
+    "signalTime": 1790345700
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "15m",
+    "state": "SETUP",
+    "at": 1790346609227,
+    "score": 54,
+    "probabilityEdge": 80,
+    "signalTime": 1790346600
+  },
+  {
+    "symbol": "BTCUSDT",
+    "timeframe": "5m",
+    "state": "INVALID",
+    "at": 1790346703217,
+    "score": 46,
+    "probabilityEdge": -80,
+    "signalTime": 1790346600
   }
 ]

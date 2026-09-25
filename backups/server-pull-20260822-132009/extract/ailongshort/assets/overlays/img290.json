@@ -1,0 +1,42 @@
+{
+  "source": "下载.png",
+  "catalogId": "img290",
+  "category": "harmonic",
+  "chartable": true,
+  "titleKo": "하모닉 참조",
+  "tags": [
+    "harmonic",
+    "xabcd"
+  ],
+  "structureFeatures": {
+    "bos": false,
+    "choch": false,
+    "fvg": 0,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "harmonic",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "relative",
+    "elements": [
+      {
+        "type": "zone",
+        "role": "prz",
+        "pricePctTop": 0.48,
+        "pricePctBot": 0.54,
+        "timePctStart": 0.7,
+        "timePctEnd": 1
+      },
+      {
+        "type": "hline",
+        "role": "target",
+        "pricePct": 0.35,
+        "label": "TP"
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
+}

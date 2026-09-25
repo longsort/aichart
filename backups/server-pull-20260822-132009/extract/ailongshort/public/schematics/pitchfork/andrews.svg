@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Andrews Pitchfork</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.2" points="80,360 260,80 420,300 900,120"/>
+  <line x1="80" y1="360" x2="900" y2="80" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="260" y1="80" x2="900" y2="40" stroke="#64748b"/>
+  <line x1="420" y1="300" x2="900" y2="200" stroke="#64748b"/>
+  <text x="70" y="380" font-family="Segoe UI, sans-serif" font-size="14" font-weight="800">P0</text>
+  <text x="250" y="70" font-family="Segoe UI, sans-serif" font-size="14" font-weight="800">P1</text>
+  <text x="420" y="322" font-family="Segoe UI, sans-serif" font-size="14" font-weight="800">P2</text>
+  <text x="700" y="70" font-family="Segoe UI, sans-serif" font-size="12">upper</text>
+  <text x="700" y="150" font-family="Segoe UI, sans-serif" font-size="12" fill="#1d4ed8">median</text>
+  <text x="700" y="230" font-family="Segoe UI, sans-serif" font-size="12">lower</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Median magnet / slide. Outside tines = stretch or new pitch.</text>
+</svg>

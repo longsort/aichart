@@ -1,0 +1,4 @@
+.qoder
+dist/
+*.skill
+.DS_Store

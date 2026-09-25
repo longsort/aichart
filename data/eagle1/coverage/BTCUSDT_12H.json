@@ -112,6 +112,6 @@
     }
   ],
   "source_endpoint": "https://api.bitget.com/api/v2/mix/market/history-candles",
-  "downloaded_at": 1790345825546,
+  "downloaded_at": 1790346728601,
   "engine_version": "eagle1-core-0.23.1"
 }

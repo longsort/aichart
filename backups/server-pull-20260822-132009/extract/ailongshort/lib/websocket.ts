@@ -1,0 +1,86 @@
+import { Candle } from '@/types';
+import { normalizeChartTimeframe } from '@/lib/constants';
+
+const INTERVAL_MAP: Record<string, string> = {
+  '1m': '1m', '3m': '3m', '5m': '5m', '15m': '15m',
+  '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1w',
+  /** 월봉 스트림은 바이낸스 스팟 WS에 없음 — 구독 자체를 막음 */
+};
+
+export type WsCandleUpdate = { candle: Candle; isComplete: boolean };
+
+type Listener = (up: WsCandleUpdate) => void;
+
+const connections = new Map<string, { ws: WebSocket; listeners: Set<Listener> }>();
+
+function getStream(symbol: string, timeframe: string): string | null {
+  /** 1M.toLowerCase()==='1m' 버그 방지 — 월봉을 1분봉으로 구독하면 차트 붕괴 */
+  const tf = normalizeChartTimeframe(timeframe);
+  if (tf === '1M' || tf === '1Y' || tf === '1w') return null;
+  const interval = INTERVAL_MAP[tf];
+  if (!interval) return null;
+  return `${symbol.toLowerCase()}@kline_${interval}`;
+}
+
+function connect(symbol: string, timeframe: string, onUpdate: Listener): () => void {
+  const key = `${symbol}-${timeframe}`;
+  const stream = getStream(symbol, timeframe);
+  if (!stream) {
+    return () => {};
+  }
+
+  if (connections.has(key)) {
+    connections.get(key)!.listeners.add(onUpdate);
+    return () => {
+      const c = connections.get(key)!;
+      c.listeners.delete(onUpdate);
+      if (c.listeners.size === 0) {
+        c.ws.close();
+        connections.delete(key);
+      }
+    };
+  }
+
+  const listeners = new Set<Listener>([onUpdate]);
+  const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${stream}`);
+  connections.set(key, { ws, listeners });
+
+  ws.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data as string);
+      const k = d.k;
+      if (!k) return;
+      const vol = parseFloat(k.v);
+      const tbRaw = k.V != null ? parseFloat(String(k.V)) : NaN;
+      const candle: Candle = {
+        time: Math.floor(k.t / 1000),
+        open: parseFloat(k.o),
+        high: parseFloat(k.h),
+        low: parseFloat(k.l),
+        close: parseFloat(k.c),
+        volume: vol,
+        ...(Number.isFinite(tbRaw) && vol > 0 && tbRaw >= 0 && tbRaw <= vol * 1.001
+          ? { takerBuyBaseVolume: tbRaw }
+          : {}),
+      };
+      const isComplete = !!k.x;
+      connections.get(key)?.listeners.forEach(fn => fn({ candle, isComplete }));
+    } catch {}
+  };
+  ws.onclose = () => connections.delete(key);
+
+  return () => {
+    const c = connections.get(key);
+    if (c) {
+      c.listeners.delete(onUpdate);
+      if (c.listeners.size === 0) {
+        c.ws.close();
+        connections.delete(key);
+      }
+    }
+  };
+}
+
+export function subscribeWs(symbol: string, timeframe: string, onUpdate: Listener): () => void {
+  return connect(symbol, timeframe, onUpdate);
+}

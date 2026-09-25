@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Rising Wedge</text>
+  <line x1="120" y1="360" x2="820" y2="140" stroke="#0f172a" stroke-width="2"/>
+  <line x1="120" y1="300" x2="820" y2="60" stroke="#0f172a" stroke-width="2"/>
+  <polyline fill="none" stroke="#ea580c" stroke-width="2.2" points="160,340 260,250 360,280 480,170 580,200 700,110"/>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Both lines rise, range shrinks. Often bearish at end of up-leg.</text>
+</svg>

@@ -1,0 +1,56 @@
+{
+  "source": "image.png",
+  "bprZones": [
+    {
+      "top": 17010,
+      "bottom": 16970,
+      "label": "BPR 1"
+    },
+    {
+      "top": 16910,
+      "bottom": 16870,
+      "label": "BPR 2"
+    }
+  ],
+  "supportLines": [
+    {
+      "price": 16850.1,
+      "label": "Support Line"
+    }
+  ],
+  "catalogId": "img117",
+  "category": "smc_candle",
+  "chartable": true,
+  "titleKo": "SMC 구조 참조",
+  "tags": [
+    "smc_candle",
+    "smc",
+    "bos",
+    "choch",
+    "fvg",
+    "ob"
+  ],
+  "structureFeatures": {
+    "bos": true,
+    "choch": true,
+    "fvg": 1,
+    "ob": 1,
+    "sweep": true,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "absolute_prices",
+    "elements": [
+      {
+        "type": "hline",
+        "role": "support",
+        "price": 16850.1,
+        "label": "Support Line"
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
+}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Fibonacci Extension / Measured Move</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.6" points="80,360 280,140 420,260 820,40"/>
+  <line x1="80" y1="140" x2="900" y2="140" stroke="#94a3b8" stroke-dasharray="4 3"/>
+  <line x1="80" y1="90" x2="900" y2="90" stroke="#22c55e" stroke-dasharray="4 3"/>
+  <line x1="80" y1="40" x2="900" y2="40" stroke="#f97316" stroke-dasharray="4 3"/>
+  <text x="910" y="144" font-family="Segoe UI, sans-serif" font-size="12">1.00 AB</text>
+  <text x="910" y="94" font-family="Segoe UI, sans-serif" font-size="12">1.272</text>
+  <text x="910" y="44" font-family="Segoe UI, sans-serif" font-size="12">1.618</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Extensions are measured targets. Overlap / fade both possible.</text>
+</svg>

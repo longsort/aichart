@@ -1,0 +1,8 @@
+FU175 FINAL MANAGER STRUCTURE
+- HOME: MarketLiveHeader + 기존 요약/게이지 유지
+- SIGNAL: MarketLiveHeader + 증거10/합의 결과 유지
+- ZONE: P1~P5 입력 + 지지/저항 게이지
+- STATS: 기존 유지
+- HELP: 메뉴판(설명서)
+- MarketStore: BINANCE/Bitget 선택 + 가격 표시
+- LogService/DB: data/fulink_pro_ultra.db 생성(초기화만)

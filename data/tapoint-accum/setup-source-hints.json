@@ -1,65 +1,5 @@
 [
   {
-    "symbol": "SOLUSDT",
-    "source": "signal-C-S",
-    "direction": "SHORT",
-    "grade": "S",
-    "noteKo": "신호C · 신호C · S급 · OB·FVG+CHoCH/BOS · SHORT · SETUP힌트",
-    "timeframe": "15m",
-    "signalId": "s-grade-SOLUSDT-SHORT-1790342100",
-    "at": 1790343259168
-  },
-  {
-    "symbol": "BTCUSDT",
-    "source": "signal-C-S",
-    "direction": "SHORT",
-    "grade": "S",
-    "noteKo": "신호C · 신호C · S급 · OB·FVG+CHoCH/BOS · SHORT · SETUP힌트",
-    "timeframe": "15m",
-    "signalId": "s-grade-BTCUSDT-SHORT-1790342100",
-    "at": 1790343346352
-  },
-  {
-    "symbol": "ETHUSDT",
-    "source": "signal-A-fast",
-    "direction": "LONG",
-    "grade": null,
-    "noteKo": "신호A · 신호A · 초단Fast · LONG · 자리참고·대기 · 스윕회수↑ · ROE8% · SETUP힌트",
-    "timeframe": "1m",
-    "signalId": "rb-scalp-ETHUSDT-1m-LONG-1790343240",
-    "at": 1790343346561
-  },
-  {
-    "symbol": "ETHUSDT",
-    "source": "signal-C-S",
-    "direction": "SHORT",
-    "grade": "S",
-    "noteKo": "신호C · 신호C · S급 · OB·FVG+CHoCH/BOS · SHORT · SETUP힌트",
-    "timeframe": "15m",
-    "signalId": "s-grade-ETHUSDT-SHORT-1790342100",
-    "at": 1790343346561
-  },
-  {
-    "symbol": "XRPUSDT",
-    "source": "signal-B-rocket",
-    "direction": "SHORT",
-    "grade": null,
-    "noteKo": "신호B · 신호B · 하락→번개5봉 · SHORT · ROE8% · SETUP힌트",
-    "timeframe": "3m",
-    "signalId": "rkcart-XRPUSDT-SHORT-1790343540",
-    "at": 1790343889466
-  },
-  {
-    "symbol": "XRPUSDT",
-    "source": "signal-C-S",
-    "direction": "LONG",
-    "grade": "S",
-    "noteKo": "신호C · 신호C · S급 · OB·FVG+CHoCH/BOS · LONG · SETUP힌트",
-    "timeframe": "15m",
-    "signalId": "s-grade-XRPUSDT-LONG-1790343000",
-    "at": 1790343979013
-  },
-  {
     "symbol": "ETHUSDT",
     "source": "signal-C-S",
     "direction": "LONG",
@@ -68,16 +8,6 @@
     "timeframe": "15m",
     "signalId": "s-grade-ETHUSDT-LONG-1790343000",
     "at": 1790344788916
-  },
-  {
-    "symbol": "BTCUSDT",
-    "source": "signal-A-fast",
-    "direction": "SHORT",
-    "grade": null,
-    "noteKo": "신호A · 신호A · 초단Fast · SHORT · 자리참고·숏 · 스윕회수↓ · ROE8% · SETUP힌트",
-    "timeframe": "1m",
-    "signalId": "rb-scalp-BTCUSDT-1m-SHORT-1790345220",
-    "at": 1790345328896
   },
   {
     "symbol": "SOLUSDT",
@@ -96,17 +26,27 @@
     "grade": null,
     "noteKo": "신호A · 신호A · 초단Fast · SHORT · 자리참고·숏 · 스윕회수↓ · BPR합류15m · ROE8% · SETUP힌트",
     "timeframe": "1m",
-    "signalId": "rb-scalp-ETHUSDT-1m-SHORT-1790345700",
-    "at": 1790345780918
+    "signalId": "rb-scalp-ETHUSDT-1m-SHORT-1790346120",
+    "at": 1790346228974
+  },
+  {
+    "symbol": "BTCUSDT",
+    "source": "signal-A-fast",
+    "direction": "SHORT",
+    "grade": null,
+    "noteKo": "신호A · 신호A · 초단Fast · SHORT · 자리참고·숏 · 스윕회수↓ · ROE8% · SETUP힌트",
+    "timeframe": "1m",
+    "signalId": "rb-scalp-BTCUSDT-1m-SHORT-1790346420",
+    "at": 1790346499324
   },
   {
     "symbol": "XRPUSDT",
     "source": "signal-A-fast",
     "direction": "SHORT",
     "grade": null,
-    "noteKo": "신호A · 신호A · 초단Fast · SHORT · 자리완화·레일/핵심1 · 스윕회수↓ · ROE8% · SETUP힌트",
-    "timeframe": "1m",
-    "signalId": "rb-scalp-XRPUSDT-1m-SHORT-1790345700",
-    "at": 1790345781054
+    "noteKo": "신호A · 신호A · 초단Fast · SHORT · 자리완화·레일/핵심1 · 스윕회수↓ · BPR합류15m · ROE8% · SETUP힌트",
+    "timeframe": "3m",
+    "signalId": "rb-scalp-XRPUSDT-3m-SHORT-1790346420",
+    "at": 1790346679445
   }
 ]
