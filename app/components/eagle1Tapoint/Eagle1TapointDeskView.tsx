@@ -165,6 +165,22 @@ import {
 } from '@/lib/mergedDeskMtfDumpZoneBridge';
 
 import MergedDeskAutoTradePanel from '@/app/components/mergedAnalysis/MergedDeskAutoTradePanel';
+import { resolveProfitPatternMonitor } from '@/lib/profitPattern15m/liveSignal';
+import { buildProfitPatternChartLines } from '@/lib/profitPattern15m/chartLines';
+import {
+  ppClearLockedLevels,
+  ppGetLockedLevels,
+  ppLockLevels,
+  type PpLockedLevels,
+} from '@/lib/profitPattern15m/lockedLevels';
+import { ppJournalAppend, ppJournalList } from '@/lib/profitPattern15m/tradeJournal';
+import { ppDayCapRecordTrade } from '@/lib/profitPattern15m/dayCap';
+import {
+  PP_PAPER_POLICY_KO,
+  PROFIT_PATTERN_HOCHUNG,
+  PROFIT_PATTERN_SKILL_ID,
+  ppNormalizeSymbol,
+} from '@/lib/profitPattern15m';
 
 type Props = {
   symbol: string;
@@ -377,6 +393,14 @@ export default function Eagle1TapointDeskView(props: Props) {
   const rocketPersistRef = useRef<Map<string, TapointChartMarker>>(new Map());
   const candlesForSharedRef = useRef(candles);
   candlesForSharedRef.current = candles;
+
+  /** 진입 후 E/SL/TP 고정 — 재계산으로 이동 금지 */
+  const [lockedLevels, setLockedLevels] = useState<PpLockedLevels | null>(() =>
+    typeof window !== 'undefined' ? ppGetLockedLevels(symbol) : null
+  );
+  const [ppJournalPreview, setPpJournalPreview] = useState(() =>
+    typeof window !== 'undefined' ? ppJournalList({ symbol, limit: 8 }) : []
+  );
 
   /** 차트 표시 TF · 부모 리렌더/자동진입 TF와 분리 (분·시·일·주·달 전환용) */
   const [chartTf, setChartTf] = useState(() => {
@@ -647,6 +671,46 @@ export default function Eagle1TapointDeskView(props: Props) {
       });
       pushLog(r.ok ? `${sym} 세판정 ${aligned.direction} ${r.msg}` : `${sym} 스킵 ${r.msg}`);
       if (sym === symbol) setStatusKo(r.ok ? `세판정주문 · ${r.msg}` : `스킵 · ${r.msg}`);
+      if (r.ok && aligned.direction && aligned.entry != null && aligned.sl != null && aligned.tp != null) {
+        const locked = ppLockLevels({
+          symbol: sym,
+          direction: aligned.direction,
+          entry: aligned.entry,
+          sl: aligned.sl,
+          tp: aligned.tp,
+          lockedAt: Math.floor(Date.now() / 1000),
+          eventId: signalId,
+          source: 'instBand',
+          lineEntryKo: '진입고정',
+          lineSlKo: '손절고정',
+          lineTpKo: '익절고정',
+        });
+        if (sym === symbol) setLockedLevels(locked);
+        ppDayCapRecordTrade(sym);
+        ppJournalAppend({
+          kind: 'ENTRY',
+          symbol: sym,
+          timeframe: needTf,
+          direction: aligned.direction,
+          entry: aligned.entry,
+          sl: aligned.sl,
+          tp: aligned.tp,
+          eventId: signalId,
+          reasonKo: aligned.reasonKo,
+          policyKo: '진입후 E/SL/TP 고정',
+        });
+        ppJournalAppend({
+          kind: 'LOCK',
+          symbol: sym,
+          direction: aligned.direction,
+          entry: aligned.entry,
+          sl: aligned.sl,
+          tp: aligned.tp,
+          eventId: signalId,
+          reasonKo: '차트 E/SL/TP 고정',
+        });
+        if (sym === symbol) setPpJournalPreview(ppJournalList({ symbol: sym, limit: 8 }));
+      }
     },
     [pushLog, symbol, candles, chartTf]
   );
@@ -985,6 +1049,23 @@ export default function Eagle1TapointDeskView(props: Props) {
         if (prefs.rightPositions !== 'off') {
           const list = (pack.positions || []).filter((p) => Number(p.size) > 0);
           setPositions(list);
+          /** 포지션 없으면 고정선 해제 · 기록 */
+          const locked = ppGetLockedLevels(symbol);
+          if (locked && list.length === 0) {
+            ppJournalAppend({
+              kind: 'EXIT_MANUAL',
+              symbol,
+              direction: locked.direction,
+              entry: locked.entry,
+              sl: locked.sl,
+              tp: locked.tp,
+              eventId: locked.eventId,
+              reasonKo: '포지션 없음 · E/SL/TP 고정 해제',
+            });
+            ppClearLockedLevels(symbol);
+            setLockedLevels(null);
+            setPpJournalPreview(ppJournalList({ symbol, limit: 8 }));
+          }
         }
       } catch {
         /* ignore · Failed to fetch 오버레이 방지 */
@@ -1046,7 +1127,24 @@ export default function Eagle1TapointDeskView(props: Props) {
     [bandPlan]
   );
 
+  useEffect(() => {
+    setLockedLevels(ppGetLockedLevels(symbol));
+    setPpJournalPreview(ppJournalList({ symbol, limit: 8 }));
+  }, [symbol]);
+
   const levels = useMemo(() => {
+    if (lockedLevels && lockedLevels.symbol === ppNormalizeSymbol(symbol)) {
+      return {
+        entry: lockedLevels.entry,
+        sl: lockedLevels.sl,
+        tp1: lockedLevels.tp,
+        tp2: null as number | null,
+        tp3: null as number | null,
+        zoneLo: report?.battleZone?.lo,
+        zoneHi: report?.battleZone?.hi,
+        zoneMid: report?.battleZone?.mid,
+      };
+    }
     const struct =
       sharedFeat.institutionalBand && bandPlan
         ? instBandStructureSlTp({
@@ -1070,6 +1168,8 @@ export default function Eagle1TapointDeskView(props: Props) {
       zoneMid: report?.battleZone?.mid,
     };
   }, [
+    lockedLevels,
+    symbol,
     sharedFeat.institutionalBand,
     bandPlan,
     report?.entry,
@@ -1083,6 +1183,45 @@ export default function Eagle1TapointDeskView(props: Props) {
   ]);
 
   const chartSignalsBase = useMemo(() => report?.chartSignals ?? null, [report?.chartSignals]);
+
+  /** 수익패턴엔진 — 전코인 · 15m 차트에서 모니터 · 차트 가로줄 */
+  const profitPatternMon = useMemo(() => {
+    const tf = String(normalizeChartTimeframe(chartTf) || chartTf || '').toLowerCase();
+    if (tf !== '15m' && tf !== '15') {
+      return resolveProfitPatternMonitor({
+        symbol,
+        timeframe: tf || '3m',
+        candles: [],
+      });
+    }
+    return resolveProfitPatternMonitor({
+      symbol,
+      timeframe: '15m',
+      candles: candles as Candle[],
+    });
+  }, [symbol, chartTf, candles]);
+
+  const ppSignalLoggedRef = useRef<string>('');
+  useEffect(() => {
+    if (profitPatternMon.status !== 'SIGNAL' || !profitPatternMon.ok) return;
+    const eid = `${PROFIT_PATTERN_SKILL_ID}-${profitPatternMon.symbol}-${profitPatternMon.barTime}-${profitPatternMon.direction}`;
+    if (ppSignalLoggedRef.current === eid) return;
+    ppSignalLoggedRef.current = eid;
+    ppJournalAppend({
+      kind: 'SIGNAL',
+      symbol: profitPatternMon.symbol,
+      timeframe: '15m',
+      direction: profitPatternMon.direction,
+      entry: profitPatternMon.entry,
+      sl: profitPatternMon.sl,
+      tp: profitPatternMon.tp,
+      sizeScale: profitPatternMon.sizeScale,
+      reasonKo: profitPatternMon.reasonKo,
+      policyKo: PP_PAPER_POLICY_KO,
+      eventId: eid,
+    });
+    setPpJournalPreview(ppJournalList({ symbol, limit: 8 }));
+  }, [profitPatternMon, symbol]);
 
   /** 전투구간 슬라이더 조작 중에는 SETTINGS sync로 setState 하지 않음(무한루프 방지) */
   const battleStyleEditRef = useRef(false);
@@ -1356,16 +1495,60 @@ export default function Eagle1TapointDeskView(props: Props) {
           huntExtreme: bandPlan?.huntExtreme,
         })
       : null;
-    if (!struct || !styled?.lines?.length) return styled;
-    return {
-      ...styled,
-      lines: styled.lines.map((line) => {
+    let lines = styled?.lines ? [...styled.lines] : [];
+    /** 진입 고정값이 있으면 진입/손절/익절1 가격 고정 */
+    if (lockedLevels) {
+      lines = lines.map((line) => {
+        const title = String(line.title || '');
+        if (title === '진입' || title.includes('진입') || title.includes('50x')) {
+          if (/스탑|손절|SL/i.test(title)) return { ...line, price: lockedLevels.sl };
+          if (/목표|익절|TP/i.test(title)) return { ...line, price: lockedLevels.tp };
+          if (/진입|롱|숏|E\b/i.test(title) && !/스탑|목표|손절|익절/i.test(title)) {
+            return { ...line, price: lockedLevels.entry };
+          }
+        }
+        if (title === '진입') return { ...line, price: lockedLevels.entry };
+        if (title === '손절') return { ...line, price: lockedLevels.sl };
+        if (title === '익절1') return { ...line, price: lockedLevels.tp };
+        return line;
+      });
+    } else if (struct && lines.length) {
+      lines = lines.map((line) => {
         const title = String(line.title || '');
         if (title === '진입') return { ...line, price: struct.entry };
         if (title === '손절') return { ...line, price: struct.sl };
         if (title === '익절1') return { ...line, price: struct.tp };
         return line;
-      }),
+      });
+    }
+    /** 수익패턴 50x 가로줄 — 전코인 · 고정 우선 */
+    const ppLines = buildProfitPatternChartLines({
+      locked: lockedLevels,
+      monitor: profitPatternMon,
+    });
+    for (const pl of ppLines) {
+      const exists = lines.some(
+        (L) => String(L.title) === pl.title && Math.abs(Number(L.price) - pl.price) < 1e-8
+      );
+      if (!exists) {
+        lines.push({
+          title: pl.title,
+          price: pl.price,
+          color: pl.color,
+          lineStyle: pl.lineStyle || 'solid',
+          lineWidth: pl.lineWidth || 2,
+        });
+      }
+    }
+    if (!styled && !lines.length) return styled;
+    return {
+      ...(styled || { lines: [], zones: [], markers: [], legendKo: [] }),
+      lines,
+      legendKo: [
+        ...((styled?.legendKo || []) as string[]),
+        lockedLevels ? 'E/SL/TP고정' : '',
+        profitPatternMon?.status === 'SIGNAL' ? PROFIT_PATTERN_HOCHUNG : '',
+      ].filter(Boolean),
     };
   }, [
     chartSignalsBase,
@@ -1386,6 +1569,8 @@ export default function Eagle1TapointDeskView(props: Props) {
     dumpZoneColorMode,
     dumpZoneFill,
     dumpZoneBorder,
+    lockedLevels,
+    profitPatternMon,
   ]);
 
 
@@ -2337,6 +2522,97 @@ export default function Eagle1TapointDeskView(props: Props) {
                 <p className="vmax-iband-reason">{bandPlan.reasonKo || '—'}</p>
               </div>
             ) : null}
+            <div
+              className={`vmax-iband-card${
+                profitPatternMon.status === 'SIGNAL'
+                  ? profitPatternMon.direction === 'SHORT'
+                    ? ' is-short'
+                    : ' is-long'
+                  : ' is-wait'
+              }`}
+              title={`수익패턴엔진 · 전코인 · 롱만·SL0.4%·H1·비중캡·메이커·일일4회 · ${PP_PAPER_POLICY_KO}`}
+            >
+              <header>
+                <strong>{PROFIT_PATTERN_HOCHUNG}</strong>
+                <span>
+                  {profitPatternMon.status === 'SIGNAL'
+                    ? lockedLevels
+                      ? '진입고정'
+                      : profitPatternMon.monitorKo
+                    : profitPatternMon.monitorKo || 'WAIT'}
+                </span>
+                <em>{symbol.replace('USDT', '')}</em>
+              </header>
+              <div className="vmax-iband-levels">
+                <b>
+                  E{' '}
+                  {(lockedLevels?.entry ?? profitPatternMon.entry) != null
+                    ? Number(lockedLevels?.entry ?? profitPatternMon.entry).toLocaleString(
+                        undefined,
+                        { maximumFractionDigits: 2 }
+                      )
+                    : '—'}
+                </b>
+                <b className="sl">
+                  SL{' '}
+                  {(lockedLevels?.sl ?? profitPatternMon.sl) != null
+                    ? Number(lockedLevels?.sl ?? profitPatternMon.sl).toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })
+                    : '—'}
+                </b>
+                <b className="tp">
+                  TP{' '}
+                  {(lockedLevels?.tp ?? profitPatternMon.tp) != null
+                    ? Number(lockedLevels?.tp ?? profitPatternMon.tp).toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })
+                    : '—'}
+                </b>
+                <i>
+                  50x · SL{profitPatternMon.slPct}% · TP≈{profitPatternMon.tpMovePct}%
+                  {lockedLevels ? ' · 고정' : ''}
+                  {profitPatternMon.status === 'SIGNAL' ? ' · SIGNAL' : ''}
+                </i>
+              </div>
+              <p className="vmax-iband-candle">패턴 · {profitPatternMon.pattern}</p>
+              <p className="vmax-iband-reason">{profitPatternMon.reasonKo || '—'}</p>
+              {lockedLevels ? (
+                <button
+                  type="button"
+                  className="vmax-mini"
+                  style={{ marginTop: 6 }}
+                  onClick={() => {
+                    ppJournalAppend({
+                      kind: 'NOTE',
+                      symbol,
+                      direction: lockedLevels.direction,
+                      entry: lockedLevels.entry,
+                      sl: lockedLevels.sl,
+                      tp: lockedLevels.tp,
+                      eventId: lockedLevels.eventId,
+                      reasonKo: '수동 · E/SL/TP 고정 해제',
+                    });
+                    ppClearLockedLevels(symbol);
+                    setLockedLevels(null);
+                    setPpJournalPreview(ppJournalList({ symbol, limit: 8 }));
+                    pushLog(`${symbol} · E/SL/TP 고정 해제`);
+                  }}
+                >
+                  고정 해제
+                </button>
+              ) : null}
+              {ppJournalPreview.length ? (
+                <ul className="vmax-log" style={{ marginTop: 8, maxHeight: 120, overflow: 'auto' }}>
+                  {ppJournalPreview.slice(0, 6).map((row) => (
+                    <li key={row.id}>
+                      {row.kind} · {row.direction || '—'} ·{' '}
+                      {row.reasonKo?.slice(0, 42) || row.eventId || ''}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
             <div className="vmax-battle-style" title="전투구간(Battle Zone) 면·테두리 — 다중합류 배경 참고">
               <span className="vmax-battle-style-title">전투구간</span>
               <label className="vmax-battle-style-op">
