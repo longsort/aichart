@@ -292,6 +292,7 @@ def main():
     baseline_oos = None
     if base.get("side"):
         # rebuild minimal cfg from paper v1
+        # paper v1: gate 이름과 무관하게 저장된 sessions/regimes 사용
         bcfg = {
             "side": base["side"],
             "leverage": base["leverage"],
@@ -301,13 +302,9 @@ def main():
             "tp1_pct": base["tp1_pct"],
             "hold": base.get("hold_bars") or base.get("hold"),
             "m5": "none",
-            "sessions": base.get("sessions") or allowed.get(base["side"], {}).get("sessions"),
-            "regimes": base.get("regimes") or allowed.get(base["side"], {}).get("regimes"),
+            "sessions": base.get("sessions"),
+            "regimes": base.get("regimes"),
         }
-        # paper v1 used gate=none (no sess) — keep as stored
-        if base.get("gate") == "none":
-            bcfg["sessions"] = None
-            bcfg["regimes"] = None
         baseline_oos, _, _ = eval_cfg(bcfg, splits["test_idx"])
 
     paper14 = {
