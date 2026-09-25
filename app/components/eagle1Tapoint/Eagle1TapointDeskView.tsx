@@ -38,10 +38,10 @@ import {
   tapOnlyArmHintKo,
   tapOnlyStatusKo,
 } from '@/lib/eagle1Tapoint/config';
+import { BAND15_AUTO_HOCHUNG } from '@/lib/eagle1Tapoint/band15AutoSkill';
 import {
   normalizeTapointTf,
   resolveTapointEntryTf,
-  tapointEntryTfLabelKo,
 } from '@/lib/eagle1Tapoint/symbolEntryTf';
 import { normalizeChartTimeframe, timeframeRank } from '@/lib/constants';
 import { subscribeBitgetCandleWs } from '@/lib/bitgetCandleWebsocket';
@@ -104,7 +104,8 @@ import {
   buildInstitutionalBandTapPlan,
   INST_BAND_SCALP_A_TAG,
 } from '@/lib/eagle1Tapoint/institutionalBandTapPlan';
-import { resolveInstBandTripleEntry, instBandStructureSlTp } from '@/lib/eagle1Tapoint/instBandTripleEntry';
+import { resolveInstBandTripleEntry, instBandStructureSlTp, tapointAutoBarSlot } from '@/lib/eagle1Tapoint/instBandTripleEntry';
+import { readCoinExclusiveSkillMap } from '@/lib/mergedDeskCoinExclusiveSkills';
 import { resolveCoinSkillRiskForSymbol } from '@/lib/mergedDeskCoinSkillRisk';
 import {
   buildTapointFactorRows,
@@ -113,6 +114,9 @@ import {
   type FactorRow,
 } from '@/lib/eagle1Tapoint/tapointFactorLean';
 import { applyInstBandScalpADefaults } from '@/lib/eagle1Tapoint/instBandScalpA';
+import { ingestAiTradeJournalFromDesk } from '@/lib/eagle1Tapoint/ingestAiTradeJournalFromDesk';
+import { exportAiTradeJournalBlob } from '@/lib/eagle1Tapoint/aiTradeJournal';
+import AiTradeJournalPanel from '@/app/components/eagle1Tapoint/AiTradeJournalPanel';
 import {
   readSigLiveCardOrder,
   resetSigLiveCardOrder,
@@ -174,7 +178,6 @@ import {
   type PpLockedLevels,
 } from '@/lib/profitPattern15m/lockedLevels';
 import { ppJournalAppend, ppJournalList } from '@/lib/profitPattern15m/tradeJournal';
-import { ppDayCapRecordTrade } from '@/lib/profitPattern15m/dayCap';
 import {
   PP_PAPER_POLICY_KO,
   PROFIT_PATTERN_HOCHUNG,
@@ -394,19 +397,20 @@ export default function Eagle1TapointDeskView(props: Props) {
   const candlesForSharedRef = useRef(candles);
   candlesForSharedRef.current = candles;
 
-  /** 진입 후 E/SL/TP 고정 — 재계산으로 이동 금지 */
+  /** 진입 후 E/SL/TP 고정 — 재계산 이동 금지 */
   const [lockedLevels, setLockedLevels] = useState<PpLockedLevels | null>(() =>
     typeof window !== 'undefined' ? ppGetLockedLevels(symbol) : null
   );
   const [ppJournalPreview, setPpJournalPreview] = useState(() =>
     typeof window !== 'undefined' ? ppJournalList({ symbol, limit: 8 }) : []
   );
+  const ppSignalLoggedRef = useRef<string>('');
 
   /** 차트 표시 TF · 부모 리렌더/자동진입 TF와 분리 (분·시·일·주·달 전환용) */
   const [chartTf, setChartTf] = useState(() => {
     const fromProp = normalizeChartTimeframe(timeframe);
     if (fromProp) return fromProp;
-    return normalizeChartTimeframe(resolveTapointEntryTf(symbol)) || '3m';
+    return normalizeChartTimeframe(resolveTapointEntryTf(symbol)) || '15m';
   });
   const setTimeframeRef = useRef(setTimeframe);
   const onRequestChartTfRef = useRef(onRequestChartTf);
@@ -418,7 +422,7 @@ export default function Eagle1TapointDeskView(props: Props) {
     setLogs((prev) => [`${new Date().toLocaleTimeString('ko-KR')} · ${msg}`, ...prev].slice(0, 40));
   }, []);
 
-  /** 타점전용 + 기관밴드A안(TP15/SL8 ROE) · 코인칩·서버ARM·TG */
+  /** 타점전용 + 기관밴드A안(TP8/SL8 ROE) · 코인칩·서버ARM·TG */
   const tipBootLoggedRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
@@ -440,7 +444,7 @@ export default function Eagle1TapointDeskView(props: Props) {
         pushLog(
           applied.ok
             ? `${applied.noteKo} · TG진입연동`
-            : `타점전용 · ${tapointEntryTfLabelKo()} · Dual/로켓/초단 실주문 OFF`
+            : `${BAND15_AUTO_HOCHUNG} · Paper · 구스킬 주문 OFF`
         );
       }
     })();
@@ -511,10 +515,12 @@ export default function Eagle1TapointDeskView(props: Props) {
     setPhoneFs(next);
   };
 
-  /** 코인이 바뀔 때만 실행 TF로 차트 맞춤 · 그 외에는 사용자 선택 유지 */
+  /** 코인이 바뀔 때만 실행 TF로 차트 맞춤 · 최초 마운트·리렌더는 사용자/복원 TF 유지 */
   useEffect(() => {
-    if (prevSymbolForTfRef.current === symbol) return;
+    const prev = prevSymbolForTfRef.current;
+    if (prev === symbol) return;
     prevSymbolForTfRef.current = symbol;
+    if (prev == null) return;
     const tf = normalizeChartTimeframe(resolveTapointEntryTf(symbol)) || '15m';
     setChartTf(tf);
     setTimeframeRef.current(tf);
@@ -534,15 +540,26 @@ export default function Eagle1TapointDeskView(props: Props) {
     setPrefs(next);
   };
 
+  const chartTfRef = useRef(chartTf);
+  chartTfRef.current = chartTf;
+  const watchSymbolRef = useRef(symbol);
+  watchSymbolRef.current = symbol;
+  const candleLoadSeqRef = useRef(0);
+
   /** 차트 표시용 캔들 — chartTf · 실패·빈응답 시 기존 캔들 유지(블랙/리셋 금지) */
   const loadCandles = useCallback(async () => {
-    const tf = normalizeChartTimeframe(chartTf) || chartTf || '15m';
+    const reqSymbol = watchSymbolRef.current;
+    const tf = normalizeChartTimeframe(chartTfRef.current) || chartTfRef.current || '15m';
+    const seq = ++candleLoadSeqRef.current;
     try {
-      const q = new URLSearchParams({ symbol, timeframe: tf, depth: 'recent' });
+      const q = new URLSearchParams({ symbol: reqSymbol, timeframe: tf, depth: 'recent' });
       const res = await fetch(`/api/market-bitget?${q}`, {
         credentials: 'same-origin',
         cache: 'no-store',
       });
+      if (seq !== candleLoadSeqRef.current) return null;
+      if (watchSymbolRef.current !== reqSymbol) return null;
+      if ((normalizeChartTimeframe(chartTfRef.current) || chartTfRef.current) !== tf) return null;
       if (!res.ok) {
         pushLog(`캔들 ${res.status} · ${tf} · 기존차트유지`);
         return null;
@@ -551,10 +568,14 @@ export default function Eagle1TapointDeskView(props: Props) {
         ok?: boolean;
         candles?: TapointCandle[];
         error?: string;
+        symbol?: string;
+        timeframe?: string;
       };
+      if (j.symbol && String(j.symbol).toUpperCase() !== reqSymbol) return null;
+      if (j.timeframe && String(j.timeframe) !== tf) return null;
       if (j.ok && Array.isArray(j.candles) && j.candles.length >= 8) {
         const next = j.candles;
-        setChartPaint({ symbol, tf, candles: next });
+        setChartPaint({ symbol: reqSymbol, tf, candles: next });
         setCandles((prev) => {
           if (
             prev.length === next.length &&
@@ -570,7 +591,7 @@ export default function Eagle1TapointDeskView(props: Props) {
         const last = j.candles[j.candles.length - 1];
         if (last?.time != null) lastCandleTimeRef.current = Number(last.time);
         if (last?.close) {
-          setTickers((t) => ({ ...t, [symbol]: Number(last.close) }));
+          setTickers((t) => ({ ...t, [reqSymbol]: Number(last.close) }));
         }
         return j.candles;
       }
@@ -579,6 +600,7 @@ export default function Eagle1TapointDeskView(props: Props) {
       );
       return null;
     } catch (e) {
+      if (seq !== candleLoadSeqRef.current) return null;
       const msg = e instanceof Error ? e.message : 'fetch 실패';
       pushLog(`캔들오류 · ${tf} · ${msg} · 기존차트유지`);
       setStatusKo(`차트 일시지연 · 기존봉 유지`);
@@ -623,7 +645,10 @@ export default function Eagle1TapointDeskView(props: Props) {
               }
             : report.instBandPlan,
         },
-        { leverage: Math.max(1, Math.round(Number(skillLev) || Number(ac.leverage) || 10)) }
+        {
+          leverage: Math.max(1, Math.round(Number(skillLev) || Number(ac.leverage) || 10)),
+          exclusiveMap: readCoinExclusiveSkillMap(),
+        }
       );
       if (
         !aligned.ok ||
@@ -636,16 +661,22 @@ export default function Eagle1TapointDeskView(props: Props) {
         if (sym === symbol) setStatusKo(aligned.reasonKo);
         return;
       }
+      if (aligned.allowLive === false || aligned.paperOnly) {
+        pushLog(`${sym} · ${aligned.reasonKo}`);
+        if (sym === symbol) setStatusKo(aligned.reasonKo);
+        const virtOnly = modes.filter((m) => m === 'virtual');
+        if (!virtOnly.length) return;
+      }
       if (normalizeTapointTf(report.timeframe) !== normalizeTapointTf(needTf)) {
         pushLog(`${sym} TF불일치 · 필요 ${needTf} · 신호 ${report.timeframe}`);
         return;
       }
-      const barKey = Math.round(aligned.entry);
-      const signalId = `ib-align-${sym}-${needTf}-${aligned.direction}-${barKey}`;
+      const barKey = tapointAutoBarSlot(needTf);
+      const qsEvt = aligned.eventId || String(barKey);
+      const signalId = `band15-auto-${sym}-${qsEvt}-${aligned.direction}`;
       if (wasAutoTradeSignalFired(signalId)) return;
-      markAutoTradeSignalFired(signalId);
       const r = await executeUnifiedAnalysisEntryMulti({
-        modes,
+        modes: aligned.allowLive === false ? modes.filter((m) => m === 'virtual') : modes,
         virtActive: virt.active,
         symbol: sym,
         timeframe: needTf,
@@ -655,7 +686,7 @@ export default function Eagle1TapointDeskView(props: Props) {
         tp: aligned.tp,
         source: TAPOINT_SOURCE,
         signalKo: aligned.reasonKo,
-        evidenceKo: `세판정 · 밴드구조 SL/TP · ${aligned.reasonKo}`,
+        evidenceKo: aligned.reasonKo,
         cfg: ac,
         liveMark: aligned.entry,
         signalId,
@@ -663,54 +694,26 @@ export default function Eagle1TapointDeskView(props: Props) {
         analysisTags: [
           'eagle1-vmax',
           'tap-only',
-          'triple-align',
+          'INST_BAND_15M_PAPER',
+          'band15Auto',
+          'BAND15_AUTO',
           INST_BAND_SCALP_A_TAG,
           `modes:${modes.join('+')}`,
         ],
         leverageFit: aligned.leverage,
       });
-      pushLog(r.ok ? `${sym} 세판정 ${aligned.direction} ${r.msg}` : `${sym} 스킵 ${r.msg}`);
-      if (sym === symbol) setStatusKo(r.ok ? `세판정주문 · ${r.msg}` : `스킵 · ${r.msg}`);
-      if (r.ok && aligned.direction && aligned.entry != null && aligned.sl != null && aligned.tp != null) {
-        const locked = ppLockLevels({
-          symbol: sym,
-          direction: aligned.direction,
-          entry: aligned.entry,
-          sl: aligned.sl,
-          tp: aligned.tp,
-          lockedAt: Math.floor(Date.now() / 1000),
-          eventId: signalId,
-          source: 'instBand',
-          lineEntryKo: '진입고정',
-          lineSlKo: '손절고정',
-          lineTpKo: '익절고정',
-        });
-        if (sym === symbol) setLockedLevels(locked);
-        ppDayCapRecordTrade(sym);
-        ppJournalAppend({
-          kind: 'ENTRY',
-          symbol: sym,
-          timeframe: needTf,
-          direction: aligned.direction,
-          entry: aligned.entry,
-          sl: aligned.sl,
-          tp: aligned.tp,
-          eventId: signalId,
-          reasonKo: aligned.reasonKo,
-          policyKo: '진입후 E/SL/TP 고정',
-        });
-        ppJournalAppend({
-          kind: 'LOCK',
-          symbol: sym,
-          direction: aligned.direction,
-          entry: aligned.entry,
-          sl: aligned.sl,
-          tp: aligned.tp,
-          eventId: signalId,
-          reasonKo: '차트 E/SL/TP 고정',
-        });
-        if (sym === symbol) setPpJournalPreview(ppJournalList({ symbol: sym, limit: 8 }));
-      }
+      pushLog(
+        r.ok
+          ? `${sym} ${isAp ? '오토파일럿' : isSn ? '스나이퍼' : isQs ? '초단타' : '세판정'} ${aligned.direction} ${r.msg}`
+          : `${sym} 스킵 ${r.msg}`
+      );
+      if (r.ok) markAutoTradeSignalFired(signalId);
+      if (sym === symbol)
+        setStatusKo(
+          r.ok
+            ? `${isAp ? '오토파일럿주문' : isSn ? '스나이퍼주문' : isQs ? '초단타주문' : '세판정주문'} · ${r.msg}`
+            : `스킵 · ${r.msg}`
+        );
     },
     [pushLog, symbol, candles, chartTf]
   );
@@ -1049,7 +1052,6 @@ export default function Eagle1TapointDeskView(props: Props) {
         if (prefs.rightPositions !== 'off') {
           const list = (pack.positions || []).filter((p) => Number(p.size) > 0);
           setPositions(list);
-          /** 포지션 없으면 고정선 해제 · 기록 */
           const locked = ppGetLockedLevels(symbol);
           if (locked && list.length === 0) {
             ppJournalAppend({
@@ -1130,16 +1132,14 @@ export default function Eagle1TapointDeskView(props: Props) {
   useEffect(() => {
     setLockedLevels(ppGetLockedLevels(symbol));
     setPpJournalPreview(ppJournalList({ symbol, limit: 8 }));
-    /** 서버 무접속 진입 고정선 동기화 */
-    void fetch(
-      `/api/profit-pattern/locks?symbol=${encodeURIComponent(symbol)}`,
-      { credentials: 'same-origin', cache: 'no-store' }
-    )
+    void fetch(`/api/profit-pattern/locks?symbol=${encodeURIComponent(symbol)}`, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
       .then((r) => r.json())
       .then((j: { ok?: boolean; lock?: PpLockedLevels | null }) => {
         if (!j?.ok || !j.lock) return;
-        const locked = ppLockLevels(j.lock);
-        setLockedLevels(locked);
+        setLockedLevels(ppLockLevels(j.lock));
       })
       .catch(() => {});
   }, [symbol]);
@@ -1196,15 +1196,10 @@ export default function Eagle1TapointDeskView(props: Props) {
 
   const chartSignalsBase = useMemo(() => report?.chartSignals ?? null, [report?.chartSignals]);
 
-  /** 수익패턴엔진 — 전코인 · 15m 차트에서 모니터 · 차트 가로줄 */
   const profitPatternMon = useMemo(() => {
     const tf = String(normalizeChartTimeframe(chartTf) || chartTf || '').toLowerCase();
     if (tf !== '15m' && tf !== '15') {
-      return resolveProfitPatternMonitor({
-        symbol,
-        timeframe: tf || '3m',
-        candles: [],
-      });
+      return resolveProfitPatternMonitor({ symbol, timeframe: tf || '3m', candles: [] });
     }
     return resolveProfitPatternMonitor({
       symbol,
@@ -1213,7 +1208,6 @@ export default function Eagle1TapointDeskView(props: Props) {
     });
   }, [symbol, chartTf, candles]);
 
-  const ppSignalLoggedRef = useRef<string>('');
   useEffect(() => {
     if (profitPatternMon.status !== 'SIGNAL' || !profitPatternMon.ok) return;
     const eid = `${PROFIT_PATTERN_SKILL_ID}-${profitPatternMon.symbol}-${profitPatternMon.barTime}-${profitPatternMon.direction}`;
@@ -1451,12 +1445,11 @@ export default function Eagle1TapointDeskView(props: Props) {
     return buildTapointInstBandTouchMarkers(candles as Candle[], chartTf);
   }, [sharedFeat.institutionalBand, candles, chartTf]);
 
-  /** 3분 · 밴드1·2 연속 터치 이후 ±7% 도달 봉 / 대기 가격선 */
+  /** 밴드1·2 연속 터치 시작 봉 위·아래 +7% / -7% */
   const bandMove7 = useMemo(() => {
-    if (normalizeChartTimeframe(chartTf) !== '3m') return null;
     if (!sharedFeat.institutionalBand && !sharedFeat.institutionalBand2) return null;
-    if (candles.length < 40) return null;
-    return buildBandMove7Overlay(candles as Candle[]);
+    if (candles.length < 24) return null;
+    return buildBandMove7Overlay(candles as Candle[], chartTf);
   }, [
     chartTf,
     candles,
@@ -1508,17 +1501,9 @@ export default function Eagle1TapointDeskView(props: Props) {
         })
       : null;
     let lines = styled?.lines ? [...styled.lines] : [];
-    /** 진입 고정값이 있으면 진입/손절/익절1 가격 고정 */
     if (lockedLevels) {
       lines = lines.map((line) => {
         const title = String(line.title || '');
-        if (title === '진입' || title.includes('진입') || title.includes('50x')) {
-          if (/스탑|손절|SL/i.test(title)) return { ...line, price: lockedLevels.sl };
-          if (/목표|익절|TP/i.test(title)) return { ...line, price: lockedLevels.tp };
-          if (/진입|롱|숏|E\b/i.test(title) && !/스탑|목표|손절|익절/i.test(title)) {
-            return { ...line, price: lockedLevels.entry };
-          }
-        }
         if (title === '진입') return { ...line, price: lockedLevels.entry };
         if (title === '손절') return { ...line, price: lockedLevels.sl };
         if (title === '익절1') return { ...line, price: lockedLevels.tp };
@@ -1533,16 +1518,12 @@ export default function Eagle1TapointDeskView(props: Props) {
         return line;
       });
     }
-    /** 수익패턴 50x 가로줄 — 전코인 · 고정 우선 */
     const ppLines = buildProfitPatternChartLines({
       locked: lockedLevels,
       monitor: profitPatternMon,
     });
     for (const pl of ppLines) {
-      const exists = lines.some(
-        (L) => String(L.title) === pl.title && Math.abs(Number(L.price) - pl.price) < 1e-8
-      );
-      if (!exists) {
+      if (!lines.some((L) => String(L.title) === pl.title && Math.abs(Number(L.price) - pl.price) < 1e-8)) {
         lines.push({
           title: pl.title,
           price: pl.price,
@@ -1571,6 +1552,8 @@ export default function Eagle1TapointDeskView(props: Props) {
     sfpMarkers,
     sharedFeat.mtfDumpZone,
     sharedFeat.structureRocket,
+    lockedLevels,
+    profitPatternMon,
     sharedFeat.institutionalBand,
     bandPlan,
     sharedFeat.cartBasket,
@@ -1581,8 +1564,6 @@ export default function Eagle1TapointDeskView(props: Props) {
     dumpZoneColorMode,
     dumpZoneFill,
     dumpZoneBorder,
-    lockedLevels,
-    profitPatternMon,
   ]);
 
 
@@ -1615,6 +1596,14 @@ export default function Eagle1TapointDeskView(props: Props) {
     const got = normalizeChartTimeframe(viewReport.timeframe) || viewReport.timeframe;
     return got === viewTf ? viewReport : null;
   }, [viewReport, viewTf]);
+
+  useEffect(() => {
+    ingestAiTradeJournalFromDesk({
+      report: report || cardReport,
+      candles,
+      liveArmed: autoCfg.liveArmed === true,
+    });
+  }, [report, cardReport, candles, autoCfg.liveArmed]);
 
   const factors = useMemo(
     (): FactorRow[] => buildTapointFactorRows(cardReport, cardReport?.chartRsi ?? rsi),
@@ -1703,6 +1692,72 @@ export default function Eagle1TapointDeskView(props: Props) {
           </button>
           <em>{SIGNAL_LIVE_COLOR_LEGEND_KO}</em>
         </div>
+        {cardReport?.sniperScalp &&
+        (String(symbol || '').toUpperCase().includes('BTC') ||
+          String(symbol || '').toUpperCase().includes('ETH')) ? (
+          <div
+            className={`vmax-sn-strip${
+              cardReport.sniperScalp.fire ? ' is-ready' : ''
+            }${cardReport.sniperScalp.direction === 'SHORT' ? ' is-short' : cardReport.sniperScalp.direction === 'LONG' ? ' is-long' : ''}`}
+          >
+            <b>{String(symbol || '').toUpperCase().includes('ETH') ? 'AUTOPILOT' : 'SNIPER'}</b>
+            <span>
+              {cardReport.sniperScalp.grade} {cardReport.sniperScalp.setupKo || '대기'}
+            </span>
+            {cardReport.sniperScalp.fire && cardReport.sniperScalp.entry != null ? (
+              <em>
+                E {Math.round(cardReport.sniperScalp.entry)} · TP1{' '}
+                {cardReport.sniperScalp.tp != null ? Math.round(cardReport.sniperScalp.tp) : '—'} · 실행SL{' '}
+                {cardReport.sniperScalp.executionSl != null
+                  ? Math.round(cardReport.sniperScalp.executionSl)
+                  : '—'}
+              </em>
+            ) : null}
+            <small>
+              {cardReport.sniperScalp.machineState} · 점수 {cardReport.sniperScalp.sniperScore} · 반대실패
+              {cardReport.sniperScalp.oppositeFailure}
+              {cardReport.sniperScalp.netRr != null ? ` · NetRR ${cardReport.sniperScalp.netRr.toFixed(2)}` : ''}
+              {cardReport.sniperScalp.leverage != null ? ` · ${cardReport.sniperScalp.leverage}x` : ''}
+              {` · ${cardReport.sniperScalp.waitReason}`}
+            </small>
+            <small>{cardReport.sniperScalp.whyKo || cardReport.sniperScalp.reasonKo}</small>
+          </div>
+        ) : null}
+        {cardReport?.quickScalp && String(symbol || '').toUpperCase().includes('BTC') ? (
+          <div
+            className={`vmax-qs-strip${
+              cardReport.quickScalp.autoReady ? ' is-ready' : ''
+            }${cardReport.quickScalp.direction === 'SHORT' ? ' is-short' : cardReport.quickScalp.direction === 'LONG' ? ' is-long' : ''}`}
+          >
+            <b>QUICK SCALP</b>
+            <span>
+              {cardReport.quickScalp.grade}{' '}
+              {cardReport.quickScalp.direction === 'LONG'
+                ? '롱'
+                : cardReport.quickScalp.direction === 'SHORT'
+                  ? '숏'
+                  : '대기'}
+            </span>
+            {cardReport.quickScalp.autoReady && cardReport.quickScalp.entry != null ? (
+              <em>
+                E {Math.round(cardReport.quickScalp.entry)} · TP1{' '}
+                {cardReport.quickScalp.tp != null ? Math.round(cardReport.quickScalp.tp) : '—'} · SL{' '}
+                {cardReport.quickScalp.sl != null ? Math.round(cardReport.quickScalp.sl) : '—'}
+              </em>
+            ) : null}
+            <small>
+              {cardReport.quickScalp.machineState || cardReport.quickScalp.stateKo} · 점수{' '}
+              {cardReport.quickScalp.quickProfitScore} · 역행
+              {cardReport.quickScalp.immediateAdverseRisk}%
+              {cardReport.quickScalp.autoReady
+                ? ` · 예상 ${cardReport.quickScalp.expectedTpMinLo}~${cardReport.quickScalp.expectedTpMinHi}분 · MAE 표본없음`
+                : ` · ${cardReport.quickScalp.waitReason}`}
+            </small>
+            <small>
+              {cardReport.quickScalp.whyKo || cardReport.quickScalp.reasonKo}
+            </small>
+          </div>
+        ) : null}
         {showEntryGuide ? (
           <div className="vmax-siglive-guide" role="region" aria-label={ENTRY_SIGNAL_GUIDE_TITLE_KO}>
             <strong className="vmax-siglive-guide-title">{ENTRY_SIGNAL_GUIDE_TITLE_KO}</strong>
@@ -1897,12 +1952,7 @@ export default function Eagle1TapointDeskView(props: Props) {
         : `${id.replace('USDT', '')} 매매 OFF · 신규진입 금지`
     );
     if (next.liveArmed) {
-      void syncServerArm({
-        ...next,
-        symbols: [...TAPOINT_SYMBOLS],
-        leverage: Number(next.leverage) || 50,
-        marginUsdt: Number(next.marginUsdt) || Number(calcMargin) || 10,
-      });
+      void syncServerArm(next);
     }
   };
 
@@ -1915,13 +1965,7 @@ export default function Eagle1TapointDeskView(props: Props) {
     });
     setAutoCfg(next);
     setAutoTradePanelOpen(true);
-    /** 전코인 서버 ARM 동기화 → cron 무접속 진입 */
-    void syncServerArm({
-      ...next,
-      symbols: [...TAPOINT_SYMBOLS],
-      leverage: Number(next.leverage) || 50,
-      marginUsdt: Number(next.marginUsdt) || Number(calcMargin) || 10,
-    }).then((r) => pushLog(r.msg));
+    void syncServerArm(next);
     pushLog(tapOnlyArmHintKo(next.liveArmed));
     void refreshServerHealth(true);
   };
@@ -2050,6 +2094,40 @@ export default function Eagle1TapointDeskView(props: Props) {
       </aside>
     ) : null;
 
+  const tfBarEl = (
+    <div className="vmax-tfs" title="차트 분봉 전환 · 자동진입은 코인별 실행TF 유지">
+      {TAPOINT_CHART_TFS.map((tf) => {
+        const apiTf = normalizeChartTimeframe(tf) || tf;
+        const on =
+          normalizeChartTimeframe(chartTf) === apiTf ||
+          normalizeTapointTf(chartTf) === normalizeTapointTf(tf);
+        return (
+          <button
+            key={tf}
+            type="button"
+            className={on ? 'on' : ''}
+            onClick={() => {
+              setChartTf(apiTf);
+              setTimeframeRef.current(apiTf);
+              onRequestChartTfRef.current(apiTf);
+              writeTapointModeConfig({ chartTf: apiTf });
+              pushLog(`차트 TF · ${apiTf} (자동진입 ${resolveTapointEntryTf(symbol)} 유지)`);
+            }}
+          >
+            {tf}
+            <TfCandleCloseRemain
+              tf={apiTf}
+              nowMs={closeNowMs}
+              active={on}
+              compact
+              exchange="bitget"
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className={`vmax-root${phoneFsRootClass}`}>
       <header className="vmax-head">
@@ -2143,6 +2221,26 @@ export default function Eagle1TapointDeskView(props: Props) {
           <button type="button" className="vmax-mini" onClick={() => setShowPanelMgr((v) => !v)}>
             패널설정
           </button>
+          <button
+            type="button"
+            className="vmax-mini"
+            title="AI기록부 JSON 다운로드"
+            onClick={() => {
+              try {
+                const blob = new Blob([exportAiTradeJournalBlob()], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `AI기록부-${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+                pushLog('AI기록부 JSON 저장');
+              } catch {
+                pushLog('AI기록부 저장 실패');
+              }
+            }}
+          >
+            AI기록부다운
+          </button>
         </div>
       </header>
 
@@ -2160,6 +2258,8 @@ export default function Eagle1TapointDeskView(props: Props) {
       )}
 
       <TapointAutoTradeWatch health={serverHealth} />
+
+      <AiTradeJournalPanel />
 
       {showPanelMgr && (
         <div className="vmax-mgr">
@@ -2269,37 +2369,7 @@ export default function Eagle1TapointDeskView(props: Props) {
             </button>
           </>
         ) : null}
-        <div className="vmax-tfs" title="차트 분봉 전환 · 자동진입은 코인별 실행TF 유지">
-          {TAPOINT_CHART_TFS.map((tf) => {
-            const apiTf = normalizeChartTimeframe(tf) || tf;
-            const on =
-              normalizeChartTimeframe(chartTf) === apiTf ||
-              normalizeTapointTf(chartTf) === normalizeTapointTf(tf);
-            return (
-              <button
-                key={tf}
-                type="button"
-                className={on ? 'on' : ''}
-                onClick={() => {
-                  setChartTf(apiTf);
-                  setTimeframeRef.current(apiTf);
-                  onRequestChartTfRef.current(apiTf);
-                  writeTapointModeConfig({ chartTf: apiTf });
-                  pushLog(`차트 TF · ${apiTf} (자동진입 ${resolveTapointEntryTf(symbol)} 유지)`);
-                }}
-              >
-                {tf}
-                <TfCandleCloseRemain
-                  tf={apiTf}
-                  nowMs={closeNowMs}
-                  active={on}
-                  compact
-                  exchange="bitget"
-                />
-              </button>
-            );
-          })}
-        </div>
+        {tfBarEl}
         <label className="vmax-autoex">
           <input
             type="checkbox"
@@ -2345,8 +2415,8 @@ export default function Eagle1TapointDeskView(props: Props) {
           />
           차트카드
         </label>
-        <span className="vmax-tf-map" title="코인별 타점 실행 분봉">
-          {tapointEntryTfLabelKo()}
+        <span className="vmax-tf-map" title={BAND15_AUTO_HOCHUNG}>
+          {BAND15_AUTO_HOCHUNG} · 15m
         </span>
         <button type="button" className="vmax-scan" disabled={busy} onClick={() => void refreshMain()}>
           {busy ? '스캔…' : '스캔'}
@@ -2360,6 +2430,7 @@ export default function Eagle1TapointDeskView(props: Props) {
           gauges={signalLiveRowsFlash}
           confirmFlash={confirmFlashOn}
           confirmFlashSide={confirmFlashSide}
+          tfBar={tfBarEl}
           factorsNode={
             <div className="vmax-factors vmax-fs-factors-desk">
               <div className={`vmax-factor-summary lean-${factorLs.lean}`}>
@@ -2553,15 +2624,13 @@ export default function Eagle1TapointDeskView(props: Props) {
                     : ' is-long'
                   : ' is-wait'
               }`}
-              title={`수익패턴엔진 · 전코인 · 롱만·SL0.4%·H1·비중캡·메이커·일일4회 · ${PP_PAPER_POLICY_KO}`}
+              title={`수익패턴엔진 · 전코인 · 서버무접속 · ${PP_PAPER_POLICY_KO}`}
             >
               <header>
                 <strong>{PROFIT_PATTERN_HOCHUNG}</strong>
                 <span>
-                  {profitPatternMon.status === 'SIGNAL'
-                    ? lockedLevels
-                      ? '진입고정'
-                      : profitPatternMon.monitorKo
+                  {lockedLevels
+                    ? '진입고정'
                     : profitPatternMon.monitorKo || 'WAIT'}
                 </span>
                 <em>{symbol.replace('USDT', '')}</em>
@@ -2570,10 +2639,9 @@ export default function Eagle1TapointDeskView(props: Props) {
                 <b>
                   E{' '}
                   {(lockedLevels?.entry ?? profitPatternMon.entry) != null
-                    ? Number(lockedLevels?.entry ?? profitPatternMon.entry).toLocaleString(
-                        undefined,
-                        { maximumFractionDigits: 2 }
-                      )
+                    ? Number(lockedLevels?.entry ?? profitPatternMon.entry).toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })
                     : '—'}
                 </b>
                 <b className="sl">
@@ -2593,44 +2661,17 @@ export default function Eagle1TapointDeskView(props: Props) {
                     : '—'}
                 </b>
                 <i>
-                  50x · SL{profitPatternMon.slPct}% · TP≈{profitPatternMon.tpMovePct}%
+                  50x · SL{profitPatternMon.slPct}% · 서버무접속
                   {lockedLevels ? ' · 고정' : ''}
-                  {profitPatternMon.status === 'SIGNAL' ? ' · SIGNAL' : ''}
                 </i>
               </div>
               <p className="vmax-iband-candle">패턴 · {profitPatternMon.pattern}</p>
               <p className="vmax-iband-reason">{profitPatternMon.reasonKo || '—'}</p>
-              {lockedLevels ? (
-                <button
-                  type="button"
-                  className="vmax-mini"
-                  style={{ marginTop: 6 }}
-                  onClick={() => {
-                    ppJournalAppend({
-                      kind: 'NOTE',
-                      symbol,
-                      direction: lockedLevels.direction,
-                      entry: lockedLevels.entry,
-                      sl: lockedLevels.sl,
-                      tp: lockedLevels.tp,
-                      eventId: lockedLevels.eventId,
-                      reasonKo: '수동 · E/SL/TP 고정 해제',
-                    });
-                    ppClearLockedLevels(symbol);
-                    setLockedLevels(null);
-                    setPpJournalPreview(ppJournalList({ symbol, limit: 8 }));
-                    pushLog(`${symbol} · E/SL/TP 고정 해제`);
-                  }}
-                >
-                  고정 해제
-                </button>
-              ) : null}
               {ppJournalPreview.length ? (
-                <ul className="vmax-log" style={{ marginTop: 8, maxHeight: 120, overflow: 'auto' }}>
-                  {ppJournalPreview.slice(0, 6).map((row) => (
+                <ul className="vmax-log" style={{ marginTop: 8, maxHeight: 110, overflow: 'auto' }}>
+                  {ppJournalPreview.slice(0, 5).map((row) => (
                     <li key={row.id}>
-                      {row.kind} · {row.direction || '—'} ·{' '}
-                      {row.reasonKo?.slice(0, 42) || row.eventId || ''}
+                      {row.kind} · {row.direction || '—'} · {row.reasonKo?.slice(0, 40) || ''}
                     </li>
                   ))}
                 </ul>
@@ -3089,6 +3130,12 @@ export default function Eagle1TapointDeskView(props: Props) {
                   ['표본N(샘플)', report?.historical?.n],
                   ['유사도', report?.historical?.similarity],
                   [
+                    '창',
+                    report?.historical?.windowsUsed?.length
+                      ? report.historical.windowsUsed.join('/')
+                      : null,
+                  ],
+                  [
                     report?.direction === 'SHORT' ? '3봉숏유리' : '3봉롱유리',
                     report?.historical?.up3 != null
                       ? `${(report.historical.up3 * 100).toFixed(0)}%`
@@ -3133,8 +3180,19 @@ export default function Eagle1TapointDeskView(props: Props) {
               </dl>
               <p className="vmax-muted">
                 {report?.historical?.noteKo ||
-                  '표본N=샘플수 · 롱/숏유사=지금 방향 기준 · 확정 수익·승률 아님'}
+                  '표본N=샘플수 · 같은 TF 창10/20/30/50 · 5m·15m은 추가행 · 확정 수익·승률 아님'}
               </p>
+              {report?.historical?.extraByTf?.length ? (
+                <ul style={{ margin: '6px 0 0', paddingLeft: 16, fontSize: 11 }}>
+                  {report.historical.extraByTf.map((e) => (
+                    <li key={e.tf}>
+                      {e.tf} 추가 N={e.n}
+                      {e.similarity != null ? ` · 유사도${e.similarity}` : ''}
+                      {e.up5 != null ? ` · 5봉유리${(e.up5 * 100).toFixed(0)}%` : ' · 통계부족'}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {report?.sweepTfBoard?.length ? (
                 <div style={{ marginTop: 8, fontSize: 11 }}>
                   <b>스윕 TF · 1회기록/2회진입</b>
@@ -3218,14 +3276,7 @@ export default function Eagle1TapointDeskView(props: Props) {
                     aiZoneDriveEnabled: false,
                   });
                   setAutoCfg(next);
-                  if (next.liveArmed) {
-                    void syncServerArm({
-                      ...next,
-                      symbols: [...TAPOINT_SYMBOLS],
-                      leverage: calcLev,
-                      marginUsdt: calcMargin,
-                    });
-                  }
+                  if (next.liveArmed) void syncServerArm(next);
                   pushLog(`주문설정 · ${calcLev}x · ${calcMargin}U · 익절ROE ${calcTpRoe}%`);
                 }}
               >
@@ -3278,7 +3329,7 @@ export default function Eagle1TapointDeskView(props: Props) {
           liveStatusKo={
             autoCfg.liveArmed
               ? tapOnlyStatusKo()
-              : '타점 대기 · ARM OFF'
+              : `${BAND15_AUTO_HOCHUNG} 대기 · ARM OFF`
           }
           livePrice={tickers[symbol] ?? report?.entry ?? null}
           planDirection={
@@ -3296,14 +3347,14 @@ export default function Eagle1TapointDeskView(props: Props) {
         <footer className="vmax-foot">
           {prefs.footer === 'open' && (
             <>
-              <span>타점엔진 전용 · Dual/AIZONE OFF</span>
+              <span>{BAND15_AUTO_HOCHUNG} · 15m · Paper</span>
               <span>Bitget 연동</span>
               <span className="pulse">
                 {serverHealth?.serverEntryReady
                   ? '서버 무접속진입 OK'
                   : autoCfg.liveArmed
-                    ? '타점 ARM · 서버키확인'
-                    : '타점 ARM 대기'}
+                    ? `${BAND15_AUTO_HOCHUNG} ARM`
+                    : `${BAND15_AUTO_HOCHUNG} 대기`}
               </span>
               <span>칩 클릭=ON/OFF</span>
             </>
@@ -3714,6 +3765,55 @@ export default function Eagle1TapointDeskView(props: Props) {
           gap: 6px;
           width: 100%;
           min-width: 0;
+        }
+        .vmax-sn-strip {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 6px 10px;
+          padding: 6px 8px;
+          border-radius: 7px;
+          border: 1px solid rgba(125, 211, 252, 0.28);
+          background: rgba(12, 28, 48, 0.72);
+          color: #cbd5e1;
+          font-size: 11px;
+        }
+        .vmax-sn-strip b { color: #e0f2fe; letter-spacing: 0.04em; }
+        .vmax-sn-strip.is-ready.is-long {
+          border-color: rgba(56, 189, 248, 0.55);
+          background: rgba(8, 47, 73, 0.4);
+        }
+        .vmax-sn-strip.is-ready.is-short {
+          border-color: rgba(251, 146, 60, 0.5);
+          background: rgba(67, 20, 7, 0.35);
+        }
+        .vmax-sn-strip small { color: #94a3b8; }
+        .vmax-qs-strip {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 6px 10px;
+          padding: 6px 8px;
+          border-radius: 7px;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          background: rgba(15, 23, 42, 0.72);
+          color: #cbd5e1;
+          font-size: 11px;
+        }
+        .vmax-qs-strip b {
+          color: #f8fafc;
+          letter-spacing: 0.04em;
+        }
+        .vmax-qs-strip.is-ready.is-long {
+          border-color: rgba(52, 211, 153, 0.55);
+          background: rgba(6, 78, 59, 0.35);
+        }
+        .vmax-qs-strip.is-ready.is-short {
+          border-color: rgba(248, 113, 113, 0.55);
+          background: rgba(127, 29, 29, 0.32);
+        }
+        .vmax-qs-strip small {
+          color: #94a3b8;
         }
         .vmax-siglive-head {
           display: flex;
@@ -4840,6 +4940,25 @@ export default function Eagle1TapointDeskView(props: Props) {
             gap: 6px;
             flex-shrink: 0;
             padding: 2px 2px 0;
+          }
+          .vmax-fs-tfs {
+            flex-shrink: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 0 2px;
+          }
+          .vmax-root.is-phone-fs .vmax-fs-tfs .vmax-tfs {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 4px;
+            margin-left: 0;
+            width: max-content;
+          }
+          .vmax-root.is-phone-fs .vmax-fs-tfs .vmax-tfs button {
+            font-size: 9px;
+            padding: 3px 7px;
+            white-space: nowrap;
           }
           .vmax-fs-chip {
             appearance: none;
