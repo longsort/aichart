@@ -60,7 +60,7 @@ export const OVERLAY_COLORS = {
   poi: AUX,
 
   // BPR (중립 Zone)
-  bpr: NEUTRAL_ZONE,
+  bpr: 'rgba(249,115,22,0.45)',
 
   // 피보나치 (경고 노랑)
   fibEq: WARNING,

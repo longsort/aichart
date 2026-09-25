@@ -1,5 +1,10 @@
 {
   "ids": [
+    "profitPattern15m-SOLUSDT-1790345700-LONG",
+    "profitPattern15m-XRPUSDT-1790345700-LONG",
+    "profitPattern15m-XRPUSDT-1790344800-LONG",
+    "profitPattern15m-ETHUSDT-1790344800-LONG",
+    "profitPattern15m-SOLUSDT-1790344800-LONG",
     "profitPattern15m-ETHUSDT-1790343900-LONG",
     "profitPattern15m-SOLUSDT-1790343900-LONG",
     "profitPattern15m-BNBUSDT-1790343000-LONG",
@@ -13,5 +18,5 @@
     "profitPattern15m-ETHUSDT-1790338500-LONG",
     "profitPattern15m-BTCUSDT-1790338500-LONG"
   ],
-  "at": 1790344084446
+  "at": 1790345763457
 }

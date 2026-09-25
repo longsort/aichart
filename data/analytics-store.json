@@ -2,138 +2,80 @@
   "version": 1,
   "clients": {
     "default": {
-      "marketSnapshots": [
-        {
-          "key": "BTCUSDT|4h",
-          "symbol": "BTCUSDT",
-          "timeframe": "4h",
-          "barTime": 1777190400,
-          "close": 78010.34,
-          "atMs": 1777200076440,
-          "metrics": {
-            "aggregatedCvdUsd": 18826475.334875207,
-            "oiDeltaPct": -0.00977412341632843,
-            "liquidationLongUsd": 0,
-            "liquidationShortUsd": 0,
-            "cmf20": 0.09360807467712408,
-            "collectedAtMs": 1777200075775
-          }
-        },
-        {
-          "key": "BTCUSDT|4h",
-          "symbol": "BTCUSDT",
-          "timeframe": "4h",
-          "barTime": 1777204800,
-          "close": 77972.64,
-          "atMs": 1777206873658,
-          "metrics": {
-            "aggregatedCvdUsd": 31146120.653822895,
-            "oiDeltaPct": 0.03285508034903912,
-            "liquidationLongUsd": 0,
-            "liquidationShortUsd": 0,
-            "cmf20": 0.10007386229048398,
-            "collectedAtMs": 1777206871276
-          }
-        }
-      ],
+      "marketSnapshots": [],
       "openSignals": [
         {
-          "id": "BTCUSDT|1d|1777161600|LONG",
+          "id": "BTCUSDT|1d|1782489600|SHORT",
           "clientId": "default",
           "symbol": "BTCUSDT",
           "timeframe": "1d",
-          "direction": "LONG",
-          "signalBarTime": 1777161600,
-          "entry": 77695.238,
-          "stopLoss": 69005.17,
-          "tp1": 78492.65974999999,
-          "tp2": 84845.38357142857,
-          "tp3": 87123.73142857142,
-          "createdAtMs": 1777200074646
+          "direction": "SHORT",
+          "signalBarTime": 1782489600,
+          "entry": 60466.479999999996,
+          "stopLoss": 71605.05,
+          "tp1": 59679.09,
+          "tp2": 53662.04285714286,
+          "tp3": 51412.357142857145,
+          "createdAtMs": 1790345803572
         },
         {
-          "id": "BTCUSDT|1w|1776643200|LONG",
+          "id": "BTCUSDT|15m|1790345700|LONG",
+          "clientId": "default",
+          "symbol": "BTCUSDT",
+          "timeframe": "15m",
+          "direction": "LONG",
+          "signalBarTime": 1790345700,
+          "entry": 83688.62,
+          "stopLoss": 83054.17142857143,
+          "tp1": 83909.5,
+          "tp2": 84979.65714285713,
+          "tp3": 85407.54285714285,
+          "createdAtMs": 1790345804662
+        },
+        {
+          "id": "BTCUSDT|1w|1781452800|LONG",
           "clientId": "default",
           "symbol": "BTCUSDT",
           "timeframe": "1w",
           "direction": "LONG",
-          "signalBarTime": 1776643200,
-          "entry": 77589.038,
-          "stopLoss": 65594.01285714285,
-          "tp1": 88765.43,
-          "tp2": 102842.99428571429,
-          "tp3": 111120.54571428572,
-          "createdAtMs": 1777200074799
+          "signalBarTime": 1781452800,
+          "entry": 63693.53,
+          "stopLoss": 54902.34285714286,
+          "tp1": 65867.65,
+          "tp2": 82855.31428571428,
+          "tp3": 89067.08571428571,
+          "createdAtMs": 1790345812658
         },
         {
-          "id": "BTCUSDT|4h|1777190400|LONG",
+          "id": "BTCUSDT|1m|1790345760|LONG",
           "clientId": "default",
           "symbol": "BTCUSDT",
-          "timeframe": "4h",
+          "timeframe": "1m",
           "direction": "LONG",
-          "signalBarTime": 1777190400,
-          "entry": 77985.215,
-          "stopLoss": 74288.66500000001,
-          "tp1": 78165.76024999999,
-          "tp2": 79557.8707142857,
-          "tp3": 80073.71428571428,
-          "createdAtMs": 1777200076440
-        },
-        {
-          "id": "BTCUSDT|1h|1777197600|LONG",
+          "signalBarTime": 1790345760,
+          "entry": 83491.98999999999,
+          "stopLoss": 83058.64,
+          "tp1": 83631.4,
+          "tp2": 84562.72,
+          "tp3": 84896.96,
+          "createdAtMs": 1790345823799
+        }
+      ],
+      "settledSignals": []
+    }
+  }
+}00|SHORT",
           "clientId": "default",
           "symbol": "BTCUSDT",
-          "timeframe": "1h",
-          "direction": "LONG",
-          "signalBarTime": 1777197600,
-          "entry": 77982.41399999999,
-          "stopLoss": 77488.985,
-          "tp1": 78200,
-          "tp2": 78720.13173000001,
-          "tp3": 78954.18564,
-          "createdAtMs": 1777200105254
-        },
-        {
-          "id": "BTCUSDT|1h|1777201200|LONG",
-          "clientId": "default",
-          "symbol": "BTCUSDT",
-          "timeframe": "1h",
-          "direction": "LONG",
-          "signalBarTime": 1777201200,
-          "entry": 77979.152,
-          "stopLoss": 77486.655,
-          "tp1": 78200,
-          "tp2": 78802.352220002,
-          "tp3": 79065.36629333599,
-          "createdAtMs": 1777201237613
-        },
-        {
-          "id": "BTCUSDT|1h|1777204800|LONG",
-          "clientId": "default",
-          "symbol": "BTCUSDT",
-          "timeframe": "1h",
-          "direction": "LONG",
-          "signalBarTime": 1777204800,
-          "entry": 78098.80299999999,
-          "stopLoss": 77530.75,
-          "tp1": 78200,
-          "tp2": 78804.4135,
-          "tp3": 79038.718,
-          "createdAtMs": 1777204837588
-        },
-        {
-          "id": "BTCUSDT|4h|1777204800|LONG",
-          "clientId": "default",
-          "symbol": "BTCUSDT",
-          "timeframe": "4h",
-          "direction": "LONG",
-          "signalBarTime": 1777204800,
-          "entry": 78049.01999999999,
-          "stopLoss": 74334.24,
-          "tp1": 78333,
-          "tp2": 79522.23642857143,
-          "tp3": 79995.81857142856,
-          "createdAtMs": 1777204838362
+          "timeframe": "5m",
+          "direction": "SHORT",
+          "signalBarTime": 1790345700,
+          "entry": 83557.95,
+          "stopLoss": 84387.25,
+          "tp1": 83450.805,
+          "tp2": 82551.846,
+          "tp3": 82217.628,
+          "createdAtMs": 1790345825649
         }
       ],
       "settledSignals": []

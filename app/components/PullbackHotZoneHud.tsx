@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import type { PullbackHotZonePack } from '@/lib/pullbackHotZoneEngine';
+import type { MonthDeskCoreLongHudLine } from '@/lib/monthDeskCoreLongEntry';
 
 const HUD_BODY_OPEN_KEY = 'ailongshort-pullback-hud-body-open';
 
@@ -26,9 +27,17 @@ const cardStyle: CSSProperties = {
 export default function PullbackHotZoneHud({
   pack,
   compact,
+  eliteDeskTitle,
+  eliteDeskActive,
+  coreLongHud,
 }: {
   pack: PullbackHotZonePack;
   compact?: boolean;
+  /** 마감·안착 연합 데스크 활성 시 우상단 제목 */
+  eliteDeskTitle?: string | null;
+  eliteDeskActive?: boolean;
+  /** 핵심 롱타점(지지·반등) 한 줄 요약 */
+  coreLongHud?: MonthDeskCoreLongHudLine | null;
 }) {
   const [bodyOpen, setBodyOpen] = useState(true);
   useEffect(() => {
@@ -50,12 +59,13 @@ export default function PullbackHotZoneHud({
   const teaser = swingRow?.value ?? `${pack.chartTf}`;
 
   const legendStrip = (
+    <>
     <div
       style={{
         display: 'flex',
         flexWrap: 'wrap',
         gap: '6px 10px',
-        marginBottom: 10,
+        marginBottom: eliteDeskActive ? 6 : 10,
         padding: '8px 10px',
         borderRadius: 8,
         background: 'rgba(30,41,59,0.65)',
@@ -80,6 +90,42 @@ export default function PullbackHotZoneHud({
         <span style={{ color: '#fb7185' }}>┅</span> SL·무효화
       </span>
     </div>
+      {eliteDeskActive ? (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '6px 10px',
+            marginBottom: 10,
+            padding: '8px 10px',
+            borderRadius: 8,
+            background: 'rgba(15,23,42,0.75)',
+            border: '1px solid rgba(56,189,248,0.35)',
+            fontSize: fs - 1,
+            color: '#cbd5e1',
+          }}
+        >
+          <span>
+            <span style={{ color: '#38bdf8' }}>━</span> E·연합
+          </span>
+          <span>
+            <span style={{ color: '#fb7185' }}>┅</span> SL·연합
+          </span>
+          <span>
+            <span style={{ color: '#4ade80' }}>┅</span> TP1~3·연합
+          </span>
+          <span>
+            <span style={{ color: '#a78bfa' }}>■</span> 타입옴·FVG
+          </span>
+          <span>
+            <span style={{ color: '#fbbf24' }}>◈</span> 연합 캔들(마지막봉)
+          </span>
+          <span>
+            <span style={{ color: '#fde047' }}>★</span> 핵심 롱타점
+          </span>
+        </div>
+      ) : null}
+    </>
   );
 
   return (
@@ -119,14 +165,18 @@ export default function PullbackHotZoneHud({
         >
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 800, fontSize: fs + 2, color: '#a5f3fc', letterSpacing: '-0.02em' }}>
-              눌림 진입 ZONE · 다음 경로
+              {eliteDeskActive && eliteDeskTitle
+                ? `${eliteDeskTitle} · 눌림 경로`
+                : '눌림 진입 ZONE · 다음 경로'}
             </div>
             <div style={{ fontSize: fs - 1, color: '#94a3b8', marginTop: 2 }}>
               <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{pack.displaySymbol}</span>
               {' · '}
               <span style={{ color: '#7dd3fc' }}>{pack.chartTf}</span>
               {' · '}
-              <span style={{ color: '#64748b' }}>참고 작도(자동)</span>
+              <span style={{ color: '#64748b' }}>
+                {eliteDeskActive ? '연합+눌림+타입옴 전체 작도' : '참고 작도(자동)'}
+              </span>
             </div>
           </div>
           <button
@@ -156,6 +206,35 @@ export default function PullbackHotZoneHud({
         {bodyOpen && (
           <>
             {legendStrip}
+
+            {eliteDeskActive && coreLongHud ? (
+              <div
+                style={{
+                  ...cardStyle,
+                  marginBottom: 10,
+                  border: '1px solid rgba(250,204,21,0.55)',
+                  background: 'rgba(120,53,15,0.35)',
+                }}
+              >
+                <div style={{ fontWeight: 800, color: '#fde047', marginBottom: 6, fontSize: fs + 1 }}>
+                  ★ 핵심 롱타점
+                  <span style={{ fontWeight: 600, color: '#fcd34d', marginLeft: 6, fontSize: fs - 1 }}>
+                    점수 {coreLongHud.score}
+                  </span>
+                </div>
+                <div style={{ fontSize: fs - 1, color: '#fef3c7', marginBottom: 4 }}>
+                  E {coreLongHud.entry.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  {' · '}
+                  SL {coreLongHud.stopLoss.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  {' · '}
+                  반등 {coreLongHud.bounceTarget.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </div>
+                <div style={{ fontSize: fs - 1, color: '#cbd5e1' }}>{coreLongHud.headlineKo}</div>
+                <div style={{ fontSize: fs - 2, color: '#94a3b8', marginTop: 4 }}>
+                  지지·되돌림 구간 — 확정 아님, 상위 TF 확인 후 참고
+                </div>
+              </div>
+            ) : null}
 
             <div
               style={{

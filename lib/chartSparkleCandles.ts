@@ -1,6 +1,8 @@
 import type { AnalyzeResponse, Candle } from '@/types';
 import type { CandlestickData, UTCTimestamp } from 'lightweight-charts';
 import type { StructureCandleHighlight } from '@/lib/smcDeskOverlay';
+import type { ObPreBeamPaintCell } from '@/lib/obPreBeamCandleMarkers';
+import type { MonthDeskSettleCandleCell } from '@/lib/monthDeskSettleCandlePaint';
 
 /** 한 봉의 pre3 반징 — preview 는 마감 전 연한 표시(저장 안 함) */
 export type Pre3SparkleCell = { direction: 'LONG' | 'SHORT'; preview: boolean };
@@ -164,11 +166,85 @@ function paletteForStructureHighlight(
   }
 }
 
+/** 마감·안착 돌파·안착 캔들 — 구조(BOS)와 별도 플랜·존 라인 기준 */
+function paletteForSettleCandle(
+  cell: MonthDeskSettleCandleCell,
+  pulsePhase: number
+): { color: string; borderColor: string; wickColor: string } {
+  const ph = pulsePhase % 2;
+  const long = cell.bias === 'bullish';
+  if (long) {
+    switch (cell.phase) {
+      case 'confirmed':
+        return ph === 0
+          ? { color: '#14532d', borderColor: '#4ADE80', wickColor: '#22C55E' }
+          : { color: '#166534', borderColor: '#86EFAC', wickColor: '#34D399' };
+      case 'settling':
+        return { color: '#15803d', borderColor: '#A7F3D0', wickColor: '#22C55E' };
+      case 'retest':
+        return { color: '#134e4a', borderColor: '#2DD4BF', wickColor: '#5EEAD4' };
+      case 'breakout':
+        return { color: '#15803d', borderColor: '#FACC15', wickColor: '#FDE047' };
+      case 'breakoutWeak':
+        return { color: '#365314', borderColor: '#A3E635', wickColor: '#84CC16' };
+      case 'failed':
+      default:
+        return { color: '#475569', borderColor: '#94A3B8', wickColor: '#64748B' };
+    }
+  }
+  switch (cell.phase) {
+    case 'confirmed':
+      return ph === 0
+        ? { color: '#7f1d1d', borderColor: '#F87171', wickColor: '#EF4444' }
+        : { color: '#991b1b', borderColor: '#FCA5A5', wickColor: '#DC2626' };
+    case 'settling':
+      return { color: '#B91C1C', borderColor: '#FCA5A5', wickColor: '#EF4444' };
+    case 'retest':
+      return { color: '#881337', borderColor: '#FB7185', wickColor: '#FDA4AF' };
+    case 'breakout':
+      return { color: '#DC2626', borderColor: '#FB923C', wickColor: '#FDBA74' };
+    case 'breakoutWeak':
+      return { color: '#713f12', borderColor: '#FCD34D', wickColor: '#FBBF24' };
+    case 'failed':
+    default:
+      return { color: '#475569', borderColor: '#94A3B8', wickColor: '#64748B' };
+  }
+}
+
 type PaintLayer =
   | { kind: 'structure'; h: StructureCandleHighlight }
+  | { kind: 'settle'; cell: MonthDeskSettleCandleCell }
+  | { kind: 'obPreBeam'; cell: ObPreBeamPaintCell }
   | { kind: 'pre3'; cell: Pre3SparkleCell }
   | { kind: 'prox'; dir: 'LONG' | 'SHORT' }
   | { kind: 'hot' };
+
+const OB_PRE_BEAM_LONG = [
+  { color: '#15803d', borderColor: '#EAB308', wickColor: '#FDE047' },
+  { color: '#166534', borderColor: '#FACC15', wickColor: '#FDE68A' },
+];
+const OB_PRE_BEAM_SHORT = [
+  { color: '#B91C1C', borderColor: '#FB923C', wickColor: '#FDBA74' },
+  { color: '#991B1B', borderColor: '#F97316', wickColor: '#FB923C' },
+];
+const BEAM_LONG_PALETTE = [
+  { color: '#22C55E', borderColor: '#4ADE80', wickColor: '#86EFAC' },
+  { color: '#16A34A', borderColor: '#22C55E', wickColor: '#4ADE80' },
+];
+const BEAM_SHORT_PALETTE = [
+  { color: '#EF4444', borderColor: '#F87171', wickColor: '#FCA5A5' },
+  { color: '#DC2626', borderColor: '#EF4444', wickColor: '#F87171' },
+];
+
+function obPreBeamTriple(cell: ObPreBeamPaintCell, phase: number): { color: string; borderColor: string; wickColor: string } {
+  if (cell.role === 'beam') {
+    const pal = cell.direction === 'LONG' ? BEAM_LONG_PALETTE : BEAM_SHORT_PALETTE;
+    return pal[phase] ?? pal[0]!;
+  }
+  const pal = cell.direction === 'LONG' ? OB_PRE_BEAM_LONG : OB_PRE_BEAM_SHORT;
+  const pick = cell.linked ? pal[phase] ?? pal[0]! : { ...pal[0]!, borderColor: 'rgba(148,163,184,0.55)' };
+  return pick;
+}
 
 function pre3Triple(cell: Pre3SparkleCell, phase: number): { color: string; borderColor: string; wickColor: string } {
   const long = cell.direction === 'LONG';
@@ -193,6 +269,10 @@ function layerTriple(layer: NonHotPaintLayer, pulsePhase: number, phase: number)
   switch (layer.kind) {
     case 'structure':
       return paletteForStructureHighlight(layer.h, pulsePhase);
+    case 'settle':
+      return paletteForSettleCandle(layer.cell, pulsePhase);
+    case 'obPreBeam':
+      return obPreBeamTriple(layer.cell, phase);
     case 'pre3':
       return pre3Triple(layer.cell, phase);
     case 'prox':
@@ -219,12 +299,16 @@ function bodyTriple(bl: CandleBlendInput, isUp: boolean): { color: string; borde
 
 function buildOrderedLayers(
   struct: StructureCandleHighlight | undefined,
+  settle: MonthDeskSettleCandleCell | undefined,
+  obPreBeam: ObPreBeamPaintCell | undefined,
   cell: Pre3SparkleCell | undefined,
   prox: 'LONG' | 'SHORT' | undefined,
   hot: boolean
 ): PaintLayer[] {
   const out: PaintLayer[] = [];
   if (struct) out.push({ kind: 'structure', h: struct });
+  if (settle) out.push({ kind: 'settle', cell: settle });
+  if (obPreBeam) out.push({ kind: 'obPreBeam', cell: obPreBeam });
   if (cell) out.push({ kind: 'pre3', cell });
   if (prox) out.push({ kind: 'prox', dir: prox });
   if (hot) out.push({ kind: 'hot' });
@@ -235,6 +319,10 @@ function layerKindLabel(k: PaintLayer['kind']): string {
   switch (k) {
     case 'structure':
       return '구조(BOS/CHOCH)';
+    case 'settle':
+      return '돌파·안착';
+    case 'obPreBeam':
+      return 'OB·빔';
     case 'pre3':
       return 'pre3 반짝';
     case 'prox':
@@ -254,23 +342,32 @@ export function describeCandlePaintForTime(
   structureByTime: Map<number, StructureCandleHighlight> | null | undefined,
   lineZoneProximityByTime: Map<number, 'LONG' | 'SHORT'> | undefined,
   hotZoneHighlightTimes: Set<number> | null | undefined,
-  candle: Candle
+  candle: Candle,
+  obPreBeamByTime?: Map<number, ObPreBeamPaintCell> | null | undefined,
+  settleByTime?: Map<number, MonthDeskSettleCandleCell> | null | undefined
 ): string {
   const cell = sparkleByTime.get(t);
   const struct = structureByTime?.get(t);
+  const settle = settleByTime?.get(t);
+  const obPb = obPreBeamByTime?.get(t);
   const prox = lineZoneProximityByTime?.get(t);
   const hot = hotZoneHighlightTimes != null && hotZoneHighlightTimes.has(t);
   const isUp = candle.close >= candle.open;
 
   if (!blend.compositeLayers) {
     if (struct) return `${layerKindLabel('structure')} · ${struct.tag} ${struct.phase}`;
+    if (settle) return `${layerKindLabel('settle')} · ${settle.phase}`;
+    if (obPb) {
+      const role = obPb.role === 'ob' ? 'OB' : obPb.direction === 'LONG' ? '롱빔' : '숏빔';
+      return `${layerKindLabel('obPreBeam')} · ${role}${obPb.linked ? '·연결' : ''}`;
+    }
     if (prox) return `${layerKindLabel('prox')} · ${prox === 'LONG' ? '롱' : '숏'}`;
     if (hot) return layerKindLabel('hot');
     if (cell) return `${layerKindLabel('pre3')} · ${cell.preview ? '프리뷰' : '확정'} ${cell.direction}`;
     return '기본 캔들색(OHLC)';
   }
 
-  const layers = buildOrderedLayers(struct, cell, prox, hot);
+  const layers = buildOrderedLayers(struct, settle, obPb, cell, prox, hot);
   if (layers.length === 0) return '기본 캔들색(OHLC)';
   const names = layers.map((L) => layerKindLabel(L.kind));
   const body = bodyTriple(blend, isUp);
@@ -287,20 +384,50 @@ export function buildCandlestickDataWithPre3Sparkle(
   lineZoneProximityByTime?: Map<number, 'LONG' | 'SHORT'>,
   structureByTime?: Map<number, StructureCandleHighlight> | null,
   hotZoneHighlightTimes?: Set<number> | null,
-  blend?: CandleBlendInput | null
+  blend?: CandleBlendInput | null,
+  obPreBeamByTime?: Map<number, ObPreBeamPaintCell> | null,
+  settleCandleByTime?: Map<number, MonthDeskSettleCandleCell> | null
 ): CandlestickData<UTCTimestamp>[] {
   const phase = reducedMotion ? 0 : pulsePhase % 2;
   const composite = blend?.compositeLayers === true && blend != null;
+
+  /** 전량 히스토리(1d 등) — 장식 맵이 비면 O(n) 색상 분기 생략 */
+  const noDecor =
+    !composite &&
+    sparkleByTime.size === 0 &&
+    (structureByTime == null || structureByTime.size === 0) &&
+    (settleCandleByTime == null || settleCandleByTime.size === 0) &&
+    (obPreBeamByTime == null || obPreBeamByTime.size === 0) &&
+    (lineZoneProximityByTime == null || lineZoneProximityByTime.size === 0) &&
+    (hotZoneHighlightTimes == null || hotZoneHighlightTimes.size === 0);
+  if (noDecor && candles.length > 900) {
+    return candles.map((x) => ({
+      time: x.time as UTCTimestamp,
+      open: x.open,
+      high: x.high,
+      low: x.low,
+      close: x.close,
+    }));
+  }
 
   return candles.map((x) => {
     const t = x.time as number;
     const cell = sparkleByTime.get(t);
     const structExclusive = !cell ? structureByTime?.get(t) : undefined;
-    const proxExclusive = !cell && !structExclusive ? lineZoneProximityByTime?.get(t) : undefined;
+    const settleExclusive =
+      !cell && !structExclusive ? settleCandleByTime?.get(t) : undefined;
+    const obPbExclusive =
+      !cell && !structExclusive && !settleExclusive ? obPreBeamByTime?.get(t) : undefined;
+    const proxExclusive =
+      !cell && !structExclusive && !settleExclusive && !obPbExclusive
+        ? lineZoneProximityByTime?.get(t)
+        : undefined;
     const hotExclusive =
       hotZoneHighlightTimes != null &&
       !cell &&
       !structExclusive &&
+      !settleExclusive &&
+      !obPbExclusive &&
       !proxExclusive &&
       hotZoneHighlightTimes.has(t);
 
@@ -315,6 +442,14 @@ export function buildCandlestickDataWithPre3Sparkle(
     if (!composite || !blend) {
       if (structExclusive) {
         const c = paletteForStructureHighlight(structExclusive, pulsePhase);
+        return { ...base, color: c.color, borderColor: c.borderColor, wickColor: c.wickColor };
+      }
+      if (settleExclusive) {
+        const c = paletteForSettleCandle(settleExclusive, pulsePhase);
+        return { ...base, color: c.color, borderColor: c.borderColor, wickColor: c.wickColor };
+      }
+      if (obPbExclusive) {
+        const c = obPreBeamTriple(obPbExclusive, phase);
         return { ...base, color: c.color, borderColor: c.borderColor, wickColor: c.wickColor };
       }
       if (proxExclusive) {
@@ -341,9 +476,11 @@ export function buildCandlestickDataWithPre3Sparkle(
     }
 
     const struct = structureByTime?.get(t);
+    const settle = settleCandleByTime?.get(t);
+    const obPb = obPreBeamByTime?.get(t);
     const prox = lineZoneProximityByTime?.get(t);
     const hot = hotZoneHighlightTimes != null && hotZoneHighlightTimes.has(t);
-    const layers = buildOrderedLayers(struct, cell, prox, hot);
+    const layers = buildOrderedLayers(struct, settle, obPb, cell, prox, hot);
     if (layers.length === 0) return base;
 
     const isUp = x.close >= x.open;

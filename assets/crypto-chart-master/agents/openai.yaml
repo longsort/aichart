@@ -1,0 +1,5 @@
+interface:
+  display_name: Crypto Chart Master
+  short_description: Premium crypto chart analysis, candlestick drawing, SMC/ICT, and risk-managed trade planning.
+  icon: chart-candlestick
+  brand_color: '#16a34a'

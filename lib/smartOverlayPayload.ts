@@ -259,9 +259,24 @@ export function buildSmartOverlayPayload(
   }
 
   const zones: SmartOverlayZone[] = [];
+  const pushZone = (z: SmartOverlayZone) => {
+    const hi = Math.max(z.from, z.to);
+    const lo = Math.min(z.from, z.to);
+    if (!(hi > lo)) return;
+    const exists = zones.some((x) => {
+      if (x.type !== z.type) return false;
+      if (x.label !== z.label) return false;
+      const xHi = Math.max(x.from, x.to);
+      const xLo = Math.min(x.from, x.to);
+      const near = Math.abs(xHi - hi) <= Math.max(bandPad(hi), hi * 0.0002) &&
+        Math.abs(xLo - lo) <= Math.max(bandPad(lo), lo * 0.0002);
+      return near;
+    });
+    if (!exists) zones.push({ ...z, from: lo, to: hi });
+  };
 
   if (support_zone) {
-    zones.push({
+    pushZone({
       type: 'support',
       from: support_zone[0],
       to: support_zone[1],
@@ -269,11 +284,30 @@ export function buildSmartOverlayPayload(
     });
   }
   if (resist_zone) {
-    zones.push({
+    pushZone({
       type: 'resistance',
       from: resist_zone[0],
       to: resist_zone[1],
       label: '저항 구간',
+    });
+  }
+  const st = analysis.structureState?.state;
+  if (st === 'trend_up' && support_zone) {
+    pushZone({
+      type: 'support',
+      from: support_zone[0],
+      to: support_zone[1],
+      label: '눌림 매수 구간',
+      core: true,
+    });
+  }
+  if (st === 'trend_down' && resist_zone) {
+    pushZone({
+      type: 'resistance',
+      from: resist_zone[0],
+      to: resist_zone[1],
+      label: '반등 매도 구간',
+      core: true,
     });
   }
 
@@ -305,16 +339,16 @@ export function buildSmartOverlayPayload(
 
   if (tp1 != null) {
     const w = bandPad(tp1);
-    zones.push({ type: 'target', from: tp1 - w, to: tp1 + w, label: '목표 1', core: true });
+    pushZone({ type: 'target', from: tp1 - w, to: tp1 + w, label: '목표 1', core: true });
   }
   if (tp2 != null && tp1 != null && Math.abs(tp2 - tp1) > bandPad(tp1) * 3) {
     const w = bandPad(tp2);
-    zones.push({ type: 'target', from: tp2 - w, to: tp2 + w, label: '목표 2' });
+    pushZone({ type: 'target', from: tp2 - w, to: tp2 + w, label: '목표 2' });
   }
 
   if (entry != null) {
     const w = Math.max(bandPad(entry), Math.abs(px) * 8e-6);
-    zones.push({
+    pushZone({
       type: 'entry',
       from: entry - w,
       to: entry + w,
@@ -325,12 +359,74 @@ export function buildSmartOverlayPayload(
 
   if (br != null) {
     const w = Math.max(br * 0.00035, Math.abs(px) * 3e-6);
-    zones.push({ type: 'breakout', from: br - w, to: br + w, label: '돌파 확인', core: true });
+    pushZone({ type: 'breakout', from: br - w, to: br + w, label: '돌파 확인', core: true });
+  }
+  if (analysis.settlementZone?.state === 'confirmed' && br != null) {
+    const w = Math.max(br * 0.00042, Math.abs(px) * 3e-6);
+    pushZone({ type: 'breakout', from: br - w, to: br + w, label: '돌파 후 안착 확정', core: true });
+  }
+
+  const zs = analysis.zoneSignal;
+  if (zs?.zone === 'long_confirm' && support_zone) {
+    pushZone({
+      type: 'support',
+      from: support_zone[0],
+      to: support_zone[1],
+      label: '롱 확정 구간',
+      core: true,
+    });
+  }
+  if (zs?.zone === 'short_confirm' && resist_zone) {
+    pushZone({
+      type: 'resistance',
+      from: resist_zone[0],
+      to: resist_zone[1],
+      label: '숏 확정 구간',
+      core: true,
+    });
   }
 
   if (invalid != null) {
     const w = bandPad(invalid);
-    zones.push({ type: 'risk', from: invalid - w, to: invalid + w, label: '무효화' });
+    pushZone({ type: 'risk', from: invalid - w, to: invalid + w, label: '무효화' });
+  }
+
+  const recent = candles.slice(-Math.min(48, candles.length));
+  const recentHigh = recent.length ? Math.max(...recent.map((c) => c.high)) : px;
+  const recentLow = recent.length ? Math.min(...recent.map((c) => c.low)) : px;
+  const recentRange = Math.max(1e-9, recentHigh - recentLow);
+  const pullbackBand = Math.max(recentRange * 0.18, bandPad(px) * 1.8);
+  if (isLong && support_zone) {
+    const hi = Math.min(recentHigh, support_zone[1] + pullbackBand * 0.28);
+    const lo = Math.max(recentLow, support_zone[0] - pullbackBand * 0.72);
+    pushZone({
+      type: 'support',
+      from: lo,
+      to: hi,
+      label: '눌림 반등 감시 ZONE',
+      core: true,
+    });
+  }
+  if (!isLong && resist_zone) {
+    const hi = Math.min(recentHigh, resist_zone[1] + pullbackBand * 0.72);
+    const lo = Math.max(recentLow, resist_zone[0] - pullbackBand * 0.28);
+    pushZone({
+      type: 'resistance',
+      from: lo,
+      to: hi,
+      label: '반등 재하락 감시 ZONE',
+      core: true,
+    });
+  }
+  if (st === 'reversal' && invalid != null) {
+    const w = Math.max(pullbackBand * 0.45, bandPad(invalid) * 1.5);
+    pushZone({
+      type: 'risk',
+      from: invalid - w,
+      to: invalid + w,
+      label: '구조 이탈 반전 감시 ZONE',
+      core: true,
+    });
   }
 
   const prob = analysis.probability;

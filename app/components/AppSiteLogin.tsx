@@ -39,7 +39,7 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
         return;
       }
       setStoredBriefingCredentials(u, password);
-      window.location.reload();
+      onLoggedIn(u);
     } catch {
       setError('연결 오류입니다. 서버가 실행 중인지 확인하세요.');
     } finally {
@@ -50,8 +50,9 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
   return (
     <div className="site-login-wrap" role="dialog" aria-labelledby="site-login-title">
       <div className="card site-login-card">
+        <div className="ai-kicker">AI Analysis Desk</div>
         <h1 id="site-login-title" className="site-login-title">
-          AI 트레이더 분석 엔진
+          독수리1호 분석 엔진
         </h1>
         <p className="subtle" style={{ marginBottom: 20 }}>
           사이트에 접속하려면 아이디와 비밀번호를 입력하세요.
@@ -102,11 +103,12 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
         .site-login-card {
           width: 100%;
           max-width: 420px;
-          padding: 28px;
+          padding: 28px 28px 24px;
         }
         .site-login-title {
           font-size: 22px;
-          font-weight: 800;
+          font-weight: 720;
+          letter-spacing: -0.04em;
           margin: 0 0 8px;
         }
         .site-login-form {

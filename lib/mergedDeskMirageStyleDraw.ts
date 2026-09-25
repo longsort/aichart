@@ -276,6 +276,7 @@ function keepMirageDeskOverlay(o: OverlayItem): boolean {
     id.startsWith('merged-desk-asset-') ||
     id.startsWith('merged-desk-hq-') ||
     id.startsWith('merged-desk-core-sr-') ||
+    id.startsWith('merged-desk-bpr-') ||
     id.startsWith('merged-desk-tv-ls-') ||
     id.startsWith('merged-swing-mid-') ||
     id.startsWith('merged-choch-ob-') ||
@@ -302,6 +303,7 @@ function keepMirageDeskOverlay(o: OverlayItem): boolean {
     extra.includes('merged-desk-core-sr') ||
     extra.includes('merged-desk-tv-ls-zone') ||
     extra.includes('merged-hq-entry-zone') ||
+    extra.includes('merged-desk-bpr-zone') ||
     extra.includes('merged-swing-mid-entry') ||
     extra.includes('merged-desk-rb-channel') ||
     extra.includes('merged-desk-rb-smc') ||
@@ -322,9 +324,17 @@ function keepMirageDeskOverlay(o: OverlayItem): boolean {
       kind === 'scenario' ||
       kind === 'fvg' ||
       kind === 'ob' ||
+      kind === 'bprZone' ||
       kind === 'harmonic' ||
       !kind
     );
+  }
+
+  if (
+    id.startsWith('merged-desk-bpr-') ||
+    extra.includes('merged-desk-bpr-zone')
+  ) {
+    return kind === 'bprZone' || kind === 'zone' || !kind;
   }
 
   if (
@@ -420,53 +430,6 @@ function keepMirageDeskOverlay(o: OverlayItem): boolean {
   if (id.startsWith('merged-ares-mlsp-tv-struct-')) return kind === 'bos' || kind === 'choch';
   if (id.startsWith('merged-ares-mlsp-tv-target-')) return kind === 'keyLevel';
   if (id.startsWith('merged-ares-mlsp-tv-confluence-')) return kind === 'zone';
-  /** 캔들분석·학파 도식 — 화이트리스트가 지우면 차트에 작도가 안 남음 */
-  if (
-    id.startsWith('candle-analysis-') ||
-    extra.includes('candle-analysis') ||
-    extra.includes('overlay-zone--candle-analysis')
-  ) {
-    return true;
-  }
-  if (
-    extra.includes('merged-desk-school') ||
-    extra.includes('schematic-') ||
-    extra.includes('-blink-') ||
-    id.includes('-blink-') ||
-    id.startsWith('merged-desk-wyckoff') ||
-    id.startsWith('merged-desk-elliott') ||
-    id.startsWith('merged-desk-dow') ||
-    id.startsWith('merged-desk-smc') ||
-    id.startsWith('merged-desk-harmonic') ||
-    id.startsWith('merged-desk-ichimoku') ||
-    id.startsWith('merged-desk-chan') ||
-    id.startsWith('merged-desk-fib') ||
-    id.startsWith('merged-desk-vsa') ||
-    id.startsWith('merged-desk-wolfe') ||
-    id.startsWith('merged-desk-pitchfork') ||
-    id.startsWith('merged-desk-profile') ||
-    id.startsWith('merged-desk-pnf') ||
-    id.startsWith('merged-desk-nison') ||
-    id.startsWith('merged-desk-turtle') ||
-    id.startsWith('merged-desk-macro') ||
-    id.startsWith('merged-desk-classical') ||
-    id.startsWith('merged-desk-brooks') ||
-    id.startsWith('merged-desk-school')
-  ) {
-    return true;
-  }
-  /** MTF 폭락감시·반등지지 — 엔진/뷰에서 만들어도 finalize가 지우면 차트에 안 남음 */
-  if (
-    id.startsWith('merged-desk-mtf-dump-') ||
-    extra.includes('merged-desk-mtf-dump-zone') ||
-    extra.includes('merged-desk-crash') ||
-    id.includes('dump-zone')
-  ) {
-    return true;
-  }
-  if (id.startsWith('merged-desk-practice-ai-') || extra.includes('merged-desk-practice-ai')) {
-    return true;
-  }
   if (!id.startsWith('merged-ares-mlsp-tv-')) return false;
   if (id.includes('merged-ares-mlsp-tv-sr-')) return true;
   if (id.includes('-liq-band-') || id.includes('-struct-band-') || id.includes('-dir-verdict')) return kind === 'zone';

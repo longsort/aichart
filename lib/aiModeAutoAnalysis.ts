@@ -111,6 +111,36 @@ export type LiveCompressionResult = {
   hint: string;
 };
 
+/** 차트 존 라벨 — 롱/숏을 한눈에 (예: AI 압롱존 ·5봉, AI 압숏존 72 ·7봉) */
+export function formatAiCompressionZoneChartLabel(input: {
+  bias: 'bullish' | 'bearish' | null;
+  bars?: number;
+  score?: number;
+  /** 진행 중 압축 — 점수를 라벨에 표시 */
+  live?: boolean;
+}): string {
+  const barsPart = input.bars != null ? ` ·${input.bars}봉` : '';
+  const scorePart =
+    input.live && input.score != null && Number.isFinite(input.score)
+      ? ` ${Math.round(input.score)}`
+      : '';
+  if (input.bias === 'bullish') return `AI 압롱존${scorePart}${barsPart}`;
+  if (input.bias === 'bearish') return `AI 압숏존${scorePart}${barsPart}`;
+  return `AI 압축존${scorePart}${barsPart}`;
+}
+
+/** 진행 중 압축 — OB·판정으로 롱/숏 방향 추정 */
+export function resolveLiveCompressionChartBias(
+  lc: LiveCompressionResult,
+  verdict?: string | null
+): 'bullish' | 'bearish' | null {
+  if (lc.obConfluent === 'support') return 'bullish';
+  if (lc.obConfluent === 'resistance') return 'bearish';
+  if (verdict === 'LONG') return 'bullish';
+  if (verdict === 'SHORT') return 'bearish';
+  return null;
+}
+
 /**
  * 최근 막대들이 좁은 레인지로 쌓였는지(진행 중 압축) + 지지/저항 OB와 겹침
  */

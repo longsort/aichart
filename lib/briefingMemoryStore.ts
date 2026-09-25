@@ -1,40 +1,20 @@
-import fs from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const MEMORY_DIR = path.join(DATA_DIR, 'briefing-memory');
-
-function ensureDir(dir: string): boolean {
-  try {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { ensureDir, readJsonFile, writeJsonFile } from '@/lib/nodeJsonFs';
 
 function safeFilename(clientId: string): string {
   return clientId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'default';
 }
 
-function readJsonFile<T>(filePath: string, fallback: T): T {
-  try {
-    if (!fs.existsSync(filePath)) return fallback;
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    return (JSON.parse(raw || 'null') as T) ?? fallback;
-  } catch {
-    return fallback;
-  }
+function memoryFileName(clientId: string): string {
+  return `${safeFilename(clientId)}.json`;
 }
 
-function writeJsonFile(filePath: string, data: unknown): boolean {
-  try {
-    ensureDir(path.dirname(filePath));
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-    return true;
-  } catch {
-    return false;
-  }
+function readMemoryJson<T>(clientId: string, fallback: T): T {
+  return readJsonFile<T>('briefing-memory', memoryFileName(clientId), fallback);
+}
+
+function writeMemoryJson(clientId: string, data: unknown): boolean {
+  ensureDir('briefing-memory');
+  return writeJsonFile('briefing-memory', memoryFileName(clientId), data);
 }
 
 export type BriefingFingerprint = {
@@ -117,16 +97,11 @@ function scoreSimilarity(a: BriefingFingerprint, b: BriefingFingerprint): number
   return Math.round(Math.max(0, Math.min(100, score)));
 }
 
-function filePathFor(clientId: string): string {
-  return path.join(MEMORY_DIR, `${safeFilename(clientId)}.json`);
-}
-
 export function appendBriefingMemory(clientId: string, record: BriefingMemoryRecord): boolean {
-  const fp = filePathFor(clientId);
-  const list = readJsonFile<BriefingMemoryRecord[]>(fp, []);
+  const list = readMemoryJson<BriefingMemoryRecord[]>(clientId, []);
   list.push(record);
   const trimmed = list.slice(-3000);
-  return writeJsonFile(fp, trimmed);
+  return writeMemoryJson(clientId, trimmed);
 }
 
 export function findSimilarBriefingMemory(
@@ -135,8 +110,7 @@ export function findSimilarBriefingMemory(
   timeframe: string,
   fingerprint: BriefingFingerprint
 ): (BriefingMemoryRecord & { similarity: number }) | null {
-  const fp = filePathFor(clientId);
-  const list = readJsonFile<BriefingMemoryRecord[]>(fp, []);
+  const list = readMemoryJson<BriefingMemoryRecord[]>(clientId, []);
   if (!Array.isArray(list) || list.length === 0) return null;
   let best: (BriefingMemoryRecord & { similarity: number }) | null = null;
   for (let i = list.length - 1; i >= 0; i -= 1) {
@@ -148,4 +122,3 @@ export function findSimilarBriefingMemory(
   }
   return best;
 }
-

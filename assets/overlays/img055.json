@@ -1,3 +1,45 @@
 {
-  "source": "8ecd4efdd3c2378e5d3cfb26f7edeef2.jpg"
+  "source": "8ecd4efdd3c2378e5d3cfb26f7edeef2.jpg",
+  "catalogId": "img055",
+  "category": "edu_forex",
+  "chartable": true,
+  "titleKo": "8ecd4efdd3c2378e5d3cfb26 참조",
+  "tags": [
+    "edu_forex",
+    "edu",
+    "pattern"
+  ],
+  "structureFeatures": {
+    "bos": false,
+    "choch": false,
+    "fvg": 0,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "pattern",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "relative",
+    "elements": [
+      {
+        "type": "zone",
+        "role": "demand",
+        "pricePctTop": 0.65,
+        "pricePctBot": 0.75,
+        "timePctStart": 0.5,
+        "timePctEnd": 1
+      },
+      {
+        "type": "zone",
+        "role": "supply",
+        "pricePctTop": 0.2,
+        "pricePctBot": 0.3,
+        "timePctStart": 0.5,
+        "timePctEnd": 1
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
 }

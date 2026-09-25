@@ -1,3 +1,23 @@
 {
-  "source": "1763475218951.png"
+  "source": "1763475218951.png",
+  "catalogId": "img026",
+  "category": "unknown",
+  "chartable": false,
+  "titleKo": "1763475218951 참조",
+  "tags": [
+    "unknown"
+  ],
+  "structureFeatures": {
+    "bos": false,
+    "choch": false,
+    "fvg": 0,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": null,
+  "analyzedAt": "2026-06-26"
 }

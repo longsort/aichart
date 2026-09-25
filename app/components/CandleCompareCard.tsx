@@ -153,6 +153,8 @@ function CandleCompareCardInner({ symbol }: { symbol: string }) {
     }
   }, [symbol, pfTf]);
 
+  const [vsTf, setVsTf] = useState('15m');
+
   const loadVolumeShock = useCallback(async () => {
     const sym = String(symbol || 'BTCUSDT').toUpperCase();
     setVsLoading(true);
@@ -160,8 +162,7 @@ function CandleCompareCardInner({ symbol }: { symbol: string }) {
     try {
       const q = new URLSearchParams({
         symbol: sym,
-        timeframe: '15m',
-        thresholds: '5000,10000',
+        timeframe: vsTf,
         horizons: '1,4,12',
         includeDynamic: vsIncludeDynamic ? '1' : '0',
         lookbackDays: '30',
@@ -178,7 +179,7 @@ function CandleCompareCardInner({ symbol }: { symbol: string }) {
     } finally {
       setVsLoading(false);
     }
-  }, [symbol, vsIncludeDynamic]);
+  }, [symbol, vsIncludeDynamic, vsTf]);
 
   useEffect(() => {
     void load();
@@ -213,8 +214,7 @@ function CandleCompareCardInner({ symbol }: { symbol: string }) {
         <span className={styles.badge}>대시보드</span>
       </div>
       <div className="subtle" style={{ fontSize: 11, marginTop: 4, lineHeight: 1.45, color: '#cbd5e1' }}>
-        차트 기준: 바이낸스 현물 OHLCV(실패 시 Bybit 폴백). 빅숏 반응 통계는
-        <code style={{ fontSize: 10, color: '#22d3ee', marginLeft: 6 }}>data/bitget-futures</code> CSV를 사용합니다.
+        차트: 바이낸스 현물. 거래량 쇼크 통계: 비트겟 CSV(있을 때) 또는 바이낸스 · 1m~1M · 매수/매도·양/음봉 분리 · USD 구간 참고.
       </div>
 
       <div className={styles.toolbar}>
@@ -260,13 +260,24 @@ function CandleCompareCardInner({ symbol }: { symbol: string }) {
       </div>
 
       <div className={`${styles.section} ${styles.sectionPink}`}>
-        <div className={`section-title ${styles.sectionTitlePink}`}>빅숏 거래량 반응 통계 (비트겟 15분)</div>
+        <div className={`section-title ${styles.sectionTitlePink}`}>거래량 쇼크 · MTF ({vsTf})</div>
         <div className="subtle" style={{ fontSize: 10, marginTop: 4, lineHeight: 1.45, color: '#fecdd3' }}>
-          조건: 음봉 + 거래량 임계(고정 5k·10k + 최근 30일 분포 기준 동적 상위 5%·1%). 반등은 수익률 0%·0.3%·0.7% 초과 비율을 함께 봅니다.
+          양/음봉·매수/매도 거래량 급증 시 과거 +1·+4·+12봉 %·USD 구간(참고). 15m 비트겟 CSV는 5k·10k 고정 포함.
         </div>
         <div className={styles.toolbarRow}>
+          {['1m', '3m', '5m', '15m', '1h', '4h', '1d', '1w', '1M'].map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`tool-chip tool-chip-button ${vsTf === t ? 'tool-chip-active' : ''}`}
+              style={{ fontSize: 9, padding: '2px 6px' }}
+              onClick={() => setVsTf(t)}
+            >
+              {t}
+            </button>
+          ))}
           <button type="button" className={`tool-chip tool-chip-button ${styles.btnRose}`} onClick={() => void loadVolumeShock()}>
-            빅숏 통계 재계산
+            재계산
           </button>
           <label className={styles.toggleLabel}>
             <input
@@ -371,8 +382,12 @@ function CandleCompareCardInner({ symbol }: { symbol: string }) {
               </div>
             )}
             <div className="subtle" style={{ fontSize: 10, marginBottom: 8, marginTop: 8 }}>
-              현재 15분봉 거래량: <strong style={{ color: '#fda4af' }}>{vs.current.volume.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</strong> · 봉: {vs.current.isBear ? '음봉' : '양봉'} ·
-              조건 충족: {vs.current.hitThresholds.length ? vs.current.hitThresholds.map((x) => `${x.toLocaleString('ko-KR')}`).join(', ') : '없음'}
+              현재 {vsTf}: 총량 <strong style={{ color: '#fda4af' }}>{vs.current.volume.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</strong>
+              · 매수 <strong style={{ color: '#86efac' }}>{vs.current.buyVolume.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</strong>
+              · 매도 <strong style={{ color: '#fca5a5' }}>{vs.current.sellVolume.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</strong>
+              · {vs.dataSource === 'bitget-futures-csv' ? 'Bitget' : 'Binance'}
+              <br />
+              쇼크: 양봉 {vs.current.hitThresholdsBull.length || '—'} · 음봉 {vs.current.hitThresholdsBear.length || '—'} · 매수 {vs.current.hitThresholdsBuy.length || '—'} · 매도 {vs.current.hitThresholdsSell.length || '—'}
             </div>
             <div className={styles.tableScroll}>
             <table className={styles.smallTable}>
@@ -399,14 +414,17 @@ function CandleCompareCardInner({ symbol }: { symbol: string }) {
                         <span>
                           {(h.probRebound * 100).toFixed(0)}% / {(h.probReboundT03 * 100).toFixed(0)}% / {(h.probReboundT07 * 100).toFixed(0)}%
                         </span>
-                        <span className={styles.cellSub}>평균 {fmtPct(h.meanPct)} · 중앙 {fmtPct(h.medianPct)}</span>
+                        <span className={styles.cellSub}>
+                          유리 {(h.probFavorable * 100).toFixed(0)}% · 평균 {fmtPct(h.meanPct)} · 중앙 {fmtPct(h.medianPct)}
+                          {h.medianMoveUsd != null ? ` · ${h.medianMoveUsd >= 0 ? '+' : ''}$${Math.abs(h.medianMoveUsd).toFixed(0)}` : ''}
+                        </span>
                         <span className={styles.cellCi}>0%초과 95%: {fmtWilsonRange(h.probRebound, n)}</span>
                       </div>
                     ) : (
                       '-'
                     );
                   return (
-                    <tr key={`${s.threshold}-${s.thresholdKind}`} className={isBest ? styles.rowBest : undefined}>
+                    <tr key={`${s.eventSide}-${s.threshold}-${s.thresholdKind}`} className={isBest ? styles.rowBest : undefined}>
                       <td style={{ fontWeight: 700, color: '#fda4af' }}>
                         {s.thresholdLabel}
                         {s.sampleLowTrust ? <span style={{ marginLeft: 6, fontSize: 9, color: '#fbbf24' }}>(표본 적음)</span> : null}

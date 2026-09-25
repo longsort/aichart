@@ -119,7 +119,7 @@ function rangeForAnalyze(tf: string) {
 function historicalFetchLimit(tf: string): number {
   const map: Record<string, number> = {
     // minute TF: bounded for dev-server heap stability — 항상 visibleLimit 이상
-    '1m': 10_080,
+    '1m': 2200,
     '3m': 1500,
     '5m': 1100,
     /** MARKET_BARS_3Y — 차트/market 상한(15m·1h는 성능 위해 수개월→약 7~8주분 수준) */

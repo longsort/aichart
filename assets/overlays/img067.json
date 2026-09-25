@@ -1,9 +1,72 @@
 {
   "source": "BTCUSD_2026-02-26_00-24-11.png",
   "horizontalDottedLines": [
-    { "price": 423.8, "label": "EQL" },
-    { "price": 5429.21, "label": "EQH" }
+    {
+      "price": 423.8,
+      "label": "EQL"
+    },
+    {
+      "price": 5429.21,
+      "label": "EQH"
+    }
   ],
   "supportLines": [],
-  "resistanceLines": []
+  "resistanceLines": [],
+  "catalogId": "img067",
+  "category": "smc_candle",
+  "chartable": true,
+  "titleKo": "SMC 구조 참조",
+  "tags": [
+    "smc_candle",
+    "smc",
+    "bos",
+    "choch",
+    "fvg",
+    "ob"
+  ],
+  "structureFeatures": {
+    "bos": true,
+    "choch": true,
+    "fvg": 1,
+    "ob": 1,
+    "sweep": true,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "relative",
+    "elements": [
+      {
+        "type": "zone",
+        "role": "demand",
+        "pricePctTop": 0.62,
+        "pricePctBot": 0.72,
+        "timePctStart": 0.55,
+        "timePctEnd": 1
+      },
+      {
+        "type": "zone",
+        "role": "supply",
+        "pricePctTop": 0.18,
+        "pricePctBot": 0.28,
+        "timePctStart": 0.55,
+        "timePctEnd": 1
+      },
+      {
+        "type": "hline",
+        "role": "bos",
+        "pricePct": 0.45,
+        "label": "BOS"
+      },
+      {
+        "type": "hline",
+        "role": "choch",
+        "pricePct": 0.52,
+        "label": "CH"
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
 }

@@ -29,6 +29,7 @@ import {
   MERGED_DESK_DEFAULT_BAR_SPACING,
   MERGED_DESK_RIGHT_FUTURE_BARS,
   MERGED_DESK_RB_FUTURE_BARS,
+  MERGED_DESK_ZONE_EXTEND_PAST_LAST_BARS,
   MERGED_DESK_VIEW_SYNC_EVENT,
   MERGED_DESK_SAVE_VIEW_EVENT,
   MERGED_DESK_RESTORE_VIEW_EVENT,
@@ -39,9 +40,13 @@ import {
   mergedDeskLabelZoomScale,
 } from '@/lib/mergedDeskZoomScale';
 import { mergedDeskRbFutureTime2 } from '@/lib/mergedDeskBlueRedChannels';
-import { chartPerfBudget, mergedDeskInteractionPerf } from '@/lib/chartPerfBudget';
-import { createChartInteractionKernel } from '@/lib/chartInteractionKernel';
-import { safeHorizLineSeriesSetData } from '@/lib/chartSeriesSafe';
+import { chartPerfBudget } from '@/lib/chartPerfBudget';
+import { setVisibleInterval } from '@/lib/visibleInterval';
+import {
+  chartLiveStaleMs,
+  isChartCandleTipStale,
+} from '@/lib/chartLiveKeepAlive';
+import { safeHorizLineSeriesSetData, sanitizeSeriesMarkersForLwc, safeSeriesSetMarkers } from '@/lib/chartSeriesSafe';
 import {
   fetchClientMarketCandles,
   peekClientMarketCandles,
@@ -64,10 +69,6 @@ import {
   isMonthDeskClearSummaryBundleOn,
 } from '@/lib/settings';
 import { SETTINGS_CHANGED_EVENT, useSettingsChangeTick } from '@/lib/useSettingsChangeTick';
-import {
-  isOneMinuteTimeframe,
-  oneMinuteAnalysisFeaturePatch,
-} from '@/lib/oneMinuteAnalysisDesk';
 import {
   MERGED_DESK_CHART_DISPLAY_TICK_EVENT,
   MERGED_DESK_CHART_LAYOUT_RESET_EVENT,
@@ -466,7 +467,6 @@ import {
 } from '@/lib/monthDeskAdvancedChartPath';
 import { isBitgetVolumePackActive } from '@/lib/bitgetVolumePack';
 import { isForexSymbol } from '@/lib/forexMarket';
-import { isTelegramAnalyzableSymbol, telegramHashTagForSymbol } from '@/lib/analyzeSymbolSupport';
 import {
   buildVolumeShockChartGuide,
   volumeShockGuidePriceLevels,
@@ -2452,10 +2452,10 @@ function unifiedDeskUnderChartZonePresentation(
   }
   if (kind === 'bprZone') {
     return {
-      background: ZONE_MID_FILL,
-      border: `1px solid ${ZONE_MID_STROKE}`,
+      background: 'rgba(249,115,22,0.22)',
+      border: '1px solid rgba(249,115,22,0.72)',
       caption: sc(lbl) || 'BPR',
-      captionColor: '#bfdbfe',
+      captionColor: '#fdba74',
     };
   }
   if (kind === 'zone') {
@@ -2953,7 +2953,10 @@ type ChartMarkerRow = {
  * 축소/확대 시 같은 봉·같은 위치에 여러 마커가 겹치면 렌더 우선순위가 프레임마다 달라 보일 수 있음.
  * 핵심 신호(상위TF 강화⚡, 구조로켓🚀/📉, L/S, 선반영)를 봉 슬롯별로 1개로 안정화해 깜빡임을 줄인다.
  */
-function stabilizeSignalMarkers(rows: ChartMarkerRow[]): ChartMarkerRow[] {
+function stabilizeSignalMarkers(
+  rows: ChartMarkerRow[],
+  candleTimes?: Iterable<number> | null
+): ChartMarkerRow[] {
   const posRank = (p: ChartMarkerRow['position']): number => (p === 'aboveBar' ? 0 : p === 'inBar' ? 1 : 2);
   const pri = (t: string): number => {
     /** 채널 핵심 이모티콘 — 같은 봉의 L/S·SH에 덮이지 않게 최상위 */
@@ -2968,8 +2971,9 @@ function stabilizeSignalMarkers(rows: ChartMarkerRow[]): ChartMarkerRow[] {
     if (t.startsWith('선반영')) return 150;
     return 10;
   };
+  const cleaned = sanitizeSeriesMarkersForLwc(rows, candleTimes);
   const out = new Map<string, ChartMarkerRow>();
-  for (const r of rows) {
+  for (const r of cleaned) {
     const key = `${Number(r.time)}|${r.position}`;
     const prev = out.get(key);
     if (!prev) {
@@ -3478,16 +3482,16 @@ const ChartViewInner = ({
       !isZoneLineProDesk &&
       (isMergedAnalysisDesk || isMonthDeskUnifiedPulseEngineOn(loadSettings()));
     if (unifiedPulsePerfOn) {
-      if (isMergedAnalysisDesk) return mergedDeskInteractionPerf(base, timeframe);
       return {
         ...base,
-        geometryPollMs: Math.max(720, base.geometryPollMs + 480),
-        geometryPollStride: Math.min(12, base.geometryPollStride + 7),
+        geometryPollMs: isMergedAnalysisDesk ? 32 : Math.max(720, base.geometryPollMs + 480),
+        geometryPollStride: isMergedAnalysisDesk ? 1 : Math.min(12, base.geometryPollStride + 7),
         /** 통합·분석 — zone·라벨 DOM 상한 (480은 초기 로드 시 메인 스레드 정지 유발) */
-        maxScreenOverlaysNonAiZone: Math.min(26, Math.max(18, base.maxScreenOverlaysNonAiZone - 48)),
-        proximitySkipWhenOverlayCountGte: Math.max(8, base.proximitySkipWhenOverlayCountGte - 28),
+        maxScreenOverlaysNonAiZone: isMergedAnalysisDesk ? 110 : Math.min(26, Math.max(18, base.maxScreenOverlaysNonAiZone - 48)),
+        proximitySkipWhenOverlayCountGte: isMergedAnalysisDesk
+          ? 48
+          : Math.max(8, base.proximitySkipWhenOverlayCountGte - 28),
         wsOverlayDebounceMs: base.wsOverlayDebounceMs + 520,
-        deferOverlayWhileInteracting: true,
       };
     }
     return {
@@ -3502,8 +3506,7 @@ const ChartViewInner = ({
   }, [timeframe, isDeskPulseFamily, isZoneLineProDesk, isMergedAnalysisDesk]);
   const fusionPerfLite =
     uiMode === 'FUSION_MODE' && normalizeChartTimeframe(String(timeframe || '')) === '1h';
-  const candleAnalysisLikeUi =
-    uiMode === 'CANDLE_ANALYSIS' || unifiedDeskMode || isMergedAnalysisDesk;
+  const candleAnalysisLikeUi = uiMode === 'CANDLE_ANALYSIS' || unifiedDeskMode;
   /** API 분석 TF≠차트 TF면 엔진 오버레이·합성 패치 금지 — TF 전환 직후 연산 폭증·착시 방지 */
   /** 통합·분석: 15m 공동 분석을 분·시·일·주·월 차트에 그대로 사용 */
   const analysisMatchesTf = analysisUsableOnChart(analysis, symbol, timeframe, uiMode);
@@ -3721,7 +3724,6 @@ const ChartViewInner = ({
   const overlayTickDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** 차트 스크롤/줌 시 setState 폭주 방지 — 프레임당 1회만 오버레이 좌표 갱신 */
   const overlayRafRef = useRef<number | null>(null);
-  const chartIxRef = useRef(createChartInteractionKernel());
   /**
    * 가로(논리 범위)·세로(가격 범위) 줌/패닝 시 timeScale 콜백이 빠지는 프레임이 있어
    * HTML 존·라벨이 캔들에서 떨어져 보임 — 직전 차트 기하 시그니처로 폴링 보강.
@@ -3829,8 +3831,6 @@ const ChartViewInner = ({
   const uiModeOverlayRef = useRef(uiMode);
   uiModeOverlayRef.current = uiMode;
   const lastMonthDeskPanOverlayTickAtRef = useRef(0);
-  const lastMergedOverlayTickAtRef = useRef(0);
-  const lastMergedOverlayLogicalSigRef = useRef('');
   /** 통합작도: TV식 상단 저항·하단 지지 밴드 + BB 리본 (캔들 뒤 HTML 레이어) */
   const [unifiedTvBands, setUnifiedTvBands] = useState<{
     resist: { top: number; height: number } | null;
@@ -4348,15 +4348,6 @@ const ChartViewInner = ({
       return next;
     });
   };
-  /** 1분봉: 캔들 수 확대 + 분석용 오버레이·패널 전부 표시 (지시·검수용) */
-  useEffect(() => {
-    if (!isOneMinuteTimeframe(timeframe)) return;
-    setSettings((prev) => {
-      const patch = oneMinuteAnalysisFeaturePatch(prev);
-      if (!Object.keys(patch).length) return prev;
-      return saveSettings({ ...prev, ...patch });
-    });
-  }, [timeframe]);
   /** 간결+요약 — 라인요약 UI만 (zone 필터와 분리) */
   const monthDeskClearSummaryOn = isMonthDeskClearSummaryBundleOn(settings);
   /** 차트 zone 밀도 — 간결+요약 칩과 별개 (rich=zone 유지) */
@@ -5347,7 +5338,7 @@ const ChartViewInner = ({
   /** 캔들분석·스마트 존 면 배율(뒤·앞 공통 참고값) */
   const caZoneFillSoftMult = maxCleanChartLayout ? 0.3 : executionCalmLayout ? 0.34 : 0.38;
   /** 존·채널 면은 canvas 뒤. 통합·분석은 라벨·가로선 HTML도 tv-host 뒤 + plot 배경 투명 → 캔들 최전면 */
-  const OVERLAY_ZONE_FILL_BEHIND_CHART = !(isMergedAnalysisDesk || candleAnalysisLikeUi);
+  const OVERLAY_ZONE_FILL_BEHIND_CHART = true;
   /** 융합·통합·분석: 뒤쪽 존·채널 면을 더 흐리게 해 캔들을 1순위로 */
   const fusionUnderChartZoneAlphaMult =
     uiMode === 'FUSION_MODE' ? 0.48 : isMonthStartDeskMode ? 0.5 : isMergedAnalysisDesk ? 0.46 : 1;
@@ -6135,7 +6126,6 @@ const ChartViewInner = ({
       guideN,
       `${lrN}:${cpN}`,
       settings.chartMonthDeskFusionDeskBandEnabled !== false ? '1' : '0',
-      'orig-st',
     ].join('|');
   }, [
     mergedInstitutionalBandsOn,
@@ -9834,6 +9824,21 @@ const ChartViewInner = ({
         if (Math.abs(xB - xA) < 1.5) {
           xB = xA + 1.5;
         }
+        /** Triple·일반 채널 — 마지막 캔들 +5봉까지 면 연장(캔들 폭 맞춤) */
+        if (
+          isMergedAnalysisDesk &&
+          !isRbDraw &&
+          !isWaveMovePathBand &&
+          candleSeries.length >= 2
+        ) {
+          const xExt = mergedDeskSeriesFuturePadScreenX(
+            series,
+            ts,
+            MERGED_DESK_ZONE_EXTEND_PAST_LAST_BARS,
+            candleSeries
+          );
+          if (Number.isFinite(xExt) && xExt > xB) xB = xExt;
+        }
         const chFb = rect.height * 0.5;
         const nH1 = geomPriceToPixelY(series, b.priceHigh1, chFb);
         const nH2 = geomPriceToPixelY(series, b.priceHigh2, chFb);
@@ -10754,18 +10759,6 @@ const ChartViewInner = ({
         const rank = (id: string) => {
           if (id.startsWith('merged-desk-rb-core-sr-')) return -6;
           if (id.startsWith('merged-desk-mtf-dump-')) return -3;
-          if (
-            id.startsWith('merged-desk-wyckoff') ||
-            id.startsWith('merged-desk-elliott') ||
-            id.startsWith('merged-desk-dow') ||
-            id.startsWith('merged-desk-pitchfork') ||
-            id.startsWith('merged-desk-fib') ||
-            id.startsWith('merged-desk-wolfe') ||
-            id.startsWith('merged-desk-harmonic') ||
-            id.startsWith('candle-analysis-')
-          ) {
-            return -3;
-          }
           if (id.startsWith('merged-desk-hotzone-') || id.startsWith('merged-desk-hq-') || id.startsWith('merged-swing-mid-')) {
             return -2;
           }
@@ -10807,21 +10800,6 @@ const ChartViewInner = ({
             id.includes('merged-ares-critical-') ||
             id.includes('merged-ares-entry-point-') ||
             id.startsWith('merged-desk-mtf-dump-') ||
-            id.startsWith('merged-desk-wyckoff') ||
-            id.startsWith('merged-desk-elliott') ||
-            id.startsWith('merged-desk-dow') ||
-            id.startsWith('merged-desk-pitchfork') ||
-            id.startsWith('merged-desk-fib') ||
-            id.startsWith('merged-desk-wolfe') ||
-            id.startsWith('merged-desk-harmonic') ||
-            id.startsWith('merged-desk-ichimoku') ||
-            id.startsWith('merged-desk-profile') ||
-            id.startsWith('merged-desk-pnf') ||
-            id.startsWith('merged-desk-nison') ||
-            id.startsWith('merged-desk-turtle') ||
-            id.startsWith('merged-desk-brooks') ||
-            id.startsWith('merged-desk-school') ||
-            id.startsWith('candle-analysis-') ||
             id.startsWith('merged-trade-') ||
             id.startsWith('merged-ares-st-cloud-') ||
             id.startsWith('merged-unified-cloud-') ||
@@ -13326,99 +13304,19 @@ const ChartViewInner = ({
     volumeMarkersRef.current?.detach();
     volumeMarkersRef.current = createSeriesMarkers(volume, []);
 
-    if (uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK') {
-      try {
-        chartIxRef.current.begin('program');
-      } catch {
-        /* ignore */
-      }
-      window.setTimeout(() => {
-        try {
-          chartIxRef.current.end(Math.max(280, chartPerfRef.current.interactionSettleMs ?? 240));
-        } catch {
-          /* ignore */
-        }
-      }, 900);
-    }
-
-    const applyOverlayFollowCss = () => {
-      if (uiModeOverlayRef.current !== 'MERGED_ANALYSIS_DESK') return;
-      const ch = chartRef.current;
-      const frame = frameRef.current;
-      if (!ch || !frame) return;
-      try {
-        const lr = ch.timeScale().getVisibleLogicalRange();
-        if (!lr || !Number.isFinite(lr.from)) return;
-        const dx = chartIxRef.current.panOverlayDx(lr.from);
-        const css = Math.abs(dx) < 0.2 ? 'translate3d(0,0,0)' : `translate3d(${dx}px,0,0)`;
-        frame.querySelectorAll<HTMLElement>('.overlay-layer').forEach((el) => {
-          el.style.transform = css;
-        });
-      } catch {
-        /* ignore */
-      }
-    };
-    const clearOverlayFollowCss = () => {
-      const frame = frameRef.current;
-      if (!frame) return;
-      frame.querySelectorAll<HTMLElement>('.overlay-layer').forEach((el) => {
-        el.style.transform = '';
-      });
-    };
-    const bumpOverlayTick = (force = false) => {
-      if (overlayRafRef.current != null && !force) return;
-      if (overlayRafRef.current != null) {
-        cancelAnimationFrame(overlayRafRef.current);
-        overlayRafRef.current = null;
-      }
-      overlayRafRef.current = requestAnimationFrame(() => {
-        overlayRafRef.current = null;
-        clearOverlayFollowCss();
-        if (!force && uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK') {
-          const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-          const gap = Math.max(180, chartPerfRef.current.interactionSettleMs ?? 180);
-          if (now - lastMergedOverlayTickAtRef.current < gap) return;
-          lastMergedOverlayTickAtRef.current = now;
-        } else {
-          lastMergedOverlayTickAtRef.current =
-            typeof performance !== 'undefined' ? performance.now() : Date.now();
-        }
-        setOverlayTick((v) => v + 1);
-      });
-    };
-    const bumpOverlayTickForced = () => bumpOverlayTick(true);
-
     const scheduleOverlayRefresh = () => {
-      const ix = chartIxRef.current;
-      const defer = chartPerfRef.current.deferOverlayWhileInteracting !== false;
-      if (defer && ix.isBusy()) {
-        applyOverlayFollowCss();
-        ix.scheduleOverlayRefresh(bumpOverlayTickForced);
-        return;
-      }
       /** 마감·안착: 패닝·줌마다 overlayTick→screenOverlays 전부 재계산 — 스로틀 */
       if (isMonthDeskChartMode(uiModeOverlayRef.current)) {
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - lastMonthDeskPanOverlayTickAtRef.current < 240) return;
         lastMonthDeskPanOverlayTickAtRef.current = now;
       }
-      if (uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK') {
-        try {
-          const lr = chart.timeScale().getVisibleLogicalRange();
-          if (lr && Number.isFinite(lr.from) && Number.isFinite(lr.to)) {
-            const sig = `${lr.from.toFixed(2)}:${lr.to.toFixed(2)}`;
-            if (sig === lastMergedOverlayLogicalSigRef.current) {
-              const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-              if (now - lastMergedOverlayTickAtRef.current < 280) return;
-            } else {
-              lastMergedOverlayLogicalSigRef.current = sig;
-            }
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-      ix.scheduleOverlayRefresh(bumpOverlayTick);
+      /** 통합·분석: 스로틀하면 HTML 라벨이 캔들 줌과 따로 움직임 — rAF 합침만 */
+      if (overlayRafRef.current != null) return;
+      overlayRafRef.current = requestAnimationFrame(() => {
+        overlayRafRef.current = null;
+        setOverlayTick(v => v + 1);
+      });
     };
     chart.timeScale().subscribeVisibleLogicalRangeChange(scheduleOverlayRefresh);
     chart.timeScale().subscribeVisibleTimeRangeChange(scheduleOverlayRefresh);
@@ -13453,15 +13351,10 @@ const ChartViewInner = ({
       const s = seriesRef.current;
       const ch = chartRef.current;
       if (!s || !ch) return;
-      if (
-        chartPerfRef.current.deferOverlayWhileInteracting !== false &&
-        chartIxRef.current.isBusy()
-      ) {
-        return;
-      }
       try {
         const p = chartPerfRef.current;
-        if (p.geometryPollStride > 1) {
+        const mergedDeskLive = uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK';
+        if (!mergedDeskLive && p.geometryPollStride > 1) {
           chartGeomStrideCounterRef.current += 1;
           if (chartGeomStrideCounterRef.current % p.geometryPollStride !== 0) return;
         }
@@ -13487,129 +13380,21 @@ const ChartViewInner = ({
     syncHtmlOverlaysFromChartGeometryRef.current = syncHtmlOverlaysFromChartGeometry;
     const ro = new ResizeObserver(scheduleOverlayRefresh);
     ro.observe(host);
-    const setChartPanningUi = (on: boolean) => {
-      frameRef.current?.classList.toggle('chart-wrap--panning', on);
-      frameRef.current?.classList.toggle('chart-wrap--interacting', on);
-    };
-    let interactingUiTimer: ReturnType<typeof setTimeout> | null = null;
-    const armInteractingUiEnd = (ms: number) => {
-      if (interactingUiTimer != null) clearTimeout(interactingUiTimer);
-      interactingUiTimer = setTimeout(() => {
-        interactingUiTimer = null;
-        setChartPanningUi(false);
-      }, ms);
-    };
-    const captureMergedPanAnchor = () => {
-      try {
-        const lr = chart.timeScale().getVisibleLogicalRange();
-        const opts = chart.timeScale().options?.() as { barSpacing?: number } | undefined;
-        const spacing = Number(opts?.barSpacing);
-        const ix = chartIxRef.current;
-        if (lr && Number.isFinite(lr.from)) {
-          ix.capturePanAnchor(lr.from, spacing > 0 ? spacing : ix.getBarSpacing());
-        } else if (spacing > 0) {
-          ix.setBarSpacing(spacing);
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-    const beginMergedInteraction = (kind: 'pan' | 'pinch' | 'wheel') => {
-      if (uiModeOverlayRef.current !== 'MERGED_ANALYSIS_DESK') return;
-      setChartPanningUi(true);
-      try {
-        chartIxRef.current.begin(kind);
-        captureMergedPanAnchor();
-      } catch {
-        /* ignore */
-      }
-    };
-    const endMergedInteraction = () => {
-      const settleMs = chartPerfRef.current.interactionSettleMs ?? 240;
-      try {
-        chartIxRef.current.end(settleMs);
-      } catch {
-        /* ignore */
-      }
-      armInteractingUiEnd(settleMs + 24);
-    };
-    const onHostPanPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0) return;
-      beginMergedInteraction('pan');
-    };
-    const onWinPointerDownCap = (e: PointerEvent) => {
-      if (e.button !== 0) return;
-      if (uiModeOverlayRef.current !== 'MERGED_ANALYSIS_DESK') return;
-      const t = e.target;
-      if (!(t instanceof Node)) return;
-      const hostEl = hostRef.current;
-      const frame = frameRef.current;
-      const inHost = Boolean(hostEl && hostEl.contains(t));
-      const inOverlay = Boolean(frame && t instanceof Element && t.closest('.overlay-layer'));
-      if (!inHost && !inOverlay) return;
-      beginMergedInteraction('pan');
-    };
     /** 가격축 줌·드래그·휠은 timeScale 콜백만으로는 안 잡히는 경우가 있어 HTML 오버레이 좌표를 갱신 */
-    const onHostWheel = () => {
-      beginMergedInteraction('wheel');
-      endMergedInteraction();
-    };
+    const onHostWheel = () => scheduleOverlayRefresh();
     const onHostPointerMove = (ev: PointerEvent) => {
-      if (ev.buttons === 0) return;
-      if (chartIxRef.current.isBusy()) {
-        applyOverlayFollowCss();
-        return;
-      }
-      scheduleOverlayRefresh();
+      if (ev.buttons !== 0) scheduleOverlayRefresh();
     };
-    const onHostTouchStart = (e: TouchEvent) => {
-      beginMergedInteraction(e.touches.length >= 2 ? 'pinch' : 'pan');
-    };
-    const onHostTouchMove = () => {
-      if (chartIxRef.current.isBusy()) {
-        applyOverlayFollowCss();
-        return;
-      }
-      scheduleOverlayRefresh();
-    };
-    host.addEventListener('pointerdown', onHostPanPointerDown);
-    host.addEventListener('pointerup', endMergedInteraction);
-    host.addEventListener('pointercancel', endMergedInteraction);
+    const onHostTouchMove = () => scheduleOverlayRefresh();
     host.addEventListener('wheel', onHostWheel, { passive: true });
     host.addEventListener('pointermove', onHostPointerMove);
-    host.addEventListener('touchstart', onHostTouchStart, { passive: true });
     host.addEventListener('touchmove', onHostTouchMove, { passive: true });
-    host.addEventListener('touchend', endMergedInteraction, { passive: true });
-    host.addEventListener('touchcancel', endMergedInteraction, { passive: true });
-    window.addEventListener('pointerdown', onWinPointerDownCap, { capture: true });
-    window.addEventListener('pointerup', endMergedInteraction);
-    window.addEventListener('pointercancel', endMergedInteraction);
     /** 가격축 영역은 host 밖 캔버스에서 처리되는 경우가 많아, 캡처 단계로 패닝·줌·핀치 후 오버레이 좌표 동기화 */
     const onWinPointerMoveCap = (ev: PointerEvent) => {
-      if (ev.buttons === 0) return;
-      if (chartIxRef.current.isBusy()) {
-        applyOverlayFollowCss();
-        return;
-      }
-      scheduleOverlayRefresh();
+      if (ev.buttons !== 0) scheduleOverlayRefresh();
     };
-    const onWinWheelCap = (ev: WheelEvent) => {
-      const hostEl = hostRef.current;
-      if (hostEl && ev.target instanceof Node && hostEl.contains(ev.target)) {
-        beginMergedInteraction('wheel');
-        endMergedInteraction();
-        return;
-      }
-      if (chartIxRef.current.isBusy()) return;
-      scheduleOverlayRefresh();
-    };
-    const onWinTouchMoveCap = () => {
-      if (chartIxRef.current.isBusy()) {
-        applyOverlayFollowCss();
-        return;
-      }
-      scheduleOverlayRefresh();
-    };
+    const onWinWheelCap = () => scheduleOverlayRefresh();
+    const onWinTouchMoveCap = () => scheduleOverlayRefresh();
     window.addEventListener('pointermove', onWinPointerMoveCap, { capture: true, passive: true });
     window.addEventListener('wheel', onWinWheelCap, { capture: true, passive: true });
     window.addEventListener('touchmove', onWinTouchMoveCap, { capture: true, passive: true });
@@ -13671,22 +13456,9 @@ const ChartViewInner = ({
         cancelAnimationFrame(overlayRafRef.current);
         overlayRafRef.current = null;
       }
-      if (interactingUiTimer != null) {
-        clearTimeout(interactingUiTimer);
-        interactingUiTimer = null;
-      }
       host.removeEventListener('wheel', onHostWheel);
-      host.removeEventListener('pointerdown', onHostPanPointerDown);
-      host.removeEventListener('pointerup', endMergedInteraction);
-      host.removeEventListener('pointercancel', endMergedInteraction);
       host.removeEventListener('pointermove', onHostPointerMove);
-      host.removeEventListener('touchstart', onHostTouchStart);
       host.removeEventListener('touchmove', onHostTouchMove);
-      host.removeEventListener('touchend', endMergedInteraction);
-      host.removeEventListener('touchcancel', endMergedInteraction);
-      window.removeEventListener('pointerdown', onWinPointerDownCap, { capture: true } as AddEventListenerOptions);
-      window.removeEventListener('pointerup', endMergedInteraction);
-      window.removeEventListener('pointercancel', endMergedInteraction);
       window.removeEventListener('pointermove', onWinPointerMoveCap, { capture: true } as AddEventListenerOptions);
       window.removeEventListener('wheel', onWinWheelCap, { capture: true } as AddEventListenerOptions);
       window.removeEventListener('touchmove', onWinTouchMoveCap, { capture: true } as AddEventListenerOptions);
@@ -13701,8 +13473,6 @@ const ChartViewInner = ({
       chart.timeScale().unsubscribeVisibleTimeRangeChange(scheduleOverlayRefresh);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(scheduleOverlayRefresh);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(onUserPanLogicalRange);
-      chartIxRef.current.dispose();
-      chartIxRef.current = createChartInteractionKernel();
       zoneRangeSeriesRef.current = null;
       closeRangeSeriesRef.current = null;
       institutionalLongLineRef.current = null;
@@ -16130,7 +15900,7 @@ const ChartViewInner = ({
   useEffect(() => {
     const markersApi = rsiMarkersRef.current;
     if (!markersApi || candles.length === 0) {
-      if (markersApi) markersApi.setMarkers([]);
+      safeSeriesSetMarkers(markersApi, []);
       setLsRocketHud([]);
       return;
     }
@@ -16350,8 +16120,11 @@ const ChartViewInner = ({
             ] as ChartMarkerRow[])
           : mergedFastMarkers;
       {
-        const fastMk = stabilizeSignalMarkers(mergedWithTripleTrend as ChartMarkerRow[]);
-        markersApi.setMarkers(fastMk as any);
+        const fastMk = stabilizeSignalMarkers(
+          mergedWithTripleTrend as ChartMarkerRow[],
+          chartWindowCandles.map((c) => Number(c.time))
+        );
+        safeSeriesSetMarkers(markersApi, fastMk as any);
       }
       markerBarDetailRef.current =
         isMergedAnalysisDesk && mergedFastMarkers.length
@@ -16414,7 +16187,7 @@ const ChartViewInner = ({
       const direction = confirmed?.direction;
       const barTime = (sig?.signalBarTime != null && candles.some((c) => (c.time as number) === sig.signalBarTime)) ? sig.signalBarTime : effSignalLast;
       const cooldownBarsByTf = (tf: string): number => {
-        if (tf === '1m') return 6;
+        if (tf === '1m') return 18;
         if (tf === '3m' || tf === '5m') return 14;
         if (tf === '15m') return 10;
         if (tf === '1h') return 8;
@@ -16426,8 +16199,7 @@ const ChartViewInner = ({
       const minGapBars = cooldownBarsByTf(timeframe);
       const minGapSec = Math.max(1, periodSeconds(timeframe)) * minGapBars;
       const rsiScoreThresholdByTf = (tf: string): number => {
-        if (tf === '1m') return 78;
-        if (tf === '3m' || tf === '5m') return 89;
+        if (tf === '1m' || tf === '3m' || tf === '5m') return 89;
         if (tf === '15m') return 88;
         if (tf === '1h') return 87;
         if (tf === '4h') return 86;
@@ -17790,15 +17562,20 @@ const ChartViewInner = ({
         ];
       }
     }
-    const stableMarkers = CHART_DEV_ZONES_MSBOB_ONLY ? [] : stabilizeSignalMarkers(markersForUi);
-    markersApi.setMarkers(stableMarkers as any);
+    const stableMarkers = CHART_DEV_ZONES_MSBOB_ONLY
+      ? []
+      : stabilizeSignalMarkers(
+          markersForUi,
+          candles.map((c) => Number(c.time))
+        );
+    safeSeriesSetMarkers(markersApi, stableMarkers as any);
     {
       const tfNorm = normalizeChartTimeframe(String(timeframe || ''));
       const is1mTf = tfNorm === '1m';
       const tfAllowedHtf =
         tfNorm === '1h' || tfNorm === '4h' || tfNorm === '1d' || tfNorm === '1w' || tfNorm === '1M';
       const s = String(symbol || '').toUpperCase();
-      const symbolAllowed = isTelegramAnalyzableSymbol(s);
+      const symbolAllowed = s.startsWith('BTC') || s.startsWith('ETH');
       /** 서버 통합텔레/진입존 텔레 ON이면 클라이언트 자동 텔레(1m/HTF) 전부 중지 */
       if (
         settings.telegramMergedDeskAutoEnabled !== false ||
@@ -17841,7 +17618,7 @@ const ChartViewInner = ({
         .slice(0, 3);
       const fmtP = (v: number | null | undefined) =>
         typeof v === 'number' && Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 6 }) : '-';
-      const tfTag = `[${telegramHashTagForSymbol(symbol)} ${String(timeframe).toUpperCase()}]`;
+      const tfTag = `[${String(symbol).toUpperCase().startsWith('BTC') ? '#BTC' : '#ETH'} ${String(timeframe).toUpperCase()}]`;
       const curBarTime = Number(lastBar?.time ?? 0);
       const prevBarTime = Number(candles[candles.length - 2]?.time ?? 0);
       const isRecentSignal = (t: number | null | undefined) =>
@@ -19012,16 +18789,23 @@ const ChartViewInner = ({
           ? 5_000
           : 12_000;
 
+    let lastLiveAtMs = Date.now();
+    let lastTipTimeSec = 0;
+
     const applyLiveTipSeries = (raw: Candle[]) => {
       if (cancelled || ac.signal.aborted || !raw.length) return;
       const nextCandles = sanitizeFast(raw);
       setMarketError('');
+      const tip = nextCandles[nextCandles.length - 1];
+      lastLiveAtMs = Date.now();
+      if (tip?.time != null) lastTipTimeSec = Number(tip.time);
       setCandles(nextCandles);
       setLastUpdate(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
     };
 
     async function pollTip() {
       try {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         const merged = await refreshClientMarketCandleTip({
           symbol,
           timeframe,
@@ -19035,12 +18819,14 @@ const ChartViewInner = ({
       }
     }
 
-    const tipTimer = window.setInterval(() => void pollTip(), tipPollMs);
+    const clearTip = setVisibleInterval(() => void pollTip(), tipPollMs);
 
     const paintWsCandle = (candle: Candle) => {
       if (cancelled) return;
       const norm = sanitizeChartCandlesForSeries([candle], timeframe)[0];
       if (!norm) return;
+      lastLiveAtMs = Date.now();
+      lastTipTimeSec = Number(norm.time) || lastTipTimeSec;
       const ser = seriesRef.current;
       if (ser) {
         try {
@@ -19052,7 +18838,7 @@ const ChartViewInner = ({
             close: norm.close,
           });
         } catch {
-          /* setData 경로가 곧 맞춤 */
+          /* setData path soon */
         }
       }
       const volSer = volumeRef.current;
@@ -19067,7 +18853,6 @@ const ChartViewInner = ({
           /* ignore */
         }
       }
-      /** React setData 폭주 방지 — 차트는 update로 즉시, 상태/캐시는 스로틀 */
       const mergeInto = (prev: Candle[]): Candle[] | null => {
         if (prev.length === 0) return null;
         const last = prev[prev.length - 1]!;
@@ -19097,9 +18882,11 @@ const ChartViewInner = ({
 
     const tfWs = normalizeChartTimeframe(timeframe);
     let unsub = () => {};
-    if (!isForexSymbol(symbol)) {
+    const bindWs = () => {
+      unsub();
+      unsub = () => {};
+      if (isForexSymbol(symbol)) return;
       if (bitgetVolumePackOn) {
-        /** Bitget 공식 캔들 채널 — 분·시·일·주·월 거래소 동일 */
         unsub = subscribeBitgetCandleWs(symbol, timeframe, ({ candle }) => {
           paintWsCandle(candle);
         });
@@ -19108,12 +18895,32 @@ const ChartViewInner = ({
           paintWsCandle(candle);
         });
       }
-    }
+    };
+    bindWs();
+
+    const staleMs = chartLiveStaleMs(timeframe);
+    const clearStale = setVisibleInterval(() => {
+      if (cancelled || ac.signal.aborted) return;
+      const quiet = Date.now() - lastLiveAtMs > staleMs;
+      const tipOld = isChartCandleTipStale(lastTipTimeSec || null, timeframe);
+      if (!quiet && !tipOld) return;
+      void pollTip();
+      if (quiet) bindWs();
+    }, 8_000);
+
+    const onVisLive = () => {
+      if (document.visibilityState !== 'visible' || cancelled) return;
+      void pollTip();
+      bindWs();
+    };
+    document.addEventListener('visibilitychange', onVisLive);
 
     return () => {
       cancelled = true;
       ac.abort();
-      window.clearInterval(tipTimer);
+      clearTip();
+      clearStale();
+      document.removeEventListener('visibilitychange', onVisLive);
       unsub();
       if (fullIdleId != null) {
         if (fullIdleIsRic && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
@@ -19311,18 +19118,17 @@ const ChartViewInner = ({
     };
   }, [mergedParentFs, mergedMobileFs]);
 
-  /** 폰 일반 화면 — 첫 페인트 후 zone overlay 좌표가 비면 재계산 */
+  /** 폰·PC 공동 — 첫 페인트 후 zone overlay 좌표가 비면 재계산 (전체화면 포함) */
   useEffect(() => {
-    if (!isMergedAnalysisDesk || !mergedTouchUi) return;
-    if (mergedParentFs || mergedMobileFs) return;
+    if (!isMergedAnalysisDesk) return;
     const kick = () => {
       window.dispatchEvent(new Event('resize'));
       setOverlayTick((v) => v + 1);
     };
     kick();
-    const timers = [120, 350, 700].map((ms) => window.setTimeout(kick, ms));
+    const timers = [120, 350, 700, 1400].map((ms) => window.setTimeout(kick, ms));
     return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [isMergedAnalysisDesk, mergedTouchUi, mergedParentFs, mergedMobileFs]);
+  }, [isMergedAnalysisDesk, mergedTouchUi, mergedParentFs, mergedMobileFs, timeframe]);
 
   const toggleFullscreen = async () => {
     const el = frameRef.current;
@@ -19461,7 +19267,51 @@ const ChartViewInner = ({
       }`}
       style={
         isMergedAnalysisDesk
-          ? ({ ['--md-zoom']: String(mergedDeskLabelZoomScale(mergedDeskZoomScale)) } as React.CSSProperties)
+          ? ({
+              ['--md-zoom']: String(mergedDeskLabelZoomScale(mergedDeskZoomScale)),
+              ['--md-dump-face-fs']: `${Math.max(
+                7,
+                Math.min(18, Math.round(Number(settings.chartMergedDeskDumpFaceLabelFontSize) || 9))
+              )}px`,
+              ['--md-dump-edge-fs']: `${Math.max(
+                7,
+                Math.min(18, Math.round(Number(settings.chartMergedDeskDumpEdgePriceFontSize) || 8))
+              )}px`,
+              ['--md-dump-edge-color']:
+                typeof settings.chartMergedDeskDumpEdgePriceColor === 'string' &&
+                /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpEdgePriceColor)
+                  ? settings.chartMergedDeskDumpEdgePriceColor
+                  : '#fef08a',
+              ...(settings.chartMergedDeskDumpZoneColorMode !== 'auto'
+                ? {
+                    ['--md-dump-fill']: (() => {
+                      const hex =
+                        typeof settings.chartMergedDeskDumpZoneFillColor === 'string' &&
+                        /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpZoneFillColor)
+                          ? settings.chartMergedDeskDumpZoneFillColor
+                          : '#38bdf8';
+                      const n = parseInt(hex.slice(1), 16);
+                      const r = (n >> 16) & 255;
+                      const g = (n >> 8) & 255;
+                      const b = n & 255;
+                      return `rgba(${r},${g},${b},0.14)`;
+                    })(),
+                    ['--md-dump-border']:
+                      typeof settings.chartMergedDeskDumpZoneBorderColor === 'string' &&
+                      /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpZoneBorderColor)
+                        ? settings.chartMergedDeskDumpZoneBorderColor
+                        : typeof settings.chartMergedDeskDumpZoneFillColor === 'string' &&
+                            /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpZoneFillColor)
+                          ? settings.chartMergedDeskDumpZoneFillColor
+                          : '#38bdf8',
+                  }
+                : null),
+            } as React.CSSProperties)
+          : undefined
+      }
+      data-dump-color={
+        isMergedAnalysisDesk && settings.chartMergedDeskDumpZoneColorMode !== 'auto'
+          ? 'custom'
           : undefined
       }
       data-ud-pack={unifiedDeskMode ? unifiedDeskPack : undefined}
@@ -25295,7 +25145,7 @@ const ChartViewInner = ({
               return null;
             }
             /** 일반 채널은 under만 · RB는 앞 레이어(캔들 뒤 z)에 라벨·해치 유지 */
-            if (OVERLAY_ZONE_FILL_BEHIND_CHART && !isRb) return null;
+            if (OVERLAY_ZONE_FILL_BEHIND_CHART && !isRb && !mergedTouchUi) return null;
             const poly = item.channelBandScreen as { x: number; y: number }[];
             let minX = Infinity;
             let minY = Infinity;
@@ -25838,14 +25688,13 @@ const ChartViewInner = ({
               }
             }
             /**
-             * zone 면은 마지막 봉까지, 라벨은 +20봉 예측 여백.
-             * compact 핀 면은 작게 유지하고 캡션만 여백에 둔다.
+             * zone 면 = 마지막 봉 +5 · 라벨도 동일(캔들 폭 맞춤).
              */
             let mergedDeskLastBarAnchorX = NaN;
             let mergedDeskFuturePadAnchorX = NaN;
             if (
               isMergedAnalysisDesk &&
-              ['zone', 'fvg', 'ob', 'supplyZone', 'demandZone', 'bprZone', 'reactionZone'].includes(
+              ['zone', 'fvg', 'ob', 'supplyZone', 'demandZone', 'bprZone', 'reactionZone', 'channelBand'].includes(
                 String(item.kind || '')
               )
             ) {
@@ -25859,19 +25708,20 @@ const ChartViewInner = ({
                     : candlesForOverlay;
                 const lastX = mergedDeskSeriesLastBarScreenX(liveSeries, tsLive, fb);
                 const compactFace = isMergedDeskRbCompactFaceOverlay(item as OverlayItem);
+                const isRb = isMergedDeskRbDrawOverlay(item as OverlayItem);
                 const dumpPad = isMergedDeskDumpLabelPadOverlay(item as OverlayItem);
+                const padBars =
+                  isRb && !dumpPad ? 0 : MERGED_DESK_ZONE_EXTEND_PAST_LAST_BARS;
                 const padX = mergedDeskSeriesFuturePadScreenX(
                   liveSeries,
                   tsLive,
-                  dumpPad || isMergedDeskRbDrawOverlay(item as OverlayItem)
-                    ? MERGED_DESK_RB_FUTURE_BARS
-                    : MERGED_DESK_RIGHT_FUTURE_BARS,
+                  padBars,
                   fb
                 );
                 if (Number.isFinite(lastX)) {
                   mergedDeskLastBarAnchorX = lastX + liveOff.dx;
                 }
-                if (Number.isFinite(padX)) {
+                if (Number.isFinite(padX) && padBars > 0) {
                   mergedDeskFuturePadAnchorX = padX + liveOff.dx;
                 }
                 if (!compactFace && Number.isFinite(mergedDeskFuturePadAnchorX) && mergedDeskFuturePadAnchorX > left) {
@@ -25881,7 +25731,7 @@ const ChartViewInner = ({
                 }
               }
             }
-            /** 라벨 우측 앵커 = +20봉 여백 끝 (없으면 마지막 봉) */
+            /** 라벨 우측 앵커 = 마지막 봉 +5 */
             const zoneInnerRight = left + width;
             const zoneFormRightPx = zoneInnerRight - liveOff.dx;
             const zoneFormLeftPx = left - liveOff.dx;
@@ -26253,18 +26103,40 @@ const ChartViewInner = ({
               seriesRef.current,
               mergedDeskFeaturePrice(item as OverlayItem)
             );
+            /** AI면 팩만(id merged-desk-rb-ai-*) — 도식/schematic 제외. 라벨=존 좌측 위 테두리 밖 */
+            const isRbAiZoneFacePack =
+              zid.startsWith('merged-desk-rb-ai-') ||
+              ((zoneExtraEarly.includes('merged-desk-rb-ai-htf') ||
+                zoneExtraEarly.includes('merged-desk-rb-ai-ltf') ||
+                zoneExtraEarly.includes('merged-desk-rb-ai-edge') ||
+                zoneExtraEarly.includes('merged-desk-rb-ai-st')) &&
+                !zoneExtraEarly.includes('merged-desk-rb-schematic'));
+            /** 전투·conflict 밴드 캡션은 항상 우측(가격축) */
+            const isSmcBattleZoneFace =
+              zoneExtraEarly.includes('merged-desk-smc-zone-battle') ||
+              zoneExtraEarly.includes('merged-ares-mlsp-tv-conflict-band') ||
+              zoneExtraEarly.includes('merged-desk-smc-zone-battle-member');
             const faceStickX =
-              forceBounceZoneFaceLabel || isPillZoneFace || isHotZoneNamedFace
+              isSmcBattleZoneFace
                 ? zoneInnerRight
-                : isCoreFaceLabel || isRbNamedFaceZone
-                  ? Number.isFinite(mergedDeskFuturePadAnchorX)
-                    ? mergedDeskFuturePadAnchorX
-                    : zoneInnerRight
-                  : zoneInnerRight;
-            const mirageFaceCaptionLeft = faceStickX + getLabelHShift(String(item.id));
+                : isRbAiZoneFacePack
+                  ? left
+                  : forceBounceZoneFaceLabel || isPillZoneFace || isHotZoneNamedFace
+                    ? zoneInnerRight
+                    : isCoreFaceLabel || isRbNamedFaceZone
+                      ? Number.isFinite(mergedDeskFuturePadAnchorX)
+                        ? mergedDeskFuturePadAnchorX
+                        : zoneInnerRight
+                      : zoneInnerRight;
+            const mirageFaceCaptionLeft =
+              isRbAiZoneFacePack && !isSmcBattleZoneFace
+                ? faceStickX
+                : faceStickX + getLabelHShift(String(item.id));
             const mirageFaceCaptionTop =
-              (faceLiveY != null ? faceLiveY + liveOff.dy : zoneMagnet.y) +
-              getLabelVShift(String(item.id));
+              isRbAiZoneFacePack && !isSmcBattleZoneFace
+                ? top - 2 + getLabelVShift(String(item.id))
+                : (faceLiveY != null ? faceLiveY + liveOff.dy : zoneMagnet.y) +
+                  getLabelVShift(String(item.id));
             const zoneNudge = labelNudgeAttrs(String(item.id));
             return (
               <div
@@ -26305,7 +26177,7 @@ const ChartViewInner = ({
                           : isBtccionZoneFace
                             ? 'rgba(56,189,248,0.22)'
                             : 'rgba(148,163,184,0.24)'
-                      : OVERLAY_ZONE_FILL_BEHIND_CHART
+                      : OVERLAY_ZONE_FILL_BEHIND_CHART && !mergedTouchUi
                       ? 'transparent'
                       : zoneDirTint
                         ? zoneDirTint.fillSoft
@@ -26394,8 +26266,19 @@ const ChartViewInner = ({
                 >
                   {zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
                     ? (() => {
-                        const ep1 = Number((item as OverlayItem).price1);
-                        const ep2 = Number((item as OverlayItem).price2);
+                        const raw = item as OverlayItem;
+                        const ep1 =
+                          Number(raw.priceFrozen1) > 0
+                            ? Number(raw.priceFrozen1)
+                            : Number(raw.price1) > 0
+                              ? Number(raw.price1)
+                              : Number(raw.y1);
+                        const ep2 =
+                          Number(raw.priceFrozen2) > 0
+                            ? Number(raw.priceFrozen2)
+                            : Number(raw.price2) > 0
+                              ? Number(raw.price2)
+                              : Number(raw.y2);
                         if (!(ep1 > 0) || !(ep2 > 0)) return null;
                         const hi = Math.max(ep1, ep2);
                         const lo = Math.min(ep1, ep2);
@@ -26428,18 +26311,37 @@ const ChartViewInner = ({
                             transform: `translate(-50%, ${edge === 'hi' ? '-50%' : '50%'})`,
                           };
                         };
+                        const edgeFs = (() => {
+                          const n = Number(settings.chartMergedDeskDumpEdgePriceFontSize);
+                          return Number.isFinite(n) ? Math.max(7, Math.min(18, Math.round(n))) : 8;
+                        })();
+                        const edgeCol =
+                          typeof settings.chartMergedDeskDumpEdgePriceColor === 'string' &&
+                          /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpEdgePriceColor)
+                            ? settings.chartMergedDeskDumpEdgePriceColor
+                            : '#fef08a';
                         return (
                           <>
                             <span
                               className="merged-desk-mtf-dump-edge-px merged-desk-mtf-dump-edge-px--hi"
-                              style={edgeStyle('hi')}
+                              style={{
+                                ...edgeStyle('hi'),
+                                fontSize: edgeFs,
+                                color: edgeCol,
+                                borderColor: edgeCol,
+                              }}
                               title={`상단 ${Math.round(hi)}`}
                             >
                               {Math.round(hi)}
                             </span>
                             <span
                               className="merged-desk-mtf-dump-edge-px merged-desk-mtf-dump-edge-px--lo"
-                              style={edgeStyle('lo')}
+                              style={{
+                                ...edgeStyle('lo'),
+                                fontSize: edgeFs,
+                                color: edgeCol,
+                                borderColor: edgeCol,
+                              }}
                               title={`하단 ${Math.round(lo)}`}
                             >
                               {Math.round(lo)}
@@ -26469,7 +26371,9 @@ const ChartViewInner = ({
                     }
                     style={{
                       /** 반등·Hot·돈구간: zone 우측 라인에 라벨 1개만 */
-                      opacity: forceBounceZoneFaceLabel
+                      opacity: isRbAiZoneFacePack
+                        ? 0
+                        : forceBounceZoneFaceLabel
                         ? 1
                         : isMirageTvZoneFace || (isMergedAnalysisDesk && isMergedAresZone)
                           ? 0
@@ -26478,14 +26382,22 @@ const ChartViewInner = ({
                             : isMergedAresZone && (mergedAresZoneLabel || zoneBaseLabel)
                               ? 1
                               : 0,
-                      display: forceBounceZoneFaceLabel
+                      display: isRbAiZoneFacePack
+                        ? 'none'
+                        : forceBounceZoneFaceLabel
                         ? 'inline-flex'
                         : isMirageTvZoneFace || (isMergedAnalysisDesk && isMergedAresZone)
                           ? 'none'
                           : undefined,
                       pointerEvents: 'none',
                       fontSize: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
-                        ? 10
+                        ? Math.max(
+                            7,
+                            Math.min(
+                              18,
+                              Math.round(Number(settings.chartMergedDeskDumpFaceLabelFontSize) || 9)
+                            )
+                          )
                         : forceBounceZoneFaceLabel
                           ? 10
                           : isMirageTvZoneFace
@@ -26602,7 +26514,9 @@ const ChartViewInner = ({
                       isMergedDeskHotZoneClick || isPillZoneFace || isRbNamedFaceZone || isPreCaptureNamedFace
                         ? 'merged-desk-hotzone-caption-pin'
                         : '',
-                      'overlay-label--feature-stick',
+                      isRbAiZoneFacePack && !isSmcBattleZoneFace
+                        ? 'overlay-label--zone-left-stick'
+                        : 'overlay-label--feature-stick',
                       isCoreFaceLabel ? 'overlay-label--core-stick' : '',
                       isProjectedSupportNamedFace
                         ? 'merged-desk-precapture-caption-pin'

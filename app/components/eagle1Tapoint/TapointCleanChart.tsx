@@ -482,7 +482,8 @@ export default function TapointCleanChart({
       const title = String(L.title || '');
       if (!/^(BOS|CHoCH|CHOCH|EQL|EQH|SWEEP)\b/i.test(title)) continue;
       if (L.group !== 'structure' && L.group !== 'liquidity') continue;
-      const pk = `${Math.round(Number(L.price))}`;
+      const kindKey = /^(BOS|CHoCH|CHOCH|EQL|EQH|SWEEP)/i.exec(title)?.[1]?.toUpperCase() || 'X';
+      const pk = `${kindKey}|${Math.round(Number(L.price))}`;
       if (seenPrice.has(pk)) continue;
       seenPrice.add(pk);
       const short = title.replace(/CHOCH/i, 'CHoCH').slice(0, 14);
@@ -599,7 +600,8 @@ export default function TapointCleanChart({
     }> = [];
     for (const m of signalsRef.current?.markers || []) {
       const text = String(m.label || '').trim();
-      if (!text || /sweep/i.test(text)) continue;
+      if (!text) continue;
+      if (/sweep/i.test(text)) continue;
       const sec = Number(toSec(m.time));
       if (!(sec > 0) || !ts) continue;
       let x: number | null = null;
@@ -638,7 +640,13 @@ export default function TapointCleanChart({
     };
     const rowsNow = normalizeRows(candlesRef.current);
     const lastSec = rowsNow.length ? Number(rowsNow[rowsNow.length - 1]!.time) : NaN;
-    const fallbackX = candleX(lastSec);
+    let fallbackX = candleX(lastSec);
+    try {
+      const xc = ts.logicalToCoordinate((rowsNow.length - 1 + 10) as never);
+      if (xc != null && Number.isFinite(Number(xc))) fallbackX = Number(xc);
+    } catch {
+      /* ignore */
+    }
     const pushPin = (
       id: string,
       text: string,
@@ -675,11 +683,44 @@ export default function TapointCleanChart({
     setPinLabels(pinNext);
 
     /**
-     * SWEEP 가로 노랑점선+라벨은 struct hline으로 표시.
-     * 캔들 떠다니는 중복 SWEEP 마크는 숨김.
+     * 캔들 SWEEP 마크 (연속 2회 = 봉 위/아래 노란 점+글자).
+     * 가로 점선은 struct hline 유지. 글자는 HTML — 줌에도 남음.
      */
-    sweepLabelsRef.current = [];
-    setSweepLabels([]);
+    const sweepNext: SweepMarkLabel[] = [];
+    const seenSweepMark = new Set<string>();
+    for (const m of signalsRef.current?.markers || []) {
+      const text = String(m.label || '').trim();
+      if (!/sweep/i.test(text)) continue;
+      const sec = Number(toSec(m.time));
+      if (!(sec > 0) || !ts) continue;
+      let x: number | null = null;
+      try {
+        const xc = ts.timeToCoordinate(sec as never);
+        if (xc != null && Number.isFinite(Number(xc))) x = Number(xc);
+      } catch {
+        x = null;
+      }
+      if (x == null || x < 0 || x > hostW - 8) continue;
+      const yRaw = series.priceToCoordinate(m.price);
+      const y = clampLabelY(m.price, yRaw == null ? null : Number(yRaw));
+      if (y == null) continue;
+      const side: 'above' | 'below' = m.position === 'belowBar' ? 'below' : 'above';
+      /** 같은 봉에 위·아래 이중 SWEEP 금지 · 연속 다른 봉은 sec가 다름 */
+      const id = String(sec);
+      if (seenSweepMark.has(id)) continue;
+      seenSweepMark.add(id);
+      sweepNext.push({
+        id,
+        title: 'SWEEP',
+        top: y,
+        left: Math.round(x),
+        color: m.color || '#facc15',
+        side,
+        visible: true,
+      });
+    }
+    sweepLabelsRef.current = sweepNext;
+    setSweepLabels(sweepNext);
 
     layoutVolLabels();
     } catch {
@@ -705,7 +746,11 @@ export default function TapointCleanChart({
       if (
         !opts?.forceFit &&
         fp === lastAppliedFpRef.current &&
-        (opts?.reason === 'candles' || opts?.reason === 'resize')
+        (opts?.reason === 'candles' ||
+          opts?.reason === 'resize' ||
+          opts?.reason === 'settings' ||
+          opts?.reason === 'signals' ||
+          opts?.reason === 'levels')
       ) {
         requestAnimationFrame(() => layoutZonesRef.current());
         return;
@@ -1369,17 +1414,16 @@ export default function TapointCleanChart({
         return best as UTCTimestamp;
       };
       /** 글자는 HTML로 고정 — LWC 마커 글자는 확대·축소 때 사라짐 */
-      const mks = (signals?.markers || [])
-        .filter((m) => !/sweep/i.test(String(m.label || '')))
-        .map((m) => {
+      const mks = (signals?.markers || []).map((m) => {
           const sec = toSec(m.time) as number;
           const time = snap(sec);
           if (!time) return null;
+          const isSweep = /sweep/i.test(String(m.label || ''));
           return {
             time,
             position: m.position,
             color: m.color,
-            shape: m.shape,
+            shape: isSweep ? 'circle' : m.shape,
             text: '',
           };
         })
@@ -2137,11 +2181,11 @@ export default function TapointCleanChart({
         }
         .tap-sweep-mark {
           position: absolute;
-          z-index: 4;
+          z-index: 6;
           transform: translate(-50%, -50%);
           font-size: var(--tap-label-fs, 9px);
-          font-weight: 700;
-          letter-spacing: 0.02em;
+          font-weight: 800;
+          letter-spacing: 0.04em;
           padding: 0 4px;
           border: 1px solid;
           border-radius: 3px;
@@ -2149,12 +2193,13 @@ export default function TapointCleanChart({
           white-space: nowrap;
           pointer-events: none;
           line-height: 1.25;
+          color: #facc15;
         }
         .tap-sweep-mark--above {
-          transform: translate(-50%, calc(-100% - 6px));
+          transform: translate(-50%, calc(-100% - 14px));
         }
         .tap-sweep-mark--below {
-          transform: translate(-50%, 6px);
+          transform: translate(-50%, 14px);
         }
         .tap-zone-band--battle {
           border-top-width: 2px;

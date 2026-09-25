@@ -322,6 +322,23 @@ function ExecutionBriefingCardInner({
           >
             엔진 분석 패널
             <span className="subtle" style={{ fontSize: '0.7rem', fontWeight: 500 }}>구조·Zone·점수·RR</span>
+            <button
+              type="button"
+              className="tool-chip tool-chip-button"
+              onClick={() => {
+                if (typeof window === 'undefined') return;
+                const w = window.open(
+                  '/inventory',
+                  'inventory',
+                  'popup=yes,width=1440,height=920,menubar=no,toolbar=no,location=yes,resizable=yes,scrollbars=yes'
+                );
+                if (!w) window.location.href = '/inventory';
+              }}
+              title="재고관리 LIST 새 창 열기 (전체화면형, ID/비번 인증)"
+              style={{ marginLeft: 'auto', fontSize: 11 }}
+            >
+              list
+            </button>
           </div>
           <div className="mini-grid" style={{ marginBottom: 10 }}>
             <div className="mini-card" style={{ border: '1px solid rgba(98,239,224,0.18)' }}>

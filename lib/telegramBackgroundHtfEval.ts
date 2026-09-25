@@ -18,7 +18,10 @@ import {
 import { htfCandleTouchesHotZoneInPool, htfCandleTouchesSupplyDemandStrongInPool } from '@/lib/telegramHtfPoolHelpers';
 import { formatInstitutionalBandTouchMarkerDetailText } from '@/lib/telegramInstitutionalText';
 import { extractTelegramCpHotLinesFromOverlays } from '@/lib/telegramCpHotExtract';
+import { buildFusionStructureHudData } from '@/lib/fusionStructureZones';
+import { getTelegramLsConfirmFlags, telegramLsConfirmedForDirection } from '@/lib/telegramLsConfirmGate';
 import type { AnalyzeResponse, Candle, OverlayItem } from '@/types';
+import { isTelegramAnalyzableSymbol, telegramHashTagForSymbol } from '@/lib/analyzeSymbolSupport';
 
 export function evaluateBackgroundHtfTelegram(
   analysis: AnalyzeResponse,
@@ -40,15 +43,22 @@ export function evaluateBackgroundHtfTelegram(
   const whaleCoreSrZoneEnabled = effTog.whaleCoreSrZoneEnabled === true;
   const whalePrecisionEntryEnabled = effTog.whalePrecisionEntryEnabled === true;
   const whalePrecisionAlertEnabled = effTog.whalePrecisionAlertEnabled === true;
-  const tfAllowedHtf =
-    tfNorm === '1h' || tfNorm === '4h' || tfNorm === '1d' || tfNorm === '1w' || tfNorm === '1M';
-  if (!tfAllowedHtf) return null;
+  const tfAllowed =
+    tfNorm === '15m' ||
+    tfNorm === '1h' ||
+    tfNorm === '4h' ||
+    tfNorm === '1d' ||
+    tfNorm === '1w' ||
+    tfNorm === '1M';
+  if (!tfAllowed) return null;
   const sUp = String(symbol || '').toUpperCase();
-  if (!sUp.startsWith('BTC') && !sUp.startsWith('ETH')) return null;
+  if (!isTelegramAnalyzableSymbol(sUp)) return null;
   const candles: Candle[] = (analysis as any).candles?.length
     ? ((analysis as any).candles as Candle[])
     : [];
   if (candles.length < 2) return null;
+  const lsFlags = getTelegramLsConfirmFlags(analysis);
+  if (!lsFlags.long && !lsFlags.short) return null;
   const lastBar = candles[candles.length - 1] as Candle;
   const prevBar = candles[candles.length - 2] as Candle;
   const curBarTime = Number(lastBar.time);
@@ -80,28 +90,6 @@ export function evaluateBackgroundHtfTelegram(
     frontRun?.state === 'TRIGGERED' &&
     (frontRun?.direction === 'LONG' || frontRun?.direction === 'SHORT') &&
     isRecentSignal(frontRunSignalTime);
-  const latestPx = Number((lastBar as any).close ?? 0);
-  const entryPxRaw = Number(
-    (lsPlan as any)?.entry ?? (analysis as AnalyzeResponse)?.frontRunSignal?.entry ?? NaN
-  );
-  const prepNearPctByTf =
-    tfNorm === '1h' ? 0.0028 :
-    tfNorm === '4h' ? 0.0036 :
-    tfNorm === '1d' ? 0.0046 :
-    tfNorm === '1w' ? 0.0048 :
-    tfNorm === '1M' ? 0.0052 :
-    0.0052;
-  const isNearEntryReady =
-    Number.isFinite(entryPxRaw) &&
-    entryPxRaw > 0 &&
-    Number.isFinite(latestPx) &&
-    latestPx > 0 &&
-    Math.abs(latestPx - entryPxRaw) / entryPxRaw <= prepNearPctByTf;
-  const isFrontRunReadyNear =
-    frontRun?.state === 'READY' &&
-    (frontRun?.direction === 'LONG' || frontRun?.direction === 'SHORT') &&
-    isRecentSignal(Number(frontRunSignalTime || curBarTime)) &&
-    isNearEntryReady;
   const briefOverlayPool: OverlayItem[] = ((analysis as any).overlays ?? []) as OverlayItem[];
   const latestWhaleLockedBu = [...briefOverlayPool]
     .filter((o) => {
@@ -130,27 +118,19 @@ export function evaluateBackgroundHtfTelegram(
   };
   const confidenceNum = typeof (analysis as any).confidence === 'number' ? Math.round((analysis as any).confidence) : null;
   const timeframeFloor =
+    tfNorm === '15m' ? 76 :
     tfNorm === '1h' ? 74 :
     tfNorm === '4h' ? 72 :
     tfNorm === '1d' ? 70 :
     tfNorm === '1w' ? 69 :
     tfNorm === '1M' ? 65 :
     68;
-  const tfTag = `[${sUp.startsWith('BTC') ? '#BTC' : '#ETH'} ${String(timeframe).toUpperCase()}]`;
+  const tfTag = `[${telegramHashTagForSymbol(sUp)} ${String(timeframe).toUpperCase()}]`;
   const precisionAlertOn = isAiMode && whalePrecisionAlertEnabled;
-  type C = { type: 'ROCKET' | 'FR_READY' | 'FR_TRIGGERED' | 'WHALE_LOCKED_BU'; key: string; text: string; score: number; direction: 'LONG' | 'SHORT' };
+  const fusionHud = buildFusionStructureHudData(analysis, candles as Candle[]);
+  type C = { type: 'FR_TRIGGERED' | 'WHALE_LOCKED_BU' | 'ROCKET'; key: string; text: string; score: number; direction: 'LONG' | 'SHORT' };
   const candidates: C[] = [];
-  if (isFrontRunReadyNear && frDirection) {
-    const score = 70 + Math.min(12, frConfidence * 0.16) + sideBiasBonus(frDirection);
-    candidates.push({
-      type: 'FR_READY',
-      key: `FR_READY_NEAR|${symbol}|${timeframe}|${frDirection}|${curBarTime}`,
-      text: `${tfTag} [준비알림] ${frDirection === 'LONG' ? '🟡 LONG READY(진입 근접)' : '🟡 SHORT READY(진입 근접)'}`,
-      score,
-      direction: frDirection,
-    });
-  }
-  if (isFrontRunTriggered && frDirection) {
+  if (isFrontRunTriggered && frDirection && telegramLsConfirmedForDirection(frDirection, lsFlags)) {
     const score = 78 + Math.min(16, frConfidence * 0.2) + sideBiasBonus(frDirection);
     candidates.push({
       type: 'FR_TRIGGERED',
@@ -160,7 +140,7 @@ export function evaluateBackgroundHtfTelegram(
       direction: frDirection,
     });
   }
-  if (latestWhaleLockedBu && isWhaleLockedBuRecent) {
+  if (latestWhaleLockedBu && isWhaleLockedBuRecent && telegramLsConfirmedForDirection('LONG', lsFlags)) {
     const id = String(latestWhaleLockedBu.id || '');
     const isCoreOb = id.startsWith('whale-auto-bu-ob');
     const score = (isCoreOb ? 76 : 72) + sideBiasBonus('LONG');
@@ -175,7 +155,8 @@ export function evaluateBackgroundHtfTelegram(
   if (
     latestRocketForAlert &&
     (latestRocketForAlert.direction === 'LONG' || latestRocketForAlert.direction === 'SHORT') &&
-    isRecentSignalRocket(Number((latestRocketForAlert as any).time))
+    isRecentSignalRocket(Number((latestRocketForAlert as any).time)) &&
+    telegramLsConfirmedForDirection(latestRocketForAlert.direction, lsFlags)
   ) {
     const dir = latestRocketForAlert.direction;
     const source = String((latestRocketForAlert as any)?.source || '');
@@ -198,7 +179,7 @@ export function evaluateBackgroundHtfTelegram(
     .sort((a, b) => b.score - a.score)[0];
   let eventKey = '';
   let eventText = '';
-  let eventType: 'ROCKET' | 'FR_READY' | 'FR_TRIGGERED' | 'WHALE_LOCKED_BU' | 'HTF_ZPACK' | '' = '';
+  let eventType: 'ROCKET' | 'FR_TRIGGERED' | 'WHALE_LOCKED_BU' | '' = '';
   if (selected) {
     eventType = selected.type;
     eventKey = selected.key;
@@ -229,7 +210,6 @@ export function evaluateBackgroundHtfTelegram(
       structurePhaseCandleByTime = collectStructureMarkCandleHighlights(safe as any, sp, 14, traceBars) as any;
     }
   }
-  const htfZOnlyCdMs = tfNorm === '1h' || tfNorm === '4h' ? 300_000 : 600_000;
   const htfSealedOn = sRaw.telegramHtfSealedBarOnly !== false;
   const sealedTime = htfSealedOn && prevBarTime > 0 ? prevBarTime : curBarTime;
   const sealedC = candles.find((c) => Number(c.time) === sealedTime) as any;
@@ -270,11 +250,8 @@ export function evaluateBackgroundHtfTelegram(
       htfZoneExtraLines = zLines;
       if (eventKey) {
         eventKey = `${eventKey}|Z:${[...htfZTags].sort().join('+')}|t:${sealedTime}`;
-      } else {
-        eventKey = `HTF_ZPACK|${symbol}|${timeframe}|${sealedTime}|${[...htfZTags].sort().join('+')}`;
-        eventText = `${tfTag} [HTF·존/밴드] ${htfZTags.join('·')}`;
-        eventType = 'HTF_ZPACK';
       }
+      /* 확정 롱/숏 없이 존·밴드만 단독 발송하지 않음 (스팸 방지) */
     }
   }
   if (!eventKey) return null;
@@ -288,6 +265,15 @@ export function evaluateBackgroundHtfTelegram(
   const headPrefix = `📡 [멀티TF·백그라운드] (차트 캡처 없음, 본문만)\n${zonePackNote}\n`;
   const fullBrief = [
     headPrefix + eventText,
+    fusionHud
+      ? [
+          `융합: ${fusionHud.direction} · ${fusionHud.status} · ${fusionHud.modeText}`,
+          `${fusionHud.probabilityText}`,
+          `${fusionHud.marketFlowText}`,
+          `${fusionHud.newsRiskText}`,
+          `트리거/무효: ${fusionHud.triggerText} / ${fusionHud.invalidText}`,
+        ].join('\n')
+      : null,
     ...htfZoneExtraLines,
     `가격: ${Number((lastBar as any).close ?? 0).toLocaleString()}`,
     confidenceNum != null ? `신뢰도: ${confidenceNum}%` : null,
@@ -301,7 +287,6 @@ export function evaluateBackgroundHtfTelegram(
   ]
     .filter(Boolean)
     .join('\n');
-  const cooldownMs =
-    eventType === 'FR_READY' ? 900_000 : eventType === 'HTF_ZPACK' ? htfZOnlyCdMs : 180_000;
+  const cooldownMs = 180_000;
   return { eventKey, eventText, eventType, fullBrief, cooldownMs };
 }

@@ -6,10 +6,58 @@
 import type { Eagle1Bar } from '@/lib/eagle1/structureEngine';
 import type { TapHistoricalSnap } from './types';
 
-const WINDOW = 20;
-const TOP_K = 24;
-const MIN_N = 20;
-const DEDUP_GAP = 8;
+/** 지시서 창 10/20/30/50 · 같은 TF만 합침 */
+const WINDOWS = [10, 20, 30, 50] as const;
+const TOP_K = 80;
+const MIN_N = 16;
+const DEDUP_GAP = 6;
+/** 10배 · ROE5%/7% → 필요 가격변동률 */
+const ROE_LEV = 10;
+const ROE5_PRICE = 5 / ROE_LEV / 100; // 0.005
+const ROE7_PRICE = 7 / ROE_LEV / 100; // 0.007
+const ROE_HORIZON = 10;
+
+function emptyHist(noteKo: string, n = 0): TapHistoricalSnap {
+  return {
+    n,
+    similarity: null,
+    up3: null,
+    up5: null,
+    up10: null,
+    mfe: null,
+    mae: null,
+    netEv: null,
+    noteKo,
+    roeHit5at10x: null,
+    roeHit7at10x: null,
+    roeStatHorizon: null,
+    queryDirection: null,
+    biasKo: null,
+    extraByTf: [],
+    windowsUsed: [],
+  };
+}
+
+function asBars(
+  rows: Array<{
+    time: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume?: number;
+  }> | null | undefined
+): Eagle1Bar[] {
+  if (!rows?.length) return [];
+  return rows.map((c) => ({
+    time: Number(c.time) || 0,
+    open: Number(c.open),
+    high: Number(c.high),
+    low: Number(c.low),
+    close: Number(c.close),
+    volume: Number(c.volume) || 0,
+  }));
+}
 
 function featAt(bars: Eagle1Bar[], i: number, w: number): number[] | null {
   if (i < w || i >= bars.length) return null;
@@ -84,52 +132,34 @@ function forwardStats(
   return { up: ret > 0, mfe, mae, ret };
 }
 
-export function runTapCausalSimilarity(params: {
+type Hit = { i: number; d: number; w: number };
+
+function pickSimilar(params: {
   bars: Eagle1Bar[];
   direction: 'LONG' | 'SHORT';
-  /** 마감봉 인덱스(기본 n-2) */
   asOfIndex?: number;
-}): TapHistoricalSnap {
+}): { snap: TapHistoricalSnap; windowsUsed: number[] } {
   const bars = params.bars;
   const n = bars.length;
-  const asOf = params.asOfIndex ?? Math.max(WINDOW, n - 2);
-  if (asOf < WINDOW + 15 || asOf >= n) {
-    return {
-      n: 0,
-      similarity: null,
-      up3: null,
-      up5: null,
-      up10: null,
-      mfe: null,
-      mae: null,
-      netEv: null,
-      noteKo: '통계 부족 · 캔들부족',
-    };
+  const minW = WINDOWS[0]!;
+  const asOf = params.asOfIndex ?? Math.max(minW, n - 2);
+  if (asOf < minW + 15 || asOf >= n) {
+    return { snap: emptyHist('통계 부족 · 캔들부족'), windowsUsed: [] };
   }
 
-  const q = featAt(bars, asOf, WINDOW);
-  if (!q) {
-    return {
-      n: 0,
-      similarity: null,
-      up3: null,
-      up5: null,
-      up10: null,
-      mfe: null,
-      mae: null,
-      netEv: null,
-      noteKo: '통계 부족 · 피처불가',
-    };
-  }
-
-  type Hit = { i: number; d: number };
-  const hits: Hit[] = [];
-  /** 미래 유출 방지: 매칭 지점 +10봉이 asOf 이전이어야 함 */
   const maxMatch = asOf - 12;
-  for (let i = WINDOW; i <= maxMatch; i += 2) {
-    const f = featAt(bars, i, WINDOW);
-    if (!f) continue;
-    hits.push({ i, d: dist(q, f) });
+  const hits: Hit[] = [];
+  const used: number[] = [];
+  for (const w of WINDOWS) {
+    if (asOf < w) continue;
+    const q = featAt(bars, asOf, w);
+    if (!q) continue;
+    used.push(w);
+    for (let i = w; i <= maxMatch; i += 1) {
+      const f = featAt(bars, i, w);
+      if (!f) continue;
+      hits.push({ i, d: dist(q, f), w });
+    }
   }
   hits.sort((a, b) => a.d - b.d);
 
@@ -142,20 +172,12 @@ export function runTapCausalSimilarity(params: {
 
   if (picked.length < MIN_N) {
     return {
-      n: picked.length,
-      similarity: null,
-      up3: null,
-      up5: null,
-      up10: null,
-      mfe: null,
-      mae: null,
-      netEv: null,
-      noteKo: `통계 부족 · 유사 ${picked.length}<${MIN_N}`,
+      snap: emptyHist(`통계 부족 · 유사 ${picked.length}<${MIN_N}`, picked.length),
+      windowsUsed: used,
     };
   }
 
-  const avgDist =
-    picked.reduce((s, h) => s + h.d, 0) / Math.max(picked.length, 1);
+  const avgDist = picked.reduce((s, h) => s + h.d, 0) / Math.max(picked.length, 1);
   const similarity = Math.max(0, Math.min(100, Math.round(100 * (1 - avgDist / 2))));
 
   const collect = (h: number) => {
@@ -175,17 +197,99 @@ export function runTapCausalSimilarity(params: {
   const c10 = collect(10);
   const netEv = c5.ev;
 
+  const roeRows = picked
+    .map((p) => forwardStats(bars, p.i, ROE_HORIZON, params.direction))
+    .filter((x): x is NonNullable<typeof x> => !!x);
+  let roeHit5at10x: number | null = null;
+  let roeHit7at10x: number | null = null;
+  if (roeRows.length >= MIN_N) {
+    roeHit5at10x = roeRows.filter((r) => r.mfe >= ROE5_PRICE).length / roeRows.length;
+    roeHit7at10x = roeRows.filter((r) => r.mfe >= ROE7_PRICE).length / roeRows.length;
+  }
+
+  const dirKo = params.direction === 'LONG' ? '롱' : '숏';
+  const roeNote =
+    roeHit5at10x != null && roeHit7at10x != null
+      ? ` · 10x ROE5%도달${(roeHit5at10x * 100).toFixed(0)}%·7%${(roeHit7at10x * 100).toFixed(0)}%(${ROE_HORIZON}봉MFE)`
+      : '';
+  const hitPct =
+    c5.up != null ? ` · ${dirKo}유리${(c5.up * 100).toFixed(0)}%(5봉)` : '';
+  const winKo = used.length ? ` · 창${used.join('/')}` : '';
+
   return {
-    n: picked.length,
-    similarity,
-    up3: c3.up,
-    up5: c5.up,
-    up10: c10.up,
-    mfe: c5.mfe,
-    mae: c5.mae,
-    netEv,
-    noteKo: `유사Top${picked.length} · sim${similarity} · 인과윈도우${WINDOW} · 확정아님`,
+    snap: {
+      n: picked.length,
+      similarity,
+      up3: c3.up,
+      up5: c5.up,
+      up10: c10.up,
+      mfe: c5.mfe,
+      mae: c5.mae,
+      netEv,
+      roeHit5at10x,
+      roeHit7at10x,
+      roeStatHorizon: ROE_HORIZON,
+      queryDirection: params.direction,
+      biasKo: `${dirKo}유사`,
+      extraByTf: [],
+      windowsUsed: used,
+      noteKo: `${dirKo}유사 · 표본N=${picked.length}${winKo} · sim${similarity}${hitPct}${roeNote} · 확정아님`,
+    },
+    windowsUsed: used,
   };
+}
+
+export function runTapCausalSimilarity(params: {
+  bars: Eagle1Bar[];
+  direction: 'LONG' | 'SHORT';
+  /** 마감봉 인덱스(기본 n-2) */
+  asOfIndex?: number;
+  /** 같은 심볼 다른 TF — 본 통계에 합치지 않고 extraByTf만 */
+  extraSeries?: Array<{
+    tf: string;
+    bars: Array<{
+      time: number;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      volume?: number;
+    }>;
+  }>;
+}): TapHistoricalSnap {
+  const main = pickSimilar({
+    bars: params.bars,
+    direction: params.direction,
+    asOfIndex: params.asOfIndex,
+  });
+  const extraByTf: NonNullable<TapHistoricalSnap['extraByTf']> = [];
+  for (const ser of params.extraSeries || []) {
+    const tf = String(ser.tf || '').trim();
+    if (!tf) continue;
+    const rows = asBars(ser.bars);
+    const capped = rows.length > 500 ? rows.slice(-500) : rows;
+    if (capped.length < 80) continue;
+    const sub = pickSimilar({
+      bars: capped,
+      direction: params.direction,
+      asOfIndex: Math.max(0, rows.length - 2),
+    });
+    extraByTf.push({
+      tf,
+      n: sub.snap.n,
+      similarity: sub.snap.similarity,
+      up5: sub.snap.up5,
+      noteKo: `${tf} 추가 ${sub.snap.noteKo}`,
+    });
+  }
+  const snap = main.snap;
+  snap.extraByTf = extraByTf;
+  snap.windowsUsed = main.windowsUsed;
+  if (extraByTf.length) {
+    const extraKo = extraByTf.map((e) => `${e.tf}N=${e.n}`).join(' · ');
+    snap.noteKo = `${snap.noteKo} · 추가 ${extraKo}`;
+  }
+  return snap;
 }
 
 export function historicalScoreFromSnap(h: TapHistoricalSnap): number {

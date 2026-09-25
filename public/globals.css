@@ -1,4 +1,4 @@
-/* app globals */
+/* app globals — 실제 로드: app/layout.tsx → app/globals.css import (이 파일은 구 URL 호환용이면 내용 동기화 필요) */
 :root, [data-theme="dark"]{
   --bg:#091320;
   --panel:#102235;
@@ -29,6 +29,25 @@
 html{
   -webkit-text-size-adjust:100%;
   text-size-adjust:100%;
+  scroll-behavior:auto !important;
+  animation:none !important;
+  transition:none !important;
+}
+body{
+  animation:none !important;
+  transition:none !important;
+}
+/** 전역 애니메이션·트랜지션 off — app/globals.css 와 동일 유지 권장 */
+html *,
+html *::before,
+html *::after{
+  animation:none !important;
+  transition:none !important;
+}
+svg,
+svg *{
+  animation:none !important;
+  transition:none !important;
 }
 html,body{padding:0;margin:0;background:var(--gradient-bg);color:var(--text);
   font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",Roboto,"Noto Sans KR",Arial,sans-serif}
@@ -649,6 +668,109 @@ main{
 .ls-rocket-node--structure.ls-rocket-node--short .ls-rocket-icon{animation:ls-chart-bob-down 2s ease-in-out infinite}
 .ls-rocket-node--live.ls-rocket-node--long .ls-rocket-icon{animation:ls-rocket-bob-up 1.35s ease-in-out infinite}
 .ls-rocket-node--live.ls-rocket-node--short .ls-rocket-icon{animation:ls-chart-bob-down 1.35s ease-in-out infinite}
+/* 마감·안착: 로켓·✨ CSS 애니 정지(캔들 pre3 펄스 끈 뒤에도 아이콘만 움직이면 밴드와 같이 깜빡이는 느낌 남음) */
+.tv-frame--month-start-desk .ls-rocket-node .ls-rocket-icon,
+.tv-frame--month-start-desk .ls-rocket-node .ls-rocket-sparkle{animation:none !important}
+.tv-frame--month-start-desk .ls-rocket-node .ls-rocket-sparkle{opacity:0;width:0;height:0;overflow:hidden}
+.tv-frame--month-start-desk .ls-rocket-node--long .ls-rocket-icon{transform:rotate(-48deg)}
+.tv-frame--month-start-desk .ls-rocket-node--short .ls-rocket-icon{transform:none}
+.ls-rocket-node--monthdesk .ls-rocket-sparkle{opacity:0;width:0;height:0;overflow:hidden}
+.ls-rocket-node--monthdesk .ls-rocket-icon{transform:none}
+.ls-rocket-node--monthdesk.ls-rocket-node--long .ls-rocket-icon{filter:drop-shadow(0 0 6px rgba(6,182,212,.88))}
+.ls-rocket-node--monthdesk.ls-rocket-node--short .ls-rocket-icon{filter:drop-shadow(0 0 6px rgba(251,113,133,.88))}
+.tv-frame--month-start-desk .ls-rocket-node--monthdesk.ls-rocket-node--long .ls-rocket-icon{filter:drop-shadow(0 0 7px rgba(34,211,238,.95))}
+.tv-frame--month-start-desk .ls-rocket-node--monthdesk.ls-rocket-node--short .ls-rocket-icon{filter:drop-shadow(0 0 7px rgba(251,113,133,.95))}
+/* 마감·안착: 타점 골든포켓·코어·FVG — 네온 테두리·펄스(차트 전용, 참고 존) */
+@keyframes overlayZoneMonthDeskTypeomPulseLong{
+  0%,100%{box-shadow:inset 0 0 0 1px rgba(6,182,212,0.14),0 0 0 0 rgba(34,211,238,0)}
+  50%{box-shadow:inset 0 0 0 1px rgba(34,211,238,0.42),0 0 26px 5px rgba(34,211,238,0.36)}
+}
+@keyframes overlayZoneMonthDeskTypeomPulseShort{
+  0%,100%{box-shadow:inset 0 0 0 1px rgba(251,113,133,0.12),0 0 0 0 rgba(251,113,133,0)}
+  50%{box-shadow:inset 0 0 0 1px rgba(251,113,133,0.4),0 0 24px 5px rgba(251,113,133,0.34)}
+}
+@keyframes overlayZoneMonthDeskTypeomPulseNeutral{
+  0%,100%{box-shadow:inset 0 0 0 1px rgba(148,163,184,0.12),0 0 0 0 rgba(167,139,250,0)}
+  50%{box-shadow:inset 0 0 0 1px rgba(196,181,253,0.34),0 0 22px 4px rgba(167,139,250,0.24)}
+}
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-pocket.overlay-zone--monthdesk-typeom--long{
+  border:2px solid rgba(34,211,238,0.58) !important;
+  box-shadow:inset 0 0 20px rgba(6,182,212,0.16),0 0 22px rgba(34,211,238,0.24);
+}
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-core.overlay-zone--monthdesk-typeom--long{
+  border:2px solid rgba(250,204,21,0.65) !important;
+  box-shadow:inset 0 0 18px rgba(234,179,8,0.14),0 0 20px rgba(250,204,21,0.28);
+}
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-pocket.overlay-zone--monthdesk-typeom--short{
+  border:2px solid rgba(251,113,133,0.58) !important;
+  box-shadow:inset 0 0 20px rgba(244,63,94,0.12),0 0 22px rgba(251,113,133,0.24);
+}
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-core.overlay-zone--monthdesk-typeom--short{
+  border:2px solid rgba(251,191,36,0.58) !important;
+  box-shadow:inset 0 0 18px rgba(251,146,60,0.12),0 0 20px rgba(251,191,36,0.26);
+}
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-pocket.overlay-zone--monthdesk-typeom--neutral{
+  border:2px solid rgba(148,163,184,0.52) !important;
+  box-shadow:inset 0 0 16px rgba(100,116,139,0.12),0 0 16px rgba(148,163,184,0.18);
+}
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-core.overlay-zone--monthdesk-typeom--neutral{
+  border:2px solid rgba(167,139,250,0.52) !important;
+  box-shadow:inset 0 0 16px rgba(139,92,246,0.1),0 0 18px rgba(167,139,250,0.2);
+}
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-fvg.overlay-zone--monthdesk-typeom--long{
+  border:1.5px solid rgba(56,189,248,0.52) !important;
+  box-shadow:inset 0 0 14px rgba(14,165,233,0.12),0 0 14px rgba(56,189,248,0.18);
+}
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-fvg.overlay-zone--monthdesk-typeom--short{
+  border:1.5px solid rgba(244,114,182,0.48) !important;
+  box-shadow:inset 0 0 14px rgba(219,39,119,0.1),0 0 14px rgba(244,114,182,0.16);
+}
+.tv-frame--month-start-desk .overlay-zone--monthdesk-typeom--long.overlay-zone--core-pulse{
+  animation-name:overlayZoneMonthDeskTypeomPulseLong;
+  animation-duration:2.05s;
+  animation-timing-function:ease-in-out;
+  animation-iteration-count:infinite;
+}
+.tv-frame--month-start-desk .overlay-zone--monthdesk-typeom--short.overlay-zone--core-pulse{
+  animation-name:overlayZoneMonthDeskTypeomPulseShort;
+  animation-duration:2.05s;
+  animation-timing-function:ease-in-out;
+  animation-iteration-count:infinite;
+}
+.tv-frame--month-start-desk .overlay-zone--monthdesk-typeom--neutral.overlay-zone--core-pulse{
+  animation-name:overlayZoneMonthDeskTypeomPulseNeutral;
+  animation-duration:2.15s;
+  animation-timing-function:ease-in-out;
+  animation-iteration-count:infinite;
+}
+.tv-frame--month-start-desk.tv-frame--max-clean .overlay-zone.overlay-zone--monthdesk-typeom-pocket.overlay-zone--core-pulse,
+.tv-frame--month-start-desk.tv-frame--max-clean .overlay-zone.overlay-zone--monthdesk-typeom-core.overlay-zone--core-pulse{
+  animation-duration:3.45s;
+}
+/* 마감·안착: 눌림 핫존(phz) 면 — 얇은 테두리로 타점 존과 층 분리 */
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--phz-monthdesk{
+  border:1px solid rgba(148,163,184,0.26) !important;
+  box-shadow:none !important;
+}
+.tv-frame--month-start-desk .overlay-zone.overlay-zone--phz-monthdesk .chart-unified-zone-caption{
+  font-size:9px;
+  font-weight:600;
+  letter-spacing:0.02em;
+  opacity:0.9;
+}
+/* 간결(clear): phz 펄스 끔, 타점 존 펄스만 약간 느리게 */
+.tv-frame--month-start-desk.tv-frame--month-start-desk--overlay-clear .overlay-zone.overlay-zone--phz-monthdesk.overlay-zone--core-pulse{
+  animation:none !important;
+}
+.tv-frame--month-start-desk.tv-frame--month-start-desk--overlay-clear .overlay-zone--monthdesk-typeom--long.overlay-zone--core-pulse{
+  animation-duration:3.35s !important;
+}
+.tv-frame--month-start-desk.tv-frame--month-start-desk--overlay-clear .overlay-zone--monthdesk-typeom--short.overlay-zone--core-pulse{
+  animation-duration:3.35s !important;
+}
+.tv-frame--month-start-desk.tv-frame--month-start-desk--overlay-clear .overlay-zone--monthdesk-typeom--neutral.overlay-zone--core-pulse{
+  animation-duration:3.5s !important;
+}
 @keyframes ls-rocket-pulse-up{
   0%,100%{filter:drop-shadow(0 0 6px rgba(34,197,94,.5));transform:rotate(-48deg) scale(1)}
   50%{filter:drop-shadow(0 0 14px rgba(34,197,94,.95));transform:rotate(-48deg) scale(1.08)}
@@ -683,6 +805,10 @@ main{
   .tool-chip-button:hover{transform:none;box-shadow:none}
   .panel-tab:hover{transform:none}
   .select-pill:hover{transform:none;box-shadow:none}
+  .tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-pocket.overlay-zone--core-pulse,
+  .tv-frame--month-start-desk .overlay-zone.overlay-zone--monthdesk-typeom-core.overlay-zone--core-pulse{
+    animation:none !important;
+  }
 }
 
 @media print{

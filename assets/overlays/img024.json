@@ -1,6 +1,57 @@
 {
   "source": "0lHoXVm5.png",
-  "resistanceLines": [{ "price": 2300, "label": "Resistance" }],
-  "trendlineSegments": [{ "t1": "2022-04-15", "p1": 3500, "t2": "2022-10-15", "p2": 1286, "label": "저항", "dashed": true }],
-  "gannFan": { "t0": "2022-04-15", "p0": 3500, "slope1x1": -20, "isFromLow": false }
+  "resistanceLines": [
+    {
+      "price": 2300,
+      "label": "Resistance"
+    }
+  ],
+  "trendlineSegments": [
+    {
+      "t1": "2022-04-15",
+      "p1": 3500,
+      "t2": "2022-10-15",
+      "p2": 1286,
+      "label": "저항",
+      "dashed": true
+    }
+  ],
+  "gannFan": {
+    "t0": "2022-04-15",
+    "p0": 3500,
+    "slope1x1": -20,
+    "isFromLow": false
+  },
+  "catalogId": "img024",
+  "category": "tv_chart",
+  "chartable": true,
+  "titleKo": "TV 차트 참조",
+  "tags": [
+    "tv_chart",
+    "tv",
+    "btc"
+  ],
+  "structureFeatures": {
+    "bos": true,
+    "choch": false,
+    "fvg": 1,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "absolute_prices",
+    "elements": [
+      {
+        "type": "hline",
+        "role": "resistance",
+        "price": 2300,
+        "label": "Resistance"
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
 }

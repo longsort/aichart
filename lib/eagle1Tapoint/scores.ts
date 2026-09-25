@@ -29,12 +29,18 @@ export function buildTapScorePack(params: {
   const setupBase =
     plan?.entryQuality === 'good' ? 78 : plan?.entryQuality === 'ok' ? 58 : 35;
   const setup = clamp(setupBase + (params.setupBoost || 0));
-  const entry =
+  /** WATCH=55(게이트 50 통과) · 전투구간·흐름·이벤트 합성으로 IDLE도 타점 가능 */
+  let entry =
     plan?.status === 'CONFIRMED_LONG' || plan?.status === 'CONFIRMED_SHORT'
       ? clamp(72 + (plan.agreementScore || 0) * 0.15)
       : plan?.status === 'LONG_WATCH' || plan?.status === 'SHORT_WATCH'
-        ? 48
+        ? 55
         : 28;
+  const loc = params.locationScore ?? 45;
+  const flow = params.flowScore ?? 50;
+  const evn = params.eventScore ?? 30;
+  const composite = clamp(loc * 0.35 + flow * 0.25 + evn * 0.25 + setup * 0.15);
+  if (composite >= 56) entry = clamp(Math.max(entry, composite));
   const regimeMap: Record<string, number> = {
     STRONG_BULL: 82,
     BULL: 70,
@@ -71,13 +77,15 @@ export function buildTapScorePack(params: {
 }
 
 /** ENTRY가 낮으면 방향·셋업이 높아도 확정 금지 */
+/** 확정만 빡세게 — 잘못된 추격 차단 · 좋은 타점(구간·셋업)만 */
 export function scoresAllowConfirm(s: TapScorePack): boolean {
-  if (s.entry < 55) return false;
-  if (s.location < 50) return false;
-  if (s.failureRisk >= 75) return false;
-  if (s.ev < 45 && s.event < 70) return false;
-  if (s.direction < 55) return false;
-  if (s.setup < 50) return false;
+  if (s.entry < 60) return false;
+  if (s.location < 55) return false;
+  if (s.failureRisk >= 70) return false;
+  if (s.ev < 48 && s.event < 72) return false;
+  if (s.direction < 58) return false;
+  if (s.setup < 55) return false;
+  if (s.flow < 45) return false;
   return true;
 }
 

@@ -1,9 +1,11 @@
 /**
  * 상단 심볼 선택 드롭다운 후보.
- * 분석 파이프라인은 심볼 문자열만 넘기면 동일하게 동작(바이낸스 현물 klines + 미수집 시 Bybit 폴백).
- * 거래소에 없는 티커는 캔들 조회가 실패하므로, 실제 바이낸스 USDT 현물 상장 심볼만 넣는다.
+ * 코인: 바이낸스 USDT 현물(+Bybit 폴백). 환율: USDKRW/CNYKRW (Yahoo chart).
  */
 export const SYMBOLS = [
+  // 환율(FX)
+  'USDKRW',
+  'CNYKRW',
   // 메이저
   'BTCUSDT',
   'ETHUSDT',
@@ -164,8 +166,7 @@ export function structureRocketSourceAllowedForTimeframe(timeframe: string, sour
 /** 병합 후 structureRocketSignals 최대 개수 (TF별) — 달봉은 봉 수·가로 넓이 대비 희소하게 */
 export function structureRocketMergeMax(timeframe: string): number {
   const m: Record<string, number> = {
-    /** 1m 분석 지시용: 분봉마다 구조·존 신호가 잘리지 않도록 상향 */
-    '1m': 160,
+    '1m': 52,
     '3m': 50,
     '5m': 48,
     '15m': 44,
@@ -188,7 +189,7 @@ export function structureRocketBuilderBudget(timeframe: string): {
 } {
   const mergeMax = structureRocketMergeMax(timeframe);
   const m: Record<string, { b: number; c: number; z: number }> = {
-    '1m': { b: 64, c: 48, z: 96 },
+    '1m': { b: 26, c: 22, z: 44 },
     '3m': { b: 26, c: 22, z: 42 },
     '5m': { b: 24, c: 20, z: 40 },
     '15m': { b: 22, c: 20, z: 36 },
@@ -216,22 +217,20 @@ export const RSI_SWING_WATCH_THRESHOLD = 60;
 /** 구조 세트업(E/SL/TP) 동시 표시 상한 — 축 라벨 과밀 방지 */
 export const STRUCTURE_PRICE_LINES_MAX = 8;
 
-/** TF별 구조 가격선 상한 — 1m 분석 시 더 많이 노출 */
-export function structurePriceLinesMax(timeframe: string): number {
-  const tf = normalizeChartTimeframe(timeframe);
-  if (tf === '1m') return 24;
-  if (tf === '3m' || tf === '5m') return 16;
-  return STRUCTURE_PRICE_LINES_MAX;
-}
+/**
+ * true면 차트 캔들 본봉의 Pre3·줄·존 근접·구조 단계·핫존 등 반짝/펄스 색 전부 끔(기본 상승·하락만).
+ * 다시 켜려면 false로 바꾸면 됨.
+ */
+export const CHART_DISABLE_ALL_CANDLE_SPARKLE = true;
 
 /**
- * 15m/1h/4h: 시장 fetch·차트·패턴 예측 maxBars 공통 상한 — **약 6개월(182.625일)** 분량.
- * (버퍼링·초기 로딩 완화 — 필요 시 pre3-memory 등 오프라인 분석으로 긴 히스토리 유지)
+ * 15m/1h/4h: 시장 fetch·차트·패턴 예측 maxBars 공통 상한.
+ * 15m 전환 시 4k+ 봉이면 HTML 오버레이·lightweight-charts setData가 메인 스레드를 오래 점유 → 상한 추가 축소.
  */
 export const MARKET_BARS_3Y: Record<string, number> = {
-  '15m': 17_532, // ~182.625d × 96
-  '1h': 4_383, // ~182.625d × 24
-  '4h': 1_096, // ~182.625d × 6
+  '15m': 2_800, // ~29d × 96
+  '1h': 960, // ~40d × 24
+  '4h': 880, // ~147d × 6
 };
 
 /**
@@ -240,28 +239,24 @@ export const MARKET_BARS_3Y: Record<string, number> = {
  */
 export function visibleLimit(timeframe: string): number {
   const map: Record<string, number> = {
-    /** 1m: ~7일 — 사용자 분봉 분석·지시용 (기존 ~1.5일에서 확대) */
-    '1m': 10_080,
-    '3m': 1440, // ~3일
-    '5m': 1200, // ~4.2일
-    '15m': 960, // ~10일 (스윙 분석 기준)
-    '1h': 720, // ~30일
-    '4h': 520, // ~86일
-    '1d': 520, // ~1.4년
-    /** 상장(2017)~현재 전량 fetch 시 주·월봉 개수(분석·맵핑 slice 상한) */
+    '1m': 1440, // ~1일 — 오버레이 map·근접 스캔 비용 완화
+    '3m': 1000, // ~2.1일
+    '5m': 720, // ~2.5일
+    '15m': 400, // ~4.2일 @96 — 15m TF 전환 체감 개선
+    '1h': 200, // ~8.3일
+    '4h': 340, // ~56일
+    /**
+     * 분석·오버레이 work 윈도 (차트 전량 히스토리와 분리).
+     * 1d/1w/1M 차트 setData는 `/api/market` chart 모드 2017~ 전량.
+     */
+    '1d': 900, // analyze work
     '1w': 520, // ~10년
-    '1M': 200, // ~16년+ — 바이낸스 월봉 ~100봉 이상이면 대부분 전부 포함
+    '1M': 200, // 월봉 전량 여유
     '1Y': 24, // 24년(데이터 존재 시)
   };
   const k = normalizeChartTimeframe(timeframe);
   return map[k] ?? 700;
 }
-
-/**
- * true면 차트 캔들 본봉의 Pre3·줄·존 근접·구조 단계·핫존 등 반짝/펄스 색 overlays 끔(기본 상승·하락만).
- * 다시 켜려면 false로 바꾸면 됨.
- */
-export const CHART_DISABLE_ALL_CANDLE_SPARKLE = true;
 
 /** 상장일~전량 차트 히스토리 TF (1d/1w/1M) */
 export function isListingFullHistoryTf(timeframe: string): boolean {

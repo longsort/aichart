@@ -48,11 +48,21 @@ node_modules
 # 가상매매·확정신호 저장 (서버 배포 시 생성)
 /data/virtual-store/
 /data/confirmed-signals/
+/data/exchange-keys/
+/data/auto-scalp-paper/
 
-# BTC edge engine large raw OHLC (fetch from VPS / Bitget)
-btc_edge_engine/data/raw/BTCUSDT_5m.csv
-data/bitget-futures/BTCUSDT_5m.csv
-
-# Next.js
+# secrets / local env
+.env.local
+.env*.local
+deploy_today.py
 .next/
-out/
+
+
+# Large local market dumps (synced on disk from VPS; too large for git)
+data/bitget-futures/BTCUSDT_1min.csv
+data/bitget-futures/BTCUSDT_5m.csv
+data/eagle1/freeze/BTCUSDT_1m.json
+data/eagle1/freeze/BTCUSDT_5m.json
+data/eagle1/freeze/BTCUSDT_3m.json
+data/pattern-memory/ohlcv/BTCUSDT_15m.jsonl
+/trade-journal-*.json

@@ -1,3 +1,23 @@
 {
-  "source": "고래/퓨링크/고래/Screenshot_20251212_191957.jpg"
+  "source": "고래/퓨링크/고래/Screenshot_20251212_191957.jpg",
+  "catalogId": "img010",
+  "category": "fulink_ui",
+  "chartable": false,
+  "titleKo": "Screenshot_20251212_1919 참조",
+  "tags": [
+    "fulink_ui"
+  ],
+  "structureFeatures": {
+    "bos": false,
+    "choch": false,
+    "fvg": 0,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": null,
+  "analyzedAt": "2026-06-26"
 }

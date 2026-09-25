@@ -1,0 +1,250 @@
+===== 3630-3650
+3630:  const lastFittedRef = useRef<string>('');
+3631:  /** 마감·안착: 새 봉 시각이 바뀔 때만 timeScale을 최신 캔들에 맞춤(미래 LineSeries 시각 제거 후) */
+3632:  const monthDeskCandleTailScrollRef = useRef<number>(0);
+3633:  /**
+3634:   * 통합·분석 — 사용자가 마우스 드래그로 차트를 옮기면 true.
+3635:   * true인 동안 scrollToRealTime / 최신봉 강제 포커스 금지 → 옮긴 자리 고정.
+3636:   */
+3637:  const mergedDeskUserPanLockRef = useRef(false);
+3638:  /** 프로그램이 scroll/focus 할 때 패닝 감지를 잠시 끔 */
+3639:  const mergedDeskSuppressPanDetectRef = useRef(false);
+3640:  /** 통합·분석 — setData와 동일 tail 캔들 (screenOverlays time→X 동기) */
+3641:  const chartSeriesCandlesRef = useRef<Candle[]>([]);
+3642:  /** market 로드 직전 심볼·TF — TF만 바뀐 경우 가시구간 전체 리셋 스킵에 사용 */
+3643:  const lastMarketFitContextRef = useRef<{ symbol: string; timeframe: string } | null>(null);
+3644:  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+3645:  /** 마감·안착: 미래 예측(고스트) 캔들 — 흰색 보조 시리즈 */
+3646:  const projectedSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+3647:  /** RSI 다이버전스 등 캔들 마커 (lightweight-charts v5 플러그인) */
+3648:  const rsiMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+3649:  /** WAD 고래 BUY/SELL — 거래량 히스토그램 시리즈 마커 */
+3650:  const volumeMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+===== 4185-4225
+4185:  /**
+4186:   * 통합·분석: TF 전환·심볼 전환 시에만 최신봉으로 맞춤.
+4187:   * candles.length / resolveBarCount 변화마다 돌리면 드래그 위치가 우측으로 튕김.
+4188:   */
+4189:  useEffect(() => {
+4190:    if (!isMergedAnalysisDesk) return;
+4191:    mergedDeskUserPanLockRef.current = false;
+4192:    const run = () => {
+4193:      const chart = chartRef.current;
+4194:      const series = seriesRef.current;
+4195:      if (!chart || !series) return;
+4196:      const n = resolveBarCountForView();
+4197:      if (n < 2) return;
+4198:      mergedDeskSuppressPanDetectRef.current = true;
+4199:      applyFocusLatestBars(chart, series, n, timeframe, { scrollToLatest: true });
+4200:      requestAnimationFrame(() => {
+4201:        mergedDeskSuppressPanDetectRef.current = false;
+4202:        setOverlayTick((v) => v + 1);
+4203:      });
+4204:    };
+4205:    const t0 = window.setTimeout(run, 40);
+4206:    const t1 = window.setTimeout(run, 180);
+4207:    const onSync = () => {
+4208:      window.setTimeout(run, 30);
+4209:    };
+4210:    window.addEventListener(MERGED_DESK_VIEW_SYNC_EVENT, onSync);
+4211:    return () => {
+4212:      window.clearTimeout(t0);
+4213:      window.clearTimeout(t1);
+4214:      window.removeEventListener(MERGED_DESK_VIEW_SYNC_EVENT, onSync);
+4215:    };
+4216:    // eslint-disable-next-line react-hooks/exhaustive-deps -- 심볼·TF만; 캔들 갱신 시 스크롤 금지
+4217:  }, [isMergedAnalysisDesk, symbol, timeframe]);
+4218:  const FEATURE_GAUGE_COLLAPSE_KEY = 'ailongshort-feature-gauge-collapsed';
+4219:  const [featureGaugeCollapsed, setFeatureGaugeCollapsed] = useState<boolean>(() => {
+4220:    if (typeof window === 'undefined') return false;
+4221:    try {
+4222:      return window.localStorage.getItem(FEATURE_GAUGE_COLLAPSE_KEY) === '1';
+4223:    } catch {
+4224:      return false;
+4225:    }
+===== 13040-13090
+13040:        overlayRafRef.current = null;
+13041:        setOverlayTick(v => v + 1);
+13042:      });
+13043:    };
+13044:    chart.timeScale().subscribeVisibleLogicalRangeChange(scheduleOverlayRefresh);
+13045:    chart.timeScale().subscribeVisibleTimeRangeChange(scheduleOverlayRefresh);
+13046:    /** 사용자가 차트 드래그(패닝)하면 최신봉 강제 스크롤 잠금 */
+13047:    const onUserPanLogicalRange = () => {
+13048:      if (uiModeOverlayRef.current !== 'MERGED_ANALYSIS_DESK') return;
+13049:      if (mergedDeskSuppressPanDetectRef.current) return;
+13050:      const ch = chartRef.current;
+13051:      const ser = seriesRef.current;
+13052:      if (!ch || !ser) return;
+13053:      try {
+13054:        const lr = ch.timeScale().getVisibleLogicalRange();
+13055:        if (!lr || !Number.isFinite(lr.to)) return;
+13056:        const sc = candlestickSeriesBarCount(ser);
+13057:        if (sc < 2) return;
+13058:        const lastIdx = sc - 1;
+13059:        /** 최신봉이 오른쪽 끝에 붙어 있을 때만 잠금 해제 — 그 외는 드래그 위치 유지 */
+13060:        const atRealtime = lr.to >= lastIdx - 0.2 && lr.to <= lastIdx + 3;
+13061:        mergedDeskUserPanLockRef.current = !atRealtime;
+13062:      } catch {
+13063:        /* ignore */
+13064:      }
+13065:    };
+13066:    chart.timeScale().subscribeVisibleLogicalRangeChange(onUserPanLogicalRange);
+13067:    /** 타임스케일 높이·폭 변화(하단 축 영역) — 좌표 기준점이 바뀔 때 */
+13068:    chart.timeScale().subscribeSizeChange(scheduleOverlayRefresh);
+13069:    /**
+13070:     * 구독만으로는 한두 프레임 빠질 수 있음: 가격축 Y + 가로 논리 범위를 함께 폴링해
+13071:     * 핵심 존·라벨이 캔들(timeToCoordinate / priceToCoordinate)에 붙도록 유지.
+13072:     */
+13073:    const syncHtmlOverlaysFromChartGeometry = () => {
+13074:      const s = seriesRef.current;
+13075:      const ch = chartRef.current;
+13076:      if (!s || !ch) return;
+13077:      try {
+13078:        const p = chartPerfRef.current;
+13079:        const mergedDeskLive = uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK';
+13080:        if (!mergedDeskLive && p.geometryPollStride > 1) {
+13081:          chartGeomStrideCounterRef.current += 1;
+13082:          if (chartGeomStrideCounterRef.current % p.geometryPollStride !== 0) return;
+13083:        }
+13084:        const pr = s.priceScale().getVisibleRange();
+13085:        const ps =
+13086:          pr && typeof pr.from === 'number' && typeof pr.to === 'number' && Number.isFinite(pr.from) && Number.isFinite(pr.to)
+13087:            ? `${pr.from.toFixed(8)}:${pr.to.toFixed(8)}`
+13088:            : '';
+13089:        const lr = ch.timeScale().getVisibleLogicalRange();
+13090:        const ts =
+===== 13420-13480
+13420:          const ghost = buildMonthDeskProjectedCandles(chartCandles, analysis);
+13421:          projSeries.setData(ghost.length ? monthDeskProjectedToLwc(ghost) : []);
+13422:        } else {
+13423:          projSeries.setData([]);
+13424:        }
+13425:      } catch {
+13426:        /* ignore */
+13427:      }
+13428:    }
+13429:
+13430:    if (isMonthStartDeskMode && safe.length >= 2) {
+13431:      const tailT = Number(safe[safe.length - 1]?.time);
+13432:      const chart = chartRef.current;
+13433:      if (chart && Number.isFinite(tailT) && tailT > 0 && monthDeskCandleTailScrollRef.current !== tailT) {
+13434:        monthDeskCandleTailScrollRef.current = tailT;
+13435:        requestAnimationFrame(() => {
+13436:          try {
+13437:            applyFocusLatestBars(chart, series, safe.length, timeframe);
+13438:          } catch {
+13439:            /* ignore */
+13440:          }
+13441:        });
+13442:      }
+13443:    }
+13444:
+13445:    /** 통합·분석: 새 봉이 와도 사용자가 드래그 중이면 최신으로 강제 스크롤하지 않음 */
+13446:    if (isMergedAnalysisDesk && chartCandles.length >= 2) {
+13447:      const tailT = Number(chartCandles[chartCandles.length - 1]?.time);
+13448:      const chart = chartRef.current;
+13449:      if (chart && Number.isFinite(tailT) && tailT > 0 && monthDeskCandleTailScrollRef.current !== tailT) {
+13450:        monthDeskCandleTailScrollRef.current = tailT;
+13451:        const scrollToLatest = !mergedDeskUserPanLockRef.current;
+13452:        requestAnimationFrame(() => {
+13453:          try {
+13454:            mergedDeskSuppressPanDetectRef.current = true;
+13455:            applyFocusLatestBars(chart, series, chartCandles.length, timeframe, {
+13456:              scrollToLatest,
+13457:            });
+13458:            requestAnimationFrame(() => {
+13459:              mergedDeskSuppressPanDetectRef.current = false;
+13460:            });
+13461:          } catch {
+13462:            mergedDeskSuppressPanDetectRef.current = false;
+13463:          }
+13464:        });
+13465:      }
+13466:    }
+13467:
+13468:    const volumeCandles = isMergedAnalysisDesk ? chartCandles : safe;
+13469:    if (volume) {
+13470:      try {
+13471:        const th = chartThemes[theme];
+13472:        const maPeriodSetting = Math.max(0, Math.min(120, Math.floor(settings.chartVolumeMaPeriod ?? 0)));
+13473:        const rvolDenom = maPeriodSetting >= 8 ? maPeriodSetting : 20;
+13474:        const volOpts = {
+13475:          enabled: volumeHistogramIntelOn,
+13476:          rvolTiers: settings.chartVolumeRvolTiers !== false,
+13477:          rvolSmaPeriod: Math.max(8, Math.min(60, rvolDenom)),
+13478:          directional: bitgetVolumePackOn,
+13479:        };
+13480:        const volBase = bitgetVolumePackOn
+===== 17940-18010
+17940:
+17941:  useEffect(() => {
+17942:    let cancelled = false;
+17943:    let fullIdleId: number | null = null;
+17944:    let fullIdleIsRic = false;
+17945:    marketFetchAbortRef.current?.abort();
+17946:    const ac = new AbortController();
+17947:    marketFetchAbortRef.current = ac;
+17948:    monthDeskCandleTailScrollRef.current = 0;
+17949:    mergedDeskUserPanLockRef.current = false;
+17950:
+17951:    const source = bitgetVolumePackOn ? 'bitget' : 'binance';
+17952:    /** TF 전환: stale 캐시도 즉시 표시 (SWR) — 빈 차트·sanitize 대기 제거 */
+17953:    const cached = peekClientMarketCandles(symbol, timeframe, source, true);
+17954:    const startedWithCacheLen = cached?.length ?? 0;
+17955:    const sanitizeMemo = new Map<string, Candle[]>();
+17956:    const sanitizeFast = (raw: Candle[]) => {
+17957:      if (!raw.length) return raw;
+17958:      const sk = `${raw.length}|${raw[0]!.time}|${raw[raw.length - 1]!.time}|${raw[raw.length - 1]!.close}`;
+17959:      const hit = sanitizeMemo.get(sk);
+17960:      if (hit) return hit;
+17961:      const out = sanitizeChartCandlesForSeries(raw, timeframe);
+17962:      sanitizeMemo.set(sk, out);
+17963:      if (sanitizeMemo.size > 6) {
+17964:        const first = sanitizeMemo.keys().next().value;
+17965:        if (first) sanitizeMemo.delete(first);
+17966:      }
+17967:      return out;
+17968:    };
+17969:    if (cached?.length) {
+17970:      setCandles(sanitizeFast(cached));
+17971:      setMarketError('');
+17972:    } else {
+17973:      setCandles([]);
+17974:    }
+17975:
+17976:    async function loadCandles(live = false) {
+17977:      try {
+17978:        const applySeries = (raw: Candle[], fitIfNeeded: boolean, bumpOverlay = true) => {
+17979:          if (cancelled || ac.signal.aborted) return;
+17980:          const nextCandles = sanitizeFast(raw);
+17981:          setMarketError('');
+17982:          setCandles(nextCandles);
+17983:          if (fitIfNeeded) {
+17984:            const key = `${symbol}|${timeframe}`;
+17985:            if (lastFittedRef.current !== key) {
+17986:              lastFittedRef.current = key;
+17987:              const c = chartRef.current;
+17988:              const ser = seriesRef.current;
+17989:              if (c && ser) {
+17990:                lastMarketFitContextRef.current = { symbol, timeframe };
+17991:                applyFocusLatestBars(c, ser, nextCandles.length, timeframe);
+17992:              }
+17993:            }
+17994:          }
+17995:          setLastUpdate(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
+17996:          if (bumpOverlay) setOverlayTick((v) => v + 1);
+17997:        };
+17998:
+17999:        const scheduleUpgrade = (full: Candle[]) => {
+18000:          if (cancelled || ac.signal.aborted) return;
+18001:          if (full.length <= startedWithCacheLen && startedWithCacheLen > 0) return;
+18002:          const applyFull = () => {
+18003:            if (cancelled || ac.signal.aborted) return;
+18004:            applySeries(full, false, false);
+18005:          };
+18006:          if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+18007:            fullIdleIsRic = true;
+18008:            fullIdleId = window.requestIdleCallback(applyFull, { timeout: 600 });
+18009:          } else {
+18010:            fullIdleIsRic = false;

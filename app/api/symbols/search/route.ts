@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { matchForexSearch } from '@/lib/forexMarket';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,7 @@ async function loadSpotUsdtSymbols(): Promise<SymbolRow[]> {
   }
 }
 
-/** GET ?q=pepe&limit=20 — 바이낸스 USDT 현물 심볼 검색 (심볼·베이스 자산 부분 일치) */
+/** GET ?q=pepe&limit=20 — USDT 코인 + USDKRW/CNYKRW 환율 검색 */
 export async function GET(req: NextRequest) {
   const raw = (req.nextUrl.searchParams.get('q') || '').trim();
   const limitRaw = parseInt(req.nextUrl.searchParams.get('limit') || '20', 10);
@@ -39,13 +40,19 @@ export async function GET(req: NextRequest) {
   if (raw.length < 1) {
     return NextResponse.json({ ok: true, symbols: [] as Array<{ symbol: string; base: string }> });
   }
-  const q = raw.toUpperCase();
-  const all = await loadSpotUsdtSymbols();
-  const out: Array<{ symbol: string; base: string }> = [];
-  for (const r of all) {
-    if (r.symbol.includes(q) || r.baseAsset.toUpperCase().includes(q)) {
-      out.push({ symbol: r.symbol, base: r.baseAsset });
-      if (out.length >= limit) break;
+  const fx = matchForexSearch(raw, limit);
+  const out: Array<{ symbol: string; base: string }> = [...fx];
+  const seen = new Set(out.map((x) => x.symbol));
+  if (out.length < limit) {
+    const q = raw.toUpperCase();
+    const all = await loadSpotUsdtSymbols();
+    for (const r of all) {
+      if (r.symbol.includes(q) || r.baseAsset.toUpperCase().includes(q)) {
+        if (seen.has(r.symbol)) continue;
+        out.push({ symbol: r.symbol, base: r.baseAsset });
+        seen.add(r.symbol);
+        if (out.length >= limit) break;
+      }
     }
   }
   return NextResponse.json({ ok: true, symbols: out });

@@ -294,8 +294,10 @@ export function buildWhaleAnchoredLinRegChannelsOverlays(params: {
    * 비어 있으면 생략.
    */
   fibParallelRatios?: readonly number[] | null;
+  /** 마지막 봉 이후 OLS 기울기로 연장할 봉 수 (0이면 생략) */
+  extendBars?: number;
 }): OverlayItem[] {
-  const { candles, logScale, slots, fibParallelRatios } = params;
+  const { candles, logScale, slots, fibParallelRatios, extendBars = 0 } = params;
   const n = candles.length;
   if (n < 3) return [];
 
@@ -330,8 +332,9 @@ export function buildWhaleAnchoredLinRegChannelsOverlays(params: {
 
     const mult = Math.max(0.1, slot.devMult);
     const w = o.sigma * mult;
+    const extN = Math.max(0, Math.floor(extendBars));
     const yLeftHat = o.intercept;
-    const yRightHat = o.intercept + o.slope * (L - 1);
+    const yRightHat = o.intercept + o.slope * (L - 1 + extN);
     const topL = yLeftHat + w;
     const topR = yRightHat + w;
     const botL = yLeftHat - w;
@@ -347,7 +350,14 @@ export function buildWhaleAnchoredLinRegChannelsOverlays(params: {
     const pMidR = reverseY(logScale, midR);
 
     const t1 = candles[start]!.time as number;
-    const t2 = candles[end]!.time as number;
+    let t2 = candles[end]!.time as number;
+    if (extN > 0) {
+      const barMs =
+        end > 0
+          ? Math.max(1, Number(candles[end]!.time) - Number(candles[end - 1]!.time))
+          : 3600_000;
+      t2 = Number(t2) + barMs * extN;
+    }
     const upCol = normalizeHex6(slot.upHex, DEFAULT_SLOT1.upHex);
     const dnCol = normalizeHex6(slot.downHex, DEFAULT_SLOT1.downHex);
     const bandHex = normalizeHex6(slot.bandsOuterHex, DEFAULT_SLOT1.bandsOuterHex);

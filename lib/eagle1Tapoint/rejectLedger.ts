@@ -2,6 +2,8 @@
  * REJECTED SETUP / MISSED OPPORTUNITY 기록.
  * 거래한 신호만 저장하지 않음.
  */
+import { markTapointAccumDirty } from '@/lib/tapointAccumDirty';
+
 export type TapRejectRecord = {
   id: string;
   symbol: string;
@@ -44,6 +46,7 @@ function save(list: TapRejectRecord[]) {
   } catch {
     /* ignore */
   }
+  markTapointAccumDirty();
 }
 
 export function appendTapReject(rec: Omit<TapRejectRecord, 'id'> & { id?: string }): void {

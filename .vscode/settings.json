@@ -1,0 +1,20 @@
+{
+  "git.ignoreLimitWarning": true,
+  "files.watcherExclude": {
+    "**/backups/**": true,
+    "**/docs/**": true,
+    "**/assets/btccion/**": true,
+    "**/.next/**": true,
+    "**/node_modules/**": true,
+    "**/playwright-report/**": true,
+    "**/data/virtual-store/**": true,
+    "**/data/confirmed-signals/**": true
+  },
+  "search.exclude": {
+    "**/backups": true,
+    "**/docs": true,
+    "**/assets/btccion": true,
+    "**/.next": true,
+    "**/node_modules": true
+  }
+}

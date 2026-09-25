@@ -1,0 +1,79 @@
+function applyFocusLatestBars(
+  chart: IChartApi,
+  series: ISeriesApi<'Candlestick'> | null,
+  barCount: number,
+  tf: string,
+  opts?: { scrollToLatest?: boolean }
+): void {
+  if (!series || barCount < 1) return;
+  const seriesLen = candlestickSer
+
+====
+
+      applyFocusLatestBars(chart, series, resolveBarCountForView(), timeframe, { scrollToLatest: true });
+      requestAnimationFrame(() => {
+        mergedDeskSuppressPanDetectRef.current = false;
+        setOverlayTick((v) => v + 1);
+      });
+ 
+
+====
+
+    applyFocusLatestBars(chart, series, barCount, timeframe, { scrollToLatest: true });
+    requestAnimationFrame(() => {
+      mergedDeskSuppressPanDetectRef.current = false;
+      setOverlayTick((v) => v + 1);
+    });
+  }, [resolveBarCountForV
+
+====
+
+      applyFocusLatestBars(chart, series, n, timeframe, { scrollToLatest: true });
+      requestAnimationFrame(() => {
+        mergedDeskSuppressPanDetectRef.current = false;
+        setOverlayTick((v) => v + 1);
+      });
+    };
+    const t0 = wi
+
+====
+
+    /** 가격축 자동맞춤은 applyFocusLatestBars(TF 전환·뷰복원)에서만 — setData마다 하면 세로줌이 TF마다 깨짐 */
+
+    const projSeries = projectedSeriesRef.current;
+    if (projSeries) {
+      try {
+        const matchProj = analysisUsableOnChart(analysis, symbol, timeframe, uiMode);
+   
+
+====
+
+            applyFocusLatestBars(chart, series, safe.length, timeframe);
+          } catch {
+            /* ignore */
+          }
+        });
+      }
+    }
+
+    /** 통합·분석: 새 봉이 와도 사용자가 드래그 중이면 최신으로 강제 스크롤하지 않음 */
+    if (isMergedAnalysisDesk && chartCan
+
+====
+
+            applyFocusLatestBars(chart, series, chartCandles.length, timeframe, {
+              scrollToLatest,
+            });
+            requestAnimationFrame(() => {
+              mergedDeskSuppressPanDetectRef.current = false;
+            });
+     
+
+====
+
+                applyFocusLatestBars(c, ser, nextCandles.length, timeframe);
+              }
+            }
+          }
+          setLastUpdate(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
+          if (bumpOverlay) setOverlayTick((v) => v + 1

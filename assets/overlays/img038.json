@@ -3,10 +3,60 @@
   "neckline": 19500,
   "target": 16000,
   "resistanceLines": [
-    { "price": 24000, "label": "1차 고점" },
-    { "price": 24000, "label": "2차 고점" }
+    {
+      "price": 24000,
+      "label": "1차 고점"
+    },
+    {
+      "price": 24000,
+      "label": "2차 고점"
+    }
   ],
   "hsType": "H&S",
   "hsNeckline": 19500,
-  "hsTarget": 16000
+  "hsTarget": 16000,
+  "catalogId": "img038",
+  "category": "tv_chart",
+  "chartable": true,
+  "titleKo": "TV 차트 참조",
+  "tags": [
+    "tv_chart",
+    "tv",
+    "btc"
+  ],
+  "structureFeatures": {
+    "bos": true,
+    "choch": false,
+    "fvg": 1,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "absolute_prices",
+    "elements": [
+      {
+        "type": "hline",
+        "role": "resistance",
+        "price": 24000,
+        "label": "1차 고점"
+      },
+      {
+        "type": "hline",
+        "role": "resistance",
+        "price": 24000,
+        "label": "2차 고점"
+      },
+      {
+        "type": "hline",
+        "role": "target",
+        "price": 16000,
+        "label": "TP"
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
 }

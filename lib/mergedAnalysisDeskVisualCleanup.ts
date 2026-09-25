@@ -12,6 +12,7 @@ import type { AtlasPulsePriceLine } from '@/lib/monthDeskAtlasPulseDesk';
 import { computeMoneyZoneBreakHold } from '@/lib/mergedDeskMoneyZoneBreakHold';
 import { applyMergedDeskZoneBreakLifecycle } from '@/lib/mergedDeskZoneBreakLifecycle';
 import { loadSettings } from '@/lib/settings';
+import { CHART_SHOW_SR_PROB_PCT } from '@/lib/zoneSupportResistProb';
 
 const SWING_FUSION_ZONE_IDS = new Set([
   'merged-swing-fusion-risk',
@@ -335,10 +336,14 @@ export function isMergedDeskRequestedVisibleZone(o: OverlayItem): boolean {
   if (kind === 'channelBand') {
     return (
       id.startsWith('merged-desk-rb-') ||
+      id.startsWith('merged-tt-fusion-') ||
       extra.includes('merged-desk-rb-channel') ||
-      extra.includes('merged-desk-blue-red-channel')
+      extra.includes('merged-desk-blue-red-channel') ||
+      extra.includes('merged-tt-fusion-channel')
     );
   }
+  if (id.startsWith('candle-analysis-') || extra.includes('candle-analysis')) return true;
+  if (id.startsWith('merged-tt-fusion-') || extra.includes('merged-tt-fusion')) return true;
   if (/\$\$\$\$/.test(text) || extra.includes('merged-desk-money-zone-keep')) return true;
   if (extra.includes('merged-desk-strongest-analysis-zone') || /★\s*최강/.test(text)) return true;
   if (isMergedDeskRbReactionEntryZone(id, extra)) return true;
@@ -1041,6 +1046,15 @@ export function stampMergedDeskMoneyZoneConfluence(
   return overlays.map((raw) => {
     const extra = String(raw.overlayZoneExtraClass || '');
     if (!extra.includes('merged-desk-money-zone-keep')) return raw;
+    /** 기관밴드 터치존 — $$$$ 합류 스탬프로 지지/저항%를 지우지 않음 */
+    const id0 = String(raw.id || '');
+    if (
+      String(raw.category || '') === 'institutionalSrBand' ||
+      id0.startsWith('inst-sr-band') ||
+      id0.startsWith('st-band-touch-zone')
+    ) {
+      return raw;
+    }
 
     const side = moneySide(raw);
     if (!side) return raw;
@@ -1115,6 +1129,14 @@ export function stampMergedDeskMoneyZoneConfluence(
       score >= 86 ? 'ultra' : score >= 70 ? 'strong' : score >= 55 ? 'mid' : 'weak';
     const baseCap = side === 'LONG' ? `${MONEY_LABEL}롱` : `${MONEY_LABEL}숏`;
     const face = `${baseCap}·${grade}`;
+    const srBits: string[] = [];
+    if (CHART_SHOW_SR_PROB_PCT) {
+      const sp = Number(raw.supportProb);
+      const rp = Number(raw.resistanceProb);
+      if (side === 'LONG' && Number.isFinite(sp) && sp > 0) srBits.push(`지지${Math.round(sp)}%`);
+      if (side === 'SHORT' && Number.isFinite(rp) && rp > 0) srBits.push(`저항${Math.round(rp)}%`);
+    }
+    const faceWithSr = srBits.length ? `${face} · ${srBits.join(' · ')}` : face;
 
     const top = Math.max(p1, p2);
     const bot = Math.min(p1, p2);
@@ -1123,7 +1145,7 @@ export function stampMergedDeskMoneyZoneConfluence(
         ? computeMoneyZoneBreakHold(ctx.candles, side, top, bot)
         : null;
     const tip = [
-      `${face} · 합류 ${score}`,
+      `${faceWithSr} · 합류 ${score}`,
       bh ? bh.detailKo : '',
       bh ? `${bh.holdKo} / ${bh.breakKo}` : '',
       uniq.length ? `근거: ${uniq.join('+')}` : '',
@@ -1136,9 +1158,9 @@ export function stampMergedDeskMoneyZoneConfluence(
 
     return {
       ...raw,
-      label: face,
-      zoneFaceBase: face,
-      zoneFaceSignal: undefined,
+      label: faceWithSr,
+      zoneFaceBase: faceWithSr,
+      zoneFaceSignal: srBits.join(' · ') || undefined,
       confidence: score,
       labelTooltip: tip,
       overlayZoneExtraClass: `${extra

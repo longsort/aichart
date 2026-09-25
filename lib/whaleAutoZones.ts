@@ -4,6 +4,10 @@ type WhaleAutoZoneOptions = {
   showForecastBoxes: boolean;
   showAccumulationBoxes: boolean;
   showDistributionBoxes: boolean;
+  /** true면 localStorage 누적·저장 안 함 + 거래량통계 존 생략 — 마감·안착 미리보기 전용(틱마다 가벼움) */
+  ephemeralPreview?: boolean;
+  /** true면 최근 흐름에 따라 반대편 매집/분배 존을 숨기지 않음(마감·안착 등 참고용 고정 표시) */
+  skipFlowDirectionalPrune?: boolean;
   /** true면 Bu/Be-OB만 생성(축적·분산·BB·유사 MB 경로 없이 OB 푸시만) */
   msbObOnlyBuild?: boolean;
   onlyLocked: boolean;
@@ -196,10 +200,23 @@ function resolveWhaleZoneOverlaps(rows: PersistRow[]): PersistRow[] {
     return rangesOverlapRatio(aLo, aHi, bLo, bHi) >= 0.58;
   };
   const rank = (o: OverlayItem) => {
+    const oid = String(o.id || '');
     const lbl = String(o.label || '');
     const conf = Number(o.confidence ?? 60);
-    const obBoost = lbl.includes('OB') ? 14 : lbl.includes('BB') || lbl.includes('MB') ? 7 : 0;
-    const dirBoost = lbl.includes('BUY') || lbl.includes('SELL') ? 4 : 0;
+    const whaleAuto = /^whale-auto-/i.test(oid);
+    const obBoost =
+      lbl.includes('OB') || (whaleAuto && /whale-auto-(bu|be)-ob-/i.test(oid))
+        ? 14
+        : lbl.includes('BB') || lbl.includes('MB') || (whaleAuto && /whale-auto-(bu|be)-bb-/i.test(oid))
+          ? 7
+          : 0;
+    const dirBoost =
+      lbl.includes('BUY') ||
+      lbl.includes('SELL') ||
+      lbl.includes('(롱)') ||
+      lbl.includes('(숏)')
+        ? 4
+        : 0;
     return conf + obBoost + dirBoost;
   };
   const sorted = [...rows].sort((a, b) => rank(b.overlay) - rank(a.overlay));
@@ -312,13 +329,22 @@ export function buildWhaleAutoZones(params: {
   const { symbol, timeframe, candles, options } = params;
   if (typeof window === 'undefined') return [];
   if (candles.length < 30) return [];
+  const ephemeral = options.ephemeralPreview === true;
   const k = key(symbol, timeframe);
   const step = tfSec(timeframe);
-  const all = loadAll();
-  const prev = all[k] ?? [];
-  const byId = new Map(prev.map((r) => [r.id, r] as const));
-  const out: PersistRow[] = [...prev];
-  const arr = candles.slice(-Math.max(220, Math.min(520, candles.length)));
+  let all: Record<string, PersistRow[]> = {};
+  let prev: PersistRow[] = [];
+  let byId = new Map<string, PersistRow>();
+  let out: PersistRow[] = [];
+  if (!ephemeral) {
+    all = loadAll();
+    prev = all[k] ?? [];
+    byId = new Map(prev.map((r) => [r.id, r] as const));
+    out = [...prev];
+  }
+  /** msbObOnly(마감 bu-ob 등): zigzag·피벗 루프만 돌면 되므로 꼬리 상한을 더 낮춤 */
+  const arrCap = options.msbObOnlyBuild === true ? 380 : 520;
+  const arr = candles.slice(-Math.max(220, Math.min(arrCap, candles.length)));
   const volArr = arr.map((c) => Number(c.volume || 0));
   const volMu = avg(volArr);
   const volSigma = stdev(volArr, volMu);
@@ -397,7 +423,17 @@ export function buildWhaleAutoZones(params: {
     conf = 78,
     bias: ZoneBias = 'MIXED'
   ) => {
-    const taggedLabel = bias === 'MIXED' ? label : `${label}(${bias})`;
+    /** 차트 캡션: 긴 매집/분배 문구 대신 사용자 요청 통일명「존」(+ 방향만) */
+    const isWhaleAutoZone = /^whale-auto-/i.test(id);
+    const taggedLabel = isWhaleAutoZone
+      ? bias === 'MIXED'
+        ? '존'
+        : bias === 'BUY'
+          ? '존(롱)'
+          : '존(숏)'
+      : bias === 'MIXED'
+        ? label
+        : `${label}(${bias})`;
     const ov = makeZone(id, taggedLabel, color, t1, t1 + step * extendBars, pHi, pLo, conf);
     fresh.push({ id, overlay: ov, locked: true });
   };
@@ -562,8 +598,8 @@ export function buildWhaleAutoZones(params: {
     project(shortSamples, 'short');
   }
 
-  // 거래량 통계 기반 매집/분배 존: 최근 구간의 볼륨 편향 + 압축 구간을 존으로 승격
-  if (!options.msbObOnlyBuild) {
+  // 거래량 통계 기반 매집/분배 존: 최근 구간의 볼륨 편향 + 압축 구간을 존으로 승격(ephemeral 미리보기에서는 생략)
+  if (!options.msbObOnlyBuild && !ephemeral) {
     const volStatZones = detectVolumeStatZones(arr, step);
     for (const z of volStatZones) {
       pushZone(z.id, z.label, z.color, z.t1, z.pHi, z.pLo, z.conf, z.bias);
@@ -591,20 +627,25 @@ export function buildWhaleAutoZones(params: {
   for (const r of filtered) dedup.set(r.id, r);
   let merged = resolveWhaleZoneOverlaps([...dedup.values()]);
   if (merged.length > MAX_ROWS) merged = merged.slice(-MAX_ROWS);
-  all[k] = merged;
-  saveAll(all);
+  if (!ephemeral) {
+    all[k] = merged;
+    saveAll(all);
+  }
 
   const visible = options.onlyLocked ? merged.filter((r) => r.locked) : merged;
   const nowFlow = zoneBiasFromFlow(arr, arr.length - 1, 18);
-  const directionalPruned = visible.filter((r) => {
-    const id = String(r.overlay.id || '');
-    const isBuyZone = /whale-auto-(bu-|buy-|volstat-buy)/i.test(id);
-    const isSellZone = /whale-auto-(be-|sell-|volstat-sell)/i.test(id);
-    // 최근 흐름이 한쪽으로 충분히 기울면 반대 존은 화면에서 숨김(오판 독해 방지)
-    if (nowFlow.strength >= 0.2 && nowFlow.bias === 'SELL' && isBuyZone) return false;
-    if (nowFlow.strength >= 0.2 && nowFlow.bias === 'BUY' && isSellZone) return false;
-    return true;
-  });
+  const directionalPruned =
+    options.skipFlowDirectionalPrune === true
+      ? visible
+      : visible.filter((r) => {
+          const id = String(r.overlay.id || '');
+          const isBuyZone = /whale-auto-(bu-|buy-|volstat-buy)/i.test(id);
+          const isSellZone = /whale-auto-(be-|sell-|volstat-sell)/i.test(id);
+          // 최근 흐름이 한쪽으로 충분히 기울면 반대 존은 화면에서 숨김(오판 독해 방지)
+          if (nowFlow.strength >= 0.2 && nowFlow.bias === 'SELL' && isBuyZone) return false;
+          if (nowFlow.strength >= 0.2 && nowFlow.bias === 'BUY' && isSellZone) return false;
+          return true;
+        });
   return directionalPruned.map((r) => {
     const o = { ...r.overlay };
     if (r.locked) {

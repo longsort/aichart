@@ -8,7 +8,7 @@ const intervalMap: Record<string, string> = {
 
 function rangeFor(tf: string) {
   const now = Date.now();
-  if (tf === '1m') return { startTime: now - 10_080 * 60 * 1000, limit: 1000 }; // ~7d, paginate externally
+  if (tf === '1m') return { startTime: now - 1000 * 60 * 1000, limit: 1000 };
   if (tf === '3m') return { startTime: now - 1000 * 60 * 3000, limit: 1000 };
   if (tf === '5m') return { startTime: now - 1000 * 60 * 5000, limit: 1000 };
   if (tf === '15m') return { startTime: now - 1000 * 60 * 15000, limit: 1000 };

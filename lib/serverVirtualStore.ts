@@ -4,30 +4,17 @@
  * Vercel 등 read-only FS 환경에서는 메모리 fallback (재시작 시 초기화됨)
  */
 
-import path from 'path';
-import fs from 'fs';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
+import { readJsonFile, writeJsonFile } from '@/lib/nodeJsonFs';
 
 /** FS 쓰기 실패 시 메모리 fallback (서버리스용) */
 const memoryFallback = new Map<string, { virtual?: StoredVirtualData; signals?: ConfirmedSignalRecord[]; softSignals?: SoftSignalRecord[] }>();
-const VIRTUAL_DIR = path.join(DATA_DIR, 'virtual-store');
-const SIGNALS_DIR = path.join(DATA_DIR, 'confirmed-signals');
-const SOFT_SIGNALS_DIR = path.join(DATA_DIR, 'soft-signals');
-const ALERT_RULES_DIR = path.join(DATA_DIR, 'alert-rules');
-const SMART_WORKFLOW_DIR = path.join(DATA_DIR, 'smart-workflow');
-
-function ensureDir(dir: string): boolean {
-  try {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function safeFilename(clientId: string): string {
   return clientId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'default';
+}
+
+function storeFileName(clientId: string): string {
+  return `${safeFilename(clientId)}.json`;
 }
 
 export type StoredVirtualData = {
@@ -78,35 +65,13 @@ export type SmartWorkflowStateRecord = {
   signalTime?: number;
 };
 
-function readJsonFile<T>(filePath: string, fallback: T): T {
-  try {
-    if (fs.existsSync(filePath)) {
-      const raw = fs.readFileSync(filePath, 'utf-8');
-      return JSON.parse(raw || 'null') as T ?? fallback;
-    }
-  } catch {}
-  return fallback;
-}
-
-function writeJsonFile(filePath: string, data: unknown): boolean {
-  try {
-    ensureDir(path.dirname(filePath));
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** 가상매매·실패신호 읽기 */
 export function readVirtualStore(clientId: string): StoredVirtualData {
   const mem = memoryFallback.get(clientId)?.virtual;
   if (mem) return mem;
 
-  const safe = safeFilename(clientId);
-  const filePath = path.join(VIRTUAL_DIR, `${safe}.json`);
   const fallback: StoredVirtualData = { trades: [], failedSignals: [], updatedAt: 0 };
-  const data = readJsonFile<StoredVirtualData>(filePath, fallback);
+  const data = readJsonFile<StoredVirtualData>('virtual-store', storeFileName(clientId), fallback);
   if (!data || typeof data !== 'object') return fallback;
   return {
     trades: Array.isArray(data.trades) ? data.trades : [],
@@ -126,9 +91,7 @@ export function writeVirtualStore(
     failedSignals: failedSignals.slice(-500),
     updatedAt: Date.now(),
   };
-  const safe = safeFilename(clientId);
-  const filePath = path.join(VIRTUAL_DIR, `${safe}.json`);
-  const ok = writeJsonFile(filePath, payload);
+  const ok = writeJsonFile('virtual-store', storeFileName(clientId), payload);
   if (!ok) {
     const prev = memoryFallback.get(clientId) || {};
     memoryFallback.set(clientId, { ...prev, virtual: payload });
@@ -141,9 +104,7 @@ export function readConfirmedSignals(clientId: string): ConfirmedSignalRecord[] 
   const mem = memoryFallback.get(clientId)?.signals;
   if (mem) return mem;
 
-  const safe = safeFilename(clientId);
-  const filePath = path.join(SIGNALS_DIR, `${safe}.json`);
-  const arr = readJsonFile<ConfirmedSignalRecord[]>(filePath, []);
+  const arr = readJsonFile<ConfirmedSignalRecord[]>('confirmed-signals', storeFileName(clientId), []);
   return Array.isArray(arr) ? arr : [];
 }
 
@@ -155,9 +116,7 @@ export function appendConfirmedSignal(
   const list = readConfirmedSignals(clientId);
   list.push(signal);
   const trimmed = list.slice(-2000);
-  const safe = safeFilename(clientId);
-  const filePath = path.join(SIGNALS_DIR, `${safe}.json`);
-  const ok = writeJsonFile(filePath, trimmed);
+  const ok = writeJsonFile('confirmed-signals', storeFileName(clientId), trimmed);
   if (!ok) {
     const prev = memoryFallback.get(clientId) || {};
     memoryFallback.set(clientId, { ...prev, signals: trimmed });
@@ -169,9 +128,7 @@ export function appendConfirmedSignal(
 export function readSoftSignals(clientId: string): SoftSignalRecord[] {
   const mem = memoryFallback.get(clientId)?.softSignals;
   if (mem) return mem;
-  const safe = safeFilename(clientId);
-  const filePath = path.join(SOFT_SIGNALS_DIR, `${safe}.json`);
-  const arr = readJsonFile<SoftSignalRecord[]>(filePath, []);
+  const arr = readJsonFile<SoftSignalRecord[]>('soft-signals', storeFileName(clientId), []);
   return Array.isArray(arr) ? arr : [];
 }
 
@@ -188,9 +145,7 @@ export function appendSoftSignal(clientId: string, signal: SoftSignalRecord): bo
   if (exists) return true;
   list.push(signal);
   const trimmed = list.slice(-6000);
-  const safe = safeFilename(clientId);
-  const filePath = path.join(SOFT_SIGNALS_DIR, `${safe}.json`);
-  const ok = writeJsonFile(filePath, trimmed);
+  const ok = writeJsonFile('soft-signals', storeFileName(clientId), trimmed);
   if (!ok) {
     const prev = memoryFallback.get(clientId) || {};
     memoryFallback.set(clientId, { ...prev, softSignals: trimmed });
@@ -200,30 +155,22 @@ export function appendSoftSignal(clientId: string, signal: SoftSignalRecord): bo
 
 /** 알림 규칙 읽기 */
 export function readAlertRules(clientId: string): AlertRuleRecord[] {
-  const safe = safeFilename(clientId);
-  const filePath = path.join(ALERT_RULES_DIR, `${safe}.json`);
-  const arr = readJsonFile<AlertRuleRecord[]>(filePath, []);
+  const arr = readJsonFile<AlertRuleRecord[]>('alert-rules', storeFileName(clientId), []);
   return Array.isArray(arr) ? arr : [];
 }
 
 /** 알림 규칙 저장(전체 교체) */
 export function writeAlertRules(clientId: string, rules: AlertRuleRecord[]): boolean {
-  const safe = safeFilename(clientId);
-  const filePath = path.join(ALERT_RULES_DIR, `${safe}.json`);
-  return writeJsonFile(filePath, rules.slice(-400));
+  return writeJsonFile('alert-rules', storeFileName(clientId), rules.slice(-400));
 }
 
 export function readSmartWorkflowStates(clientId: string): SmartWorkflowStateRecord[] {
-  const safe = safeFilename(clientId);
-  const filePath = path.join(SMART_WORKFLOW_DIR, `${safe}.json`);
-  const arr = readJsonFile<SmartWorkflowStateRecord[]>(filePath, []);
+  const arr = readJsonFile<SmartWorkflowStateRecord[]>('smart-workflow', storeFileName(clientId), []);
   return Array.isArray(arr) ? arr : [];
 }
 
 export function appendSmartWorkflowState(clientId: string, row: SmartWorkflowStateRecord): boolean {
   const list = readSmartWorkflowStates(clientId);
   list.push(row);
-  const safe = safeFilename(clientId);
-  const filePath = path.join(SMART_WORKFLOW_DIR, `${safe}.json`);
-  return writeJsonFile(filePath, list.slice(-4000));
+  return writeJsonFile('smart-workflow', storeFileName(clientId), list.slice(-4000));
 }

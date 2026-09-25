@@ -6,6 +6,12 @@ import type { Candle, OverlayItem } from '@/types';
 import { atrSeries, rsi } from '@/lib/indicators';
 import { candleBarDurationSec } from '@/lib/candleTfDuration';
 import { normalizeChartTimeframe, TIMEFRAME_ORDER } from '@/lib/constants';
+import {
+  capZoneVerticalSpan,
+  findRecentImpulseLeg,
+  htfMaxPocketSpan,
+  isMonthDeskHtfTimeframe,
+} from '@/lib/monthDeskZonePrecision';
 
 /** 참고 이미지 하단 — 눌림 구간에서 볼 캔들 휴리스틱(교육용) */
 export type HotZoneCandleLegendItem = { icon: string; title: string; detail: string };
@@ -263,8 +269,17 @@ export function buildPullbackHotZonePack(params: {
   const lastAll = candles[candles.length - 1];
   const tProbe = Number(lastAll.time);
   const barSec = candleBarDurationSec(chartTf, tProbe) || 3600;
-  /** 약 8주 일봉 분량을 TF 봉 수로 환산 — 1m~1Y 전 TF에서 동일 '시간 폭' 감각 */
-  const focusDays = 56;
+  /** TF별 스캔 폭 — 주·월봉은 좌측 하방·과거 구간까지 눌림 참고 */
+  const focusDays =
+    chartTf === '1M' || chartTf === '1Y'
+      ? 1825
+      : chartTf === '1w'
+        ? 1095
+        : chartTf === '1d'
+          ? 365
+          : chartTf === '4h'
+            ? 120
+            : 56;
   let lookWanted = Math.round((focusDays * 86400) / Math.max(1, barSec));
   lookWanted = Math.max(50, Math.min(800, lookWanted));
   const lookback = Math.min(lookWanted, candles.length);
@@ -279,6 +294,28 @@ export function buildPullbackHotZonePack(params: {
   for (const c of arr) {
     recentHigh = Math.max(recentHigh, c.high);
     recentLow = Math.min(recentLow, c.low);
+  }
+  const htfPrecision = isMonthDeskHtfTimeframe(chartTf);
+  const Lsw = chartTf === '1w' ? 2 : chartTf === '1d' ? 2 : 2;
+  if (htfPrecision && arr.length >= Lsw * 2 + 8) {
+    const endIdx = arr.length - 1;
+    const startIdx = Math.max(Lsw, 0);
+    const impulse = findRecentImpulseLeg(arr, Lsw, startIdx, endIdx, 'LONG');
+    if (impulse && impulse.legHi > impulse.legLo) {
+      recentHigh = impulse.legHi;
+      recentLow = impulse.legLo;
+      if (Number.isFinite(impulse.tStart)) {
+        const tImp = impulse.tStart;
+        const idx = arr.findIndex((c) => Number(c.time) >= tImp);
+        if (idx >= 0) {
+          const slice = arr.slice(idx);
+          if (slice.length >= 4) {
+            recentHigh = Math.max(...slice.map((c) => c.high));
+            recentLow = Math.min(...slice.map((c) => c.low));
+          }
+        }
+      }
+    }
   }
   const range = Math.max(1e-12 * Math.max(recentHigh, 1), recentHigh - recentLow);
   const mid = (recentHigh + recentLow) / 2;
@@ -306,17 +343,44 @@ export function buildPullbackHotZonePack(params: {
   const fibRatios = [0.382, 0.5, 0.618, 0.786];
   const fibPrices = fibRatios.map((r) => retracementPrice(recentHigh, recentLow, r));
 
+  const bandFracBase = htfPrecision ? (chartTf === '1w' ? 0.042 : chartTf === '1d' ? 0.052 : 0.06) : 0.11;
   const band = (center: number, fracOfRange: number): { top: number; bot: number } => {
-    const half = Math.max(range * fracOfRange * 0.5, atrLast * 0.35);
-    return { top: center + half, bot: center - half };
+    const atrHalf = htfPrecision ? atrLast * 0.24 : atrLast * 0.35;
+    const half = Math.max(range * fracOfRange * 0.5, atrHalf);
+    let top = center + half;
+    let bot = center - half;
+    if (htfPrecision) {
+      const maxSpan = htfMaxPocketSpan({
+        legHi: recentHigh,
+        legLo: recentLow,
+        atr: atrLast,
+        refPrice: lastClose,
+        timeframe: chartTf,
+      });
+      const capped = capZoneVerticalSpan(top, bot, center, maxSpan);
+      top = capped.top;
+      bot = capped.bot;
+    }
+    return { top, bot };
   };
 
-  const supplyBand = { top: recentHigh, bot: Math.max(recentLow, recentHigh - range * 0.12) };
-  const coreBand = { top: Math.min(recentHigh, recentLow + range * 0.08), bot: recentLow };
+  const supplyBand = htfPrecision
+    ? {
+        top: recentHigh,
+        bot: Math.max(recentLow, recentHigh - Math.max(atrLast * 0.9, range * 0.05)),
+      }
+    : { top: recentHigh, bot: Math.max(recentLow, recentHigh - range * 0.12) };
+  const entry618 = retracementPrice(recentHigh, recentLow, 0.618);
+  const coreHalf = htfPrecision
+    ? Math.max(atrLast * 0.46, range * 0.018, lastClose * 0.004)
+    : range * 0.04;
+  const coreBand = htfPrecision
+    ? { top: entry618 + coreHalf, bot: entry618 - coreHalf }
+    : { top: Math.min(recentHigh, recentLow + range * 0.08), bot: recentLow };
 
-  const p1 = band(fibPrices[0], 0.11);
-  const p2 = band(fibPrices[1], 0.11);
-  const p3 = band(fibPrices[2], 0.12);
+  const p1 = band(fibPrices[0], bandFracBase);
+  const p2 = band(fibPrices[1], bandFracBase * 0.92);
+  const p3 = band(fibPrices[2], bandFracBase * 0.88);
 
   const stopRaw = recentLow - Math.max(atrLast * 1.6, range * 0.04);
   const stop = Math.max(stopRaw, recentLow * 0.85);
@@ -326,6 +390,7 @@ export function buildPullbackHotZonePack(params: {
   const tp3 = recentHigh + range * 0.14;
 
   const overlays: OverlayItem[] = [];
+  const phzZoneChrome = 'overlay-zone--phz-monthdesk';
 
   const pushZone = (
     id: string,
@@ -335,7 +400,9 @@ export function buildPullbackHotZonePack(params: {
     color: string,
     lineLabelColor: string,
     kind: 'supplyZone' | 'demandZone' | 'zone' = 'zone',
+    extraClass = ''
   ) => {
+    const chrome = [phzZoneChrome, extraClass].filter(Boolean).join(' ');
     overlays.push({
       id: `phz-${symbol}-${chartTf}-${id}`,
       kind,
@@ -353,38 +420,47 @@ export function buildPullbackHotZonePack(params: {
       lineLabelColor,
       category: 'zones',
       labelTooltip: `${label} — 참고용 근사 구간 (자동)`,
+      overlayZoneExtraClass: chrome,
     });
   };
 
   /** 면 알파 낮춤 — 레퍼런스: 상단 저항(적) · 연두 눌림매수 · 진녹 코어 누적 */
+  const phzSupplyA = htfPrecision ? 0.055 : 0.08;
+  const phzPullA = htfPrecision ? 0.065 : 0.085;
+  const phzCoreA = htfPrecision ? 0.085 : 0.1;
   pushZone(
     'supply',
     supplyBand.top,
     supplyBand.bot,
-    '단기 저항·거래량(상단)',
-    'rgba(239,68,68,0.11)',
+    '저항',
+    `rgba(239,68,68,${phzSupplyA})`,
     '#f87171',
     'supplyZone',
+    'overlay-zone--monthdesk-phz-supply'
   );
   pushZone(
     'pull-1',
     p1.top,
     p1.bot,
-    '눌림 매수 존(1차)',
-    'rgba(74,222,128,0.11)',
+    '눌림',
+    `rgba(74,222,128,${phzPullA})`,
     '#4ade80',
     'demandZone',
+    'overlay-zone--monthdesk-phz-pull'
   );
-  pushZone('pull-2', p2.top, p2.bot, '눌림 2차(피보)', 'rgba(59,130,246,0.09)', '#60a5fa', 'demandZone');
-  pushZone('pull-3', p3.top, p3.bot, '눌림 3차(피보)', 'rgba(37,99,235,0.1)', '#3b82f6', 'demandZone');
+  if (!htfPrecision) {
+    pushZone('pull-2', p2.top, p2.bot, '눌림핫존 2차', 'rgba(59,130,246,0.07)', '#60a5fa', 'demandZone', 'overlay-zone--monthdesk-phz-pull');
+    pushZone('pull-3', p3.top, p3.bot, '눌림핫존 3차', 'rgba(37,99,235,0.075)', '#3b82f6', 'demandZone', 'overlay-zone--monthdesk-phz-pull');
+  }
   pushZone(
     'core',
     coreBand.top,
     coreBand.bot,
-    '강한 누적·코어 지지',
-    'rgba(21,128,61,0.12)',
-    '#22c55e',
+    '핵심',
+    `rgba(250,204,21,${Math.min(0.28, phzCoreA + 0.12)})`,
+    '#fde047',
     'demandZone',
+    'overlay-zone--monthdesk-phz-core overlay-zone--core-pulse'
   );
 
   const pushFib = (ratio: number, dashed: boolean) => {
@@ -620,6 +696,7 @@ export function buildPullbackHotZonePack(params: {
       lineLabelColor: '#4ade80',
       category: 'zones',
       zonePulse: true,
+      overlayZoneExtraClass: phzZoneChrome,
       labelTooltip: `최근 ${arr.length}봉에서 저점 ${cluster.touches}회가 ${fmtPrice(cluster.bot)}–${fmtPrice(cluster.top)} 구간에 누적 (MA 밀집·거래량 가중).`,
     });
   }

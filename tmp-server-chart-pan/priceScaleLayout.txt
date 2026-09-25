@@ -1,0 +1,7 @@
+export function getChartPriceScaleLayout(opts: {
+  mobileFs?: boolean;
+  chartFullscreen?: boolean;
+  mergedDesk?: boolean;
+  /** 우측 가격축·축옆 라벨 글자 (차트 본문 SL/E/TP 라벨과 별개) */
+  axisFontSize?: number;
+}

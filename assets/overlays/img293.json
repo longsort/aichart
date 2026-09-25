@@ -1,3 +1,57 @@
 {
-  "source": "图片_20260208090220.jpg"
+  "source": "图片_20260208090220.jpg",
+  "catalogId": "img293",
+  "category": "chinese_chart",
+  "chartable": true,
+  "titleKo": "图片_20260208090220 참조",
+  "tags": [
+    "chinese_chart",
+    "smc",
+    "chinese"
+  ],
+  "structureFeatures": {
+    "bos": true,
+    "choch": true,
+    "fvg": 1,
+    "ob": 1,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "relative",
+    "elements": [
+      {
+        "type": "zone",
+        "role": "demand",
+        "pricePctTop": 0.62,
+        "pricePctBot": 0.72,
+        "timePctStart": 0.55,
+        "timePctEnd": 1
+      },
+      {
+        "type": "zone",
+        "role": "supply",
+        "pricePctTop": 0.18,
+        "pricePctBot": 0.28,
+        "timePctStart": 0.55,
+        "timePctEnd": 1
+      },
+      {
+        "type": "hline",
+        "role": "bos",
+        "pricePct": 0.45,
+        "label": "BOS"
+      },
+      {
+        "type": "hline",
+        "role": "choch",
+        "pricePct": 0.52,
+        "label": "CH"
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
 }

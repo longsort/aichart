@@ -1,7 +1,7 @@
 /**
- * 3분 · 기관밴드1·2가 같은 방향일 때 터치가 연속되면
- * 그 종가 기준 ±7% 가격선을 고정하고, 나중에 그 가격을 찍은 봉에만 +7%/-7% 를 붙인다.
- * 같은 방향의 다음 터치는 선을 움직이지 않는다. 밴드가 반대로 같이 돌아설 때만 다시 잡는다.
+ * 기관밴드1·2가 같은 방향일 때 연속 터치가 모이면,
+ * 그 **시작 캔들** 위·아래에 +7% / -7% 를 붙인다.
+ * (도달 봉·가로 가격선이 아님. 이후 롱·숏 7%가 출발할 수 있는 봉.)
  */
 import type { Candle } from '@/types';
 import {
@@ -11,10 +11,19 @@ import {
   INSTITUTIONAL_BAND_DEFAULT_PERIOD,
 } from '@/lib/institutionalSuperBand';
 
-/** 3분 기관밴드2 — period 9, mult 2.8 */
-const BAND2_3M = { period: 9, mult: 2.8 };
+function band2Params(chartTf?: string): { period: number; mult: number } {
+  const tf = String(chartTf || '3m').toLowerCase();
+  if (tf === '1m') return { period: 8, mult: 2.7 };
+  if (tf === '3m') return { period: 9, mult: 2.8 };
+  if (tf === '5m') return { period: 9, mult: 2.85 };
+  if (tf === '15m') return { period: 10, mult: 3 };
+  if (tf === '1h' || tf === '60m') return { period: 10, mult: 3 };
+  if (tf === '4h') return { period: 12, mult: 3.1 };
+  if (tf === '1d') return { period: 14, mult: 3.25 };
+  return { period: 9, mult: 2.8 };
+}
 
-type Move7Marker = {
+export type BandMove7Marker = {
   time: number;
   price: number;
   label: string;
@@ -23,37 +32,25 @@ type Move7Marker = {
   shape: 'circle';
 };
 
-type Move7Line = {
-  id: string;
-  price: number;
-  title: string;
-  color: string;
-  lineWidth: 1 | 2 | 3;
-  lineStyle: 'dashed';
-  group: 'exec';
-};
-
-const MOVE_PCT = 0.07;
 const CLUSTER_GAP = 10;
 const CLUSTER_MIN = 2;
+const MIN_START_GAP = 8;
 
 type Side = 1 | -1;
 
-type Anchor = { i: number; dir: Side; entry: number };
-
-export function buildBandMove7Overlay(candles: Candle[]): {
-  markers: Move7Marker[];
-  lines: Move7Line[];
+export function buildBandMove7Overlay(candles: Candle[], chartTf?: string): {
+  markers: BandMove7Marker[];
+  lines: [];
 } {
-  const empty = { markers: [] as Move7Marker[], lines: [] as Move7Line[] };
-  if (!candles || candles.length < 40) return empty;
+  const empty = { markers: [] as BandMove7Marker[], lines: [] as [] };
+  if (!candles || candles.length < 24) return empty;
 
   const b1 = computeInstitutionalSuperTrendCore(
     candles,
     INSTITUTIONAL_BAND_DEFAULT_PERIOD,
     INSTITUTIONAL_BAND_DEFAULT_MULT
   );
-  const p2 = BAND2_3M;
+  const p2 = band2Params(chartTf);
   const b2 = computeInstitutionalSuperTrendCore(candles, p2.period, p2.mult);
   if (!b1 || !b2) return empty;
 
@@ -66,7 +63,7 @@ export function buildBandMove7Overlay(candles: Candle[]): {
   ) => {
     for (const m of marks) {
       const i = timeToIdx.get(Number(m.time));
-      if (i == null || i >= candles.length - 1) continue;
+      if (i == null) continue;
       events.push({ i, dir: m.verdict === 'LONG' ? 1 : -1 });
     }
   };
@@ -85,24 +82,23 @@ export function buildBandMove7Overlay(candles: Candle[]): {
   );
   events.sort((a, b) => a.i - b.i);
 
-  const clusters: Anchor[] = [];
+  const starts: Array<{ i: number; dir: Side }> = [];
   let buf: Array<{ i: number; dir: Side }> = [];
   const flush = () => {
     if (buf.length < CLUSTER_MIN) {
       buf = [];
       return;
     }
-    const dir = buf[buf.length - 1]!.dir;
+    const dir = buf[0]!.dir;
     const same = buf.filter((e) => e.dir === dir);
     if (same.length < CLUSTER_MIN) {
       buf = [];
       return;
     }
-    const i = buf[buf.length - 1]!.i;
+    const i = same[0]!.i;
     const d1: Side = b1.trend[i] === 1 ? 1 : -1;
     const d2: Side = b2.trend[i] === 1 ? 1 : -1;
-    const entry = Number(candles[i]?.close);
-    if (d1 === d2 && d1 === dir && entry > 0) clusters.push({ i, dir, entry });
+    if (d1 === d2 && d1 === dir) starts.push({ i, dir });
     buf = [];
   };
   for (const e of events) {
@@ -118,94 +114,23 @@ export function buildBandMove7Overlay(candles: Candle[]): {
     }
   }
   flush();
-  if (!clusters.length) return empty;
 
-  const markers: Move7Marker[] = [];
-  let active: Anchor | null = null;
-  let scanFrom = -1;
-
-  const takeHit = (from: number, to: number, entry: number): { j: number; side: Side } | null => {
-    const up = entry * (1 + MOVE_PCT);
-    const dn = entry * (1 - MOVE_PCT);
-    for (let j = from + 1; j <= to; j++) {
-      const bar = candles[j];
-      if (!bar) continue;
-      const hitUp = bar.high >= up;
-      const hitDn = bar.low <= dn;
-      if (hitUp && !hitDn) return { j, side: 1 };
-      if (hitDn && !hitUp) return { j, side: -1 };
-      if (hitUp && hitDn) {
-        const du = Math.abs(bar.open - up);
-        const dd = Math.abs(bar.open - dn);
-        return { j, side: du <= dd ? 1 : -1 };
-      }
-    }
-    return null;
-  };
-
-  const stamp = (j: number, side: Side) => {
-    const bar = candles[j];
-    if (!bar) return;
-    const up = side === 1;
+  const markers: BandMove7Marker[] = [];
+  let lastStart = -MIN_START_GAP;
+  for (const s of starts) {
+    if (s.i - lastStart < MIN_START_GAP) continue;
+    const bar = candles[s.i];
+    if (!bar) continue;
+    lastStart = s.i;
+    const long = s.dir === 1;
     markers.push({
       time: Number(bar.time),
-      price: up ? Number(bar.high) : Number(bar.low),
-      label: up ? '+7%' : '-7%',
-      color: up ? '#facc15' : '#fb7185',
-      position: up ? 'aboveBar' : 'belowBar',
+      price: long ? Number(bar.low) : Number(bar.high),
+      label: long ? '+7%' : '-7%',
+      color: long ? '#facc15' : '#fb7185',
+      position: long ? 'belowBar' : 'aboveBar',
       shape: 'circle',
     });
-  };
-
-  const lastIdx = candles.length - 1;
-  for (const cluster of clusters) {
-    if (active) {
-      const hit = takeHit(scanFrom, cluster.i, active.entry);
-      if (hit) {
-        stamp(hit.j, hit.side);
-        active = null;
-      }
-    }
-    if (!active) {
-      active = cluster;
-      scanFrom = cluster.i;
-      continue;
-    }
-    const d1: Side = b1.trend[cluster.i] === 1 ? 1 : -1;
-    const d2: Side = b2.trend[cluster.i] === 1 ? 1 : -1;
-    if (cluster.dir !== active.dir && d1 === d2 && d1 === cluster.dir) {
-      active = cluster;
-      scanFrom = cluster.i;
-    }
   }
-
-  const lines: Move7Line[] = [];
-  if (active) {
-    const hit = takeHit(scanFrom, lastIdx, active.entry);
-    if (hit) stamp(hit.j, hit.side);
-    else {
-      lines.push(
-        {
-          id: 'm7-up',
-          price: active.entry * (1 + MOVE_PCT),
-          title: '+7%',
-          color: 'rgba(250,204,21,0.92)',
-          lineWidth: 1,
-          lineStyle: 'dashed',
-          group: 'exec',
-        },
-        {
-          id: 'm7-dn',
-          price: active.entry * (1 - MOVE_PCT),
-          title: '-7%',
-          color: 'rgba(251,113,133,0.92)',
-          lineWidth: 1,
-          lineStyle: 'dashed',
-          group: 'exec',
-        }
-      );
-    }
-  }
-
-  return { markers: markers.slice(-12), lines };
+  return { markers: markers.slice(-24), lines: [] };
 }

@@ -1,3 +1,55 @@
 {
-  "source": "ikZwdcVK.png"
+  "source": "ikZwdcVK.png",
+  "catalogId": "img108",
+  "category": "tv_chart",
+  "chartable": true,
+  "titleKo": "TV 차트 참조",
+  "tags": [
+    "tv_chart",
+    "tv",
+    "btc"
+  ],
+  "structureFeatures": {
+    "bos": true,
+    "choch": false,
+    "fvg": 1,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "relative",
+    "elements": [
+      {
+        "type": "zone",
+        "role": "demand",
+        "pricePctTop": 0.68,
+        "pricePctBot": 0.78,
+        "timePctStart": 0.6,
+        "timePctEnd": 1
+      },
+      {
+        "type": "hline",
+        "role": "entry",
+        "pricePct": 0.65,
+        "label": "Entry"
+      },
+      {
+        "type": "hline",
+        "role": "stop",
+        "pricePct": 0.82,
+        "label": "SL"
+      },
+      {
+        "type": "hline",
+        "role": "target",
+        "pricePct": 0.42,
+        "label": "TP"
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
 }

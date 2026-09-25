@@ -1,25 +1,5 @@
 [
   {
-    "symbol": "BTCUSDT",
-    "source": "signal-A-fast",
-    "direction": "LONG",
-    "grade": null,
-    "noteKo": "신호A · 신호A · 초단Fast · LONG · 자리참고·대기 · 스윕회수↑ · BPR합류15m · ROE8% · SETUP힌트",
-    "timeframe": "1m",
-    "signalId": "rb-scalp-BTCUSDT-1m-LONG-1790342700",
-    "at": 1790342805252
-  },
-  {
-    "symbol": "XRPUSDT",
-    "source": "signal-A-fast",
-    "direction": "LONG",
-    "grade": null,
-    "noteKo": "신호A · 신호A · 초단Fast · LONG · 자리참고·롱 · 스윕회수↑ · ROE8% · SETUP힌트",
-    "timeframe": "1m",
-    "signalId": "rb-scalp-XRPUSDT-1m-LONG-1790342820",
-    "at": 1790342895511
-  },
-  {
     "symbol": "SOLUSDT",
     "source": "signal-C-S",
     "direction": "SHORT",
@@ -95,9 +75,9 @@
     "direction": "SHORT",
     "grade": null,
     "noteKo": "신호A · 신호A · 초단Fast · SHORT · 자리참고·숏 · 스윕회수↓ · ROE8% · SETUP힌트",
-    "timeframe": "3m",
-    "signalId": "rb-scalp-BTCUSDT-3m-SHORT-1790344620",
-    "at": 1790344878751
+    "timeframe": "1m",
+    "signalId": "rb-scalp-BTCUSDT-1m-SHORT-1790345220",
+    "at": 1790345328896
   },
   {
     "symbol": "SOLUSDT",
@@ -106,8 +86,8 @@
     "grade": null,
     "noteKo": "신호A · 신호A · 초단Fast · SHORT · 자리참고·숏 · 스윕회수↓ · BPR합류15m · ROE8% · SETUP힌트",
     "timeframe": "1m",
-    "signalId": "rb-scalp-SOLUSDT-1m-SHORT-1790344800",
-    "at": 1790344879460
+    "signalId": "rb-scalp-SOLUSDT-1m-SHORT-1790345400",
+    "at": 1790345509601
   },
   {
     "symbol": "ETHUSDT",
@@ -116,8 +96,8 @@
     "grade": null,
     "noteKo": "신호A · 신호A · 초단Fast · SHORT · 자리참고·숏 · 스윕회수↓ · BPR합류15m · ROE8% · SETUP힌트",
     "timeframe": "1m",
-    "signalId": "rb-scalp-ETHUSDT-1m-SHORT-1790344860",
-    "at": 1790344968799
+    "signalId": "rb-scalp-ETHUSDT-1m-SHORT-1790345700",
+    "at": 1790345780918
   },
   {
     "symbol": "XRPUSDT",
@@ -125,8 +105,8 @@
     "direction": "SHORT",
     "grade": null,
     "noteKo": "신호A · 신호A · 초단Fast · SHORT · 자리완화·레일/핵심1 · 스윕회수↓ · ROE8% · SETUP힌트",
-    "timeframe": "3m",
-    "signalId": "rb-scalp-XRPUSDT-3m-SHORT-1790344620",
-    "at": 1790344968984
+    "timeframe": "1m",
+    "signalId": "rb-scalp-XRPUSDT-1m-SHORT-1790345700",
+    "at": 1790345781054
   }
 ]

@@ -1,0 +1,5 @@
+# 아래 한 줄을 crontab -e 에 붙여 넣으세요 (경로·로그는 필요 시 수정).
+# 의미: 5분마다 /root/ailongshort 에서 멀티TF 텔레 크론을 한 번 호출합니다.
+# 앱(PM2 등)이 같은 서버에서 이미 떠 있어야 합니다.
+
+*/5 * * * * cd /root/ailongshort && /usr/bin/bash scripts/telegram-multitf-cron-run.sh >>/var/log/ailongshort-cron.log 2>&1

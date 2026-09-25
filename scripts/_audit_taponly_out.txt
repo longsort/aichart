@@ -1,0 +1,13 @@
+﻿2: * ?쒕쾭 ?먮룞留ㅻℓ ????tapOnly硫???먯뿏吏꾨쭔 쨌 ?꾨땲硫?Dual ?덉씠??+ BNB(PPL+罹붾뱾).
+
+536:async function scanTapointServer(
+
+612:  if (arm.tapOnly !== false) {
+
+613:    return scanTapointServer(sym, arm);
+
+
+ARM {'liveArmed': True, 'tapOnly': True, 'enabledSymbols': ['BTCUSDT', 'XRPUSDT', 'SOLUSDT', 'ETHUSDT', 'BNBUSDT'], 'leverage': 10, 'scalpTp1RoePct': 8, 'strategyScalp': False, 'updatedAt': 1790116549281, 'lastStatusKo': 'aichart1 쨌 ?ㅼ틪?꾨즺 쨌 ?좏샇?湲?}
+fired_exists True
+fired_tail ['srv-bnb-ppl-3m-LONG-1790039160', 'srv-exit-tp1-BNBUSDT-7923800', 'srv-bnb-ppl-3m-LONG-1790040420', 'srv-bnb-ppl-3m-LONG-1790041140', 'rb-scalp-SOLUSDT-1m-LONG-1790041980', 'rb-scalp-BTCUSDT-1m-LONG-1790042100', 'srv-exit-tp1-BNBUSDT-7873600', 'srv-bnb-ppl-3m-LONG-1790043840', 'srv-bnb-ppl-3m-LONG-1790045280', 'rb-scalp-BTCUSDT-1m-SHORT-1790046420', 'rb-scalp-ETHUSDT-1m-LONG-1790046840', 'rb-scalp-BTCUSDT-3m-LONG-1790047080', 'rb-scalp-SOLUSDT-1m-LONG-1790047380', 'rb-scalp-ETHUSDT-1m-SHORT-1790048880', 'rb-scalp-SOLUSDT-1m-SHORT-1790049300', 's-grade-BTCUSDT-LONG-1790048700', 'srv-heal-sltp-BTCUSDT-854843000-84800-85758', 'rb-scalp-ETHUSDT-3m-SHORT-1790065800', 'rb-scalp-SOLUSDT-1m-LONG-1790066040', 'eagle1-tap-engine-BNBUSDT-1m-CONFIRMED_LONG-1790068380', 'eagle1-tap-engine-SOLUSDT-15m-CONFIRMED_SHORT-1790066700', 'eagle1-tap-engine-BTCUSDT-3m-CONFIRMED_SHORT-1790068140', 'srv-heal-sltp-BTCUSDT-863034000-88893-85613', 'srv-heal-sltp-BTCUSDT-861491000-84426-86838', 'eagle1-tap-engine-XRPUSDT-1H-CONFIRMED_SHORT-1790103600']
+

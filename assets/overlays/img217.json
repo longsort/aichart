@@ -1,3 +1,43 @@
 {
-  "source": "Screenshot_20251118_225552_Discord.jpg"
+  "source": "Screenshot_20251118_225552_Discord.jpg",
+  "catalogId": "img217",
+  "category": "screenshot",
+  "chartable": true,
+  "titleKo": "Screenshot_20251118_2255 참조",
+  "tags": [
+    "screenshot"
+  ],
+  "structureFeatures": {
+    "bos": false,
+    "choch": false,
+    "fvg": 0,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": {
+    "mode": "relative",
+    "elements": [
+      {
+        "type": "zone",
+        "role": "demand",
+        "pricePctTop": 0.65,
+        "pricePctBot": 0.75,
+        "timePctStart": 0.5,
+        "timePctEnd": 1
+      },
+      {
+        "type": "zone",
+        "role": "supply",
+        "pricePctTop": 0.2,
+        "pricePctBot": 0.3,
+        "timePctStart": 0.5,
+        "timePctEnd": 1
+      }
+    ]
+  },
+  "analyzedAt": "2026-06-26"
 }

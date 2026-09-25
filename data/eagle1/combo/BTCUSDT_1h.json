@@ -1,7 +1,7 @@
 {
   "symbol": "BTCUSDT",
   "timeframe": "1h",
-  "at": 1790344782625,
+  "at": 1790345770986,
   "promoted": null,
   "summaryKo": "강신호 조합 없음 · 단독 SMC 금지",
   "hits": [
@@ -9,25 +9,25 @@
       "id": "reversal_cluster_long",
       "complete": false,
       "promote": false,
-      "sampleSize": 69,
-      "tpBeforeSl": 0.6231884057971014,
-      "netExpectancy": -1.8731450486420937,
+      "sampleSize": 18,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
       "note": "조합 미완 · 충족 3/4"
     },
     {
       "id": "reversal_cluster_short",
       "complete": false,
       "promote": false,
-      "sampleSize": 69,
-      "tpBeforeSl": 0.6231884057971014,
-      "netExpectancy": -1.8731450486420937,
+      "sampleSize": 18,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
       "note": "방향 조건 미충족"
     },
     {
       "id": "breakout_continuation_long",
       "complete": false,
       "promote": false,
-      "sampleSize": 19,
+      "sampleSize": 6,
       "tpBeforeSl": null,
       "netExpectancy": null,
       "note": "방향 조건 미충족"
@@ -36,7 +36,7 @@
       "id": "breakout_continuation_short",
       "complete": false,
       "promote": false,
-      "sampleSize": 19,
+      "sampleSize": 6,
       "tpBeforeSl": null,
       "netExpectancy": null,
       "note": "방향 조건 미충족"

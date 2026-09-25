@@ -26,6 +26,9 @@ const WINDOW_MS = 90 * DAY_MS;
 const REQ_GAP_MS = 120;
 /** Bitget mix candles: 과거 구간에서 limit>360이면 빈 배열이 나오는 경우가 있음 → 안전 상한 */
 const MAX_LIMIT = 360;
+/** 상장(2019-09) 이전 구간만 연속 빈 창 허용 — 그 전에는 빈 창이어도 계속 과거로 */
+const EMPTY_WIN_STOP = 32;
+const BITGET_BTC_LISTING_MS = Date.parse('2020-01-01T00:00:00.000Z');
 
 function parseArgs(argv) {
   const o = {
@@ -78,10 +81,10 @@ function normalizeGranularity(g) {
 }
 
 function parseStartMs(startStr) {
-  if (!startStr) return Date.UTC(2020, 0, 1);
+  if (!startStr) return BITGET_BTC_LISTING_MS;
   const t = Date.parse(startStr);
   if (!Number.isFinite(t)) throw new Error(`invalid --start: ${startStr}`);
-  return t;
+  return Math.max(BITGET_BTC_LISTING_MS, t);
 }
 
 function sleep(ms) {
@@ -161,9 +164,8 @@ Bitget USDT-M futures candles → CSV (OHLC + base volume + quote volume)
   /** 끝을 now부터 한 칸씩 과거로 — 2020부터 앞으로만 가면 빈 구간만 지나 최근 일부만 쌓이던 문제 방지 */
   let endBoundary = endMs;
   let winIdx = 0;
-  /** 연속으로 “이번 90일 창에 신규 봉 0개”이면 API에 더 과거 데이터가 없는 것으로 보고 조기 종료 */
+  /** 연속 빈 90일 창 — 상장일 근처에 도달하기 전에는 더 많이 허용 */
   let emptyWinStreak = 0;
-  const EMPTY_WIN_STOP = 8;
 
   while (endBoundary > startMs && total < maxRows) {
     const totalAtWindowStart = total;
@@ -229,9 +231,10 @@ Bitget USDT-M futures candles → CSV (OHLC + base volume + quote volume)
 
     if (total === totalAtWindowStart) {
       emptyWinStreak++;
-      if (emptyWinStreak >= EMPTY_WIN_STOP) {
+      const nearListing = beginBoundary <= startMs + WINDOW_MS * 2;
+      if (nearListing && emptyWinStreak >= EMPTY_WIN_STOP) {
         console.error(
-          `Stopped: ${EMPTY_WIN_STOP} consecutive 90d windows with no new candles (no older data for this symbol/granularity, or gap).`,
+          `Stopped: ${EMPTY_WIN_STOP} consecutive empty 90d windows near listing (${new Date(beginBoundary).toISOString()}).`,
         );
         break;
       }

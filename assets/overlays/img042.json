@@ -1,3 +1,23 @@
 {
-  "source": "561531778_17869993641444510_3783608408443621214_n.jpg"
+  "source": "561531778_17869993641444510_3783608408443621214_n.jpg",
+  "catalogId": "img042",
+  "category": "unknown",
+  "chartable": false,
+  "titleKo": "561531778_17869993641444 참조",
+  "tags": [
+    "unknown"
+  ],
+  "structureFeatures": {
+    "bos": false,
+    "choch": false,
+    "fvg": 0,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": null,
+  "analyzedAt": "2026-06-26"
 }

@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readAllUserSettingsMap } from '@/lib/serverUserSettings';
 import { mergeUserSettingsFromServerJson } from '@/lib/mergeUserSettingsFromServerJson';
 import { buildTelegramBackgroundAnalyzeUrlWithSettings } from '@/lib/telegramBackgroundAnalyzeQuery';
-import { buildTelegramMultiTfPairListFromSettings } from '@/lib/telegramMultiTfPairList';
+import {
+  buildTelegramMultiTfPairListFromSettings,
+  TELEGRAM_MULTITF_ALLOWED_TFS,
+} from '@/lib/telegramMultiTfPairList';
 import { evaluateBackgroundHtfTelegram } from '@/lib/telegramBackgroundHtfEval';
 import { telegramEventDedupServerTry } from '@/lib/telegramEventDedupServer';
 import { sendTelegramHtmlToEnvChat } from '@/lib/telegramBotSendHtml';
 import type { AnalyzeResponse } from '@/types';
+import { assertTelegramCronSecret } from '@/lib/cronRouteAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,34 +37,39 @@ export async function GET(req: NextRequest) {
 }
 
 async function runCron(req: NextRequest) {
-  const expected = (process.env.TELEGRAM_MULTITF_CRON_SECRET || '').trim();
-  if (!expected) {
-    return NextResponse.json(
-      { ok: false, error: 'TELEGRAM_MULTITF_CRON_SECRET not set (add to .env on server)' },
-      { status: 503 }
-    );
-  }
-  const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() || '';
-  const hdr = req.headers.get('x-telegram-cron-secret')?.trim() || '';
-  if (bearer !== expected && hdr !== expected) {
-    return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
-  }
+  const denied = assertTelegramCronSecret(req);
+  if (denied) return denied;
 
   const base = internalApiBaseUrl();
   const analyzeHeaderSecret = (process.env.INTERNAL_ANALYZE_SECRET || process.env.TELEGRAM_MULTITF_CRON_SECRET || '').trim();
   const all = await readAllUserSettingsMap();
-  const stats = { users: 0, pairRuns: 0, sent: 0, evalNull: 0, dedupSkip: 0, fetchErr: 0, sendErr: 0 as number };
-
+  const stats = {
+    users: 0,
+    pairRuns: 0,
+    skippedByTf: 0,
+    sent: 0,
+    evalNull: 0,
+    dedupSkip: 0,
+    fetchErr: 0,
+    sendErr: 0 as number,
+  };
   for (const [user, raw] of Object.entries(all)) {
     if (!raw || typeof raw !== 'object') continue;
     const st = mergeUserSettingsFromServerJson(raw as Record<string, unknown>);
+    /** 진입존 텔레 ON이면 레거시 멀티TF 크론 스킵 */
+    if (st.telegramHqZoneTouchEnabled !== false) continue;
     if (!st.telegramMultiTfEnabled) continue;
     stats.users += 1;
     const pairs = buildTelegramMultiTfPairListFromSettings(st);
     if (pairs.length === 0) continue;
     for (const [symbol, timeframe] of pairs) {
+      const tf = String(timeframe || '').toLowerCase();
+      if (!TELEGRAM_MULTITF_ALLOWED_TFS.has(tf)) {
+        stats.skippedByTf += 1;
+        continue;
+      }
       stats.pairRuns += 1;
-      const rel = buildTelegramBackgroundAnalyzeUrlWithSettings(st, symbol, timeframe, 'WHALE');
+      const rel = buildTelegramBackgroundAnalyzeUrlWithSettings(st, symbol, timeframe, 'FUSION_MODE');
       const url = new URL(rel, base).toString();
       let analysis: AnalyzeResponse;
       try {

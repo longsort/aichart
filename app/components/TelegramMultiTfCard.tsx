@@ -79,7 +79,7 @@ export default function TelegramMultiTfCard() {
       </div>
       <p style={helpStyle}>
         차트에 켜 둔 TF가 아니라, 아래 심볼·타임프레임 <strong>조합</strong>마다 HTF 자동알림과 동일한 본문(로켓·선행·존팩
-        등)으로 텔레을 보냅니다(캡처 없음). BTC/ETH, 1h~1M만 대상.
+        등)으로 텔레을 보냅니다(캡처 없음). BTC/ETH, 15m·1h·4h·1d·1w·1M.
       </p>
       <p style={{ ...helpStyle, marginTop: 8, padding: '8px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.2)' }}>
         <strong>접속 끊김·24h</strong>에는 브라우저 루프로는 불가합니다. 서버에{' '}
@@ -175,7 +175,7 @@ export default function TelegramMultiTfCard() {
           }}
           style={fieldStyle}
           autoComplete="off"
-          placeholder="1h, 4h, 1d, 1w, 1M"
+          placeholder="15m, 1h, 4h, 1d, 1w, 1M"
         />
       </div>
     </div>

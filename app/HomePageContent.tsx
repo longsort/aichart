@@ -67,6 +67,8 @@ import {
   loadSettings,
   saveSettings,
   syncSettingsFromServer,
+  bindSiteSessionUser,
+  sessionScopedStorageKey,
   mergePageLayout,
   defaultPageLayout,
   defaultSettings,
@@ -89,6 +91,7 @@ import { createPortal } from 'react-dom';
 import { fetchWithRetry } from '@/lib/fetchWithRetry';
 import { prefetchClientMarketCandles } from '@/lib/clientMarketCandleCache';
 import { isBitgetVolumePackActive } from '@/lib/bitgetVolumePack';
+import { readDeskLiveSession, writeDeskLiveSession } from '@/lib/deskLiveSession';
 import { getReferenceById } from '@/lib/referenceLibraryStore';
 import { generateAutoBriefing } from '@/lib/autoBriefing';
 import { simulateTrade } from '@/lib/risk/riskCalculator';
@@ -155,25 +158,26 @@ function parkfColorsQuery(
   return `&pfB=${enc(base)}&pfLg=${enc(large)}&pfMd=${enc(medium)}&pfSm=${enc(small)}&pfTp=${enc(pri)}&pfTs=${enc(sec)}`;
 }
 
-/** 상단 레일 — `localStorage` 저장. 최초(키 없음)는 통합·분석 데스크. */
+/** 상단 레일 — `localStorage` 저장. 최초(키 없음)는 타점엔진. */
 const RAIL_UI_MODE_STORAGE_KEY = 'ailongshort-rail-ui-mode-v1';
-/** 배포 후 1회: 앱 진입 기본을 통합·분석으로 — v3: 폰 EXECUTION 레이스·접기카드 잔상 제거 */
-const MERGED_DESK_LANDING_ONCE_KEY = 'ailongshort-merged-desk-landing-v3';
+/** 배포 후 1회: 앱 진입 기본을 타점엔진으로 — v4 */
+const MERGED_DESK_LANDING_ONCE_KEY = 'ailongshort-tap-engine-landing-v4';
+function railUiModeLsKey(): string {
+  return sessionScopedStorageKey(RAIL_UI_MODE_STORAGE_KEY);
+}
+
 function readStoredRailUiMode(): UIMode {
-  if (typeof window === 'undefined') return 'MERGED_ANALYSIS_DESK';
+  if (typeof window === 'undefined') return 'EAGLE1_TAP_ENGINE';
   try {
-    /** 폰은 항상 통합·분석 — PC localStorage 잔상(접기카드·WHALE) 방지 */
-    if (isMobileLikeViewport()) {
-      window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, 'MERGED_ANALYSIS_DESK');
-      window.localStorage.setItem(MERGED_DESK_LANDING_ONCE_KEY, '1');
-      return 'MERGED_ANALYSIS_DESK';
+    const scoped = railUiModeLsKey();
+    const onceKey = sessionScopedStorageKey(MERGED_DESK_LANDING_ONCE_KEY);
+    const v =
+      window.localStorage.getItem(scoped) || window.localStorage.getItem(RAIL_UI_MODE_STORAGE_KEY);
+    if (!v) {
+      window.localStorage.setItem(onceKey, '1');
+      window.localStorage.setItem(scoped, 'EAGLE1_TAP_ENGINE');
+      return 'EAGLE1_TAP_ENGINE';
     }
-    if (!window.localStorage.getItem(MERGED_DESK_LANDING_ONCE_KEY)) {
-      window.localStorage.setItem(MERGED_DESK_LANDING_ONCE_KEY, '1');
-      window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, 'MERGED_ANALYSIS_DESK');
-      return 'MERGED_ANALYSIS_DESK';
-    }
-    const v = window.localStorage.getItem(RAIL_UI_MODE_STORAGE_KEY);
     if (
       v === 'WHALE' ||
       v === 'UNIFIED_DESK' ||
@@ -189,7 +193,7 @@ function readStoredRailUiMode(): UIMode {
   } catch {
     /* ignore */
   }
-  return 'MERGED_ANALYSIS_DESK';
+  return 'EAGLE1_TAP_ENGINE';
 }
 
 export default function HomePageContent() {
@@ -352,13 +356,6 @@ export default function HomePageContent() {
     void syncSettingsFromServer()
       .then((s) => {
         applySettings(s);
-        try {
-          window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, 'MERGED_ANALYSIS_DESK');
-        } catch {
-          /* ignore */
-        }
-        uiModePersistReadyRef.current = true;
-        setUiMode('MERGED_ANALYSIS_DESK');
       })
       .catch(() => {});
   }, []);
@@ -492,14 +489,13 @@ export default function HomePageContent() {
   type RightPanelTab = 'trade' | 'market' | 'briefing' | 'pattern' | 'ref' | 'etc' | 'learning' | 'virtual' | 'candle';
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('trade');
   /**
-   * 폰: 처음부터 통합·분석 (EXECUTION 첫 페인트 → 접기카드만 보이는 버그 방지).
-   * PC: 가벼운 EXECUTION 후 idle에 저장 모드 복원.
+   * 폰·PC: 처음부터 타점엔진 (서버 접속 직후).
    */
   const [uiMode, setUiMode] = useState<UIMode>(() =>
-    typeof window !== 'undefined' && isMobileLikeViewport() ? 'MERGED_ANALYSIS_DESK' : 'EXECUTION'
+    typeof window !== 'undefined' ? 'EAGLE1_TAP_ENGINE' : 'EAGLE1_TAP_ENGINE'
   );
   const [referenceDeskFocusChart, setReferenceDeskFocusChart] = useState(0);
-  /** 마운트 후 idle에 저장 모드 복원 (기본 통합·분석) */
+  /** 마운트 후 idle에 저장 모드 복원 (기본 타점엔진) */
   useEffect(() => {
     const restore = () =>
       startTransition(() => {
@@ -518,7 +514,7 @@ export default function HomePageContent() {
     /** 첫 EXECUTION 페인트가 LS에 박혀 idle 복원을 덮어쓰지 않게 */
     if (!uiModePersistReadyRef.current) return;
     try {
-      window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, uiMode);
+      window.localStorage.setItem(railUiModeLsKey(), uiMode);
     } catch {
       /* ignore */
     }
@@ -567,14 +563,7 @@ export default function HomePageContent() {
     void syncSettingsFromServer()
       .then((s) => {
         apply(s);
-        try {
-          window.localStorage.setItem(RAIL_UI_MODE_STORAGE_KEY, 'MERGED_ANALYSIS_DESK');
-          window.localStorage.setItem(MERGED_DESK_LANDING_ONCE_KEY, '1');
-        } catch {
-          /* ignore */
-        }
         uiModePersistReadyRef.current = true;
-        setUiMode('MERGED_ANALYSIS_DESK');
       })
       .catch(() => {});
   }, [siteAuth]);
@@ -712,8 +701,22 @@ export default function HomePageContent() {
       .then((r) => r.json())
       .then((d: { authenticated?: boolean; user?: string }) => {
         if (cancelled) return;
-        setSiteAuth(d.authenticated ? 'authed' : 'anon');
-        setSiteUser(d.user || '');
+        if (d.authenticated) {
+          bindSiteSessionUser(d.user || '');
+          const live = readDeskLiveSession();
+          if (live?.symbol) setSymbol(live.symbol);
+          if (live?.timeframe) {
+            timeframeRef.current = live.timeframe;
+            setTimeframe(live.timeframe);
+          }
+          uiModePersistReadyRef.current = true;
+          setUiMode(readStoredRailUiMode());
+          setSiteUser(d.user || '');
+          setSiteAuth('authed');
+          return;
+        }
+        setSiteAuth('anon');
+        setSiteUser('');
       })
       .catch((e: { name?: string }) => {
         if (cancelled || e?.name === 'AbortError') return;
@@ -731,6 +734,11 @@ export default function HomePageContent() {
       window.clearTimeout(failTimer);
     };
   }, [authRetryTick]);
+
+  useEffect(() => {
+    if (siteAuth !== 'authed') return;
+    writeDeskLiveSession({ symbol, timeframe });
+  }, [siteAuth, symbol, timeframe]);
 
   useEffect(() => {
     if (siteAuth !== 'authed') return;
@@ -2121,6 +2129,15 @@ export default function HomePageContent() {
     return (
       <AppSiteLogin
         onLoggedIn={(u) => {
+          bindSiteSessionUser(u || '');
+          const live = readDeskLiveSession();
+          if (live?.symbol) setSymbol(live.symbol);
+          if (live?.timeframe) {
+            timeframeRef.current = live.timeframe;
+            setTimeframe(live.timeframe);
+          }
+          uiModePersistReadyRef.current = true;
+          setUiMode(readStoredRailUiMode());
           setSiteUser(u || '');
           setSiteAuth('authed');
         }}
@@ -2259,7 +2276,7 @@ export default function HomePageContent() {
 
         <div className={showRightStack ? 'grid' : 'grid grid--single'}>
           <div className="left-stack">
-            <div className={`card panel-pad${uiMode === 'MERGED_ANALYSIS_DESK' ? ' card--merged-desk' : ''}`}>
+            <div className={`card panel-pad${uiMode === 'MERGED_ANALYSIS_DESK' || uiMode === 'EAGLE1_TAP_ENGINE' ? ' card--merged-desk' : ''}`}>
               {pl.showChartCardHeader && (
                 <div className="space-between">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>

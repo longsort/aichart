@@ -1,4 +1,6 @@
 import { Candle } from '@/types';
+import { computeSessionVwapSeries } from '@/lib/vwap/sessionVwap';
+import { computeAnchoredVwapSeries } from '@/lib/mergedDeskAnchoredVwap';
 
 export function rsi(candles: Candle[], period = 14): number[] {
   const out: number[] = [];
@@ -150,4 +152,28 @@ export function atrSeries(candles: Candle[], period = 14): number[] {
     }
   }
   return out;
+}
+
+/** 세션 VWAP (UTC 일 리셋) — Anchored VWAP와 병행 */
+export function vwapSession(candles: Candle[]): number[] {
+  const pts = computeSessionVwapSeries(candles);
+  const byT = new Map(pts.map((p) => [p.time, p.value]));
+  return candles.map((c) => {
+    const v = byT.get(Number(c.time));
+    return v != null && Number.isFinite(v) ? v : NaN;
+  });
+}
+
+/** Anchored VWAP — 분석 파이프용 thin wrapper (기존 AVWAP 엔진 재사용) */
+export function vwapAnchoredFromIndex(
+  candles: Candle[],
+  anchorIndex: number,
+  source: 'hlc3' | 'high' | 'open' | 'low' | 'close' | 'hl2' = 'hlc3'
+): number[] {
+  const pts = computeAnchoredVwapSeries(candles, Math.max(0, Math.floor(anchorIndex)), source);
+  const byT = new Map(pts.map((p) => [p.time, p.value]));
+  return candles.map((c) => {
+    const v = byT.get(Number(c.time));
+    return v != null && Number.isFinite(v) ? v : NaN;
+  });
 }

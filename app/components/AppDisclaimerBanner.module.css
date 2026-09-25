@@ -1,16 +1,11 @@
-/* 앱 .card / header-card 와 톤 맞춤 — 앰버 + 시안 러닝 하이라이트 */
+/* AI desk — 조용한 면책 바 (문구·항목 유지) */
 .disclaimer {
   position: relative;
-  border-radius: 22px;
+  border-radius: 16px;
   border: 1px solid var(--border);
-  box-shadow:
-    0 8px 40px rgba(0, 0, 0, 0.3),
-    0 0 50px -24px var(--accent-glow-dim, rgba(45, 212, 191, 0.14)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  background:
-    linear-gradient(90deg, rgba(251, 191, 36, 0.55) 0, rgba(251, 191, 36, 0.14) 3px, transparent 3px),
-    var(--card-bg);
-  margin-bottom: 16px;
+  background: linear-gradient(180deg, rgba(16, 22, 32, 0.72), rgba(10, 14, 20, 0.82));
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.22);
+  margin-bottom: 14px;
   overflow: hidden;
 }
 
@@ -18,26 +13,23 @@
   content: '';
   position: absolute;
   left: 0;
-  right: 0;
   top: 0;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(45, 212, 191, 0.45) 0%, #fbbf24 42%, rgba(56, 189, 248, 0.4) 100%);
-  border-radius: 22px 22px 0 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(94, 234, 212, 0.75), rgba(56, 189, 248, 0.25));
   pointer-events: none;
-  opacity: 0.9;
-  z-index: 1;
 }
 
 .disclaimerLogin {
   margin-top: 18px;
   margin-bottom: 0;
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: 12px 14px 12px 16px;
+  border-radius: 14px;
 }
 
 .disclaimerMain {
   margin-top: 0;
-  padding: 16px 18px 18px;
+  padding: 14px 16px 14px 18px;
 }
 
 .shell {
@@ -45,33 +37,31 @@
   z-index: 2;
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 
 .rail {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  font-weight: 800;
-  font-style: italic;
+  font-size: 12px;
+  font-weight: 700;
+  font-style: normal;
   line-height: 1;
-  color: #fbbf24;
-  background: linear-gradient(160deg, rgba(251, 191, 36, 0.2), rgba(45, 212, 191, 0.08));
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  box-shadow: 0 2px 16px rgba(251, 191, 36, 0.1), 0 0 20px -6px var(--accent-glow-dim, rgba(45, 212, 191, 0.12));
+  color: #99f6e4;
+  background: rgba(45, 212, 191, 0.1);
+  border: 1px solid rgba(45, 212, 191, 0.22);
 }
 
 .disclaimerLogin .rail {
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  font-size: 13px;
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
 }
 
 .inner {
@@ -81,36 +71,33 @@
 
 .disclaimerLogin .kicker {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .mainHead {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  gap: 8px 10px;
+  margin-bottom: 10px;
 }
 
 .kicker {
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.07em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fbbf24;
-  text-shadow: 0 0 24px rgba(251, 191, 36, 0.25);
+  color: rgba(153, 246, 228, 0.92);
 }
 
 .badge {
   font-size: 10px;
   font-weight: 700;
-  padding: 5px 12px;
+  padding: 3px 9px;
   border-radius: 999px;
-  background: rgba(251, 191, 36, 0.14);
+  background: rgba(251, 191, 36, 0.1);
   color: #fde68a;
-  border: 1px solid rgba(251, 191, 36, 0.32);
+  border: 1px solid rgba(251, 191, 36, 0.22);
   letter-spacing: 0.02em;
 }
 
@@ -124,25 +111,20 @@
 .text strong,
 .list strong {
   color: var(--text);
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .list {
   margin: 0;
-  padding-left: 1.2rem;
+  padding-left: 1.05rem;
   font-size: 12px;
-  line-height: 1.52;
+  line-height: 1.55;
   color: var(--muted);
   list-style: disc;
 }
 
-.list::marker {
-  color: rgba(251, 191, 36, 0.75);
-  font-size: 0.9em;
-}
-
 .list li {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   padding-left: 2px;
 }
 
@@ -152,67 +134,52 @@
 
 @media (min-width: 981px) {
   .disclaimerMain {
-    padding: 18px 22px 20px;
+    padding: 14px 18px 14px 20px;
   }
 
   .list {
     padding-left: 0;
     list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .list li {
     margin: 0;
-    padding: 12px 14px 12px 16px;
-    border-radius: 14px;
-    background: rgba(0, 0, 0, 0.12);
-    border: 1px solid var(--border);
-    position: relative;
-  }
-
-  .list li::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 12px;
-    bottom: 12px;
-    width: 3px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, #fbbf24, rgba(251, 191, 36, 0.35));
-  }
-
-  :global(html[data-theme='light']) .list li {
-    background: rgba(0, 0, 0, 0.03);
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 }
 
 :global(html[data-theme='light']) .disclaimer {
-  background:
-    linear-gradient(90deg, rgba(217, 119, 6, 0.4) 0, rgba(251, 191, 36, 0.2) 3px, transparent 3px),
-    var(--card-bg);
-  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08), 0 0 40px -20px rgba(6, 182, 212, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.96));
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 :global(html[data-theme='light']) .disclaimer::before {
-  background: linear-gradient(90deg, rgba(6, 182, 212, 0.45) 0%, rgba(245, 158, 11, 0.55) 50%, rgba(6, 182, 212, 0.35) 100%);
-  opacity: 0.85;
+  background: linear-gradient(180deg, rgba(13, 148, 136, 0.7), rgba(14, 116, 144, 0.25));
 }
 
 :global(html[data-theme='light']) .kicker {
-  color: #b45309;
-  text-shadow: none;
+  color: #0f766e;
 }
 
 :global(html[data-theme='light']) .badge {
-  background: rgba(251, 191, 36, 0.28);
-  color: #78350f;
-  border-color: rgba(217, 119, 6, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+  border-color: rgba(217, 119, 6, 0.28);
 }
 
 :global(html[data-theme='light']) .rail {
-  color: #b45309;
-  background: rgba(251, 191, 36, 0.22);
-  border-color: rgba(217, 119, 6, 0.3);
+  color: #0f766e;
+  background: rgba(13, 148, 136, 0.1);
+  border-color: rgba(13, 148, 136, 0.22);
+}
+
+:global(html[data-theme='light']) .list li {
+  background: rgba(15, 23, 42, 0.03);
+  border-color: rgba(15, 23, 42, 0.06);
 }

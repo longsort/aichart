@@ -1,3 +1,23 @@
 {
-  "source": "hdILeliZ (1).png"
+  "source": "hdILeliZ (1).png",
+  "catalogId": "img104",
+  "category": "unknown",
+  "chartable": false,
+  "titleKo": "hdILeliZ (1) 참조",
+  "tags": [
+    "unknown"
+  ],
+  "structureFeatures": {
+    "bos": false,
+    "choch": false,
+    "fvg": 0,
+    "ob": 0,
+    "sweep": false,
+    "eqh": false,
+    "eql": false,
+    "pattern": "",
+    "bias": "neutral"
+  },
+  "drawTemplate": null,
+  "analyzedAt": "2026-06-26"
 }
