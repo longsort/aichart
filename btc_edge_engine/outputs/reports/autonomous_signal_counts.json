@@ -1,0 +1,50 @@
+{
+  "us_ema_pullback": {
+    "long": 1660,
+    "short": 1776
+  },
+  "uk_london_break": {
+    "long": 285,
+    "short": 279
+  },
+  "uk_london_fade": {
+    "long": 91,
+    "short": 104
+  },
+  "us_ny_drive": {
+    "long": 504,
+    "short": 529
+  },
+  "us_ny_fade": {
+    "long": 178,
+    "short": 153
+  },
+  "jp_orb_break": {
+    "long": 2451,
+    "short": 2467
+  },
+  "jp_compress_expand": {
+    "long": 984,
+    "short": 1083
+  },
+  "desk_vwap_revert": {
+    "long": 196,
+    "short": 195
+  },
+  "desk_sweep_reclaim": {
+    "long": 889,
+    "short": 849
+  },
+  "fx_overlap_grab": {
+    "long": 73,
+    "short": 82
+  },
+  "meanrev_streak": {
+    "long": 243,
+    "short": 228
+  },
+  "bos_continuation": {
+    "long": 840,
+    "short": 932
+  }
+}
