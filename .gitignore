@@ -48,3 +48,7 @@ node_modules
 # 가상매매·확정신호 저장 (서버 배포 시 생성)
 /data/virtual-store/
 /data/confirmed-signals/
+
+# BTC edge engine large raw OHLC (fetch from VPS / Bitget)
+btc_edge_engine/data/raw/BTCUSDT_5m.csv
+data/bitget-futures/BTCUSDT_5m.csv

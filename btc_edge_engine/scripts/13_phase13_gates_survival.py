@@ -186,13 +186,19 @@ def main():
 
     write_json(ROOT / "outputs/reports/phase13_survival_val_grid.json", val_rows)
 
-    viable = [
+    # 느슨한 통과(분석용) vs 타이트 선택(승격용): 20배는 Val EV↑이지만 OOS DD 폭증 → 레버≤10·DD≤25%만 선택
+    viable_loose = [
         r
         for r in val_rows
         if r.get("n", 0) >= 25
         and r.get("net_ev", -999) > 0
         and r.get("max_dd", 1) <= 0.45
         and r.get("profit_factor", 0) >= 1.05
+    ]
+    viable = [
+        r
+        for r in viable_loose
+        if r.get("max_dd", 1) <= 0.25 and float(r.get("leverage", 99)) <= 10
     ]
     viable.sort(key=lambda x: (x["net_ev"], -x["max_dd"], x["n"]), reverse=True)
     best = viable[0] if viable else None
@@ -294,12 +300,40 @@ def main():
         and oos.get("net_ev", -1) > 0
         and oos.get("max_dd", 1) <= 0.50
         and (oos_next or {}).get("net_ev", -1) > -0.01
+        and (not stress or all(s.get("net_ev", -1) > 0 for s in stress))
     )
 
+    paper = None
+    if best:
+        paper = {
+            "promote_to_paper": promote,
+            "mode": "survival_clean_v1",
+            "side": best["side"],
+            "leverage": best["leverage"],
+            "threshold": best["threshold"],
+            "sl_pct": best["sl_pct"],
+            "sl_mode": best.get("sl_mode"),
+            "tp1_pct": best["tp1_pct"],
+            "hold_bars": best["hold"],
+            "trail_atr_mult": best.get("trail_atr_mult"),
+            "gate": best.get("gate"),
+            "sessions": best.get("sessions"),
+            "regimes": best.get("regimes"),
+            "forbid_vol_regimes": [3],
+            "real_order": False,
+            "val": {k: best.get(k) for k in ["n", "net_ev", "win_rate", "max_dd", "profit_factor"]},
+            "oos": oos,
+            "oos_next_open": oos_next,
+            "stress": stress,
+        }
+        write_json(ROOT / "outputs/thresholds/paper_survival_v1.json", paper)
+
     summary = {
+        "selection_rule": "Val EV>0, PF>=1.05, n>=25, max_dd<=0.25, leverage<=10",
         "gate_allowed": allowed,
         "val_grid_n": len(val_rows),
-        "val_viable_n": len(viable),
+        "val_viable_loose_n": len(viable_loose),
+        "val_viable_tight_n": len(viable),
         "val_positive_n": sum(1 for r in val_rows if r.get("net_ev", 0) > 0),
         "best_val": best,
         "top10_least_negative": least_neg,
@@ -324,13 +358,14 @@ def main():
     lines += ["", "## 2) 생존청산 그리드", ""]
     lines.append(f"- 조합 수: {len(val_rows)}")
     lines.append(f"- 기대값>0: **{summary['val_positive_n']}개**")
-    lines.append(f"- 통과(EV>0, DD≤45%, PF≥1.05, n≥25): **{len(viable)}개**")
+    lines.append(f"- 느슨한 통과(DD≤45%): **{len(viable_loose)}개**")
+    lines.append(f"- 타이트 통과(DD≤25%·레버≤10): **{len(viable)}개** ← 선택 규칙")
     if best:
         lines.append(
-            f"- 검증 최고: {best['side']} · gate={best.get('gate')} · {best['leverage']}배 · "
+            f"- 검증 선택: {best['side']} · gate={best.get('gate')} · {best['leverage']}배 · "
             f"SL {best['sl_pct']:.2%}({best.get('sl_mode')}) · TP1 {best['tp1_pct']:.2%} · "
             f"hold {best['hold']} · thr≥{best['threshold']} · trail={best.get('trail_atr_mult')} · "
-            f"EV {best['net_ev']:.4f} · WR {best['win_rate']:.1%} · n={best['n']}"
+            f"EV {best['net_ev']:.4f} · WR {best['win_rate']:.1%} · DD {best['max_dd']:.1%} · n={best['n']}"
         )
     else:
         lines.append("- 검증 통과 설정 **없음**")
@@ -360,8 +395,10 @@ def main():
         "",
         "## 6) 판정",
         f"- 페이퍼 승격: **{'가능' if promote else '불가'}**",
+        f"- 설정: `outputs/thresholds/paper_survival_v1.json`" if paper else "- 설정 없음",
         "",
-        "- 기대값 플러스만 ‘있다’. 50배 시험은 이 단계 통과 후.",
+        "- 20배는 Val EV↑이어도 OOS 낙폭 과다로 제외. 10배·넓은 SL만 후보.",
+        "- 표본이 작으면 페이퍼만. 50배는 이 단계+5분확정 통과 후.",
         "",
     ]
     md = ROOT / "outputs/reports/phase13_한글결과.md"

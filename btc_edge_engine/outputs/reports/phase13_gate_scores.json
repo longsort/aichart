@@ -1,0 +1,143 @@
+{
+  "LONG": {
+    "side": "LONG",
+    "thr": 0.55,
+    "base_n": 1292,
+    "sessions": {
+      "0": {
+        "name": "ASIA",
+        "n": 696,
+        "clean_hit": 0.1910919540229885,
+        "lift_vs_base": 0.9720110417232329
+      },
+      "1": {
+        "name": "LONDON",
+        "n": 345,
+        "clean_hit": 0.19130434782608696,
+        "lift_vs_base": 0.9730914070523794
+      },
+      "2": {
+        "name": "NY",
+        "n": 192,
+        "clean_hit": 0.234375,
+        "lift_vs_base": 1.1921751968503937
+      },
+      "3": {
+        "name": "OVERLAP",
+        "n": 59,
+        "clean_hit": 0.1694915254237288,
+        "lift_vs_base": 0.8621379954624316
+      }
+    },
+    "regimes": {
+      "0": {
+        "name": "TREND_UP",
+        "n": 195,
+        "clean_hit": 0.19487179487179487,
+        "lift_vs_base": 0.9912376337573189
+      },
+      "1": {
+        "name": "TREND_DOWN",
+        "n": 211,
+        "clean_hit": 0.2132701421800948,
+        "lift_vs_base": 1.0848229279396948
+      },
+      "2": {
+        "name": "RANGE",
+        "n": 773,
+        "clean_hit": 0.19016817593790428,
+        "lift_vs_base": 0.9673121390227257
+      },
+      "3": {
+        "name": "COMPRESSION",
+        "n": 62,
+        "clean_hit": 0.1774193548387097,
+        "lift_vs_base": 0.9024638049276099
+      },
+      "5": {
+        "name": "HIGH_VOL_CHOP",
+        "n": 50,
+        "clean_hit": 0.26,
+        "lift_vs_base": 1.3225196850393701
+      }
+    },
+    "base_clean_hit": 0.19659442724458204,
+    "allowed_sessions": [
+      2
+    ],
+    "allowed_regimes": [
+      1,
+      5
+    ]
+  },
+  "SHORT": {
+    "side": "SHORT",
+    "thr": 0.55,
+    "base_n": 1247,
+    "sessions": {
+      "0": {
+        "name": "ASIA",
+        "n": 636,
+        "clean_hit": 0.21226415094339623,
+        "lift_vs_base": 1.0380133185349611
+      },
+      "1": {
+        "name": "LONDON",
+        "n": 310,
+        "clean_hit": 0.22258064516129034,
+        "lift_vs_base": 1.0884629981024667
+      },
+      "2": {
+        "name": "NY",
+        "n": 202,
+        "clean_hit": 0.15346534653465346,
+        "lift_vs_base": 0.750475635798874
+      },
+      "3": {
+        "name": "OVERLAP",
+        "n": 99,
+        "clean_hit": 0.20202020202020202,
+        "lift_vs_base": 0.9879183996831055
+      }
+    },
+    "regimes": {
+      "0": {
+        "name": "TREND_UP",
+        "n": 326,
+        "clean_hit": 0.19938650306748465,
+        "lift_vs_base": 0.9750390953927582
+      },
+      "1": {
+        "name": "TREND_DOWN",
+        "n": 97,
+        "clean_hit": 0.18556701030927836,
+        "lift_vs_base": 0.9074590661006671
+      },
+      "2": {
+        "name": "RANGE",
+        "n": 724,
+        "clean_hit": 0.19751381215469613,
+        "lift_vs_base": 0.9658812696349257
+      },
+      "3": {
+        "name": "COMPRESSION",
+        "n": 77,
+        "clean_hit": 0.2857142857142857,
+        "lift_vs_base": 1.3971988795518206
+      },
+      "5": {
+        "name": "HIGH_VOL_CHOP",
+        "n": 19,
+        "clean_hit": 0.2631578947368421,
+        "lift_vs_base": 1.286893704850361
+      }
+    },
+    "base_clean_hit": 0.20449077786688052,
+    "allowed_sessions": [
+      1
+    ],
+    "allowed_regimes": [
+      3
+    ]
+  }
+}
