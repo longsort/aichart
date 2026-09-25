@@ -187,7 +187,10 @@ def main():
     write_json(ROOT / "outputs/reports/pattern_clusters.json", {"long": cl_long, "short": cl_short})
 
     print("STEP10 live signal sample + final report")
-    sig = signal_from_frame(ohlc, best)
+    from src.live_signal_engine import write_active_mode_from_paper
+
+    active = write_active_mode_from_paper(prefer_m5=True)
+    sig = signal_from_frame(ohlc.tail(800).reset_index(drop=True), active)
 
     # monthly stability on OOS for best if present
     monthly = []
