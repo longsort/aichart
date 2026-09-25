@@ -1130,6 +1130,18 @@ export default function Eagle1TapointDeskView(props: Props) {
   useEffect(() => {
     setLockedLevels(ppGetLockedLevels(symbol));
     setPpJournalPreview(ppJournalList({ symbol, limit: 8 }));
+    /** 서버 무접속 진입 고정선 동기화 */
+    void fetch(
+      `/api/profit-pattern/locks?symbol=${encodeURIComponent(symbol)}`,
+      { credentials: 'same-origin', cache: 'no-store' }
+    )
+      .then((r) => r.json())
+      .then((j: { ok?: boolean; lock?: PpLockedLevels | null }) => {
+        if (!j?.ok || !j.lock) return;
+        const locked = ppLockLevels(j.lock);
+        setLockedLevels(locked);
+      })
+      .catch(() => {});
   }, [symbol]);
 
   const levels = useMemo(() => {
@@ -1885,7 +1897,12 @@ export default function Eagle1TapointDeskView(props: Props) {
         : `${id.replace('USDT', '')} 매매 OFF · 신규진입 금지`
     );
     if (next.liveArmed) {
-      void syncServerArm(next);
+      void syncServerArm({
+        ...next,
+        symbols: [...TAPOINT_SYMBOLS],
+        leverage: Number(next.leverage) || 50,
+        marginUsdt: Number(next.marginUsdt) || Number(calcMargin) || 10,
+      });
     }
   };
 
@@ -1898,7 +1915,13 @@ export default function Eagle1TapointDeskView(props: Props) {
     });
     setAutoCfg(next);
     setAutoTradePanelOpen(true);
-    void syncServerArm(next);
+    /** 전코인 서버 ARM 동기화 → cron 무접속 진입 */
+    void syncServerArm({
+      ...next,
+      symbols: [...TAPOINT_SYMBOLS],
+      leverage: Number(next.leverage) || 50,
+      marginUsdt: Number(next.marginUsdt) || Number(calcMargin) || 10,
+    }).then((r) => pushLog(r.msg));
     pushLog(tapOnlyArmHintKo(next.liveArmed));
     void refreshServerHealth(true);
   };
