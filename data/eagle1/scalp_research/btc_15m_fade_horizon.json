@@ -1,0 +1,392 @@
+{
+  "bars": 37347,
+  "tests": [
+    {
+      "name": "fade_rvol2.5_h8_roe8_noSL",
+      "n": 2342,
+      "hitRate": 77.58,
+      "avgRoe": -0.253,
+      "avgPerDay": 5.855,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -591.51
+    },
+    {
+      "name": "follow_rvol2.5_h8_roe8_noSL",
+      "n": 2342,
+      "hitRate": 74.42,
+      "avgRoe": 0.309,
+      "avgPerDay": 5.855,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": 722.85
+    },
+    {
+      "name": "fade_rvol2.5_h8_roe8_sl5",
+      "n": 2342,
+      "hitRate": 29.21,
+      "avgRoe": -1.221,
+      "avgPerDay": 5.855,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -2858.83
+    },
+    {
+      "name": "fade_rsiAdvExt_h8_roe8_sl5",
+      "n": 1010,
+      "hitRate": 28.71,
+      "avgRoe": -1.297,
+      "avgPerDay": 2.525,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -1309.98
+    },
+    {
+      "name": "fade_rsiAdvExt_h8_roe7.5_sl10",
+      "n": 1010,
+      "hitRate": 48.81,
+      "avgRoe": -1.437,
+      "avgPerDay": 2.525,
+      "h": 8,
+      "tpRoe": 7.5,
+      "slRoe": 10,
+      "sumRoe": -1451.06
+    },
+    {
+      "name": "fade_rsiAdvExt_h8_roe8_sl12",
+      "n": 725,
+      "hitRate": 52.28,
+      "avgRoe": -1.425,
+      "avgPerDay": 1.812,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": 12,
+      "sumRoe": -1033.31
+    },
+    {
+      "name": "fade_rvol2.5_h16_roe8_noSL",
+      "n": 2341,
+      "hitRate": 82.83,
+      "avgRoe": -0.749,
+      "avgPerDay": 5.853,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -1753.31
+    },
+    {
+      "name": "follow_rvol2.5_h16_roe8_noSL",
+      "n": 2341,
+      "hitRate": 80.65,
+      "avgRoe": -0.036,
+      "avgPerDay": 5.853,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -84.02
+    },
+    {
+      "name": "fade_rvol2.5_h16_roe8_sl5",
+      "n": 2341,
+      "hitRate": 29.52,
+      "avgRoe": -1.223,
+      "avgPerDay": 5.853,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -2862.03
+    },
+    {
+      "name": "fade_rsiAdvExt_h16_roe8_sl5",
+      "n": 1010,
+      "hitRate": 28.91,
+      "avgRoe": -1.292,
+      "avgPerDay": 2.525,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -1305.03
+    },
+    {
+      "name": "fade_rsiAdvExt_h16_roe7.5_sl10",
+      "n": 1010,
+      "hitRate": 49.31,
+      "avgRoe": -1.414,
+      "avgPerDay": 2.525,
+      "h": 16,
+      "tpRoe": 7.5,
+      "slRoe": 10,
+      "sumRoe": -1427.72
+    },
+    {
+      "name": "fade_rsiAdvExt_h16_roe8_sl12",
+      "n": 725,
+      "hitRate": 53.1,
+      "avgRoe": -1.41,
+      "avgPerDay": 1.812,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": 12,
+      "sumRoe": -1022.29
+    },
+    {
+      "name": "fade_rvol2.5_h32_roe8_noSL",
+      "n": 2341,
+      "hitRate": 88.0,
+      "avgRoe": -0.304,
+      "avgPerDay": 5.853,
+      "h": 32,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -712.55
+    },
+    {
+      "name": "follow_rvol2.5_h32_roe8_noSL",
+      "n": 2341,
+      "hitRate": 86.25,
+      "avgRoe": -0.654,
+      "avgPerDay": 5.853,
+      "h": 32,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -1530.82
+    },
+    {
+      "name": "fade_rvol2.5_h32_roe8_sl5",
+      "n": 2341,
+      "hitRate": 29.6,
+      "avgRoe": -1.228,
+      "avgPerDay": 5.853,
+      "h": 32,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -2874.49
+    },
+    {
+      "name": "fade_rsiAdvExt_h32_roe8_sl5",
+      "n": 1010,
+      "hitRate": 29.01,
+      "avgRoe": -1.3,
+      "avgPerDay": 2.525,
+      "h": 32,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -1313.01
+    },
+    {
+      "name": "fade_rsiAdvExt_h32_roe7.5_sl10",
+      "n": 1010,
+      "hitRate": 49.5,
+      "avgRoe": -1.403,
+      "avgPerDay": 2.525,
+      "h": 32,
+      "tpRoe": 7.5,
+      "slRoe": 10,
+      "sumRoe": -1417.01
+    },
+    {
+      "name": "fade_rsiAdvExt_h32_roe8_sl12",
+      "n": 725,
+      "hitRate": 53.24,
+      "avgRoe": -1.421,
+      "avgPerDay": 1.812,
+      "h": 32,
+      "tpRoe": 8,
+      "slRoe": 12,
+      "sumRoe": -1029.89
+    },
+    {
+      "name": "fade_rsiAdvExt_h8_roe8_sl8",
+      "n": 821,
+      "hitRate": 40.56,
+      "avgRoe": -1.48,
+      "avgPerDay": 2.053,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": 8,
+      "sumRoe": -1215.31
+    },
+    {
+      "name": "fade_rsiAdvExt_h16_roe8_sl8",
+      "n": 821,
+      "hitRate": 41.17,
+      "avgRoe": -1.455,
+      "avgPerDay": 2.053,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": 8,
+      "sumRoe": -1194.6
+    }
+  ],
+  "top": [
+    {
+      "name": "follow_rvol2.5_h8_roe8_noSL",
+      "n": 2342,
+      "hitRate": 74.42,
+      "avgRoe": 0.309,
+      "avgPerDay": 5.855,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": 722.85
+    },
+    {
+      "name": "follow_rvol2.5_h16_roe8_noSL",
+      "n": 2341,
+      "hitRate": 80.65,
+      "avgRoe": -0.036,
+      "avgPerDay": 5.853,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -84.02
+    },
+    {
+      "name": "fade_rvol2.5_h8_roe8_noSL",
+      "n": 2342,
+      "hitRate": 77.58,
+      "avgRoe": -0.253,
+      "avgPerDay": 5.855,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -591.51
+    },
+    {
+      "name": "fade_rvol2.5_h32_roe8_noSL",
+      "n": 2341,
+      "hitRate": 88.0,
+      "avgRoe": -0.304,
+      "avgPerDay": 5.853,
+      "h": 32,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -712.55
+    },
+    {
+      "name": "follow_rvol2.5_h32_roe8_noSL",
+      "n": 2341,
+      "hitRate": 86.25,
+      "avgRoe": -0.654,
+      "avgPerDay": 5.853,
+      "h": 32,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -1530.82
+    },
+    {
+      "name": "fade_rvol2.5_h16_roe8_noSL",
+      "n": 2341,
+      "hitRate": 82.83,
+      "avgRoe": -0.749,
+      "avgPerDay": 5.853,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": null,
+      "sumRoe": -1753.31
+    },
+    {
+      "name": "fade_rvol2.5_h8_roe8_sl5",
+      "n": 2342,
+      "hitRate": 29.21,
+      "avgRoe": -1.221,
+      "avgPerDay": 5.855,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -2858.83
+    },
+    {
+      "name": "fade_rvol2.5_h16_roe8_sl5",
+      "n": 2341,
+      "hitRate": 29.52,
+      "avgRoe": -1.223,
+      "avgPerDay": 5.853,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -2862.03
+    },
+    {
+      "name": "fade_rvol2.5_h32_roe8_sl5",
+      "n": 2341,
+      "hitRate": 29.6,
+      "avgRoe": -1.228,
+      "avgPerDay": 5.853,
+      "h": 32,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -2874.49
+    },
+    {
+      "name": "fade_rsiAdvExt_h16_roe8_sl5",
+      "n": 1010,
+      "hitRate": 28.91,
+      "avgRoe": -1.292,
+      "avgPerDay": 2.525,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -1305.03
+    },
+    {
+      "name": "fade_rsiAdvExt_h8_roe8_sl5",
+      "n": 1010,
+      "hitRate": 28.71,
+      "avgRoe": -1.297,
+      "avgPerDay": 2.525,
+      "h": 8,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -1309.98
+    },
+    {
+      "name": "fade_rsiAdvExt_h32_roe8_sl5",
+      "n": 1010,
+      "hitRate": 29.01,
+      "avgRoe": -1.3,
+      "avgPerDay": 2.525,
+      "h": 32,
+      "tpRoe": 8,
+      "slRoe": 5,
+      "sumRoe": -1313.01
+    },
+    {
+      "name": "fade_rsiAdvExt_h32_roe7.5_sl10",
+      "n": 1010,
+      "hitRate": 49.5,
+      "avgRoe": -1.403,
+      "avgPerDay": 2.525,
+      "h": 32,
+      "tpRoe": 7.5,
+      "slRoe": 10,
+      "sumRoe": -1417.01
+    },
+    {
+      "name": "fade_rsiAdvExt_h16_roe8_sl12",
+      "n": 725,
+      "hitRate": 53.1,
+      "avgRoe": -1.41,
+      "avgPerDay": 1.812,
+      "h": 16,
+      "tpRoe": 8,
+      "slRoe": 12,
+      "sumRoe": -1022.29
+    },
+    {
+      "name": "fade_rsiAdvExt_h16_roe7.5_sl10",
+      "n": 1010,
+      "hitRate": 49.31,
+      "avgRoe": -1.414,
+      "avgPerDay": 2.525,
+      "h": 16,
+      "tpRoe": 7.5,
+      "slRoe": 10,
+      "sumRoe": -1427.72
+    }
+  ]
+}
