@@ -3218,7 +3218,14 @@ export default function Eagle1TapointDeskView(props: Props) {
                     aiZoneDriveEnabled: false,
                   });
                   setAutoCfg(next);
-                  if (next.liveArmed) void syncServerArm(next);
+                  if (next.liveArmed) {
+                    void syncServerArm({
+                      ...next,
+                      symbols: [...TAPOINT_SYMBOLS],
+                      leverage: calcLev,
+                      marginUsdt: calcMargin,
+                    });
+                  }
                   pushLog(`주문설정 · ${calcLev}x · ${calcMargin}U · 익절ROE ${calcTpRoe}%`);
                 }}
               >

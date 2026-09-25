@@ -1,5 +1,5 @@
 {
-  "liveArmed": true,
+  "liveArmed": false,
   "symbols": [
     "BTCUSDT",
     "ETHUSDT",
@@ -9,7 +9,6 @@
   ],
   "leverage": 50,
   "marginUsdt": 10,
-  "paperOnly": true,
-  "updatedAt": 1790333879048,
-  "updatedBy": "smoke"
+  "paperOnly": false,
+  "updatedAt": 0
 }
