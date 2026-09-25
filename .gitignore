@@ -50,11 +50,3 @@ node_modules
 /data/confirmed-signals/
 /data/exchange-keys/
 /data/auto-scalp-paper/
-
-
-# === local secrets / VPS mirror (on disk only; never commit) ===
-.env.local
-.env*.local
-deploy_today.py
-.next/
-.env*.bak*
