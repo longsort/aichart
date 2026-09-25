@@ -1,0 +1,20 @@
+{
+  "LONG": {
+    "path": "/workspace/btc_edge_engine/outputs/models/long_model.joblib",
+    "n_train": 21360,
+    "n_val": 5856,
+    "pos_rate_train": 0.15500936329588014,
+    "pos_rate_val": 0.17332650273224043,
+    "auc_val": 0.5484829397500618,
+    "brier_val": 0.23097420623317133
+  },
+  "SHORT": {
+    "path": "/workspace/btc_edge_engine/outputs/models/short_model.joblib",
+    "n_train": 21360,
+    "n_val": 5856,
+    "pos_rate_train": 0.15987827715355804,
+    "pos_rate_val": 0.17349726775956284,
+    "auc_val": 0.5662064000780894,
+    "brier_val": 0.22401314949801213
+  }
+}

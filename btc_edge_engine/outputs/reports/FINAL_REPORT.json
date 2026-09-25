@@ -1,0 +1,250 @@
+{
+  "n_bars": 37347,
+  "from_iso": "2025-08-21T12:00:00+00:00",
+  "to_iso": "2026-09-25T12:00:00+00:00",
+  "n_features": 127,
+  "data_hash": "58ffa3cb67ffc4e7",
+  "splits": {
+    "train_months": [
+      "2025-08",
+      "2025-09",
+      "2025-10",
+      "2025-11",
+      "2025-12",
+      "2026-01",
+      "2026-02",
+      "2026-03"
+    ],
+    "val_months": [
+      "2026-04",
+      "2026-05"
+    ],
+    "test_months": [
+      "2026-06",
+      "2026-07"
+    ]
+  },
+  "train_metrics": {
+    "LONG": {
+      "path": "/workspace/btc_edge_engine/outputs/models/long_model.joblib",
+      "n_train": 21360,
+      "n_val": 5856,
+      "pos_rate_train": 0.15500936329588014,
+      "pos_rate_val": 0.17332650273224043,
+      "auc_val": 0.5484829397500618,
+      "brier_val": 0.23097420623317133
+    },
+    "SHORT": {
+      "path": "/workspace/btc_edge_engine/outputs/models/short_model.joblib",
+      "n_train": 21360,
+      "n_val": 5856,
+      "pos_rate_train": 0.15987827715355804,
+      "pos_rate_val": 0.17349726775956284,
+      "auc_val": 0.5662064000780894,
+      "brier_val": 0.22401314949801213
+    }
+  },
+  "optimize_best": {
+    "side": "SHORT",
+    "n": 161,
+    "n_all": 161,
+    "ambiguous_rate": 0.0,
+    "tp_first_rate": 0.11801242236024845,
+    "win_rate": 0.22981366459627328,
+    "net_ev": -0.02702052783387284,
+    "sum_net": -4.350304981253528,
+    "profit_factor": 0.2807064544194082,
+    "max_dd": 0.9909290177676862,
+    "longest_loss_streak": 15,
+    "median_net": -0.052000000000000005,
+    "leverage": 20,
+    "target_roi": 0.07,
+    "sl": 0.001,
+    "hold": 8,
+    "threshold": 0.65,
+    "mode": "model"
+  },
+  "modes": {
+    "HIGH_FREQUENCY": {
+      "side": "SHORT",
+      "n": 569,
+      "n_all": 570,
+      "ambiguous_rate": 0.0017543859649122807,
+      "tp_first_rate": 0.13005272407732865,
+      "win_rate": 0.1968365553602812,
+      "net_ev": -0.029558667749843663,
+      "sum_net": -16.818881949661044,
+      "profit_factor": 0.26386881740347545,
+      "max_dd": 0.9999999829036875,
+      "longest_loss_streak": 36,
+      "median_net": -0.052000000000000005,
+      "threshold": 0.6
+    },
+    "BALANCED": {
+      "side": "SHORT",
+      "n": 569,
+      "n_all": 570,
+      "ambiguous_rate": 0.0017543859649122807,
+      "tp_first_rate": 0.13005272407732865,
+      "win_rate": 0.1968365553602812,
+      "net_ev": -0.029558667749843663,
+      "sum_net": -16.818881949661044,
+      "profit_factor": 0.26386881740347545,
+      "max_dd": 0.9999999829036875,
+      "longest_loss_streak": 36,
+      "median_net": -0.052000000000000005,
+      "threshold": 0.6
+    },
+    "PRECISION_75": "unavailable",
+    "PRECISION_80": "unavailable"
+  },
+  "walk_forward": [
+    {
+      "side": "LONG",
+      "n": 34,
+      "n_all": 34,
+      "ambiguous_rate": 0.0,
+      "tp_first_rate": 0.08823529411764706,
+      "win_rate": 0.14705882352941177,
+      "net_ev": -0.037883132225849436,
+      "sum_net": -1.288026495678881,
+      "profit_factor": 0.1428701183681535,
+      "max_dd": 0.7369488378570441,
+      "longest_loss_streak": 12,
+      "median_net": -0.052000000000000005,
+      "fold": 0,
+      "test_months": [
+        "2026-04"
+      ]
+    },
+    {
+      "side": "LONG",
+      "n": 48,
+      "n_all": 48,
+      "ambiguous_rate": 0.0,
+      "tp_first_rate": 0.08333333333333333,
+      "win_rate": 0.14583333333333334,
+      "net_ev": -0.03294770595190606,
+      "sum_net": -1.581489885691491,
+      "profit_factor": 0.17240745944177588,
+      "max_dd": 0.8062918023919855,
+      "longest_loss_streak": 12,
+      "median_net": -0.052000000000000005,
+      "fold": 1,
+      "test_months": [
+        "2026-05"
+      ]
+    },
+    {
+      "side": "LONG",
+      "n": 39,
+      "n_all": 39,
+      "ambiguous_rate": 0.0,
+      "tp_first_rate": 0.10256410256410256,
+      "win_rate": 0.23076923076923078,
+      "net_ev": -0.02616011653005989,
+      "sum_net": -1.0202445446723356,
+      "profit_factor": 0.28945185296026427,
+      "max_dd": 0.6569438389097542,
+      "longest_loss_streak": 8,
+      "median_net": -0.052000000000000005,
+      "fold": 2,
+      "test_months": [
+        "2026-06"
+      ]
+    },
+    {
+      "side": "LONG",
+      "n": 79,
+      "n_all": 79,
+      "ambiguous_rate": 0.0,
+      "tp_first_rate": 0.0759493670886076,
+      "win_rate": 0.12658227848101267,
+      "net_ev": -0.03451869104521805,
+      "sum_net": -2.7269765925722256,
+      "profit_factor": 0.16422879849156743,
+      "max_dd": 0.9408914681001931,
+      "longest_loss_streak": 33,
+      "median_net": -0.052000000000000005,
+      "fold": 3,
+      "test_months": [
+        "2026-07"
+      ]
+    },
+    {
+      "side": "LONG",
+      "n": 21,
+      "n_all": 21,
+      "ambiguous_rate": 0.0,
+      "tp_first_rate": 0.047619047619047616,
+      "win_rate": 0.14285714285714285,
+      "net_ev": -0.03475662553274856,
+      "sum_net": -0.7298891361877198,
+      "profit_factor": 0.15866721982848386,
+      "max_dd": 0.5466382535842738,
+      "longest_loss_streak": 13,
+      "median_net": -0.052000000000000005,
+      "fold": 4,
+      "test_months": [
+        "2026-08"
+      ]
+    },
+    {
+      "side": "LONG",
+      "n": 34,
+      "n_all": 34,
+      "ambiguous_rate": 0.0,
+      "tp_first_rate": 0.23529411764705882,
+      "win_rate": 0.23529411764705882,
+      "net_ev": -0.022126745701096198,
+      "sum_net": -0.7523093538372707,
+      "profit_factor": 0.4267286508036589,
+      "max_dd": 0.6367785688420371,
+      "longest_loss_streak": 19,
+      "median_net": -0.052000000000000005,
+      "fold": 5,
+      "test_months": [
+        "2026-09"
+      ]
+    }
+  ],
+  "latest_signal": {
+    "timestamp": 1790337600000,
+    "long_probability": 0.23793318920480813,
+    "short_probability": 0.22390208968148603,
+    "direction_gap": 0.0140310995233221,
+    "selected_side": null,
+    "selected_sl": 0.001,
+    "selected_tp": 0.0051,
+    "leverage": 20.0,
+    "target_roi": 0.07,
+    "regime": 0,
+    "session": 3,
+    "status": "WAIT",
+    "noteKo": "SIGNAL ONLY · Paper/Live enable flag 별도 · 확정수익 아님"
+  },
+  "answers": {
+    "1": "OOS에서 NetEV>0 설정 수=0 / frontier=20 · best={'side': 'SHORT', 'n': 161, 'n_all': 161, 'ambiguous_rate': 0.0, 'tp_first_rate': 0.11801242236024845, 'win_rate': 0.22981366459627328, 'net_ev': -0.02702052783387284, 'sum_net': -4.350304981253528, 'profit_factor': 0.2807064544194082, 'max_dd': 0.9909290177676862, 'longest_loss_streak': 15, 'median_net': -0.052000000000000005, 'leverage': 20, 'target_roi': 0.07, 'sl': 0.001, 'hold': 8, 'threshold': 0.65, 'mode': 'model'}",
+    "2": "LONG best EV=-0.03371555102437926 · SHORT best EV=-0.029558667749843663",
+    "3": "regime별 상세는 pattern_clusters + market_regime 분포 참고 (클러스터 regime_mode)",
+    "4": "ablation full AUC=0.5620574589269948 · sets=[('A_ohlc', 0.5413330116164327), ('B_volume', 0.5501526712601492), ('C_atr', 0.5656687672039195), ('D_rsi', 0.5501125287813999), ('E_trend', 0.55647668057407), ('F_structure', 0.5546013451517406), ('G_liquidity', 0.5595149576718661), ('H_full', 0.5620574589269948)]",
+    "5": "RSI set AUC=0.5501125287813999 vs OHLC=0.5413330116164327",
+    "6": "Volume set AUC=0.5501526712601492",
+    "7": "Liquidity/Sweep set AUC=0.5595149576718661",
+    "8": "validation best SL=0.001",
+    "9": "validation best target ROI=0.07",
+    "10": "leverage table OOS all-bars (diagnostic): [(10, -0.016272442178612283), (20, -0.03213103182925656), (30, -0.048404538253557346), (50, -0.08031040915957949), (75, -0.11958349783053585), (100, -0.15887192385208188)]",
+    "11": "PRECISION_75 available=False · has75_netEV=False",
+    "12": "PRECISION_80 available=False · has80_netEV=False",
+    "13": "best n trades OOS≈161 (thresholded) · monthly=[]",
+    "14": "best NetEV=-0.02702052783387284",
+    "15": "best MaxDD=0.9909290177676862",
+    "16": "best longest loss streak=15",
+    "17": "monthly PnL spread=[]",
+    "18": "stress cases=[('A_base', -0.030599894887533383), ('B_slip_+25%', -0.03265023181674583), ('C_slip_+50%', -0.03459289275644017), ('D_fee_+20%', -0.040274955399592756), ('E_both', -0.04415806719457682)]",
+    "19": "clusters long ok=True n=3311 · short ok=True",
+    "20": "live signal status=WAIT · models_loaded=True · promote_only_if_pos_EV_and_WF_stable"
+  },
+  "philosophy": "DATA DISCOVERS · VALIDATION SELECTS · OOS PROVES · COSTS DECIDE",
+  "generated_at": "2026-09-25T12:17:37.381780+00:00"
+}

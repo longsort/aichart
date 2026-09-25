@@ -1,0 +1,178 @@
+{
+  "long": {
+    "ok": true,
+    "target": "CLEAN_B_LONG",
+    "k": 5,
+    "n": 3311,
+    "clusters": [
+      {
+        "cluster": 0,
+        "n": 155,
+        "top_features": {
+          "rsi21": 34.65445051739349,
+          "rsi14": 29.640444520653617,
+          "rsi7": 19.73064906958948,
+          "rsi14_slope_5": -13.047970829609763,
+          "rsi14_change_3": -11.217889259226425,
+          "rsi14_change_1": -5.528749346240937,
+          "sweep_depth_atr_short": -3.501511320508934,
+          "volume_z_20": 1.6115995558297043
+        },
+        "session_mode": null,
+        "regime_mode": null
+      },
+      {
+        "cluster": 1,
+        "n": 1367,
+        "top_features": {
+          "rsi21": 41.958980715860335,
+          "rsi14": 39.040709152888745,
+          "rsi7": 37.85679191136821,
+          "rsi14_slope_5": -3.8203037654504746,
+          "sweep_depth_atr_short": -2.9477583447471942,
+          "rsi14_change_3": -2.5254473803487714,
+          "rsi14_change_1": -1.1257127395878397,
+          "compression_atr": 0.9976147480490234
+        },
+        "session_mode": null,
+        "regime_mode": null
+      },
+      {
+        "cluster": 2,
+        "n": 1547,
+        "top_features": {
+          "rsi7": 59.95613049411096,
+          "rsi14": 59.77390401935111,
+          "rsi21": 57.06809973445595,
+          "sweep_depth_atr_long": -3.0115314818191585,
+          "rsi14_slope_5": 2.8783029447568227,
+          "rsi14_change_3": 1.6745496324279074,
+          "sweep_depth_atr_short": -0.9857030447455557,
+          "compression_atr": 0.958363476012583
+        },
+        "session_mode": null,
+        "regime_mode": null
+      },
+      {
+        "cluster": 3,
+        "n": 126,
+        "top_features": {
+          "rsi21": 50.26295478578331,
+          "rsi14": 49.35951719222472,
+          "rsi7": 47.34843351249001,
+          "volume_z_20": 2.017744651222275,
+          "breakout_volume_z": 2.017744651222275,
+          "volume_z_on_sweep": 1.8418440961037317,
+          "rsi14_slope_5": -1.8365920990326081,
+          "volume_z_50": 1.6996494929939379
+        },
+        "session_mode": null,
+        "regime_mode": null
+      },
+      {
+        "cluster": 4,
+        "n": 116,
+        "top_features": {
+          "rsi7": 80.67174235106756,
+          "rsi14": 71.74426984529725,
+          "rsi21": 66.33089495665214,
+          "rsi14_slope_5": 12.979174731715112,
+          "rsi14_change_3": 10.597082493121802,
+          "rsi14_change_1": 5.820195056930299,
+          "sweep_depth_atr_long": -3.8818439756557592,
+          "volume_z_50": 1.5304193856081267
+        },
+        "session_mode": null,
+        "regime_mode": null
+      }
+    ]
+  },
+  "short": {
+    "ok": true,
+    "target": "CLEAN_B_SHORT",
+    "k": 5,
+    "n": 3415,
+    "clusters": [
+      {
+        "cluster": 0,
+        "n": 1532,
+        "top_features": {
+          "rsi7": 62.852650401480254,
+          "rsi14": 61.385777294113346,
+          "rsi21": 58.502111079591245,
+          "rsi14_slope_5": 3.944993798424466,
+          "sweep_depth_atr_long": -3.1737361961749824,
+          "rsi14_change_3": 2.380371742565626,
+          "rsi14_change_1": 1.0891670295179132,
+          "compression_atr": 0.9490300401735703
+        },
+        "session_mode": null,
+        "regime_mode": null
+      },
+      {
+        "cluster": 1,
+        "n": 103,
+        "top_features": {
+          "rsi21": 31.897116684823594,
+          "rsi14": 26.50864042831657,
+          "rsi7": 17.9813131630518,
+          "rsi14_slope_5": -14.831390041188998,
+          "rsi14_change_3": -13.035496901817913,
+          "rsi14_change_1": -7.166557539068131,
+          "sweep_depth_atr_short": -3.6679468318373782,
+          "volume_z_50": 2.0625875291347384
+        },
+        "session_mode": null,
+        "regime_mode": null
+      },
+      {
+        "cluster": 2,
+        "n": 1415,
+        "top_features": {
+          "rsi21": 43.562738967320364,
+          "rsi7": 41.53669565272004,
+          "rsi14": 41.02656267633118,
+          "rsi14_slope_5": -3.090018649211325,
+          "sweep_depth_atr_short": -2.667972802646603,
+          "rsi14_change_3": -1.6260903678256642,
+          "sweep_depth_atr_long": -1.1251814007045338,
+          "compression_atr": 0.9952892306205131
+        },
+        "session_mode": null,
+        "regime_mode": null
+      },
+      {
+        "cluster": 3,
+        "n": 206,
+        "top_features": {
+          "rsi7": 80.42105091151164,
+          "rsi14": 70.82214090940478,
+          "rsi21": 65.36115512104459,
+          "rsi14_slope_5": 11.889628982269405,
+          "rsi14_change_3": 9.843996257184719,
+          "rsi14_change_1": 5.371386723118647,
+          "sweep_depth_atr_long": -3.8430417711379867,
+          "volume_z_20": 1.3943277870839357
+        },
+        "session_mode": null,
+        "regime_mode": null
+      },
+      {
+        "cluster": 4,
+        "n": 159,
+        "top_features": {
+          "rsi21": 39.9920544542497,
+          "rsi14": 35.962782494084905,
+          "rsi7": 29.616827045437613,
+          "rsi14_slope_5": -7.83558669247265,
+          "rsi14_change_3": -5.547855561032294,
+          "sweep_depth_atr_short": -3.1123372112852477,
+          "breakout_volume_z": 1.3905166188593017,
+          "volume_z_20": 1.3905166188593017
+        },
+        "session_mode": null,
+        "regime_mode": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "n_grid": 270,
+  "n_viable": 0,
+  "best": {
+    "side": "SHORT",
+    "n": 161,
+    "n_all": 161,
+    "ambiguous_rate": 0.0,
+    "tp_first_rate": 0.11801242236024845,
+    "win_rate": 0.22981366459627328,
+    "net_ev": -0.02702052783387284,
+    "sum_net": -4.350304981253528,
+    "profit_factor": 0.2807064544194082,
+    "max_dd": 0.9909290177676862,
+    "longest_loss_streak": 15,
+    "median_net": -0.052000000000000005,
+    "leverage": 20,
+    "target_roi": 0.07,
+    "sl": 0.001,
+    "hold": 8,
+    "threshold": 0.65,
+    "mode": "model"
+  },
+  "top10": []
+}

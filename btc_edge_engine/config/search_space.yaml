@@ -1,0 +1,12 @@
+# Search space notes (optimizer reads config.yaml primarily)
+clean_labels:
+  CLEAN_A: { mae_max: 0.0005, mfe_min: 0.0015, bars: 4 }
+  CLEAN_B: { mae_max: 0.00075, mfe_min: 0.0020, bars: 4 }
+  CLEAN_C: { mae_max: 0.0010, mfe_min: 0.0025, bars: 6 }
+
+fast_mfe:
+  - { name: FAST_MFE_010_4BAR, mfe: 0.0010, bars: 4 }
+  - { name: FAST_MFE_015_4BAR, mfe: 0.0015, bars: 4 }
+  - { name: FAST_MFE_020_4BAR, mfe: 0.0020, bars: 4 }
+  - { name: FAST_MFE_025_4BAR, mfe: 0.0025, bars: 4 }
+  - { name: FAST_MFE_030_4BAR, mfe: 0.0030, bars: 4 }
