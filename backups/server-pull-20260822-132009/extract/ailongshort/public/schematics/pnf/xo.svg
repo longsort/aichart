@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Point &amp; Figure — X / O columns</text>
+  <text x="80" y="80" font-family="Consolas, monospace" font-size="22" fill="#16a34a">X</text>
+  <text x="80" y="108" font-family="Consolas, monospace" font-size="22" fill="#16a34a">X</text>
+  <text x="80" y="136" font-family="Consolas, monospace" font-size="22" fill="#16a34a">X</text>
+  <text x="80" y="164" font-family="Consolas, monospace" font-size="22" fill="#16a34a">X</text>
+  <text x="130" y="164" font-family="Consolas, monospace" font-size="22" fill="#dc2626">O</text>
+  <text x="130" y="192" font-family="Consolas, monospace" font-size="22" fill="#dc2626">O</text>
+  <text x="130" y="220" font-family="Consolas, monospace" font-size="22" fill="#dc2626">O</text>
+  <text x="180" y="192" font-family="Consolas, monospace" font-size="22" fill="#16a34a">X</text>
+  <text x="180" y="164" font-family="Consolas, monospace" font-size="22" fill="#16a34a">X</text>
+  <text x="180" y="136" font-family="Consolas, monospace" font-size="22" fill="#16a34a">X</text>
+  <text x="180" y="108" font-family="Consolas, monospace" font-size="22" fill="#16a34a">X</text>
+  <text x="180" y="80" font-family="Consolas, monospace" font-size="22" fill="#16a34a">X</text>
+  <text x="230" y="80" font-family="Consolas, monospace" font-size="22" fill="#dc2626">O</text>
+  <line x1="60" y1="70" x2="400" y2="70" stroke="#94a3b8" stroke-dasharray="4 3"/>
+  <text x="420" y="76" font-family="Segoe UI, sans-serif" font-size="13">breakout</text>
+  <text x="420" y="160" font-family="Segoe UI, sans-serif" font-size="13">3-box reversal</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">X=up column  O=down. Count for Wyckoff-style targets. Box size heuristic.</text>
+</svg>

@@ -20,6 +20,7 @@ import {
 } from '@/lib/clientAiCredentials';
 
 const DETAIL_LS = 'ailongshort-candle-situation-open-v1';
+const HEADER_FOLD_LS = 'ailongshort-candle-analysis-header-fold-v1';
 
 type Theme = 'dark' | 'light';
 
@@ -109,6 +110,7 @@ export default function CandleAnalysisHeader({
   autoCommentaryLines = [],
   /** 좁은 화면에서 상단 차트 툴바 높이만큼 아래로 내림 (겹침 방지) */
   layoutTopPx = 8,
+  onDismiss,
 }: {
   analysis: AnalyzeResponse;
   candles: Candle[];
@@ -139,6 +141,8 @@ export default function CandleAnalysisHeader({
   candleAnalysisAiDraw?: CandleAnalysisAiDrawCallbacks;
   autoCommentaryLines?: string[];
   layoutTopPx?: number;
+  /** 접기와 별개 — 헤더 닫기(엔진 유지, 작은 칩으로 복구) */
+  onDismiss?: () => void;
 }) {
   const dir = resolveCandleAnalysisDirection(analysis);
   const verdict = analysis.verdict;
@@ -152,6 +156,8 @@ export default function CandleAnalysisHeader({
   const mtfStrip = useMemo(() => multiTimeframeStrip(analysis), [analysis]);
 
   const [detailOpen, setDetailOpen] = useState(false);
+  /** 1번 카드(캔들분석 헤더) 접기 — 칩·본문 숨김, 펼치기만 */
+  const [headerFolded, setHeaderFolded] = useState(false);
   const [aiLine, setAiLine] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiDrawLoading, setAiDrawLoading] = useState(false);
@@ -206,7 +212,21 @@ export default function CandleAnalysisHeader({
       if (v === '1') setDetailOpen(true);
       else setDetailOpen(false);
     } catch {}
+    try {
+      const f = window.localStorage.getItem(HEADER_FOLD_LS);
+      if (f === '1') setHeaderFolded(true);
+    } catch {}
   }, []);
+
+  const toggleHeaderFold = () => {
+    setHeaderFolded((o) => {
+      const n = !o;
+      try {
+        window.localStorage.setItem(HEADER_FOLD_LS, n ? '1' : '0');
+      } catch {}
+      return n;
+    });
+  };
 
   useEffect(() => {
     if (!candleAnalysisBrowserNotify || typeof window === 'undefined' || !analysis) return;
@@ -384,16 +404,87 @@ export default function CandleAnalysisHeader({
     !!smart?.confirmation ||
     autoCommentaryLines.length > 0;
 
+  if (headerFolded) {
+    return (
+      <div
+        className="candle-analysis-header-root candle-analysis-header-root--folded"
+        data-merged-fold-hud="candle-analysis"
+        style={{
+          position: 'absolute',
+          right: 8,
+          top: layoutTopPx,
+          zIndex: 3600,
+          pointerEvents: 'auto',
+          isolation: 'isolate',
+          touchAction: 'manipulation',
+          borderRadius: 999,
+          padding: '4px 6px 4px 10px',
+          background: cardBg,
+          border: theme === 'dark' ? `1px solid ${dir.color}50` : `1px solid rgba(15,23,42,0.12)`,
+          boxShadow: '0 4px 14px rgba(0,0,0,0.28)',
+          color: fg,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          maxWidth: 'min(92vw, 320px)',
+        }}
+        data-folded="1"
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 800,
+            color: dir.color,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+          title={headline}
+        >
+          {headline}
+        </span>
+        <span style={{ fontSize: 9, fontWeight: 700, color: sub, whiteSpace: 'nowrap' }}>
+          {verdict === 'SHORT' ? '숏' : '롱'} {upPct}%
+        </span>
+        <button
+          type="button"
+          onClick={toggleHeaderFold}
+          title="캔들분석 카드 펼치기"
+          style={{
+            fontSize: 12,
+            fontWeight: 800,
+            padding: '8px 12px',
+            minHeight: 44,
+            minWidth: 48,
+            borderRadius: 999,
+            border: `1px solid ${dir.color}55`,
+            background: `${dir.color}18`,
+            color: dir.color,
+            cursor: 'pointer',
+            flexShrink: 0,
+            pointerEvents: 'auto',
+            touchAction: 'manipulation',
+          }}
+        >
+          펴기 ▼
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       className="candle-analysis-header-root"
+      data-merged-fold-hud="candle-analysis"
       style={{
         position: 'absolute',
         left: 8,
         right: 8,
         top: layoutTopPx,
-        zIndex: 36,
+        zIndex: 3600,
         pointerEvents: 'auto',
+        isolation: 'isolate',
+        touchAction: 'manipulation',
         borderRadius: 10,
         padding: 0,
         background: cardBg,
@@ -772,6 +863,56 @@ export default function CandleAnalysisHeader({
               >
                 해설 {detailOpen ? '▲' : '▼'}
               </button>
+              <button
+                type="button"
+                onClick={toggleHeaderFold}
+                onPointerDown={(e) => e.stopPropagation()}
+                title="캔들분석 카드 접기"
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  padding: '8px 12px',
+                  minHeight: 44,
+                  minWidth: 48,
+                  borderRadius: 8,
+                  border: `1px solid ${dir.color}44`,
+                  background: 'transparent',
+                  color: sub,
+                  cursor: 'pointer',
+                  pointerEvents: 'auto',
+                  touchAction: 'manipulation',
+                }}
+              >
+                접기
+              </button>
+              {onDismiss ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDismiss();
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  title="캔들분석 카드 닫기 — 작은 칩으로 다시 열 수 있음"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    padding: '8px 12px',
+                    minHeight: 44,
+                    minWidth: 48,
+                    borderRadius: 8,
+                    border: '1px solid rgba(251,113,133,0.45)',
+                    background: 'transparent',
+                    color: '#fda4af',
+                    cursor: 'pointer',
+                    pointerEvents: 'auto',
+                    touchAction: 'manipulation',
+                  }}
+                >
+                  닫기
+                </button>
+              ) : null}
             </div>
             {aiDrawError ? (
               <div style={{ fontSize: 8, fontWeight: 600, color: '#f87171', lineHeight: 1.3 }}>{aiDrawError}</div>

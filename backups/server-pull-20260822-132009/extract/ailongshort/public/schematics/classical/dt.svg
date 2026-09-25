@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Double Top</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.6" points="80,360 220,90 380,280 560,90 720,360 880,400"/>
+  <line x1="220" y1="280" x2="720" y2="280" stroke="#64748b" stroke-dasharray="4 3"/>
+  <text x="220" y="78" font-family="Segoe UI, sans-serif" font-size="18" font-weight="800">P1</text>
+  <text x="560" y="78" font-family="Segoe UI, sans-serif" font-size="18" font-weight="800">P2</text>
+  <text x="400" y="300" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">trough / neck</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Two peaks near equal. Break of trough confirms. Heuristic.</text>
+</svg>

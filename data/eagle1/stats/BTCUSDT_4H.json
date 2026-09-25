@@ -1,0 +1,97 @@
+{
+  "symbol": "BTCUSDT",
+  "timeframe": "4H",
+  "families": [
+    {
+      "family": "poc_hold",
+      "sampleSize": 31,
+      "tpBeforeSlRate": 0.6129032258064516,
+      "slFirstRate": 0.3548387096774194,
+      "medianMfe": 0.6311787072243311,
+      "medianMae": 0.3816727901448015,
+      "netExpectancy": -0.10851847060692527
+    },
+    {
+      "family": "poc_reclaim",
+      "sampleSize": 12,
+      "tpBeforeSlRate": null,
+      "slFirstRate": null,
+      "medianMfe": null,
+      "medianMae": null,
+      "netExpectancy": null
+    },
+    {
+      "family": "ob_retest",
+      "sampleSize": 62,
+      "tpBeforeSlRate": 0.45161290322580644,
+      "slFirstRate": 0.5,
+      "medianMfe": 0.6995441224356896,
+      "medianMae": 0.9853259079296597,
+      "netExpectancy": -0.27723342388221606
+    },
+    {
+      "family": "fvg_retest",
+      "sampleSize": 68,
+      "tpBeforeSlRate": 0.4411764705882353,
+      "slFirstRate": 0.45588235294117646,
+      "medianMfe": 0.6817520465699127,
+      "medianMae": 0.8700365633419851,
+      "netExpectancy": -0.36260197829605845
+    },
+    {
+      "family": "sweep_reversal",
+      "sampleSize": 116,
+      "tpBeforeSlRate": 0.5258620689655172,
+      "slFirstRate": 0.4396551724137931,
+      "medianMfe": 0.41811561973191963,
+      "medianMae": 0.5917671848929243,
+      "netExpectancy": -0.8737238487263208
+    },
+    {
+      "family": "pullback",
+      "sampleSize": 61,
+      "tpBeforeSlRate": 0.639344262295082,
+      "slFirstRate": 0.2786885245901639,
+      "medianMfe": 0.44439065011522716,
+      "medianMae": 0.32544654564526826,
+      "netExpectancy": 0.08753846134336475
+    }
+  ],
+  "holdoutCalibrationError": 0.09047619047619043,
+  "rrWalkForward": {
+    "defaultMin": 1.8,
+    "recommendedMin": 1.8,
+    "applied": false,
+    "holdoutN": 70,
+    "evByGate": [
+      {
+        "gate": 1.5,
+        "holdoutN": 29,
+        "netEv": null
+      },
+      {
+        "gate": 1.8,
+        "holdoutN": 25,
+        "netEv": null
+      },
+      {
+        "gate": 2,
+        "holdoutN": 24,
+        "netEv": null
+      },
+      {
+        "gate": 2.2,
+        "holdoutN": 23,
+        "netEv": null
+      },
+      {
+        "gate": 2.5,
+        "holdoutN": 22,
+        "netEv": null
+      }
+    ],
+    "reason": "홀드아웃 근거 부족 — 기본 1.8 유지, 실전 게이트 미변경"
+  },
+  "calculated_at": 1787058415180,
+  "bar_count": 5000
+}

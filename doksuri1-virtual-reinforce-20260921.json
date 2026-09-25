@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "exportedAt": 1789981847629,
+  "purposeKo": "독수리1호 가상매매 보강용(성공·실패 전부). 에이전트에게 첨부하면 신호·전략·실패패턴을 보고 진입/필터를 보강한다. 확정 수익 아님.",
+  "ledger": {
+    "seedUsdt": 1000,
+    "equityUsdt": 1000,
+    "trades": [],
+    "updatedAt": 1789981847629
+  },
+  "summary": {
+    "tradeCount": 0,
+    "winCount": 0,
+    "lossCount": 0,
+    "totalPnl": 0,
+    "winPnl": 0,
+    "lossPnl": 0,
+    "seedStart": 1000,
+    "seedNow": 1000,
+    "seedDelta": 0,
+    "successCount": 0,
+    "failCount": 0,
+    "partialCount": 0,
+    "flatCount": 0
+  },
+  "bySignal": [],
+  "byFourStrategy": [],
+  "successTrades": [],
+  "failTrades": [],
+  "partialTrades": [],
+  "allTrades": [],
+  "recentTrades": [],
+  "liveReinforce": {
+    "rows": [],
+    "urgentKo": [],
+    "summaryKo": "아직 가상 체결 없음 · 시드 설정 후 시작"
+  }
+}

@@ -25,6 +25,184 @@ function pivotLow(candles: Candle[], i: number, L: number, R: number): boolean {
 
 export type ZigzagPivot = { idx: number; time: number; price: number; isHigh: boolean };
 
+/** 연속 같은 방향 피벗은 더 극단인 쪽만. 동가면 앞(1번 고점)을 유지 */
+export function collapseZigzagSameType(pivots: ZigzagPivot[]): ZigzagPivot[] {
+  const merged: ZigzagPivot[] = [];
+  for (const p of pivots) {
+    const prev = merged[merged.length - 1];
+    if (!prev) {
+      merged.push(p);
+      continue;
+    }
+    if (prev.isHigh === p.isHigh) {
+      if (p.isHigh) {
+        if (p.price > prev.price) merged[merged.length - 1] = p;
+      } else if (p.price < prev.price) {
+        merged[merged.length - 1] = p;
+      }
+    } else {
+      merged.push(p);
+    }
+  }
+  return merged;
+}
+
+/** 스윙 레그 사이 실제 최고 고가 / 최저 저가 심지로 피벗을 붙임 */
+export function refineZigzagPivotsToLegExtremes(
+  candles: Candle[],
+  pivots: ZigzagPivot[]
+): ZigzagPivot[] {
+  if (!candles.length || pivots.length < 1) return pivots;
+  const out = pivots.map((p, i) => {
+    const left = i > 0 ? pivots[i - 1]!.idx + 1 : Math.max(0, p.idx - 4);
+    const right = i + 1 < pivots.length ? pivots[i + 1]!.idx - 1 : Math.min(candles.length - 1, p.idx + 4);
+    const a = Math.max(0, Math.min(left, right, p.idx));
+    const b = Math.min(candles.length - 1, Math.max(left, right, p.idx));
+    if (p.isHigh) {
+      let best = p.idx;
+      let px = Number(candles[p.idx]?.high) || p.price;
+      for (let k = a; k <= b; k++) {
+        const h = Number(candles[k]!.high);
+        if (h > px) {
+          px = h;
+          best = k;
+        }
+      }
+      return { idx: best, time: Number(candles[best]!.time), price: px, isHigh: true };
+    }
+    let best = p.idx;
+    let px = Number(candles[p.idx]?.low) || p.price;
+    for (let k = a; k <= b; k++) {
+      const l = Number(candles[k]!.low);
+      if (l < px) {
+        px = l;
+        best = k;
+      }
+    }
+    return { idx: best, time: Number(candles[best]!.time), price: px, isHigh: false };
+  });
+  return collapseZigzagSameType(out);
+}
+
+/** 창 안 절대 최고/최저가 프랙탈에 없으면 삽입 — 1번 고점 누락 방지 */
+export function ensureMajorSwingExtremes(
+  candles: Candle[],
+  pivots: ZigzagPivot[]
+): ZigzagPivot[] {
+  if (!candles.length) return pivots;
+  let maxI = 0;
+  let maxH = -Infinity;
+  let minI = 0;
+  let minL = Infinity;
+  for (let i = 0; i < candles.length; i++) {
+    const h = Number(candles[i]!.high);
+    const l = Number(candles[i]!.low);
+    if (h > maxH) {
+      maxH = h;
+      maxI = i;
+    }
+    if (l < minL) {
+      minL = l;
+      minI = i;
+    }
+  }
+  const out = [...pivots];
+  if (Number.isFinite(maxH) && maxH > 0 && !out.some((p) => p.isHigh && p.price >= maxH - 1e-9)) {
+    out.push({ idx: maxI, time: Number(candles[maxI]!.time), price: maxH, isHigh: true });
+  }
+  if (Number.isFinite(minL) && !out.some((p) => !p.isHigh && p.price <= minL + 1e-9)) {
+    out.push({ idx: minI, time: Number(candles[minI]!.time), price: minL, isHigh: false });
+  }
+  out.sort((a, b) => a.idx - b.idx || a.time - b.time);
+  return collapseZigzagSameType(out);
+}
+
+/** 같은 스윙 군집에서 실제 최고 고가 / 최저 저가 봉으로 피벗을 붙임 */
+export function refineZigzagPivotToWick(
+  candles: Candle[],
+  p: ZigzagPivot,
+  pad = 2
+): ZigzagPivot {
+  if (!candles.length) return p;
+  const a = Math.max(0, p.idx - pad);
+  const b = Math.min(candles.length - 1, p.idx + pad);
+  let best = p.idx;
+  if (p.isHigh) {
+    let px = Number(candles[p.idx]?.high) || p.price;
+    for (let k = a; k <= b; k++) {
+      const h = Number(candles[k]!.high);
+      if (h > px) {
+        px = h;
+        best = k;
+      }
+    }
+    return { idx: best, time: Number(candles[best]!.time), price: px, isHigh: true };
+  }
+  let px = Number(candles[p.idx]?.low) || p.price;
+  for (let k = a; k <= b; k++) {
+    const l = Number(candles[k]!.low);
+    if (l < px) {
+      px = l;
+      best = k;
+    }
+  }
+  return { idx: best, time: Number(candles[best]!.time), price: px, isHigh: false };
+}
+
+/**
+ * 미확정 우측 꼬리: 최근 R봉이 마지막 확정 고/저보다 더 극단이면 그 심지를 구조 끝에 반영.
+ * 확정 피벗으로 쓰지 않고, 더 높은 고점/더 낮은 저점을 놓치지 않기 위함.
+ */
+export function attachTailSwingExtreme(
+  candles: Candle[],
+  pivots: ZigzagPivot[],
+  right = 2
+): ZigzagPivot[] {
+  if (!candles.length || pivots.length < 1) return pivots;
+  const tailFrom = Math.max(0, candles.length - Math.max(right, 2) - 1);
+  let maxI = -1;
+  let maxH = -Infinity;
+  let minI = -1;
+  let minL = Infinity;
+  for (let i = tailFrom; i < candles.length; i++) {
+    const h = Number(candles[i]!.high);
+    const l = Number(candles[i]!.low);
+    if (h > maxH) {
+      maxH = h;
+      maxI = i;
+    }
+    if (l < minL) {
+      minL = l;
+      minI = i;
+    }
+  }
+  const out = pivots.map((p) => refineZigzagPivotToWick(candles, p, right));
+  const lastHigh = [...out].reverse().find((p) => p.isHigh);
+  const lastLow = [...out].reverse().find((p) => !p.isHigh);
+  const hiBetter = maxI >= 0 && lastHigh != null && maxH > lastHigh.price + 1e-9;
+  const loBetter = minI >= 0 && lastLow != null && minL < lastLow.price - 1e-9;
+  if (hiBetter && (!loBetter || maxI >= minI)) {
+    const hi: ZigzagPivot = {
+      idx: maxI,
+      time: Number(candles[maxI]!.time),
+      price: maxH,
+      isHigh: true,
+    };
+    if (out[out.length - 1]!.isHigh) out[out.length - 1] = hi;
+    else out.push(hi);
+  } else if (loBetter) {
+    const lo: ZigzagPivot = {
+      idx: minI,
+      time: Number(candles[minI]!.time),
+      price: minL,
+      isHigh: false,
+    };
+    if (!out[out.length - 1]!.isHigh) out[out.length - 1] = lo;
+    else out.push(lo);
+  }
+  return out;
+}
+
 /** 좌·우 N봉 스윙 고저 — 치트시트용 단순 지그재그 (left/right↑ 시 꼭짓점이 봉에 더 딱 붙음) */
 export function detectZigzagPivots(candles: Candle[], left = 3, right = 3): ZigzagPivot[] {
   if (candles.length < left + right + 3) return [];
@@ -37,24 +215,7 @@ export function detectZigzagPivots(candles: Candle[], left = 3, right = 3): Zigz
     }
   }
   raw.sort((a, b) => a.idx - b.idx);
-  const merged: ZigzagPivot[] = [];
-  for (const p of raw) {
-    const prev = merged[merged.length - 1];
-    if (!prev) {
-      merged.push(p);
-      continue;
-    }
-    if (prev.isHigh === p.isHigh) {
-      if (p.isHigh) {
-        if (p.price >= prev.price) merged[merged.length - 1] = p;
-      } else if (p.price <= prev.price) {
-        merged[merged.length - 1] = p;
-      }
-    } else {
-      merged.push(p);
-    }
-  }
-  return merged;
+  return collapseZigzagSameType(raw);
 }
 
 function recentAtrProxy(candles: Candle[], look = 10): number {

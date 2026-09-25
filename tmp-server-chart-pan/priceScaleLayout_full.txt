@@ -1,0 +1,48 @@
+export function getChartPriceScaleLayout(opts: {
+  mobileFs?: boolean;
+  chartFullscreen?: boolean;
+  mergedDesk?: boolean;
+  /** 우측 가격축·축옆 라벨 글자 (차트 본문 SL/E/TP 라벨과 별개) */
+  axisFontSize?: number;
+}): {
+  minimumWidth: number;
+  rightOffset: number;
+  bitgetRightOffset: number;
+  layoutFontSize?: number;
+} {
+  const compact = Boolean(opts.mobileFs || opts.chartFullscreen || opts.mergedDesk);
+  const userFs =
+    opts.axisFontSize != null && Number.isFinite(opts.axisFontSize)
+      ? Math.max(8, Math.min(16, Math.round(opts.axisFontSize)))
+      : null;
+  const layoutFontSize = userFs ?? (opts.mobileFs || compact ? 11 : undefined);
+  const minimumWidth =
+    layoutFontSize != null
+      ? Math.max(32, Math.min(78, Math.round(layoutFontSize * (opts.mobileFs ? 3.6 : 4.2) + (opts.mobileFs ? 6 : 10))))
+      : opts.mobileFs
+        ? 44
+        : compact
+          ? 46
+          : 58;
+  /** 통합·분석: 마지막 캔들 뒤 예측 여백을 넓게 (캔들 제외 작도·라벨 우측 안착) */
+  const mergedFuturePad = opts.mergedDesk ? MERGED_DESK_RIGHT_FUTURE_BARS : 0;
+  return {
+    minimumWidth,
+    rightOffset: opts.mobileFs
+      ? Math.max(2, Math.min(12, mergedFuturePad || 2))
+      : opts.mergedDesk
+        ? mergedFuturePad
+        : compact
+          ? 5
+          : 10,
+    bitgetRightOffset: opts.mobileFs
+      ? Math.max(3, Math.min(14, mergedFuturePad || 3))
+      : opts.mergedDesk
+        ? Math.max(mergedFuturePad, 14)
+        : compact
+          ? 8
+          : 14,
+    layoutFontSize,
+  };
+}
+/** 전체화면: 거래량 패널을 차트 최하단에 밀착. 폰 FS는 캔들 비중 더 큼 */

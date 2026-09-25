@@ -1,0 +1,45 @@
+{
+  "symbol": "XRPUSDT",
+  "timeframe": "5m",
+  "at": 1790051314602,
+  "promoted": null,
+  "summaryKo": "강신호 조합 없음 · 단독 SMC 금지",
+  "hits": [
+    {
+      "id": "reversal_cluster_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 66,
+      "tpBeforeSl": 0.4696969696969697,
+      "netExpectancy": -0.194919153787245,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "reversal_cluster_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 66,
+      "tpBeforeSl": 0.4696969696969697,
+      "netExpectancy": -0.194919153787245,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 15,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 15,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    }
+  ]
+}

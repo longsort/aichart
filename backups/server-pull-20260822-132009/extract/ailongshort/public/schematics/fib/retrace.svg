@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Fibonacci Retracement</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.6" points="80,400 400,80 860,250"/>
+  <line x1="80" y1="80" x2="900" y2="80" stroke="#94a3b8"/>
+  <line x1="80" y1="400" x2="900" y2="400" stroke="#94a3b8"/>
+  <line x1="80" y1="202" x2="900" y2="202" stroke="#22c55e" stroke-dasharray="4 3"/>
+  <line x1="80" y1="240" x2="900" y2="240" stroke="#eab308" stroke-dasharray="4 3"/>
+  <line x1="80" y1="278" x2="900" y2="278" stroke="#f97316" stroke-dasharray="4 3"/>
+  <line x1="80" y1="332" x2="900" y2="332" stroke="#64748b" stroke-dasharray="4 3"/>
+  <text x="910" y="86" font-family="Segoe UI, sans-serif" font-size="12">0</text>
+  <text x="910" y="206" font-family="Segoe UI, sans-serif" font-size="12">0.382</text>
+  <text x="910" y="244" font-family="Segoe UI, sans-serif" font-size="12">0.50</text>
+  <text x="910" y="282" font-family="Segoe UI, sans-serif" font-size="12">0.618</text>
+  <text x="910" y="336" font-family="Segoe UI, sans-serif" font-size="12">0.786</text>
+  <text x="910" y="404" font-family="Segoe UI, sans-serif" font-size="12">1</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">GP cluster 0.38–0.62 is common reaction. Not a magnet guarantee.</text>
+</svg>

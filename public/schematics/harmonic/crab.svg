@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Crab</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.5" points="100,220 300,390 470,250 620,330 920,70"/>
+  <text x="100" y="210" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">X</text>
+  <text x="300" y="380" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">A</text>
+  <text x="470" y="240" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">B</text>
+  <text x="620" y="320" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">C</text>
+  <text x="920" y="60" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">D</text>
+  <text x="80" y="430" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">AB=0.382–0.618 XA   AD=1.618 XA   deep CD (2.24–3.618 BC)</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">PRZ at D is a zone, not a fill. Invalid if XA structure breaks.</text>
+</svg>

@@ -1,0 +1,33 @@
+---
+description: 스킬 전부 활성화 — 작업 시 사용 가능한 에이전트 스킬을 적극 활용
+alwaysApply: true
+---
+
+# 스킬 전부 활용
+
+- 작업할 때 **사용 가능한 에이전트 스킬을 전부 고려하고, 해당되면 반드시 사용하세요.**
+- 규칙/컨벤션·문서·설정 관련: create-rule, create-skill, update-cursor-settings 스킬 사용.
+- **차트 UI·글꼴·존 색/테두리 재설계**: **merged-desk-visual-design** 를 먼저 읽고, 함께 **frontend-design** · **ui-ux-pro-max-design** · **crypto-frontend-design** · **cursor-ui-architect** · **web-design-guidelines** · **chart-ux** 를 따른다. 라벨 위치·문구는 유지하고 글꼴·존 fill/테두리만 바꾼다.
+- 문서·README·에러 메시지·프로세 작성: crafting-effective-readmes, writing-clearly-and-concisely 스킬 사용.
+- 복잡한 문제·추론·단계별 분석: integrated-reasoning, sequential-thinking, self-reflecting-chain 스킬 사용.
+- 변경 이력·릴리스: changelog-automation 스킬 사용.
+- 에이전트 메모리·자기 평가: agent-memory-skills 스킬 사용.
+- 스킬 찾기·설치: find-skills 스킬 사용.
+- 차트·캔들·분석 관련 작업 시: **crypto-chart-master**(`assets/crypto-chart-master`·`.cursor/skills/crypto-chart-master`) 및 **chart-analysis-core** 스킬을 읽고, 통합·분석 TF 정책은 `lib/mergedDesk4hReference.ts` / `lib/mergedDesk4hReferenceAnalysis.ts`를 따른다.
+- **BTC/ETH zone 네모·작도·앵커·복구** 작업 시: **btc-eth-zone-draw**를 먼저 읽고, 함께 **market-structure-ta** · **longbridge-technical**(SMC) · **mmt-tradingview-charts** · **crypto-chart-master**를 참고한다.
+- **Bitget 고래 DNA·거래량 구간 통계** 작업 시: **bitget-whale-dna** + **technical-analysis** (Bitget TA) + **trading-visualization** + **macro-analyst** (Bitget 매크로) + **chart** (starchild 차트) 스킬을 읽고, 카드 UI 금지 규칙(`no-whale-card-ui.mdc`)을 따른다.
+- **독수리1호 BTC 엔진 스킬** (`.cursor/skills/`): 단계별로 읽고 지침대로 실행한다.
+  1. `market-data-engine` — Bitget 수집·품질·스키마·Live/Replay
+  2. `market-structure-engine` — HH/HL/BOS/CHoCH/Wyckoff/Regime
+  3. `zone-engine` — POC/OB/FVG 수명주기·확정 후 가격 고정
+  4. `signal-engine` — LONG/SHORT/WAIT · 검증확률
+  5. `risk-engine` — Entry/SL/TP/RR/EV
+  6. `non-repaint-validator` — leakage·리페인트·패리티 (게이트, FAIL 시 다음 단계 금지)
+  7. `chart-ux` — 실전/분석/연구 모드 · 한국어 compact 라벨
+- **타점엔진 · 기관밴드 타점**: `tapoint-institutional-band` — 기관밴드·터치·캔들반응 → E/SL/T1 카드 (`lib/eagle1Tapoint/institutionalBandTapPlan.ts`).
+- **호칭 「15분밴드자동」 / BAND15_AUTO**: `band15-auto` — 전 코인 15m 밴드1·2 정렬 Paper 자동 (`lib/eagle1Tapoint/band15AutoSkill.ts`). 구 QS/SNIPER/오토 주문 금지.
+- **독수리1호 BTC QUICK SCALP**: `quick-scalp-auto` — 엔진·카드 유지. **자동주문 레인 사용 금지**(15분밴드자동만).
+- **BTC SNIPER**: `sniper-scalp-auto` — 엔진·카드 유지. **자동주문 레인 사용 금지**.
+- **ETH AI AUTOPILOT**: `ai-autopilot-sniper` — 엔진·카드 유지. **자동주문 레인 사용 금지**.
+- 스킬 추가·업데이트: **find-skills** 스킬 → `npx skills find [키워드]` / `npx skills add owner/repo@skill` → `.cursor/skills/` 로 복사 후 `use-all-skills`에 등록.
+- **해당 스킬이 있으면 설명만 하지 말고, 스킬 파일을 읽고 지침대로 실행하세요.**

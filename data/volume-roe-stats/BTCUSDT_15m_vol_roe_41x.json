@@ -1,0 +1,871 @@
+{
+  "symbol": "BTCUSDT",
+  "tf": "15m",
+  "bars": 2976,
+  "from": 1779880500000,
+  "to": 1782558000000,
+  "leverage": 41.0,
+  "noteKo": [
+    "41배에서 ROE 8% ≈ 가격 0.195% 이동",
+    "41배에서 ROE 10% ≈ 가격 0.244% 이동",
+    "막대색: buy≥55%녹 · sell≤45%빨 · 그사이 노랑(mixed)",
+    "CSV에 taker 없음 → 종가위치 추정(앱 estimateBarBuySell과 동일 계열)",
+    "표본≈1개월 · 확정 승률·수익 아님 · 설계용"
+  ],
+  "topByHitRate": [
+    {
+      "key": "sell|RVOL2-3|h32|roe8|LONG",
+      "n": 100,
+      "hit": 96,
+      "hitRate": 0.96,
+      "avgRvol": 2.38,
+      "avgVol": 1309.61
+    },
+    {
+      "key": "buy|RVOL4-6|h32|roe8|SHORT",
+      "n": 21,
+      "hit": 20,
+      "hitRate": 0.9524,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "sell|RVOL2-3|h32|roe10|LONG",
+      "n": 100,
+      "hit": 93,
+      "hitRate": 0.93,
+      "avgRvol": 2.38,
+      "avgVol": 1309.61
+    },
+    {
+      "key": "mixed|RVOL0-2|h32|roe8|SHORT",
+      "n": 90,
+      "hit": 82,
+      "hitRate": 0.9111,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h32|roe10|SHORT",
+      "n": 90,
+      "hit": 80,
+      "hitRate": 0.8889,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "sell|RVOL3-4|h32|roe8|LONG",
+      "n": 43,
+      "hit": 38,
+      "hitRate": 0.8837,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "sell|RVOL3-4|h32|roe8|SHORT",
+      "n": 43,
+      "hit": 38,
+      "hitRate": 0.8837,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "sell|RVOL3-4|h32|roe10|SHORT",
+      "n": 43,
+      "hit": 38,
+      "hitRate": 0.8837,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "sell|RVOL4-6|h16|roe8|LONG",
+      "n": 17,
+      "hit": 15,
+      "hitRate": 0.8824,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL4-6|h16|roe8|SHORT",
+      "n": 17,
+      "hit": 15,
+      "hitRate": 0.8824,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL4-6|h16|roe10|SHORT",
+      "n": 17,
+      "hit": 15,
+      "hitRate": 0.8824,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL4-6|h32|roe8|LONG",
+      "n": 17,
+      "hit": 15,
+      "hitRate": 0.8824,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL4-6|h32|roe8|SHORT",
+      "n": 17,
+      "hit": 15,
+      "hitRate": 0.8824,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL4-6|h32|roe10|SHORT",
+      "n": 17,
+      "hit": 15,
+      "hitRate": 0.8824,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL2-3|h16|roe8|LONG",
+      "n": 100,
+      "hit": 87,
+      "hitRate": 0.87,
+      "avgRvol": 2.38,
+      "avgVol": 1309.61
+    },
+    {
+      "key": "buy|RVOL0-2|h32|roe8|SHORT",
+      "n": 1271,
+      "hit": 1104,
+      "hitRate": 0.8686,
+      "avgRvol": 0.79,
+      "avgVol": 437.52
+    },
+    {
+      "key": "sell|RVOL0-2|h32|roe8|SHORT",
+      "n": 1240,
+      "hit": 1066,
+      "hitRate": 0.8597,
+      "avgRvol": 0.79,
+      "avgVol": 440.05
+    },
+    {
+      "key": "buy|RVOL4-6|h8|roe8|SHORT",
+      "n": 21,
+      "hit": 18,
+      "hitRate": 0.8571,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "buy|RVOL4-6|h16|roe8|SHORT",
+      "n": 21,
+      "hit": 18,
+      "hitRate": 0.8571,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "buy|RVOL4-6|h32|roe8|LONG",
+      "n": 21,
+      "hit": 18,
+      "hitRate": 0.8571,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "buy|RVOL4-6|h32|roe10|LONG",
+      "n": 21,
+      "hit": 18,
+      "hitRate": 0.8571,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "buy|RVOL4-6|h32|roe10|SHORT",
+      "n": 21,
+      "hit": 18,
+      "hitRate": 0.8571,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "sell|RVOL2-3|h8|roe8|LONG",
+      "n": 100,
+      "hit": 85,
+      "hitRate": 0.85,
+      "avgRvol": 2.38,
+      "avgVol": 1309.61
+    },
+    {
+      "key": "buy|RVOL3-4|h8|roe8|SHORT",
+      "n": 39,
+      "hit": 33,
+      "hitRate": 0.8462,
+      "avgRvol": 3.37,
+      "avgVol": 2097.54
+    },
+    {
+      "key": "buy|RVOL3-4|h16|roe8|SHORT",
+      "n": 39,
+      "hit": 33,
+      "hitRate": 0.8462,
+      "avgRvol": 3.37,
+      "avgVol": 2097.54
+    },
+    {
+      "key": "buy|RVOL3-4|h32|roe8|SHORT",
+      "n": 39,
+      "hit": 33,
+      "hitRate": 0.8462,
+      "avgRvol": 3.37,
+      "avgVol": 2097.54
+    },
+    {
+      "key": "buy|RVOL0-2|h32|roe10|SHORT",
+      "n": 1271,
+      "hit": 1070,
+      "hitRate": 0.8419,
+      "avgRvol": 0.79,
+      "avgVol": 437.52
+    },
+    {
+      "key": "sell|RVOL0-2|h32|roe8|LONG",
+      "n": 1240,
+      "hit": 1042,
+      "hitRate": 0.8403,
+      "avgRvol": 0.79,
+      "avgVol": 440.05
+    },
+    {
+      "key": "sell|RVOL3-4|h16|roe8|SHORT",
+      "n": 43,
+      "hit": 36,
+      "hitRate": 0.8372,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "sell|RVOL3-4|h16|roe10|SHORT",
+      "n": 43,
+      "hit": 36,
+      "hitRate": 0.8372,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "sell|RVOL3-4|h32|roe10|LONG",
+      "n": 43,
+      "hit": 36,
+      "hitRate": 0.8372,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "mixed|RVOL0-2|h16|roe8|SHORT",
+      "n": 90,
+      "hit": 75,
+      "hitRate": 0.8333,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "buy|RVOL0-2|h32|roe8|LONG",
+      "n": 1271,
+      "hit": 1057,
+      "hitRate": 0.8316,
+      "avgRvol": 0.79,
+      "avgVol": 437.52
+    },
+    {
+      "key": "sell|RVOL2-3|h16|roe10|LONG",
+      "n": 100,
+      "hit": 83,
+      "hitRate": 0.83,
+      "avgRvol": 2.38,
+      "avgVol": 1309.61
+    },
+    {
+      "key": "sell|RVOL0-2|h32|roe10|SHORT",
+      "n": 1240,
+      "hit": 1029,
+      "hitRate": 0.8298,
+      "avgRvol": 0.79,
+      "avgVol": 440.05
+    },
+    {
+      "key": "buy|RVOL2-3|h32|roe8|LONG",
+      "n": 86,
+      "hit": 71,
+      "hitRate": 0.8256,
+      "avgRvol": 2.42,
+      "avgVol": 1351.34
+    },
+    {
+      "key": "buy|RVOL2-3|h32|roe8|SHORT",
+      "n": 86,
+      "hit": 71,
+      "hitRate": 0.8256,
+      "avgRvol": 2.42,
+      "avgVol": 1351.34
+    },
+    {
+      "key": "sell|RVOL4-6|h4|roe8|LONG",
+      "n": 17,
+      "hit": 14,
+      "hitRate": 0.8235,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL4-6|h8|roe8|LONG",
+      "n": 17,
+      "hit": 14,
+      "hitRate": 0.8235,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL4-6|h16|roe10|LONG",
+      "n": 17,
+      "hit": 14,
+      "hitRate": 0.8235,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    }
+  ],
+  "sellHeavyShort8": [
+    {
+      "key": "sell|RVOL3-4|h32|roe8|SHORT",
+      "n": 43,
+      "hit": 38,
+      "hitRate": 0.8837,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "sell|RVOL4-6|h16|roe8|SHORT",
+      "n": 17,
+      "hit": 15,
+      "hitRate": 0.8824,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL4-6|h32|roe8|SHORT",
+      "n": 17,
+      "hit": 15,
+      "hitRate": 0.8824,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL0-2|h32|roe8|SHORT",
+      "n": 1240,
+      "hit": 1066,
+      "hitRate": 0.8597,
+      "avgRvol": 0.79,
+      "avgVol": 440.05
+    },
+    {
+      "key": "sell|RVOL3-4|h16|roe8|SHORT",
+      "n": 43,
+      "hit": 36,
+      "hitRate": 0.8372,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "sell|RVOL2-3|h32|roe8|SHORT",
+      "n": 100,
+      "hit": 82,
+      "hitRate": 0.82,
+      "avgRvol": 2.38,
+      "avgVol": 1309.61
+    },
+    {
+      "key": "sell|RVOL0-2|h16|roe8|SHORT",
+      "n": 1240,
+      "hit": 982,
+      "hitRate": 0.7919,
+      "avgRvol": 0.79,
+      "avgVol": 440.05
+    },
+    {
+      "key": "sell|RVOL3-4|h8|roe8|SHORT",
+      "n": 43,
+      "hit": 33,
+      "hitRate": 0.7674,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "sell|RVOL3-4|h4|roe8|SHORT",
+      "n": 43,
+      "hit": 32,
+      "hitRate": 0.7442,
+      "avgRvol": 3.46,
+      "avgVol": 1795.03
+    },
+    {
+      "key": "sell|RVOL2-3|h16|roe8|SHORT",
+      "n": 100,
+      "hit": 74,
+      "hitRate": 0.74,
+      "avgRvol": 2.38,
+      "avgVol": 1309.61
+    },
+    {
+      "key": "sell|RVOL4-6|h8|roe8|SHORT",
+      "n": 17,
+      "hit": 12,
+      "hitRate": 0.7059,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL0-2|h8|roe8|SHORT",
+      "n": 1240,
+      "hit": 874,
+      "hitRate": 0.7048,
+      "avgRvol": 0.79,
+      "avgVol": 440.05
+    },
+    {
+      "key": "sell|RVOL4-6|h4|roe8|SHORT",
+      "n": 17,
+      "hit": 11,
+      "hitRate": 0.6471,
+      "avgRvol": 4.6,
+      "avgVol": 2734.09
+    },
+    {
+      "key": "sell|RVOL2-3|h8|roe8|SHORT",
+      "n": 100,
+      "hit": 64,
+      "hitRate": 0.64,
+      "avgRvol": 2.38,
+      "avgVol": 1309.61
+    },
+    {
+      "key": "sell|RVOL0-2|h4|roe8|SHORT",
+      "n": 1240,
+      "hit": 747,
+      "hitRate": 0.6024,
+      "avgRvol": 0.79,
+      "avgVol": 440.05
+    }
+  ],
+  "buyHeavyLong8": [
+    {
+      "key": "buy|RVOL4-6|h32|roe8|LONG",
+      "n": 21,
+      "hit": 18,
+      "hitRate": 0.8571,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "buy|RVOL0-2|h32|roe8|LONG",
+      "n": 1271,
+      "hit": 1057,
+      "hitRate": 0.8316,
+      "avgRvol": 0.79,
+      "avgVol": 437.52
+    },
+    {
+      "key": "buy|RVOL2-3|h32|roe8|LONG",
+      "n": 86,
+      "hit": 71,
+      "hitRate": 0.8256,
+      "avgRvol": 2.42,
+      "avgVol": 1351.34
+    },
+    {
+      "key": "buy|RVOL4-6|h8|roe8|LONG",
+      "n": 21,
+      "hit": 17,
+      "hitRate": 0.8095,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "buy|RVOL4-6|h16|roe8|LONG",
+      "n": 21,
+      "hit": 17,
+      "hitRate": 0.8095,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "buy|RVOL2-3|h16|roe8|LONG",
+      "n": 86,
+      "hit": 69,
+      "hitRate": 0.8023,
+      "avgRvol": 2.42,
+      "avgVol": 1351.34
+    },
+    {
+      "key": "buy|RVOL3-4|h32|roe8|LONG",
+      "n": 39,
+      "hit": 29,
+      "hitRate": 0.7436,
+      "avgRvol": 3.37,
+      "avgVol": 2097.54
+    },
+    {
+      "key": "buy|RVOL0-2|h16|roe8|LONG",
+      "n": 1271,
+      "hit": 942,
+      "hitRate": 0.7411,
+      "avgRvol": 0.79,
+      "avgVol": 437.52
+    },
+    {
+      "key": "buy|RVOL2-3|h8|roe8|LONG",
+      "n": 86,
+      "hit": 63,
+      "hitRate": 0.7326,
+      "avgRvol": 2.42,
+      "avgVol": 1351.34
+    },
+    {
+      "key": "buy|RVOL3-4|h16|roe8|LONG",
+      "n": 39,
+      "hit": 27,
+      "hitRate": 0.6923,
+      "avgRvol": 3.37,
+      "avgVol": 2097.54
+    },
+    {
+      "key": "buy|RVOL4-6|h4|roe8|LONG",
+      "n": 21,
+      "hit": 14,
+      "hitRate": 0.6667,
+      "avgRvol": 4.98,
+      "avgVol": 2478.1
+    },
+    {
+      "key": "buy|RVOL2-3|h4|roe8|LONG",
+      "n": 86,
+      "hit": 56,
+      "hitRate": 0.6512,
+      "avgRvol": 2.42,
+      "avgVol": 1351.34
+    },
+    {
+      "key": "buy|RVOL0-2|h8|roe8|LONG",
+      "n": 1271,
+      "hit": 823,
+      "hitRate": 0.6475,
+      "avgRvol": 0.79,
+      "avgVol": 437.52
+    },
+    {
+      "key": "buy|RVOL3-4|h8|roe8|LONG",
+      "n": 39,
+      "hit": 24,
+      "hitRate": 0.6154,
+      "avgRvol": 3.37,
+      "avgVol": 2097.54
+    },
+    {
+      "key": "buy|RVOL3-4|h4|roe8|LONG",
+      "n": 39,
+      "hit": 23,
+      "hitRate": 0.5897,
+      "avgRvol": 3.37,
+      "avgVol": 2097.54
+    }
+  ],
+  "mixedYellow": [
+    {
+      "key": "mixed|RVOL0-2|h32|roe8|SHORT",
+      "n": 90,
+      "hit": 82,
+      "hitRate": 0.9111,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h32|roe10|SHORT",
+      "n": 90,
+      "hit": 80,
+      "hitRate": 0.8889,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h16|roe8|SHORT",
+      "n": 90,
+      "hit": 75,
+      "hitRate": 0.8333,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h16|roe10|SHORT",
+      "n": 90,
+      "hit": 73,
+      "hitRate": 0.8111,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h32|roe8|LONG",
+      "n": 90,
+      "hit": 72,
+      "hitRate": 0.8,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h8|roe8|SHORT",
+      "n": 90,
+      "hit": 69,
+      "hitRate": 0.7667,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h32|roe10|LONG",
+      "n": 90,
+      "hit": 67,
+      "hitRate": 0.7444,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h8|roe10|SHORT",
+      "n": 90,
+      "hit": 66,
+      "hitRate": 0.7333,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h16|roe8|LONG",
+      "n": 90,
+      "hit": 66,
+      "hitRate": 0.7333,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h16|roe10|LONG",
+      "n": 90,
+      "hit": 60,
+      "hitRate": 0.6667,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h4|roe8|SHORT",
+      "n": 90,
+      "hit": 58,
+      "hitRate": 0.6444,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h8|roe8|LONG",
+      "n": 90,
+      "hit": 56,
+      "hitRate": 0.6222,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h4|roe10|SHORT",
+      "n": 90,
+      "hit": 52,
+      "hitRate": 0.5778,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h8|roe10|LONG",
+      "n": 90,
+      "hit": 49,
+      "hitRate": 0.5444,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    },
+    {
+      "key": "mixed|RVOL0-2|h4|roe8|LONG",
+      "n": 90,
+      "hit": 44,
+      "hitRate": 0.4889,
+      "avgRvol": 0.82,
+      "avgVol": 449.38
+    }
+  ],
+  "streakTop": [
+    {
+      "key": "streak3+|buy|h8|roe8|LONG",
+      "n": 19,
+      "hit": 17,
+      "hitRate": 0.8947,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak3+|buy|h16|roe8|LONG",
+      "n": 19,
+      "hit": 17,
+      "hitRate": 0.8947,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak2+|buy|h16|roe8|LONG",
+      "n": 41,
+      "hit": 33,
+      "hitRate": 0.8049,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak2+|buy|h16|roe10|LONG",
+      "n": 41,
+      "hit": 33,
+      "hitRate": 0.8049,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak3+|sell|h16|roe8|SHORT",
+      "n": 25,
+      "hit": 20,
+      "hitRate": 0.8,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak3+|sell|h16|roe10|SHORT",
+      "n": 25,
+      "hit": 20,
+      "hitRate": 0.8,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak3+|buy|h16|roe10|LONG",
+      "n": 19,
+      "hit": 15,
+      "hitRate": 0.7895,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak2+|sell|h16|roe8|SHORT",
+      "n": 48,
+      "hit": 37,
+      "hitRate": 0.7708,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak2+|sell|h16|roe10|SHORT",
+      "n": 48,
+      "hit": 37,
+      "hitRate": 0.7708,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak3+|sell|h8|roe8|SHORT",
+      "n": 25,
+      "hit": 19,
+      "hitRate": 0.76,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak3+|sell|h8|roe10|SHORT",
+      "n": 25,
+      "hit": 19,
+      "hitRate": 0.76,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak3+|buy|h8|roe10|LONG",
+      "n": 19,
+      "hit": 14,
+      "hitRate": 0.7368,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak2+|buy|h8|roe8|LONG",
+      "n": 41,
+      "hit": 29,
+      "hitRate": 0.7073,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak2+|buy|h8|roe10|LONG",
+      "n": 41,
+      "hit": 29,
+      "hitRate": 0.7073,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak2+|sell|h8|roe8|SHORT",
+      "n": 48,
+      "hit": 30,
+      "hitRate": 0.625,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak2+|sell|h8|roe10|SHORT",
+      "n": 48,
+      "hit": 30,
+      "hitRate": 0.625,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak4+|sell|h8|roe8|SHORT",
+      "n": 13,
+      "hit": 8,
+      "hitRate": 0.6154,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak4+|sell|h16|roe8|SHORT",
+      "n": 13,
+      "hit": 8,
+      "hitRate": 0.6154,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak4+|sell|h16|roe10|SHORT",
+      "n": 13,
+      "hit": 8,
+      "hitRate": 0.6154,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    },
+    {
+      "key": "streak4+|sell|h8|roe10|SHORT",
+      "n": 13,
+      "hit": 7,
+      "hitRate": 0.5385,
+      "avgRvol": 0.0,
+      "avgVol": 0.0
+    }
+  ],
+  "designHintKo": {
+    "entryFilter": "RVOL≥3 + 방향(빨=숏/녹=롱) + (BTC)15m꼬리·추정70 또는 폭락확정",
+    "avoid": "노랑(mixed) 단독 진입 · RVOL<2",
+    "tp": "41x ROE 8% 1차 · 10%는 표본상 도달률 더 낮음 → 러너/부분익절",
+    "ui": "차트 거래량 색·마커만 · 카드/HUD 금지 · 성적 패널은 자동매매 저널 탭에 통계줄"
+  }
+}

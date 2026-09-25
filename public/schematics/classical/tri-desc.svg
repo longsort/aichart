@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Descending Triangle</text>
+  <line x1="120" y1="380" x2="820" y2="380" stroke="#0f172a" stroke-width="2"/>
+  <line x1="120" y1="120" x2="820" y2="360" stroke="#0f172a" stroke-width="2"/>
+  <polyline fill="none" stroke="#dc2626" stroke-width="2.2" points="140,140 220,360 320,200 400,360 520,250 600,360 700,320"/>
+  <text x="200" y="108" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700">falling highs</text>
+  <text x="500" y="402" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700">flat support</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Often bearish continuation. Break either side possible.</text>
+</svg>

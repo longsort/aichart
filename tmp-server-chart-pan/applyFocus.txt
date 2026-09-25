@@ -1,0 +1,72 @@
+function applyFocusLatestBars(
+  chart: IChartApi,
+  series: ISeriesApi<'Candlestick'> | null,
+  barCount: number,
+  tf: string,
+  opts?: { scrollToLatest?: boolean }
+): void {
+  if (!series || barCount < 1) return;
+  const seriesLen = candlestickSeriesBarCount(series);
+  const n = seriesLen > 0 ? Math.min(barCount, seriesLen) : barCount;
+  const sharedSpacing = resolveMergedDeskBarSpacing(tf);
+  const vis = resolveMergedDeskVisibleBars(tf, n);
+  const from = Math.max(0, n - vis);
+  const to = Math.max(0, n - 1);
+  const scrollToLatest = opts?.scrollToLatest !== false;
+
+  const applyOnce = () => {
+    try {
+      const ts = chart.timeScale();
+      /** 통합·분석 TF: barSpacing 우선(확대·축소 공통), 이어서 동일 visibleBars로 맞춤 */
+      if (sharedSpacing != null) {
+        ts.applyOptions({ barSpacing: sharedSpacing });
+        if (!scrollToLatest) {
+          /** 사용자 드래그 위치 유지 — 스크롤·가격축 자동맞춤 금지 */
+          return;
+        }
+        ts.setVisibleLogicalRange({ from, to });
+        try {
+          ts.scrollToRealTime();
+        } catch {
+          /* ignore */
+        }
+        /** barSpacing이 논리범위에 덮이지 않도록 한 번 더 고정 */
+        ts.applyOptions({ barSpacing: sharedSpacing });
+        const lr = ts.getVisibleLogicalRange?.();
+        if (lr && Number.isFinite(lr.from) && Number.isFinite(lr.to)) {
+          fitPriceScaleToVisibleCandles(series, lr.from, lr.to);
+        } else {
+          fitPriceScaleToVisibleCandles(series, from, to);
+        }
+        return;
+      }
+      if (scrollToLatest) {
+        ts.setVisibleLogicalRange({ from, to });
+        try {
+          ts.scrollToRealTime();
+        } catch {
+          /* ignore */
+        }
+        fitPriceScaleToVisibleCandles(series, from, to);
+      }
+    } catch {
+      if (!scrollToLatest) return;
+      try {
+        const safeVis = Math.min(MERGED_DESK_DEFAULT_VISIBLE_BARS, n);
+        const f = Math.max(0, n - safeVis);
+        const t = Math.max(0, n - 1);
+        chart.timeScale().applyOptions({ barSpacing: MERGED_DESK_DEFAULT_BAR_SPACING });
+        chart.timeScale().setVisibleLogicalRange({ from: f, to: t });
+        fitPriceScaleToVisibleCandles(series, f, t);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  requestAnimationFrame(() => {
+    applyOnce();
+    /** TF 전환 직후 setData와 레이스가 있어 한 프레임 더 재적용 */
+    requestAnimationFrame(applyOnce);
+  });
+}

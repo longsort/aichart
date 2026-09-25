@@ -1,0 +1,8 @@
+
+에러 원인:
+main.dart 42라인에서 const 위젯에
+const BriefingCardsV1(state: something)
+처럼 const + non-const 인자를 사용함.
+
+해결:
+main.dart에서 해당 const 제거.

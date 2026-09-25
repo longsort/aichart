@@ -1,0 +1,275 @@
+enum FuSignal { long, short, neutral }
+
+class FuState {
+  final double price;
+  final int score, confidence, risk;
+  final bool locked;
+  final String lockedReason;
+  final String decisionTitle;
+  final int evidenceHit, evidenceTotal;
+  final double s1, r1, vwap;
+
+  // === Futures plan (optional) ===
+  // 신호 표시 게이트: (합의 4/5 이상) + (예상 ROI 20% 이상) + (NO-TRADE 아님)
+  final double entry;
+  final double stop;
+  final double target;
+  final double leverage;
+  final double qty;
+  final double roiPotential;
+  final bool consensusOk;
+  final bool roiOk;
+  final bool showSignal;
+
+  // 방향/확률/등급
+  final String signalDir; // LONG/SHORT/NEUTRAL
+  final int signalProb;
+  final String signalGrade;
+
+  // 초보용 문장(필드명 호환)
+  final String signalKo;
+  final String signalWhy;
+
+  // 고급/요약 bullet
+  final List<String> signalBullets;
+
+  final List<FuCandle> candles;
+  final List<FuZone> fvgZones;
+  // 확장 오버레이(엔진이 채움)
+  final List<FuZone> obZones;
+  final List<FuZone> bprZones;
+  final List<FuZone> mbZones;
+  final int lossStreak;
+
+  // === 세력/고래/기관 (public-data heuristics) ===
+  // 0~100 scale
+  final int whaleScore;
+  // 세력(Force) / 흡수(Absorption) / 스윕(Stop-hunt/Sweep) 보강
+  final int forceScore;
+  final int absorptionScore;
+  final int sweepRisk;
+  final int whaleBuyPct;
+  final int instBias; // 기관/세력 방향성(매수 우세=높음)
+  final int obImbalance; // 오더북 매수 비중(0~100)
+  final int tapeBuyPct; // 체결 매수 비중(0~100)
+  final String flowHint;
+
+  // === 구조/반응 구간(CHOCH/BOS) ===
+  // UI에서 숫자로 고정 표시(되돌림 반응가격/구간)
+  final String structureTag; // RANGE / CHOCH_UP / CHOCH_DN / BOS_UP / BOS_DN
+  final double breakLevel;   // 구조 돌파/이탈 기준 가격
+  final double reactLevel;   // 되돌림 반응 가격(핵심)
+  final double reactLow;     // 반응 구간 하단(띠)
+  final double reactHigh;    // 반응 구간 상단(띠)
+
+  const FuState({
+    this.price = 0,
+    this.score = 0,
+    this.confidence = 0,
+    this.risk = 0,
+    this.locked = false,
+    this.lockedReason = '',
+    this.decisionTitle = 'INIT',
+    this.evidenceHit = 0,
+    this.evidenceTotal = 5,
+    this.s1 = 0,
+    this.r1 = 0,
+    this.vwap = 0,
+
+    // Futures plan defaults
+    this.entry = 0,
+    this.stop = 0,
+    this.target = 0,
+    this.leverage = 1,
+    this.qty = 0,
+    this.roiPotential = 0,
+    this.consensusOk = false,
+    this.roiOk = false,
+    this.showSignal = false,
+    this.signalDir = 'NEUTRAL',
+    this.signalProb = 0,
+    this.signalGrade = 'C',
+    this.signalKo = '',
+    this.signalWhy = '',
+    this.signalBullets = const [],
+    this.candles = const [],
+    this.fvgZones = const [],
+    this.obZones = const [],
+    this.bprZones = const [],
+    this.mbZones = const [],
+    this.lossStreak = 0,
+
+    // flow
+    this.whaleScore = 0,
+    this.forceScore = 0,
+    this.absorptionScore = 0,
+    this.sweepRisk = 0,
+    this.whaleBuyPct = 50,
+    this.instBias = 50,
+    this.obImbalance = 50,
+    this.tapeBuyPct = 50,
+    this.flowHint = '',
+
+    // structure/reaction defaults
+    this.structureTag = 'RANGE',
+    this.breakLevel = 0,
+    this.reactLevel = 0,
+    this.reactLow = 0,
+    this.reactHigh = 0,
+  });
+
+  factory FuState.initial() => const FuState();
+
+  // UI compatibility aliases (legacy UI patches)
+  String get direction => signalDir;
+  int get prob => signalProb;
+  String get gradeLabel => signalGrade;
+
+  // v7 통합: 누락된 호환 게터(빌드 에러 방지)
+  /// 확률(0.0~1.0). UI에서 *100 해서 %로 표시
+  double get probFinal => (signalProb.clamp(0, 100)) / 100.0;
+
+  /// 매매 금지/잠금
+  bool get noTrade => locked || !showSignal;
+
+  // === ManagerTradePanel 호환 (v6~v7 패치에서 참조) ===
+  /// 최종 확률(0~1). UI에서는 *100 해서 %로 표시.
+  double get finalProb => probFinal;
+
+  /// 매매 잠금(노트레이드) 상태 (true면 진입 금지)
+  bool get tradelock => noTrade;
+
+  /// camelCase 별칭 (UI 패치 호환)
+  bool get tradeLock => tradelock;
+
+  /// 신호가 '진입 가능' 수준인지 (기본: noTrade가 아니고, 확률 20% 이상)
+  bool get tradeok => (!noTrade) && (probFinal >= 0.20);
+
+  /// camelCase 별칭 (UI 패치 호환)
+  bool get tradeOk => tradeok;
+
+  /// '관망/주의' 레벨인지 (기본: 확률 20% 미만)
+  bool get watch => (probFinal < 0.20);
+
+  /// 방향을 정수로 (롱=+1, 숏=-1, 중립=0)
+  int get dir {
+    final d = signalDir.toUpperCase();
+    if (d.contains('LONG')) return 1;
+    if (d.contains('SHORT')) return -1;
+    return 0;
+  }
+  // === 추가 UI 호환(최근 패치에서 참조) ===
+  // ultra_home_screen.dart 등에서 finalDir/grade/rr를 기대
+  String get finalDir => signalDir;
+  String get grade => signalGrade;
+  double get rr {
+    final risk = (entry - stop).abs();
+    if (risk <= 0) return 0;
+    final reward = (target - entry).abs();
+    return reward / risk;
+  }
+  // UI 패치 호환: expectedRoiPct를 찾는 화면이 있음
+  double get expectedRoiPct => roiPotential;
+  int get srStrength {
+    final v = signalProb;
+    if (v < 0) return 0;
+    if (v > 100) return 100;
+    return v;
+  }
+
+  // UI 패치 호환: 일부 화면/패치에서 sl/tp/evidencePct를 참조
+  double get sl => stop;
+  double get tp => target;
+  double get evidencePct {
+    if (evidenceTotal <= 0) return 0;
+    final v = (evidenceHit / evidenceTotal) * 100.0;
+    if (v < 0) return 0;
+    if (v > 100) return 100;
+    return v;
+  }
+  // === ManagerTradePanel 추가 호환 필드 ===
+  /// 노트레이드 이유(있으면 lockedReason 사용)
+  String get noTradeReason {
+    if (lockedReason.isNotEmpty) return lockedReason;
+    if (locked) return '잠금';
+    if (!consensusOk) return '상위/멀티TF 합의 부족';
+    if (!roiOk) return '예상 범위 부족';
+    if (!showSignal) return '근거 부족';
+    return '';
+  }
+
+  /// 3분할 익절 (40/35/25) - 방향에 따라 entry~target 구간 분배
+  double get tp1 {
+    if (entry <= 0 || target <= 0) return 0;
+    final diff = target - entry;
+    return entry + diff * 0.40;
+  }
+
+  double get tp2 {
+    if (entry <= 0 || target <= 0) return 0;
+    final diff = target - entry;
+    return entry + diff * 0.75; // 40%+35%
+  }
+
+  double get tp3 {
+    if (entry <= 0 || target <= 0) return 0;
+    return target;
+  }
+
+  /// 필요 레버리지(엔진 계산 leverage 그대로)
+  double get levNeed => leverage;
+
+// ===== Legacy compatibility (build error prevention) =====
+/// 기존 코드에서 state.why 를 참조하는 경우를 위해 제공
+String get why => signalWhy;
+
+/// 기존 코드에서 state.evidenceScore 를 참조하는 경우를 위해 제공
+int get evidenceScore => score;
+
+/// 기존 코드에서 state.signal (enum) 을 참조하는 경우를 위해 제공
+FuSignal get signal {
+  final d = signalDir.toUpperCase();
+  if (d == 'LONG' || d == 'UP') return FuSignal.long;
+  if (d == 'SHORT' || d == 'DOWN') return FuSignal.short;
+  return FuSignal.neutral;
+}
+
+  // === UI 호환: 개편 위젯에서 참조하는 별칭/태그 ===
+  String get patternTag => structureTag;
+  String get waveTag => flowHint;
+
+  // 0.0~1.0 (상승/하락 우세 바 계산용)
+  double get longPct {
+    final p = (signalProb.clamp(0, 100)) / 100.0;
+    final d = signalDir.toUpperCase();
+    if (d == 'LONG' || d == 'UP') return p;
+    if (d == 'SHORT' || d == 'DOWN') return 1.0 - p;
+    return 0.5;
+  }
+  double get shortPct => 1.0 - longPct;
+
+}
+
+class FuCandle {
+  final double open, high, low, close;
+  /// Optional: volume (Bitget candles include volume). 기존 코드/위젯 호환을 위해 기본값 0.
+  final double volume;
+  final int ts;
+  const FuCandle({
+    required this.open,
+    required this.high,
+    required this.low,
+    required this.close,
+    required this.ts,
+    this.volume = 0,
+  });
+}
+
+class FuZone {
+  final double low, high;
+  const FuZone({required this.low, required this.high});
+
+  // 호환: 일부 위젯에서 hi/lo를 사용
+  double get hi => high;
+  double get lo => low;
+}

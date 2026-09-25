@@ -1,0 +1,15 @@
+{
+  "liveArmed": true,
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "SOLUSDT"
+  ],
+  "leverage": 10,
+  "marginUsdt": 20,
+  "paperOnly": false,
+  "updatedAt": 1790346721436,
+  "updatedBy": "aichart3"
+}

@@ -1,0 +1,46 @@
+{
+  "name": "chart-analysis-step10-bundle",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --max-old-space-size=12288 ./node_modules/next/dist/bin/next dev --turbo -H 0.0.0.0 -p 3000",
+    "dev:webpack": "node --max-old-space-size=12288 ./node_modules/next/dist/bin/next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "node start.js",
+    "start:next-only": "node --max-old-space-size=6144 ./node_modules/next/dist/bin/next start -H 0.0.0.0 -p 3000",
+    "deploy:server": "bash scripts/vps-deploy.sh",
+    "test:e2e": "playwright test",
+    "test:signal-engine": "playwright test e2e/front-run-signal-engine.spec.ts",
+    "data:bitget-futures": "node scripts/download-bitget-futures-candles.mjs",
+    "data:bitget-futures:tf3": "node scripts/download-bitget-futures-candles.mjs --granularity 15m && node scripts/download-bitget-futures-candles.mjs --granularity 1H && node scripts/download-bitget-futures-candles.mjs --granularity 4H",
+    "data:pre3-memory": "node scripts/build-pre3-memory.mjs --symbol BTCUSDT --years 8 --tf 15m,1h,4h,1d,1w,1M --delay-ms 350",
+    "data:pre3-memory:batch": "node scripts/build-pre3-memory.mjs --symbols BTCUSDT,ETHUSDT,SOLUSDT --years 8 --tf 15m,1h,4h,1d,1w,1M --delay-ms 400",
+    "data:pre3-memory:dwm": "node scripts/build-pre3-memory.mjs --symbol BTCUSDT --years 15 --tf 1d,1w,1M --delay-ms 450",
+    "data:pre3-memory:full": "node scripts/build-pre3-memory.mjs --symbol BTCUSDT --full-history --max-bars 500000 --tf 15m,1h,4h,1d,1w,1M --delay-ms 350",
+    "data:pre3-memory:app": "node scripts/build-pre3-memory.mjs --symbol BTCUSDT --full-history --max-bars 500000 --tf 15m,1h,4h,1d,1w,1M --delay-ms 350",
+    "data:whale-memory": "node scripts/build-whale-memory.mjs --symbol BTCUSDT --years 8 --tf 15m,1h,4h --delay-ms 350",
+    "data:whale-memory:dwm": "node scripts/build-whale-memory.mjs --symbol BTCUSDT --years 15 --tf 1d,1w,1M --delay-ms 450"
+  },
+  "dependencies": {
+    "@swc/helpers": "^0.5.23",
+    "axios": "^1.14.0",
+    "cors": "^2.8.6",
+    "express": "^4.22.1",
+    "html-to-image": "^1.11.13",
+    "lightweight-charts": "^5.0.8",
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "sharp": "^0.34.5",
+    "tesseract.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "20.17.10",
+    "@types/react": "18.3.12",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.19",
+    "tailwindcss": "^3.4.19",
+    "typescript": "5.7.2"
+  }
+}

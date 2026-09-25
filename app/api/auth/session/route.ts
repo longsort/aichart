@@ -11,5 +11,8 @@ export async function GET() {
   if (!token || !payload) {
     return NextResponse.json({ ok: false, authenticated: false });
   }
-  return NextResponse.json({ ok: true, authenticated: true, user: payload.user, role: payload.role });
+  return NextResponse.json(
+    { ok: true, authenticated: true, user: payload.user, role: payload.role },
+    { headers: { 'Cache-Control': 'private, no-store, max-age=0' } }
+  );
 }

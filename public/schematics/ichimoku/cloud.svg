@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Ichimoku — Price vs Cloud</text>
+  <path d="M80 220 C 220 80, 380 80, 520 200 C 660 320, 800 300, 940 180 L 940 300 C 800 380, 660 400, 520 300 C 380 200, 220 200, 80 320 Z" fill="#bfdbfe" stroke="#1d4ed8"/>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.4" points="60,340 180,300 300,120 420,160 560,90 700,260 840,320 960,200"/>
+  <line x1="60" y1="200" x2="960" y2="140" stroke="#f59e0b" stroke-width="1.6"/>
+  <line x1="60" y1="260" x2="960" y2="210" stroke="#ef4444" stroke-width="1.6"/>
+  <text x="80" y="70" font-family="Segoe UI, sans-serif" font-size="12" fill="#1d4ed8">Kumo (Senkou A/B)</text>
+  <text x="700" y="120" font-family="Segoe UI, sans-serif" font-size="12" fill="#b45309">Tenkan</text>
+  <text x="700" y="250" font-family="Segoe UI, sans-serif" font-size="12" fill="#b91c1c">Kijun</text>
+  <text x="300" y="100" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700">ABOVE</text>
+  <text x="700" y="300" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700">BELOW</text>
+  <text x="480" y="230" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700">INSIDE</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Above=bull bias  Inside=wait  Below=bear bias. Chikou confirm later.</text>
+</svg>

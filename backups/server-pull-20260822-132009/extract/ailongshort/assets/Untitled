@@ -1,0 +1,87 @@
+What you built is not what I want.
+
+You created a patch/spec viewer that stores and displays my instructions.
+That is wrong.
+
+I do NOT want:
+- patch viewer
+- spec viewer
+- documentation rendering
+- JSON instruction display
+- /api/patch
+- Patch / Spec tabs
+- any screen that shows stored requirement documents
+
+I want actual app implementation.
+
+Please do the following now:
+
+1. Remove or ignore all patch/spec viewer related code
+- remove /api/patch
+- remove Patch / Spec tabs
+- remove any page that renders stored JSON instructions
+- remove any code that exists only to display requirement documents
+
+2. Build the real dashboard UI only
+Create these actual components with mock data:
+- HeaderBar
+- ChartPanel
+- AIChatPanel
+- SignalCard
+
+3. Required layout
+- top: HeaderBar
+- left: ChartPanel
+- right: AIChatPanel
+- bottom: SignalCard
+
+4. Use mock trading data only
+Do not connect real APIs yet.
+Do not build documentation pages.
+
+5. HeaderBar must include:
+- app title: AGI Trader
+- symbol selector
+- market selector
+- timeframe selector
+- current price
+- percent change
+- market regime badge
+
+6. ChartPanel must be a real visual panel placeholder for trading chart
+Include:
+- chart area
+- toolbar
+- support/resistance display
+- overlay placeholders for entry, stop, targets
+
+7. AIChatPanel must include:
+- AI status bar
+- mock conversation messages
+- text input
+- image upload button
+- fast analysis button
+- precision analysis button
+
+8. SignalCard must include:
+- final signal badge
+- direction
+- confidence
+- agreement rate
+- entry
+- stop loss
+- targets
+- key reasons
+- invalidation
+- analysis cost
+
+9. Important rule
+Do NOT display my instructions inside the app.
+Do NOT create documentation viewers.
+Do NOT create patch/spec storage features.
+
+10. Final output
+After finishing:
+- show me which files were removed
+- show me which real UI files were created
+- explain the actual dashboard components

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Non Repaint Validator"
+  short_description: "BTC futures app: non repaint validator"

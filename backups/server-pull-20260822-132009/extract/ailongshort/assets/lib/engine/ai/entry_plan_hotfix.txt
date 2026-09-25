@@ -1,0 +1,8 @@
+import 'dart:math';
+
+// v91 HOTFIX NOTES:
+// - added dart:math for min/max
+// - cast dynamic lists to List<double>
+
+double _minList(List<double> xs) => xs.reduce(min);
+double _maxList(List<double> xs) => xs.reduce(max);

@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "confirmedSignalBlocked": false,
+  "failures": [],
+  "checks": {
+    "prefix_replay_parity": true,
+    "frozen_prediction": true,
+    "chrono_split": true
+  },
+  "engine_version": "eagle1-phase1-0.1.0",
+  "calculated_at": 1787321150689
+}

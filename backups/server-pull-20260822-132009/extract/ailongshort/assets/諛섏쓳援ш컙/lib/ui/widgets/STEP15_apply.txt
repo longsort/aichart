@@ -1,0 +1,24 @@
+STEP15 적용(과거 통계 카드)
+
+1) 파일 추가:
+- lib/core/services/ai_past_stats_service.dart
+- lib/ui/widgets/ai_past_stats_card.dart
+
+2) ai_cards_panel.dart 상단 import 추가:
+import '../../core/services/ai_past_stats_service.dart';
+import 'ai_past_stats_card.dart';
+
+3) build() 안에서 dtoMap 만든 뒤:
+final past = AiPastStatsService.build(dtoMap);
+
+원하는 위치(히스토리 카드 위 추천)에:
+AiPastStatsCard(
+  n: past['n'],
+  winP: past['winP'],
+  avgMoveP: past['avgMoveP'],
+  avgRR: past['avgRR'],
+  hint: past['hint'],
+),
+const SizedBox(height: 8),
+
+※ dtoMap에 scenarioHistory/history 리스트가 없으면 "히스토리 없음"으로 안전 표시.

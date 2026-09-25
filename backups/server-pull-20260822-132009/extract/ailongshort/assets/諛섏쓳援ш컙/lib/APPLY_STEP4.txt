@@ -1,0 +1,1 @@
+STEP4: 구조 마크(CHOCH/BOS/MSB/EQH/EQL) 메인차트 OFF, 미래경로 차트 ON. 미래경로 차트 높이 78%로 확대(TradingView 느낌 비율).

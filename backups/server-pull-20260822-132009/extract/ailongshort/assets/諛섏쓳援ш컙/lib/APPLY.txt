@@ -1,0 +1,12 @@
+1) 프로젝트 루트에 그대로 덮어쓰기
+- fp_lux_tl_patch/lib 폴더를 당신 프로젝트의 lib 폴더 위에 덮어쓰기
+
+2) 실행
+flutter clean
+flutter pub get
+flutter run -d windows  (또는 android)
+
+변경점
+- LuxAlgo 스타일 AUTO TL(피벗 확정 기반) 1개 메인 추세선만 표시
+- 채널(2라인) 패턴은 제거
+- 캔들/피벗 부족 시 선을 숨기고 라벨로 상태만 표시

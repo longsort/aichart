@@ -1,0 +1,45 @@
+{
+  "symbol": "TRUMPUSDT",
+  "timeframe": "5m",
+  "at": 1787753233195,
+  "promoted": null,
+  "summaryKo": "강신호 조합 없음 · 단독 SMC 금지",
+  "hits": [
+    {
+      "id": "reversal_cluster_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 69,
+      "tpBeforeSl": 0.5507246376811594,
+      "netExpectancy": 0.5299700149014086,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "reversal_cluster_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 69,
+      "tpBeforeSl": 0.5507246376811594,
+      "netExpectancy": 0.5299700149014086,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 16,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 16,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchMarketCandles } from '@/lib/market';
+import { fetchAnalyzeCandles, fetchAnalyzeCandlesTail, resolveAnalyzeCandleVenue, type AnalyzeCandlePack } from '@/lib/analyzeCandleSource';
 import { analyzeCandles } from '@/lib/analyze';
 import { fetchMarketData } from '@/lib/data/dataService';
 import { buildBriefingContext } from '@/lib/briefingContext';
@@ -9,9 +9,22 @@ import { computeCloseScenario } from '@/lib/closeScenarioEngine';
 import { runStrongZonePipeline, strongZonesToOverlays } from '@/lib/zone';
 import { computeSwingTapPoint } from '@/lib/swingTapPoint';
 import { computeConfirmedSignal } from '@/lib/confirmedSignalEngine';
+import { chartCandlesToEagle1Raw } from '@/lib/eagle1/canonicalCandle';
+import { validateRawCandles } from '@/lib/eagle1/dataQualityValidator';
+import { evaluateQualityGate } from '@/lib/eagle1/qualityGate';
+import { eagle1AvailabilityOrNone } from '@/lib/eagle1/availabilityFromLive';
+import { runRepaintAudit } from '@/lib/eagle1/repaintAudit';
+import { evaluateRepaintGate } from '@/lib/eagle1/repaintGate';
+import { runEagle1Pipeline, mainPlanBlocksConfirmed } from '@/lib/eagle1/pipeline';
+import { detectStructureCausal } from '@/lib/eagle1/structureEngine';
+import { walkSetupOutcomes } from '@/lib/eagle1/zoneExpectancy';
+import { loadEagle1Freeze, saveEagle1Freeze, loadSetupOutcomes, saveSetupOutcomes, saveCombinationSnapshot } from '@/lib/eagle1/freezeStore';
+import { loadEagle1RawCandles } from '@/lib/eagle1/historicalDatabase';
+import { buildCoverageManifest, writeCoverageManifest } from '@/lib/eagle1/coverageManifest';
+import { mtfChainTfsForChart, mtfFrameView, normalizeMtfTf } from '@/lib/eagle1/mtfSequence';
 import { buildZoneBiasCard } from '@/lib/zoneBiasCard';
 import { buildStructureBouncePath, buildStructureBounceOverlays } from '@/lib/structureBouncePath';
-import { ZONE_PRICE_FLOOR, ZONE_PRICE_CEIL, visibleLimit } from '../../../lib/constants';
+import { ZONE_PRICE_FLOOR, ZONE_PRICE_CEIL, normalizeChartTimeframe, visibleLimit } from '../../../lib/constants';
 import { getOrderbookDepthAtPrice, orderbookDepthLabel } from '@/lib/data/aggregate/orderbookDepthAtPrice';
 import { tradesAtPriceZone } from '@/lib/data/aggregate/tradesAtPriceZone';
 import { OVERLAY_COLORS, CLOSE_TF_COLORS } from '@/lib/overlayColors';
@@ -35,11 +48,13 @@ import { mergeParkfTrendlineColors, normalizeHex6, parseHex6Param } from '@/lib/
 import { parseParkfTrendlineOptsFromSearchParams, parkfEngineOptsCacheSegment } from '@/lib/parkfAnalyzeQuery';
 import type { ParkfTrendlineOpts } from '@/lib/parkfLinregTrendlineEngine';
 import type { CompressionThresholds } from '@/lib/aiModeAutoAnalysis';
-import type { AnalyzeResponse } from '@/types';
+import type { AnalyzeResponse, Candle } from '@/types';
 import { buildSmartOverlayPayload } from '@/lib/smartOverlayPayload';
 import { computeAiFusionSignal } from '@/lib/aiFusionSignal';
 import { buildAiZoneSignal } from '@/lib/aiZoneSignal';
 import { buildAiUnifiedLongShort } from '@/lib/aiUnifiedLongShort';
+import { buildBreakoutFollowChain } from '@/lib/breakoutFollowChain';
+import { buildCandleBattlePack } from '@/lib/candleBattle';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,11 +71,17 @@ const ENGINE_URL = process.env.PYTHON_ENGINE_URL || 'http://localhost:8000';
 const learningModelRegistry = new Map<string, { threshold: number; updatedAt: number }>();
 const ANALYZE_MAX_CONCURRENCY = Number(process.env.ANALYZE_MAX_CONCURRENCY || 4);
 /** 동일 키 반복 요청 시 캔들 재조회·재분석 스킵 — 체감 지연 완화 */
-const ANALYZE_RESPONSE_CACHE_TTL_MS = Number(process.env.ANALYZE_RESPONSE_CACHE_TTL_MS || 12_000);
+const ANALYZE_RESPONSE_CACHE_TTL_MS = Number(process.env.ANALYZE_RESPONSE_CACHE_TTL_MS || 22_000);
 /** 로컬에 엔진 없을 때 장시간 대기하지 않도록 상한(TF 전환 체감 속도) */
 const PYTHON_ENGINE_FETCH_MS = Number(process.env.PYTHON_ENGINE_FETCH_MS || 1400);
 const analyzeResponseCache = new Map<string, { expiresAt: number; data: any }>();
 const analyzeResponseInFlight = new Map<string, Promise<any>>();
+/** collect=0/1이 공유하는 보조 TF 엔진 트렌드 (전체 analyzeCandles 중복 방지) */
+const auxEngineTrendCache = new Map<
+  string,
+  { expiresAt: number; trend: 'bullish' | 'bearish' | 'range' | null; fingerprint: string }
+>();
+const AUX_ENGINE_TREND_TTL_MS = 40_000;
 const SMART_MONEY_ALERT_COOLDOWN_MS = Number(process.env.SMART_MONEY_ALERT_COOLDOWN_MS || 10 * 60 * 1000);
 const smartMoneyAlertSentAt = new Map<string, number>();
 let analyzeActive = 0;
@@ -76,6 +97,87 @@ async function acquireAnalyzeSlot(): Promise<() => void> {
     const next = analyzeWaiters.shift();
     if (next) next();
   };
+}
+
+/** 보조 TF analyzeCandles — collect 0/1·연속 TF 전환에서 동일 봉이면 재분석 스킵 */
+function resolveAuxEngineTrend(
+  symbol: string,
+  tf: string,
+  candles: Candle[] | null | undefined
+): 'bullish' | 'bearish' | 'range' | null {
+  if (!candles?.length) return null;
+  const last = candles[candles.length - 1]!;
+  const fingerprint = `${candles.length}|${last.time}|${last.close}`;
+  const key = `${symbol}|${tf}|trend`;
+  const hit = auxEngineTrendCache.get(key);
+  if (hit && hit.expiresAt > Date.now() && hit.fingerprint === fingerprint) {
+    return hit.trend;
+  }
+  const trend = analyzeCandles(symbol, tf, candles).engine?.trend ?? null;
+  auxEngineTrendCache.set(key, {
+    expiresAt: Date.now() + AUX_ENGINE_TREND_TTL_MS,
+    trend,
+    fingerprint,
+  });
+  if (auxEngineTrendCache.size > 120) {
+    const now = Date.now();
+    for (const [k, v] of auxEngineTrendCache.entries()) {
+      if (v.expiresAt <= now) auxEngineTrendCache.delete(k);
+    }
+  }
+  return trend;
+}
+
+type AuxEngineSlice = {
+  trend: 'bullish' | 'bearish' | 'range' | null;
+  bos: unknown;
+  choch: unknown;
+  fvg: unknown;
+  patterns: unknown;
+  sweeps: unknown;
+} | null;
+
+const auxEngineFullCache = new Map<
+  string,
+  { expiresAt: number; fingerprint: string; slice: AuxEngineSlice }
+>();
+
+function resolveAuxEngineSlice(
+  symbol: string,
+  tf: string,
+  candles: Candle[] | null | undefined
+): AuxEngineSlice {
+  if (!candles?.length) return null;
+  const last = candles[candles.length - 1]!;
+  const fingerprint = `${candles.length}|${last.time}|${last.close}`;
+  const key = `${symbol}|${tf}|full`;
+  const hit = auxEngineFullCache.get(key);
+  if (hit && hit.expiresAt > Date.now() && hit.fingerprint === fingerprint) {
+    return hit.slice;
+  }
+  const eng = analyzeCandles(symbol, tf, candles).engine;
+  const slice: AuxEngineSlice = eng
+    ? {
+        trend: eng.trend ?? null,
+        bos: eng.bos,
+        choch: eng.choch,
+        fvg: eng.fvg,
+        patterns: eng.patterns,
+        sweeps: eng.sweeps,
+      }
+    : null;
+  auxEngineFullCache.set(key, {
+    expiresAt: Date.now() + AUX_ENGINE_TREND_TTL_MS,
+    fingerprint,
+    slice,
+  });
+  if (auxEngineFullCache.size > 80) {
+    const now = Date.now();
+    for (const [k, v] of auxEngineFullCache.entries()) {
+      if (v.expiresAt <= now) auxEngineFullCache.delete(k);
+    }
+  }
+  return slice;
 }
 
 async function sendSmartMoneyWebhook(payload: {
@@ -185,12 +287,12 @@ function mapVerdict(direction: string): 'LONG' | 'SHORT' | 'WATCH' {
 /** 자가학습용 캔들 슬라이스 상한 — 메인 fetch 봉 수와 무관하게 CPU 상한 */
 function learningCandleLimitByTf(timeframe: string): number {
   const map: Record<string, number> = {
-    '1m': 720,
-    '3m': 720,
-    '5m': 650,
-    '15m': 600,
-    '1h': 560,
-    '4h': 520,
+    '1m': 640,
+    '3m': 640,
+    '5m': 560,
+    '15m': 480,
+    '1h': 480,
+    '4h': 460,
     '1d': 450,
     '1w': 360,
     '1M': 380,
@@ -227,7 +329,7 @@ function computeFeatureProbabilities(
     .slice(0, 80);
   if (!rows.length) return [];
 
-  const lookahead = 12;
+  const lookahead = 12; // 연구용 사후 반응 통계 — 확정 신호 입력으로 쓰지 않음 (non-repaint)
   const tolRate = 0.0018;
   const out: Array<{
     key: string;
@@ -482,13 +584,20 @@ export async function GET(req: NextRequest) {
     const htf = HTF_MAP[timeframe] || '1d';
     const ltf = LTF_MAP[timeframe] || '1h';
 
-    let candles: Awaited<ReturnType<typeof fetchMarketCandles>>;
+    let candles: Candle[];
+    let analyzeCandlePack: AnalyzeCandlePack | null = null;
     /** 동일 TF는 한 번만 네트워크(메인·1d·HTF 등 겹침 제거) */
-    const candleByTf = new Map<string, Promise<Awaited<ReturnType<typeof fetchMarketCandles>>>>();
+    const candleByTf = new Map<string, Promise<Candle[]>>();
     const getCandlesForTf = (tf: string) => {
       const hit = candleByTf.get(tf);
       if (hit) return hit;
-      const p = fetchMarketCandles(symbol, tf);
+      /** 통합모드 기준 거래소 = Bitget USDT-M. 바이낸스 현물과 섞지 않음. */
+      const p = fetchAnalyzeCandles(symbol, tf).then((pack) => {
+        if (normalizeChartTimeframe(tf) === normalizeChartTimeframe(timeframe)) {
+          analyzeCandlePack = pack;
+        }
+        return pack.candles;
+      });
       candleByTf.set(tf, p);
       return p;
     };
@@ -505,35 +614,73 @@ export async function GET(req: NextRequest) {
           ),
         ]);
         candles = marketData.candles;
+        if (marketData.candleSource) analyzeCandlePack = marketData.candleSource;
       } catch {
-        candles = await fetchMarketCandles(symbol, timeframe);
+        const pack = await fetchAnalyzeCandles(symbol, timeframe);
+        analyzeCandlePack = pack;
+        candles = pack.candles;
       }
       candleByTf.set(timeframe, Promise.resolve(candles));
     }
+
+    /** 보조 TF: 종가선·마감판은 최근 확정 종가만 필요 → 짧은 tail만 요청(1w/1M 전량 페이징 제거로 체감 대폭 개선) */
+    const chartTfNorm = normalizeChartTimeframe(timeframe);
+    const auxTail = (tf: string, n: number) =>
+      chartTfNorm === normalizeChartTimeframe(tf)
+        ? Promise.resolve(null as Candle[] | null)
+        : fetchAnalyzeCandlesTail(symbol, tf, n)
+            .then((pack) => pack.candles)
+            .catch(() => null);
+    const TAIL_D = 160;
+    const TAIL_W = 72;
+    const TAIL_M = 96;
+    const TAIL_INTRADAY = 40;
 
     /** collect=0 등: 메인 TF를 먼저 await 하지 않고 보조 TF·파이썬과 동시에 시작 → 대기 ≈ max(병렬) not sum */
     const secondaryBatch = Promise.all([
       pythonSignalPromise,
       timeframe !== htf ? getCandlesForTf(htf) : Promise.resolve(null),
       timeframe !== ltf ? getCandlesForTf(ltf) : Promise.resolve(null),
-      getCandlesForTf('1d'),
-      getCandlesForTf('1w'),
-      getCandlesForTf('1M'),
-      getCandlesForTf('1m'),
-      getCandlesForTf('5m'),
-      getCandlesForTf('15m'),
-      getCandlesForTf('1h'),
-      getCandlesForTf('4h'),
+      auxTail('1d', TAIL_D),
+      auxTail('1w', TAIL_W),
+      auxTail('1M', TAIL_M),
+      auxTail('1m', TAIL_INTRADAY),
+      auxTail('5m', TAIL_INTRADAY),
+      auxTail('15m', TAIL_INTRADAY),
+      auxTail('1h', TAIL_INTRADAY),
+      auxTail('4h', TAIL_INTRADAY),
     ]);
     const mainP = useCollect ? Promise.resolve(candles) : getCandlesForTf(timeframe);
 
-    const [[pythonSignal, htfCandles, ltfCandles, candles1d, candles1w, candles1M, candles1m, candles5m, candles15m, candles1h, candles4h], candlesResolved] =
+    const [[pythonSignal, htfCandles, ltfCandles, c1d, c1w, c1M, c1m, c5m, c15m, c1h, c4h], candlesResolved] =
       await Promise.all([secondaryBatch, mainP]);
     candles = candlesResolved;
+    if (!analyzeCandlePack) {
+      const venue = resolveAnalyzeCandleVenue(symbol);
+      analyzeCandlePack = {
+        candles,
+        venue,
+        exchange: venue,
+        source: venue === 'bitget' ? 'bitget-api' : venue === 'forex' ? 'forex' : 'binance-spot',
+        sample_count: candles.length,
+      };
+    }
 
-    const htfEngine = htfCandles ? analyzeCandles(symbol, htf, htfCandles).engine : null;
-    const analysis1M = candles1M?.length ? analyzeCandles(symbol, '1M', candles1M) : null;
-    const engine1M = analysis1M?.engine ?? null;
+    const pickAux = (tail: Candle[] | null, mainTf: string): Candle[] => {
+      if (tail != null && tail.length > 0) return tail;
+      return chartTfNorm === normalizeChartTimeframe(mainTf) ? candles : [];
+    };
+    const candles1d = pickAux(c1d, '1d');
+    const candles1w = pickAux(c1w, '1w');
+    const candles1M = pickAux(c1M, '1M');
+    const candles1m = pickAux(c1m, '1m');
+    const candles5m = pickAux(c5m, '5m');
+    const candles15m = pickAux(c15m, '15m');
+    const candles1h = pickAux(c1h, '1h');
+    const candles4h = pickAux(c4h, '4h');
+
+    const htfTrendResolved = resolveAuxEngineTrend(symbol, htf, htfCandles);
+    const engine1M = resolveAuxEngineSlice(symbol, '1M', candles1M);
     const trend1M = engine1M?.trend ?? null;
     const analysisOptions: {
       htfTrend?: 'bullish' | 'bearish' | 'range';
@@ -571,7 +718,7 @@ export async function GET(req: NextRequest) {
       chartPrimeBottomHex?: string;
       chartPrimeChannelWidthScale?: number;
     } = {
-      htfTrend: htfEngine?.trend,
+      htfTrend: htfTrendResolved ?? undefined,
       trend1M: trend1M as 'bullish' | 'bearish' | 'range' | null,
       majorZoneWidthScale: majorZoneWidth,
       majorZoneOpacity,
@@ -685,8 +832,8 @@ export async function GET(req: NextRequest) {
     });
     const closeSettlement = buildCloseSettlementBoard(nowSec, tapSource.verdict, Object.keys(lastCandleByTf).length > 0 ? lastCandleByTf : undefined);
 
-    const htfTrend = htfEngine?.trend ?? null;
-    const ltfTrend = ltfCandles ? analyzeCandles(symbol, ltf, ltfCandles).engine?.trend : null;
+    const htfTrend = htfTrendResolved ?? null;
+    const ltfTrend = resolveAuxEngineTrend(symbol, ltf, ltfCandles);
     const multiTF = {
       htf: htfTrend ? (htfTrend === 'bullish' ? '상승' : htfTrend === 'bearish' ? '하락' : '횡보') : null,
       ltf: ltfTrend ? (ltfTrend === 'bullish' ? '상승' : ltfTrend === 'bearish' ? '하락' : '횡보') : null,
@@ -913,7 +1060,21 @@ export async function GET(req: NextRequest) {
       obCount: Array.isArray((tapSource.engine as any)?.obs) ? (tapSource.engine as any).obs.length : 0,
       fvgCount: fvgBoundaries.length,
     };
-    const confirmedSignal =
+    const eagle1Quality = evaluateQualityGate(
+      validateRawCandles(
+        chartCandlesToEagle1Raw(candles, {
+          symbol,
+          timeframe,
+          source: analyzeCandlePack?.source ?? 'bitget-api',
+          exchange: analyzeCandlePack?.exchange ?? 'bitget',
+        }),
+        { symbol, timeframe }
+      )
+    );
+    const eagle1Repaint = evaluateRepaintGate(
+      runRepaintAudit(candles.slice(-120).map((c) => ({ high: c.high, low: c.low })))
+    );
+    let confirmedSignal =
       tapSource.verdict === 'LONG' || tapSource.verdict === 'SHORT'
         ? computeConfirmedSignal({
             verdict: tapSource.verdict,
@@ -942,6 +1103,8 @@ export async function GET(req: NextRequest) {
             },
             fvgBoundaries,
             structureMetrics,
+            dataQualityBlocked: eagle1Quality.confirmedSignalBlocked,
+            repaintAuditBlocked: eagle1Repaint.confirmedSignalBlocked,
           })
         : {
             confirmed: false,
@@ -956,6 +1119,231 @@ export async function GET(req: NextRequest) {
             readinessTier: 'none' as const,
             mtfBlocked: false,
           };
+
+    const eagle1Bars = candles.map((c) => ({
+      time: c.time,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+      volume: c.volume ?? 0,
+      takerBuyBaseVolume: typeof c.takerBuyBaseVolume === 'number' ? c.takerBuyBaseVolume : undefined,
+    }));
+    const eagle1HtfBars = Array.isArray(htfCandles)
+      ? htfCandles.map((c: { time: number; open: number; high: number; low: number; close: number; volume?: number }) => ({
+          time: c.time,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+          volume: c.volume ?? 0,
+        }))
+      : [];
+    const toEagle1Live = (
+      rows: Array<{
+        time: number;
+        open: number;
+        high: number;
+        low: number;
+        close: number;
+        volume?: number;
+        takerBuyBaseVolume?: number;
+      }> | null | undefined
+    ) =>
+      Array.isArray(rows)
+        ? rows.map((c) => ({
+            time: c.time,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+            volume: c.volume ?? 0,
+            takerBuyBaseVolume: typeof c.takerBuyBaseVolume === 'number' ? c.takerBuyBaseVolume : undefined,
+          }))
+        : [];
+    const barsFromCsvOrLive = (tf: string, live: typeof eagle1Bars) => {
+      try {
+        const raw = loadEagle1RawCandles(symbol, tf);
+        if (raw.length >= 80) {
+          return raw.slice(-500).map((r) => ({
+            time: Math.floor(r.open_time / 1000),
+            open: r.open,
+            high: r.high,
+            low: r.low,
+            close: r.close,
+            volume: r.base_volume,
+          }));
+        }
+      } catch {
+        /* CSV 없으면 라이브 tail */
+      }
+      return live;
+    };
+    const chartMtf = normalizeMtfTf(String(timeframe));
+    const liveByTf: Record<string, typeof eagle1Bars> = {
+      '1D': toEagle1Live(candles1d),
+      '4H': toEagle1Live(candles4h),
+      '1H': toEagle1Live(candles1h),
+      '15m': toEagle1Live(candles15m),
+      '5m': toEagle1Live(candles5m),
+      '1m': toEagle1Live(candles1m),
+      '1W': toEagle1Live(candles1w),
+      '1M': toEagle1Live(candles1M),
+    };
+    liveByTf[chartMtf] = eagle1Bars;
+    const eagle1MtfChain = mtfChainTfsForChart(String(timeframe)).map((tf) => {
+      const bars = barsFromCsvOrLive(tf, liveByTf[tf] || []);
+      return {
+        tf,
+        structure: bars.length >= 40 ? detectStructureCausal(bars) : null,
+      };
+    });
+    const eagle1Freeze = loadEagle1Freeze(symbol, timeframe);
+    let eagle1Outcomes = loadSetupOutcomes(symbol, timeframe);
+    const storedN = eagle1Outcomes.length;
+    /** n<30이면 검증확률은 통계 부족. 짧은 walk(16)는 영원히 n<30이라 표본을 쌓는다. */
+    const needWalk =
+      eagle1Bars.length >= 120 &&
+      (storedN === 0 || (storedN < 30 && eagle1Bars.length >= 200));
+    if (needWalk) {
+      try {
+        const walked = walkSetupOutcomes({
+          candles: eagle1Bars,
+          stride: 12,
+          maxPrefixes: 80,
+          horizon: 16,
+        });
+        if (walked.length >= storedN) {
+          eagle1Outcomes = walked;
+          if (storedN < 30) {
+            try {
+              saveSetupOutcomes(symbol, timeframe, walked);
+            } catch {
+              /* 통계 저장 실패해도 분석 응답은 유지 */
+            }
+          }
+        }
+      } catch {
+        /* walk 실패 시 기존 표본 유지 */
+      }
+    }
+    if (eagle1Outcomes.length < 30 && String(timeframe) !== '1H') {
+      const h1 = loadSetupOutcomes(symbol, '1H');
+      if (h1.length > eagle1Outcomes.length) eagle1Outcomes = h1;
+    }
+    let eagle1SpreadBps: number | null = null;
+    let eagle1DepthOk: boolean | null = null;
+    let eagle1BidQty: number | null = null;
+    let eagle1AskQty: number | null = null;
+    const bitgetBookLive =
+      marketData?.orderbookSource === 'bitget' &&
+      Boolean(marketData.orderbook?.bids?.length && marketData.orderbook?.asks?.length) &&
+      typeof marketData.orderbookImbalance === 'number' &&
+      Number.isFinite(marketData.orderbookImbalance);
+    if (bitgetBookLive && marketData?.orderbook) {
+      const bid = Number(marketData.orderbook.bids[0]?.[0]);
+      const ask = Number(marketData.orderbook.asks[0]?.[0]);
+      if (bid > 0 && ask > bid) {
+        eagle1SpreadBps = ((ask - bid) / ((ask + bid) / 2)) * 10_000;
+      }
+      eagle1BidQty = marketData.orderbook.bids.slice(0, 5).reduce((s, r) => s + (Number(r[1]) || 0), 0);
+      eagle1AskQty = marketData.orderbook.asks.slice(0, 5).reduce((s, r) => s + (Number(r[1]) || 0), 0);
+      eagle1DepthOk = eagle1BidQty > 0 && eagle1AskQty > 0;
+    }
+    const hudCoverage = (['1m', '5m', '15m', '1H', '4H', '12H', '1D', '1W', '1M'] as const).map((tf) => {
+      try {
+        const raw = loadEagle1RawCandles(symbol, tf);
+        const m = buildCoverageManifest(raw, { symbol, timeframe: tf });
+        try {
+          writeCoverageManifest(m);
+        } catch {
+          /* coverage sidecar 실패해도 분석 유지 */
+        }
+        return { tf, rows: m.row_count, gaps: m.gap_count, firstIso: m.first_iso, lastIso: m.last_iso };
+      } catch {
+        return { tf, rows: 0, gaps: 0, firstIso: null, lastIso: null };
+      }
+    });
+    const eagle1Pipeline = runEagle1Pipeline({
+      candles: eagle1Bars,
+      timeframe,
+      htfBias: typeof htfTrend === 'string' ? htfTrend : null,
+      htfStructure: eagle1HtfBars.length >= 40 ? detectStructureCausal(eagle1HtfBars) : null,
+      mtfChain: eagle1MtfChain,
+      qualityBlocked: eagle1Quality.confirmedSignalBlocked,
+      qualityCode: eagle1Quality.code,
+      repaintBlocked: eagle1Repaint.confirmedSignalBlocked,
+      prevFrozenZones: eagle1Freeze?.zones,
+      prevTrade: eagle1Freeze?.trade ?? null,
+      outcomes: eagle1Outcomes,
+      spreadBps: eagle1SpreadBps,
+      depthOk: eagle1DepthOk,
+      moneyLive: {
+        ...(marketData?.moneyLive ?? {}),
+        buyPressure: marketData?.buyPressure,
+        sellPressure: marketData?.sellPressure,
+        volumeDelta: marketData?.volumeDelta,
+        orderbookImbalance: bitgetBookLive ? marketData?.orderbookImbalance : null,
+        has_cvd: Boolean(marketData?.eagle1Availability?.has_cvd),
+        has_orderbook: bitgetBookLive,
+        has_trades: Boolean(marketData?.eagle1Availability?.has_trades),
+        oiState: marketData?.oiState ?? null,
+        spreadBps: eagle1SpreadBps ?? marketData?.moneyLive?.spreadBps ?? null,
+        bidQty: eagle1BidQty ?? marketData?.moneyLive?.bidQty ?? null,
+        askQty: eagle1AskQty ?? marketData?.moneyLive?.askQty ?? null,
+      },
+      clockCandles15m: liveByTf['15m']?.length
+        ? liveByTf['15m']
+        : chartMtf === '15m'
+          ? eagle1Bars
+          : [],
+      compassChain: (['1m', '5m', '15m', '1H', '4H', '1D', '1W', '1M'] as const).map((tf) => {
+        const bars = barsFromCsvOrLive(tf, liveByTf[tf] || []);
+        const minN = tf === '1M' || tf === '1W' ? 16 : 24;
+        return { tf, structure: bars.length >= minN ? detectStructureCausal(bars) : null };
+      }),
+      coverage: hudCoverage,
+    });
+    try {
+      saveEagle1Freeze({
+        symbol,
+        timeframe,
+        zones: eagle1Pipeline.zones.zones.filter((z) => z.frozen || z.status === 'INVALID' || z.status === 'BROKEN'),
+        trade: eagle1Pipeline.trade,
+        updated_at: Date.now(),
+      });
+    } catch {
+      /* freeze 저장 실패해도 분석 응답은 유지 */
+    }
+    try {
+      if (eagle1Pipeline.combination) {
+        saveCombinationSnapshot({
+          symbol,
+          timeframe,
+          at: Date.now(),
+          promoted: eagle1Pipeline.combination.promoted,
+          summaryKo: eagle1Pipeline.combination.summaryKo,
+          hits: eagle1Pipeline.combination.hits.map((h) => ({
+            id: h.id,
+            complete: h.complete,
+            promote: h.promote,
+            sampleSize: h.sampleSize,
+            tpBeforeSl: h.tpBeforeSl,
+            netExpectancy: h.netExpectancy,
+            note: h.note,
+          })),
+        });
+      }
+    } catch {
+      /* combo snapshot 실패해도 분석 유지 */
+    }
+    if (mainPlanBlocksConfirmed(eagle1Pipeline.mainPlan) && confirmedSignal.confirmed) {
+      confirmedSignal = {
+        ...confirmedSignal,
+        confirmed: false,
+        reasons: [...(confirmedSignal.reasons || []), 'EAGLE1_MAINPLAN_WAIT — 확정 금지'],
+      };
+    }
 
     const zoneBiasCard = buildZoneBiasCard({
       currentPrice: currentPriceClose,
@@ -3349,7 +3737,11 @@ export async function GET(req: NextRequest) {
       };
     })();
     const gatedTapPointConfirmed = learningPassed ? tapPointConfirmed : false;
-    const featureProbabilities = computeFeatureProbabilities(visibleForClose, overlaysFinal as any);
+    const featureProbabilities = computeFeatureProbabilities(visibleForClose, overlaysFinal as any).map((f) => ({
+      ...f,
+      evidenceKind: 'same-window-lookahead' as const,
+      uiEligible: false,
+    }));
     const briefingPatternText = buildBriefingPatternText(tapSource as any);
     const topPattern = String((tapSource as any)?.learnedPatternsTop5?.[0]?.title ?? (tapSource as any)?.dominantPattern?.label ?? '');
     const fingerprint = buildBriefingFingerprint({
@@ -3499,8 +3891,42 @@ export async function GET(req: NextRequest) {
       };
     })();
 
+    const breakoutFollow = buildBreakoutFollowChain({
+      ...tapSource,
+      verdict: gatedVerdict,
+      currentPrice: briefingContext.currentPrice ?? currentPriceClose,
+      candles: visibleForClose,
+      aiUnifiedLongShort,
+      confirmedSignal,
+      aiFusionSignal,
+      settlementZone: tapSource.settlementZone,
+    } as AnalyzeResponse);
+
+    let candleBattlePack = null as ReturnType<typeof buildCandleBattlePack> | null;
+    try {
+      candleBattlePack = buildCandleBattlePack({
+        symbol,
+        timeframe,
+        candles: visibleForClose?.length ? visibleForClose : candles,
+        htfCandles: Array.isArray(htfCandles) ? htfCandles : null,
+        volumeDelta: marketData?.volumeDelta ?? tapSource.volumeDelta ?? null,
+        buyPressure: marketData?.buyPressure ?? tapSource.buyPressure ?? null,
+        sellPressure: marketData?.sellPressure ?? tapSource.sellPressure ?? null,
+        orderbookImbalance: marketData?.orderbookImbalance ?? tapSource.orderbookImbalance ?? null,
+        oiState: marketData?.oiState ?? tapSource.oiState ?? null,
+        fundingState: marketData?.fundingState ?? tapSource.fundingState ?? null,
+        hasTrades: Boolean(marketData?.eagle1Availability?.has_trades),
+        hasOrderbook: Boolean(marketData?.eagle1Availability?.has_orderbook ?? marketData?.orderbook),
+        hasCvd: Boolean(marketData?.eagle1Availability?.has_cvd),
+        hasOrderbookHistory: false,
+      });
+    } catch {
+      candleBattlePack = null;
+    }
+
     return completeSuccess({
       ...tapSource,
+      breakoutFollow: breakoutFollow ?? undefined,
       timeframe,
       candles: visibleForClose,
       learningCandleStats: {
@@ -3560,6 +3986,75 @@ export async function GET(req: NextRequest) {
       tapPointConfirmed: gatedTapPointConfirmed,
       harmonicDProbability,
       confirmedSignal,
+      eagle1Quality,
+      eagle1Repaint,
+      eagle1Availability: eagle1AvailabilityOrNone(marketData?.eagle1Availability),
+      eagle1CandleSource: {
+        exchange: analyzeCandlePack?.exchange ?? 'bitget',
+        source: analyzeCandlePack?.source ?? 'bitget-api',
+        venue: analyzeCandlePack?.venue ?? 'bitget',
+        sample_count: analyzeCandlePack?.sample_count ?? candles.length,
+        fallbackReason: analyzeCandlePack?.fallbackReason,
+        calculated_at: Date.now(),
+      },
+      eagle1MainPlan: eagle1Pipeline.mainPlan,
+      eagle1ChartUx: eagle1Pipeline.chartUx,
+      eagle1Snapshot: eagle1Pipeline.snapshot,
+      eagle1SnapshotStats: eagle1Pipeline.snapshotStats,
+      eagle1MoneyPressure: eagle1Pipeline.moneyPressure,
+      eagle1SmartPath: eagle1Pipeline.smartPath,
+      eagle1WalkForward: eagle1Pipeline.walkForward,
+      eagle1StatsDashboard: eagle1Pipeline.statsDashboard,
+      eagle1Consensus: eagle1Pipeline.mainPlan.consensus,
+      eagle1Acceptance: eagle1Pipeline.acceptance,
+      eagle1FalseBreak: eagle1Pipeline.falseBreak,
+      eagle1HistoricalOutcome: eagle1Pipeline.historicalOutcome,
+      eagle1PremiumDiscount: eagle1Pipeline.premiumDiscount,
+      eagle1UnifiedZones: eagle1Pipeline.unifiedZones,
+      eagle1Hud: eagle1Pipeline.hud,
+      eagle1LiveQuotes: {
+        mark: marketData?.moneyLive?.markPrice ?? null,
+        index: marketData?.moneyLive?.indexPrice ?? null,
+      },
+      eagle1Combination: eagle1Pipeline.combination,
+      eagle1Structure: {
+        state: eagle1Pipeline.structure.state,
+        regime: eagle1Pipeline.structure.regime,
+        regimeConfidence: eagle1Pipeline.structure.regimeConfidence,
+        wyckoff: eagle1Pipeline.structure.wyckoff,
+        events: eagle1Pipeline.structure.events.slice(-16).map((ev) => ({
+          ...ev,
+          at: Number(eagle1Bars[ev.known_at]?.time ?? eagle1Bars[ev.index]?.time) || undefined,
+        })),
+        rangeHigh: eagle1Pipeline.structure.rangeHigh,
+        rangeLow: eagle1Pipeline.structure.rangeLow,
+        roleReversals: eagle1Pipeline.structure.roleReversals,
+        lastSwingHigh: eagle1Pipeline.structure.lastSwingHigh,
+        lastSwingLow: eagle1Pipeline.structure.lastSwingLow,
+        equalHighs: eagle1Pipeline.structure.equalHighs.slice(-2),
+        equalLows: eagle1Pipeline.structure.equalLows.slice(-2),
+      },
+      eagle1CompassFrames: eagle1MtfChain.map(({ tf, structure }) => mtfFrameView(tf, structure)),
+      eagle1SparkCandles: eagle1Bars.slice(-40).map((b) => ({
+        time: b.time,
+        open: b.open,
+        high: b.high,
+        low: b.low,
+        close: b.close,
+      })),
+      eagle1Zones: {
+        profile: eagle1Pipeline.zones.profile,
+        clusters: [...eagle1Pipeline.zones.displaySupport, ...eagle1Pipeline.zones.displayResist],
+        displaySupport: eagle1Pipeline.zones.displaySupport,
+        displayResist: eagle1Pipeline.zones.displayResist,
+        recommended: eagle1Pipeline.zones.recommended,
+        reaction: eagle1Pipeline.zones.reaction,
+        zones: eagle1Pipeline.zones.zones
+          .filter((z) => z.status !== 'DELETED')
+          .slice(0, 24),
+      },
+      eagle1Risk:
+        eagle1Pipeline.mainPlan.direction === 'SHORT' ? eagle1Pipeline.riskShort : eagle1Pipeline.riskLong,
       zoneBiasCard,
       structureBouncePath,
       aiZoneSignal,
@@ -3583,6 +4078,7 @@ export async function GET(req: NextRequest) {
       frontRunSignal,
       aiFusionSignal,
       ...(smartOverlay ? { smartOverlay } : {}),
+      candleBattle: candleBattlePack,
     });
   } catch (error: any) {
     return completeError({

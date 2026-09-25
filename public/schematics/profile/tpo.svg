@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">TPO / Volume Profile — VA · POC</text>
+  <rect x="120" y="60" width="40" height="360" fill="#e2e8f0"/>
+  <rect x="120" y="140" width="120" height="200" fill="#93c5fd"/>
+  <rect x="120" y="210" width="200" height="40" fill="#1d4ed8"/>
+  <line x1="340" y1="140" x2="900" y2="140" stroke="#64748b" stroke-dasharray="4 3"/>
+  <line x1="340" y1="230" x2="900" y2="230" stroke="#1d4ed8"/>
+  <line x1="340" y1="340" x2="900" y2="340" stroke="#64748b" stroke-dasharray="4 3"/>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2" points="360,100 480,180 560,90 700,300 820,200 920,250"/>
+  <text x="350" y="132" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700">VAH</text>
+  <text x="350" y="224" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#1d4ed8">POC</text>
+  <text x="350" y="360" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700">VAL</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Value Area ~70% volume. Above VA / inside / below. Not full Market Profile TPO letters.</text>
+</svg>

@@ -1,0 +1,48 @@
+
+  void _openVerdictDialog(NeonTheme theme, TradeVerdict v) {
+    final Color c = v.isShort
+        ? const Color(0xFFFF3B6A)
+        : (v.isLong ? const Color(0xFF00FFB2) : theme.textSecondary);
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0B1020),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            '결정: ${v.title}',
+            style: TextStyle(color: c, fontWeight: FontWeight.w900),
+          ),
+          content: DefaultTextStyle(
+            style: TextStyle(color: theme.textSecondary, fontSize: 13, height: 1.35),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('TF: ${v.tf}'),
+                const SizedBox(height: 6),
+                Text(v.reason),
+                const SizedBox(height: 10),
+                Text('반응구간: ${v.zoneValid}/100'),
+                Text('구조: ${v.hasStructure ? 'OK' : '약함'}'),
+                Text('TF 합의: ${v.tfAgree ? 'OK' : '부족'}'),
+                const SizedBox(height: 10),
+                Text(
+                  '팁: 구조확정일 때만 브리핑 카드가 반짝이게(다음 패치) 연결한다.',
+                  style: TextStyle(color: theme.textSecondary.withOpacity(0.85), fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('닫기', style: TextStyle(color: theme.accent)),
+            ),
+          ],
+        );
+      },
+    );
+  }

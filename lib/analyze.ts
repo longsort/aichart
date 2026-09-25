@@ -22,6 +22,7 @@ import {
   computeSuggestedChartPrimePivotLength,
 } from './chartPrimeTrendChannels';
 import { detectBPR } from './bpr';
+import { computePriceBandSrProb, CHART_SHOW_SR_PROB_PCT } from './zoneSupportResistProb';
 import { detectFalseBreakout, detectPO3Phase, isKillZone } from './smc';
 import { rsi, ema, stochRsi, macd, bollingerBands, atrSeries } from './indicators';
 import { runPatternVision, getDominantPattern, getPatternVisionSummary } from './patternVision/patternVisionEngine';
@@ -29,11 +30,13 @@ import { visionResultsToOverlays } from './patternVision/patternLabeler';
 import { computeRegime } from './regimeEngine';
 import { computeSignalScore } from './signalScoreEngine';
 import { computeTradePlan } from './tradePlanner';
+import { buildBreakoutFollowChain } from './breakoutFollowChain';
 import { computeConfidence } from './confidenceEngine';
 import { computeLevels } from './levelEngine';
 import { computeScenarios } from './scenarioEngine';
 import { computeTailong } from './tailongEngine';
 import { detectTailongCloseSignals } from './tailongCloseEngine';
+import { buildCleanCandleFeatureOverlays } from './cleanCandleFeatureDraw';
 import { OVERLAY_COLORS } from './overlayColors';
 import { computeDivergenceSignal, type DivergenceSignalResult } from './divergenceSignalEngine';
 import { detectTriplePattern } from './tripleTopBottomEngine';
@@ -62,8 +65,10 @@ import {
   buildAiModeAutoAnalysis,
   evaluateLiveCompression,
   findLatestCompressionImpulse,
+  formatAiCompressionZoneChartLabel,
   mergeCompressionThresholds,
   obProbabilityFromPastTouches,
+  resolveLiveCompressionChartBias,
   type CompressionThresholds,
 } from './aiModeAutoAnalysis';
 import { AI_COMPRESSION_PRESETS } from './aiCompressionPresets';
@@ -334,12 +339,31 @@ function buildMajorSupportResistanceOverlays(
     const recency = Math.max(0, Math.min(1, lastI / Math.max(1, visible.length - 1)));
     const recencyBonus = Math.round(recency * 12);
     const mtfBonus = Math.max(0, Math.min(9, mtfAgreeCount * 3));
-    const probability = Math.max(55, Math.min(98, 48 + count * 8 + recencyBonus + mtfBonus));
+    /** 터치횟수 휴리스틱 + 실측 밴드 반응률 혼합 */
+    const heuristic = Math.max(55, Math.min(98, 48 + count * 8 + recencyBonus + mtfBonus));
+    const sr = computePriceBandSrProb(visible, level - pad, level + pad);
+    const measured =
+      side === 'support'
+        ? sr.supportProb
+        : sr.resistanceProb;
+    const probability =
+      measured != null
+        ? Math.round(heuristic * 0.35 + measured * 0.65)
+        : heuristic;
     const role = side === 'support' ? supportPriority.get(level) : undefined;
     const escalated = side === 'support' && role === 'BACKUP' && primaryBroken;
     const roleLabel = role ? (role === 'PRIMARY' ? '1차' : escalated ? '2차(격상)' : '2차') : '';
     const mtfLabel = mtfAgreeCount >= 2 ? ` · TF합의 ${mtfAgreeCount}/3` : '';
-    const ultraTag = probability >= 85 ? ' [초고확률]' : '';
+    const ultraTag = CHART_SHOW_SR_PROB_PCT && probability >= 85 ? ' [초고확률]' : '';
+    const srTag = !CHART_SHOW_SR_PROB_PCT
+      ? ''
+      : side === 'support'
+        ? sr.supportProb != null
+          ? ` · 지지${sr.supportProb}%`
+          : ''
+        : sr.resistanceProb != null
+          ? ` · 저항${sr.resistanceProb}%`
+          : '';
     const zoneAlpha = escalated ? Math.min(0.62, alpha + 0.10) : alpha;
     const zoneColor = side === 'support'
       ? `rgba(56,189,248,${zoneAlpha})`
@@ -349,12 +373,24 @@ function buildMajorSupportResistanceOverlays(
       : 'rgba(239,68,68,0.94)';
     const tStart = visTime(visible, 0);
     const tEnd = visTime(visible, visible.length - 1);
+    const zoneLabel = CHART_SHOW_SR_PROB_PCT
+      ? side === 'support'
+        ? `${roleLabel ? `${roleLabel} ` : ''}핵심 지지 ${probability}% (${count}x)${ultraTag}${srTag}`
+        : `핵심 저항 ${probability}% (${count}x)${ultraTag}${srTag}`
+      : side === 'support'
+        ? `${roleLabel ? `${roleLabel} ` : ''}핵심 지지 (${count}x)${mtfLabel}`
+        : `핵심 저항 (${count}x)${mtfLabel}`;
+    const lineLabel = CHART_SHOW_SR_PROB_PCT
+      ? side === 'support'
+        ? `${roleLabel ? `${roleLabel} 지지` : '지지'} ${count}회 · 확률 ${probability}%${ultraTag}${mtfLabel}${srTag}`
+        : `저항 ${count}회 · 확률 ${probability}%${ultraTag}${mtfLabel}${srTag}`
+      : side === 'support'
+        ? `${roleLabel ? `${roleLabel} 지지` : '지지'} ${count}회${mtfLabel}`
+        : `저항 ${count}회${mtfLabel}`;
     out.push({
       id: `${id}-zone`,
       kind: side === 'support' ? 'demandZone' : 'supplyZone',
-      label: side === 'support'
-        ? `${roleLabel ? `${roleLabel} ` : ''}핵심 지지 ${probability}% (${count}x)${ultraTag}`
-        : `핵심 저항 ${probability}% (${count}x)${ultraTag}`,
+      label: zoneLabel,
       x1: 0.10,
       y1: toRatio(level + pad, min, max),
       x2: 0.98,
@@ -363,7 +399,10 @@ function buildMajorSupportResistanceOverlays(
       time2: tEnd,
       /** 화면 우측 빈 축까지 임의 연장하지 않고, time1~time2(가시 캔들 구간)에만 면을 맞춤 */
       zoneSpanOnly: true,
-      confidence: Math.min(95, 70 + count * 6),
+      confidence: Math.min(95, probability),
+      supportProb: sr.supportProb,
+      resistanceProb: sr.resistanceProb,
+      probSamples: sr.samples,
       color: zoneColor,
       category: 'zones',
       price1: level + pad,
@@ -372,9 +411,7 @@ function buildMajorSupportResistanceOverlays(
     out.push({
       id: `${id}-line`,
       kind: 'keyLevel',
-      label: side === 'support'
-        ? `${roleLabel ? `${roleLabel} 지지` : '지지'} ${count}회 · 확률 ${probability}%${ultraTag}${mtfLabel}`
-        : `저항 ${count}회 · 확률 ${probability}%${ultraTag}${mtfLabel}`,
+      label: lineLabel,
       x1: 0.10,
       y1: toRatio(level, min, max),
       x2: 0.98,
@@ -383,7 +420,10 @@ function buildMajorSupportResistanceOverlays(
       time2: tEnd,
       /** ChartView: 우측 빈 시간축까지 선 연장 금지 — time1~time2 구간만 가로선 */
       noProject: true,
-      confidence: Math.min(95, 70 + count * 6),
+      confidence: Math.min(95, probability),
+      supportProb: sr.supportProb,
+      resistanceProb: sr.resistanceProb,
+      probSamples: sr.samples,
       color: lineColor,
       category: 'keyLevel',
       price1: level,
@@ -428,6 +468,16 @@ function computeSettlementZoneState(params: {
   }
   if (breakIndex < 0) return { state: 'none', score: 0, grade: 'C', direction, level: levelPrice, reasons: ['브레이크 미발생'] };
   reasons.push('브레이크 발생');
+  let breakVolOk = false;
+  {
+    const start = Math.max(0, breakIndex - 20);
+    const base = candles.slice(start, breakIndex);
+    const avgVol = base.length ? base.reduce((s, x) => s + (x.volume || 0), 0) / base.length : 0;
+    const bv = candles[breakIndex].volume || 0;
+    breakVolOk = avgVol > 0 && bv >= avgVol * 1.12;
+    if (breakVolOk) reasons.push('돌파봉 거래량 확인');
+    else reasons.push('돌파봉 거래량 약함');
+  }
   const ttlBarsByTf: Record<string, number> = {
     '1m': 180, '3m': 180, '5m': 160, '15m': 140,
     '1h': 120, '4h': 100, '1d': 80, '1w': 52, '1M': 24, '1Y': 12,
@@ -467,9 +517,10 @@ function computeSettlementZoneState(params: {
   }
   let state: SettlementState = 'candidate';
   if (retestViolation) state = 'failed';
-  else if (hold2 && (retestIndex == null || retestVolOk)) state = 'confirmed';
+  else if (hold2 && breakVolOk && (retestIndex == null || retestVolOk)) state = 'confirmed';
   let score = 40;
   if (hold2) score += 25;
+  if (breakVolOk) score += 12;
   if (retestIndex != null && !retestViolation) score += 20;
   if (retestVolOk) score += 15;
   if (state === 'failed') score = Math.max(20, score - 35);
@@ -1979,7 +2030,8 @@ export function analyzeCandles(symbol: string, timeframe: string, candles: Candl
   // 선포착 OB: BOS/FVG 확인 전, 반대 봉이 나온 직후부터 후보로 표시 (OB 만든 봉을 먼저 포착)
   const confirmedIdxSet = new Set(validObs.map(o => o.index));
   const earlyObs: Array<{ bias: 'bullish' | 'bearish'; index: number; low: number; high: number }> = [];
-  const lookBack = Math.min(20, visible.length - 2);
+  const earlyLook = 36;
+  const lookBack = Math.min(earlyLook, visible.length - 2);
   for (let i = visible.length - 1; i >= Math.max(0, visible.length - lookBack); i--) {
     if (confirmedIdxSet.has(i)) continue;
     const c = visible[i];
@@ -1993,7 +2045,7 @@ export function analyzeCandles(symbol: string, timeframe: string, candles: Candl
       earlyObs.push({ bias: 'bearish', index: i, low: c.low, high: Math.max(c.open, c.close) });
     }
   }
-  const earlyObsDedup = earlyObs.slice(0, 2);
+  const earlyObsDedup = earlyObs.slice(0, 3);
   for (const x of earlyObsDedup) {
     const mitigated = isObMitigated(x, visible);
     const baseEarly = x.bias === 'bullish' ? C.obEarlyBullish : C.obEarlyBearish;
@@ -2030,92 +2082,59 @@ export function analyzeCandles(symbol: string, timeframe: string, candles: Candl
     });
   }
 
-  // 선행 빔 예측: "N캔들 후 롱빔/숏빔" 확률을 마지막 캔들 근처에 핀 라벨로 표시
-  // - 너무 약한 수치는 노이즈가 커서 제외(68% 미만)
-  // - 각 horizon마다 우세 방향 1개만 표시해 화면 과밀 방지
+  // 선행 빔 — 클린 짧은 핀(우세 1 + 확정 1)
   const lastCandle = visible[visible.length - 1];
   if (lastCandle) {
-    const minForecastLabelProb = trend === 'range' ? 60 : 55;
-    beamForecasts.forEach((f, i) => {
-      const pickLong = f.longProb >= f.shortProb;
-      const chosenProb = pickLong ? f.longProb : f.shortProb;
-      if (chosenProb < minForecastLabelProb) return;
-      const watchOnly = chosenProb < 68;
-      const yPrice = pickLong
-        ? Math.min(max, lastCandle.high + atrVal * (0.12 + i * 0.06))
-        : Math.max(min, lastCandle.low - atrVal * (0.12 + i * 0.06));
-      overlays.push({
-        id: `beam-forecast-${f.horizon}`,
-        kind: 'label',
-        label: `${f.horizon}캔들후 ${pickLong ? '롱빔' : '숏빔'} ${chosenProb}%${watchOnly ? ' · 관찰' : ''}`,
-        x1: Math.min(0.975, 0.90 + i * 0.035),
-        y1: toRatio(yPrice, min, max),
-        time1: lastCandle.time as number,
-        price1: yPrice,
-        confidence: Math.min(95, watchOnly ? Math.max(60, chosenProb) : chosenProb),
-        color: pickLong
-          ? (watchOnly ? 'rgba(34,197,94,0.72)' : 'rgba(34,197,94,0.95)')
-          : (watchOnly ? 'rgba(239,68,68,0.72)' : 'rgba(239,68,68,0.95)'),
-        category: 'labels',
-      });
-    });
-
-    // 3/5/8 캔들 예측이 같은 방향으로 기준 이상이면 "빔확정" 뱃지 표시
-    // - 기본 보수형: 3·5캔들 80%+, 8캔들 70%+
-    // - 횡보장(range): 노이즈가 커서 85/85/75로 자동 상향
-    const f3 = beamForecasts.find((x) => x.horizon === 3);
-    const f5 = beamForecasts.find((x) => x.horizon === 5);
-    const f8 = beamForecasts.find((x) => x.horizon === 8);
-    if (f3 && f5 && f8) {
-      const t3 = trend === 'range' ? 85 : 80;
-      const t5 = trend === 'range' ? 85 : 80;
-      const t8 = trend === 'range' ? 75 : 70;
-      const longQualified = f3.longProb >= t3 && f5.longProb >= t5 && f8.longProb >= t8;
-      const shortQualified = f3.shortProb >= t3 && f5.shortProb >= t5 && f8.shortProb >= t8;
-      if (longQualified || shortQualified) {
-        const longSide = longQualified && !shortQualified;
-        const shortSide = shortQualified && !longQualified;
-        if (longSide || shortSide) {
-          const badgeProb = longSide
-            ? Math.round((f3.longProb + f5.longProb + f8.longProb) / 3)
-            : Math.round((f3.shortProb + f5.shortProb + f8.shortProb) / 3);
-          const yPrice = longSide
-            ? Math.min(max, lastCandle.high + atrVal * 0.34)
-            : Math.max(min, lastCandle.low - atrVal * 0.34);
-          overlays.push({
-            id: `beam-confirm-${longSide ? 'long' : 'short'}`,
-            kind: 'label',
-            label: `${longSide ? '롱빔확정' : '숏빔확정'} ${badgeProb}%`,
-            x1: 0.935,
-            y1: toRatio(yPrice, min, max),
-            time1: lastCandle.time as number,
-            price1: yPrice,
-            confidence: Math.min(98, badgeProb + 6),
-            color: longSide ? 'rgba(16,185,129,0.98)' : 'rgba(239,68,68,0.98)',
-            category: 'labels',
-          });
-        }
-      }
-    }
+    overlays.push(
+      ...buildCleanCandleFeatureOverlays({
+        visible,
+        timeframe,
+        min,
+        max,
+        atrVal,
+        trend,
+        beamForecasts,
+        reactLevel: 0,
+        support: 0,
+        resistance: 0,
+        breakPrice: 0,
+        breakDirection: 'bullish',
+        includeBeam: true,
+        includeReaction: false,
+        includeTailong: false,
+      })
+    );
   }
 
-  // BPR (Balance Price Range)
-  const bprZones = detectBPR(fvg, atrVal);
+  // BPR (ICT: 상승FVG∩하락FVG 겹침 · 균형가격구간)
+  const bprZones = detectBPR(
+    fvg.map((x) => ({
+      low: x.low,
+      high: x.high,
+      index: x.index,
+      valid: x.valid,
+      bias: x.bias,
+    })),
+    atrVal
+  );
   for (const z of bprZones.slice(0, 2)) {
-    const i2b = Math.min(visible.length - 1, z.index + 12);
+    const iLeft = Math.max(0, Math.min(z.bullIndex ?? z.index, z.bearIndex ?? z.index) - 2);
+    const i2b = Math.min(visible.length - 1, visible.length - 1);
+    const biasKo =
+      z.bias === 'bullish' ? '롱재터치' : z.bias === 'bearish' ? '숏재터치' : '균형';
     overlays.push({
       id: `bpr-${z.index}`,
       kind: 'bprZone',
-      label: '균형가격구간(BPR)',
-      x1: z.index / nVis,
+      label: z.mode === 'ict' ? `BPR · ${biasKo}` : '균형가격구간(BPR)',
+      x1: iLeft / nVis,
       y1: toRatio(z.top, min, max),
       x2: Math.min(0.98, i2b / nVis),
       y2: toRatio(z.bottom, min, max),
-      time1: visTime(visible, z.index),
+      time1: visTime(visible, iLeft),
       time2: visTime(visible, i2b),
       price1: z.top,
       price2: z.bottom,
-      confidence: 70,
+      confidence: z.mode === 'ict' ? 82 : 70,
       color: C.bpr,
       category: 'bpr',
     });
@@ -2924,79 +2943,39 @@ export function analyzeCandles(symbol: string, timeframe: string, candles: Candl
     overlays.push({ id: `key-${kl.type}-${kl.price}`, kind: 'keyLevel', label: kl.label, x1: 0.02, y1: toRatio(kl.price, min, max), x2: 0.98, y2: toRatio(kl.price, min, max), confidence: 88, color: kl.type === 'mustBreak' ? C.keyMustBreak : kl.type === 'mustHold' ? C.keyMustHold : kl.type === 'invalidation' ? C.keyInvalidation : C.keyDefault, category: 'keyLevel' });
   }
 
-  // 타이롱: 지지/저항/돌파가 수평선
-  if (tailongResult.tailongSupport > 0 && tailongResult.tailongSupport >= min && tailongResult.tailongSupport <= max) {
-    overlays.push({ id: 'tailong-support', kind: 'keyLevel', label: 'Support', x1: 0.02, y1: toRatio(tailongResult.tailongSupport, min, max), x2: 0.98, y2: toRatio(tailongResult.tailongSupport, min, max), confidence: 70, color: C.tailongSupport, category: 'keyLevel' });
-  }
-  if (tailongResult.tailongResistance > 0 && tailongResult.tailongResistance >= min && tailongResult.tailongResistance <= max) {
-    overlays.push({ id: 'tailong-resistance', kind: 'keyLevel', label: 'Resistance', x1: 0.02, y1: toRatio(tailongResult.tailongResistance, min, max), x2: 0.98, y2: toRatio(tailongResult.tailongResistance, min, max), confidence: 70, color: C.tailongResistance, category: 'keyLevel' });
-  }
-  if (tailongResult.tailongBreakPrice > 0 && tailongResult.tailongBreakPrice >= min && tailongResult.tailongBreakPrice <= max) {
-    overlays.push({ id: 'tailong-break', kind: 'keyLevel', label: 'Break', x1: 0.02, y1: toRatio(tailongResult.tailongBreakPrice, min, max), x2: 0.98, y2: toRatio(tailongResult.tailongBreakPrice, min, max), confidence: 72, color: tailongResult.tailongBreakDirection === 'bullish' ? C.tailongBreakBullish : C.tailongBreakBearish, category: 'keyLevel' });
-  }
-
-  // 반응구간: 캔들에 밀착 (마지막 N봉 구간만, 오른쪽으로 밀리지 않음)
-  const entryNum = typeof entry === 'number' ? entry : parseFloat(String(entry)) || last.close;
+  // 타이롱 + ATR 반응구간 + 경로 — 클린 1팩 (과밀 방지)
   const atrValForZone = atr(visible, 14);
-  const bandPct = Math.max(range * 0.0005, atrValForZone * 0.025, range * 0.00025);
-  const reactionBars = 32;
-  const lastNorm = Math.max(1, visible.length - 1);
-  const xStart = Math.max(0, (visible.length - reactionBars) / lastNorm);
-  const xEnd = Math.min(0.98, (visible.length - 1) / lastNorm);
-  const entryTop = entryNum + bandPct;
-  const entryBottom = entryNum - bandPct;
-  overlays.push({
-    id: 'reaction-zone-entry',
-    kind: 'reactionZone',
-    label: '반응구간',
-    x1: xStart,
-    y1: toRatio(entryTop, min, max),
-    x2: xEnd,
-    y2: toRatio(entryBottom, min, max),
-    price1: Math.max(entryTop, entryBottom),
-    price2: Math.min(entryTop, entryBottom),
-    confidence: 75,
-    color: C.reactionZoneEntry,
-    category: 'reactionZone',
-  });
-  if (levelResult.supportLevel && levelResult.supportLevel.price >= min && levelResult.supportLevel.price <= max) {
-    const sup = levelResult.supportLevel.price;
-    const supTop = sup + bandPct;
-    const supBottom = Math.max(min, sup - bandPct);
-    overlays.push({
-      id: 'reaction-zone-support',
-      kind: 'reactionZone',
-      label: '반응구간',
-      x1: xStart,
-      y1: toRatio(supTop, min, max),
-      x2: xEnd,
-      y2: toRatio(supBottom, min, max),
-      price1: Math.max(supTop, supBottom),
-      price2: Math.min(supTop, supBottom),
-      confidence: 74,
-      color: C.reactionZoneSupport,
-      category: 'reactionZone',
-    });
-  }
-  if (levelResult.resistanceLevel && levelResult.resistanceLevel.price >= min && levelResult.resistanceLevel.price <= max) {
-    const res = levelResult.resistanceLevel.price;
-    const resTop = Math.min(max, res + bandPct);
-    const resBottom = res - bandPct;
-    overlays.push({
-      id: 'reaction-zone-resistance',
-      kind: 'reactionZone',
-      label: '반응구간',
-      x1: xStart,
-      y1: toRatio(resTop, min, max),
-      x2: xEnd,
-      y2: toRatio(resBottom, min, max),
-      price1: Math.max(resTop, resBottom),
-      price2: Math.min(resTop, resBottom),
-      confidence: 74,
-      color: C.reactionZoneResistance,
-      category: 'reactionZone',
-    });
-  }
+  const entryNum = typeof entry === 'number' ? entry : parseFloat(String(entry)) || last.close;
+  const reactLevel =
+    (levelResult.supportLevel?.price && levelResult.resistanceLevel?.price
+      ? Math.abs(last.close - levelResult.supportLevel.price) <=
+        Math.abs(last.close - levelResult.resistanceLevel.price)
+        ? levelResult.supportLevel.price
+        : levelResult.resistanceLevel.price
+      : null) ??
+    (levelResult.supportLevel?.price ||
+      levelResult.resistanceLevel?.price ||
+      (tailongResult.tailongBreakPrice > 0 ? tailongResult.tailongBreakPrice : entryNum));
+
+  overlays.push(
+    ...buildCleanCandleFeatureOverlays({
+      visible,
+      timeframe,
+      min,
+      max,
+      atrVal: atrValForZone,
+      trend,
+      beamForecasts: [],
+      reactLevel,
+      support: tailongResult.tailongSupport,
+      resistance: tailongResult.tailongResistance,
+      breakPrice: tailongResult.tailongBreakPrice,
+      breakDirection: tailongResult.tailongBreakDirection,
+      includeBeam: false,
+      includeReaction: true,
+      includeTailong: true,
+    })
+  );
 
   // RSI 다이버전스: 캔들 두 개 피벗을 잇는 대각선 (Bullish=저점끼리 녹색, Bearish=고점끼리 빨강)
   const divLines = divergenceSignalResult.divergenceLines;
@@ -3119,27 +3098,37 @@ export function analyzeCandles(symbol: string, timeframe: string, candles: Candl
               : 240;
   const beamOverlay = (o: OverlayItem) =>
     o.id.startsWith('beam-forecast-') || o.id.startsWith('beam-confirm-');
+  const cleanFeatureOverlay = (o: OverlayItem) =>
+    beamOverlay(o) ||
+    o.id.startsWith('tailong-') ||
+    o.id.startsWith('reaction-zone-') ||
+    o.category === 'tailongPath' ||
+    o.category === 'reactionZone';
   const lvrbOverlay = (o: OverlayItem) => o.category === 'lvrb' || o.id.startsWith('lvrb-');
   const parkfOverlay = (o: OverlayItem) => String(o.id || '').startsWith('parkf-');
   const vtsOverlay = (o: OverlayItem) => o.category === 'volatilityTrendScore' || String(o.id || '').startsWith('vts-');
   const beamOverlays = overlays.filter(beamOverlay);
+  const cleanFeatureOverlays = overlays.filter((o) => cleanFeatureOverlay(o) && !beamOverlay(o));
   const lvrbOverlays = overlays.filter(lvrbOverlay);
   const parkfOverlays = overlays.filter(parkfOverlay);
   const vtsOverlays = overlays.filter(vtsOverlay);
   const otherOverlays = overlays.filter(
-    (o) => !beamOverlay(o) && !lvrbOverlay(o) && !parkfOverlay(o) && !vtsOverlay(o)
+    (o) => !cleanFeatureOverlay(o) && !lvrbOverlay(o) && !parkfOverlay(o) && !vtsOverlay(o)
   );
   const limitedOverlays = (() => {
     if (overlays.length <= overlayCap) return overlays;
     const reserved =
       parkfOverlays.length +
       beamOverlays.length +
+      cleanFeatureOverlays.length +
       lvrbOverlays.length +
       vtsOverlays.length;
     if (reserved >= overlayCap) {
       if (parkfOverlays.length >= overlayCap) return parkfOverlays.slice(0, overlayCap);
       let out = [...parkfOverlays];
       let left = overlayCap - out.length;
+      out = [...out, ...cleanFeatureOverlays.slice(0, left)];
+      left = overlayCap - out.length;
       out = [...out, ...lvrbOverlays.slice(0, left)];
       left = overlayCap - out.length;
       out = [...out, ...vtsOverlays.slice(0, left)];
@@ -3151,6 +3140,7 @@ export function analyzeCandles(symbol: string, timeframe: string, candles: Candl
     return [
       ...takeOtherOverlaysWithinCap(otherOverlays, remain),
       ...parkfOverlays,
+      ...cleanFeatureOverlays,
       ...beamOverlays,
       ...lvrbOverlays,
       ...vtsOverlays,
@@ -3374,7 +3364,10 @@ export function analyzeCandles(symbol: string, timeframe: string, candles: Candl
           return {
             id: 'ai-auto-compression-ref',
             kind: 'zone' as const,
-            label: `AI·압축→${comp.impulseBias === 'bullish' ? '장대양' : '장대음'} (${comp.barsCompressed}봉)`,
+            label: formatAiCompressionZoneChartLabel({
+              bias: comp.impulseBias,
+              bars: comp.barsCompressed,
+            }),
             x1: comp.compressionStartIdx / nVisAi,
             y1: toRatio(comp.boxHigh, min, max),
             x2: Math.min(0.98, i2 / nVisAi),
@@ -3434,16 +3427,16 @@ export function analyzeCandles(symbol: string, timeframe: string, candles: Candl
           const lc = aiBuilt.liveCompression!;
           const i0 = Math.max(0, nVisAi - lc.barsN);
           const i1 = nVisAi - 1;
-          const tag =
-            lc.obConfluent === 'support'
-              ? '·지지합류'
-              : lc.obConfluent === 'resistance'
-                ? '·저항합류'
-                : '';
+          const liveBias = resolveLiveCompressionChartBias(lc, verdict);
           return {
             id: 'ai-auto-live-compression',
             kind: 'zone' as const,
-            label: `AI·진행압축 ${lc.score} · ${lc.barsN}봉${tag}`,
+            label: formatAiCompressionZoneChartLabel({
+              bias: liveBias,
+              bars: lc.barsN,
+              score: lc.score,
+              live: true,
+            }),
             x1: i0 / nVisAi,
             y1: toRatio(lc.boxHigh, min, max),
             x2: Math.min(0.98, (i1 + 0.45) / nVisAi),
@@ -3602,5 +3595,26 @@ export function analyzeCandles(symbol: string, timeframe: string, candles: Candl
       const filtered = raw.filter((r) => structureRocketSourceAllowedForTimeframe(timeframe, r.source));
       return mergeDedupeStructureRockets(filtered, rkB.mergeMax);
     })(),
+    breakoutFollow: buildBreakoutFollowChain({
+      symbol,
+      timeframe,
+      verdict,
+      entry: typeof entry === 'number' ? entry.toFixed(2) : String(entry),
+      stopLoss: typeof stop === 'number' ? stop.toFixed(2) : String(stop),
+      targets: targets.map((x) => (typeof x === 'number' ? x.toFixed(2) : String(x))),
+      currentPrice: last.close,
+      breakoutLevel: levelResult.breakoutLevel,
+      supportLevel: levelResult.supportLevel,
+      resistanceLevel: levelResult.resistanceLevel,
+      invalidationLevel: levelResult.invalidationLevel,
+      mustHold: scenarioResult.mustHold,
+      mustBreak: scenarioResult.mustBreak,
+      invalidation: scenarioResult.invalidation,
+      bullishScenario: scenarioResult.bullishScenario,
+      bearishScenario: scenarioResult.bearishScenario,
+      nextTargets: scenarioResult.nextTargets,
+      settlementZone,
+      futurePaths,
+    } as import('@/types').AnalyzeResponse) ?? undefined,
   };
 }

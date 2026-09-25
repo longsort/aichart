@@ -1,0 +1,63 @@
+{
+  "liveArmed": true,
+  "enabledSymbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "SOLUSDT"
+  ],
+  "leverage": 10,
+  "marginMode": "isolated",
+  "sizeMode": "equityPct",
+  "scalpEquityPct": 5,
+  "doksuriEquityPct": 5,
+  "marginUsdt": 20,
+  "strategyScalp": false,
+  "strategyDoksuri1": true,
+  "minRr": 1.2,
+  "maxConcurrent": 20,
+  "scalpTp1RoePct": 8,
+  "scalpSlRoePct": 8,
+  "tapOnly": true,
+  "updatedAt": 1790346678572,
+  "lastStatusKo": "자동매매 안 됨 · 거래소 키 확인",
+  "lastTickAt": 1790346678572,
+  "watchBoard": {
+    "verdictKo": "자동매매 안 됨 · 거래소 키 확인",
+    "alive": false,
+    "updatedAt": 1790346678572,
+    "coins": [
+      {
+        "symbol": "BTCUSDT",
+        "coin": "BTC",
+        "tone": "wait",
+        "lineKo": "키 점검 실패"
+      },
+      {
+        "symbol": "ETHUSDT",
+        "coin": "ETH",
+        "tone": "wait",
+        "lineKo": "키 점검 실패"
+      },
+      {
+        "symbol": "BNBUSDT",
+        "coin": "BNB",
+        "tone": "wait",
+        "lineKo": "키 점검 실패"
+      },
+      {
+        "symbol": "XRPUSDT",
+        "coin": "XRP",
+        "tone": "wait",
+        "lineKo": "키 점검 실패"
+      },
+      {
+        "symbol": "SOLUSDT",
+        "coin": "SOL",
+        "tone": "wait",
+        "lineKo": "키 점검 실패"
+      }
+    ]
+  }
+}

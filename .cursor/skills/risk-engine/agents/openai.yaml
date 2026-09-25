@@ -1,0 +1,3 @@
+interface:
+  display_name: "Risk Engine"
+  short_description: "BTC futures app: risk engine"

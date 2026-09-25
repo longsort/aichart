@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">VSA — Effort vs Result</text>
+  <rect x="70" y="80" width="70" height="260" fill="#fecaca"/>
+  <rect x="200" y="200" width="70" height="140" fill="#bbf7d0"/>
+  <rect x="330" y="250" width="70" height="90" fill="#e2e8f0"/>
+  <rect x="460" y="90" width="70" height="250" fill="#fed7aa"/>
+  <text x="70" y="370" font-family="Segoe UI, sans-serif" font-size="12">Climax wide+vol</text>
+  <text x="200" y="370" font-family="Segoe UI, sans-serif" font-size="12">No demand</text>
+  <text x="330" y="370" font-family="Segoe UI, sans-serif" font-size="12">No supply</text>
+  <text x="460" y="370" font-family="Segoe UI, sans-serif" font-size="12">Absorption high vol small range</text>
+  <text x="600" y="160" font-family="Segoe UI, sans-serif" font-size="13">Effort = volume</text>
+  <text x="600" y="190" font-family="Segoe UI, sans-serif" font-size="13">Result = spread / close</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Wyckoff volume logic. One bar is a hint, not a phase.</text>
+</svg>

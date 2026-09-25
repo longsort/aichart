@@ -46,11 +46,25 @@ fi
 
 export NODE_ENV=production
 
-echo "[1/4] npm ci"
-npm ci
+echo "[1/4] npm ci (devDependencies 포함 — next build용 tailwind/postcss)"
+if ! npm ci --include=dev; then
+  echo "[안내] npm ci 실패(락 불일치) → npm install 로 진행"
+  npm install --no-audit --no-fund --include=dev
+fi
 
 echo "[2/4] npm run build"
 npm run build
+
+echo "[2.5/4] Playwright Chromium (텔레 통합·분석 UI 캡처 — 디스크 저장 없음)"
+if [ -x node_modules/.bin/playwright ] || [ -d node_modules/playwright ]; then
+  npx playwright install chromium || echo "[경고] playwright install chromium 실패 — SVG 폴백"
+  # Ubuntu/Debian — headless Chromium 시스템 라이브러리
+  if command -v apt-get >/dev/null 2>&1; then
+    npx playwright install-deps chromium 2>/dev/null || true
+  fi
+else
+  echo "[안내] playwright 패키지 없음 — UI 캡처는 SVG 폴백"
+fi
 
 echo "[3/4] PM2 기동"
 if ! command -v pm2 >/dev/null 2>&1; then
@@ -59,8 +73,29 @@ if ! command -v pm2 >/dev/null 2>&1; then
 fi
 
 pm2 delete ailongshort 2>/dev/null || true
-pm2 start "$ROOT/ecosystem.config.cjs"
+if [ -f "$ROOT/ecosystem.config.cjs" ]; then
+  pm2 start "$ROOT/ecosystem.config.cjs"
+elif [ -f "$ROOT/ecosystem.config.js" ]; then
+  pm2 start "$ROOT/ecosystem.config.js"
+else
+  cd "$ROOT" && pm2 start npm --name ailongshort -- start
+fi
 pm2 save
+
+if command -v systemctl >/dev/null 2>&1; then
+  pm2 startup systemd -u root --hp /root 2>/dev/null | tail -1 | grep -q 'sudo' && true || true
+fi
+if systemctl is-enabled pm2-root >/dev/null 2>&1; then
+  echo "[OK] pm2-root 부팅 자동시작 enabled"
+else
+  echo "[안내] 부팅 자동시작: pm2 startup systemd -u root --hp /root 실행 후 pm2 save"
+fi
+
+if [ -x "$ROOT/scripts/install-server-cron.sh" ]; then
+  # Windows 배포 tar 시 CRLF가 섞이면 bash pipefail 오류 → LF 정규화
+  sed -i 's/\r$//' "$ROOT/scripts/install-server-cron.sh" 2>/dev/null || true
+  bash "$ROOT/scripts/install-server-cron.sh" || echo "[경고] install-server-cron.sh 실패(앱 기동은 계속)"
+fi
 
 echo "[4/4] 로컬 헬스 체크"
 sleep 2
@@ -72,6 +107,8 @@ fi
 
 echo "=========================================="
 echo "완료."
+echo "  (텔레·앱 안 열고 감지) 크론: scripts/install-server-cron.sh (vps-deploy 시 자동)"
+echo "        bash scripts/telegram-auto-alert-run.sh 로 수동 테스트"
 echo "  상태:    pm2 status"
 echo "  로그:    pm2 logs ailongshort --lines 80"
 echo "  재시작:  pm2 restart ailongshort"

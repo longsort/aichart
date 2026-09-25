@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Dow — Uptrend HH / HL</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.6" points="80,380 180,220 260,300 400,140 490,230 720,70 820,160 920,50"/>
+  <text x="180" y="208" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">HH1</text>
+  <text x="260" y="322" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#16a34a">HL1</text>
+  <text x="400" y="128" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">HH2</text>
+  <text x="490" y="252" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#16a34a">HL2</text>
+  <text x="720" y="60" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">HH3</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Primary trend up. Secondary pullbacks make higher lows. Not a forecast.</text>
+</svg>

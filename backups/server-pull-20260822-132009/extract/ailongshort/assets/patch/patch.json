@@ -1,0 +1,26 @@
+{
+  "app": "Fulink Pro",
+  "channel": "stable",
+  "version": "0.1.1",
+  "min_app_version": "0.1.0",
+  "released_at": "2026-01-30T00:00:00+09:00",
+  "notes": [
+    "Engine skeleton shipped (Trinity AI + Consensus).",
+    "UI: War Screen + Fullscreen Split.",
+    "Patch manager with backup/rollback + logs."
+  ],
+  "files": [
+    {
+      "type": "config",
+      "name": "config.json",
+      "checksum": "sha256:PLACEHOLDER",
+      "source": "local_or_remote"
+    },
+    {
+      "type": "patch",
+      "name": "patch.bin",
+      "checksum": "sha256:PLACEHOLDER",
+      "source": "local_or_remote"
+    }
+  ]
+}

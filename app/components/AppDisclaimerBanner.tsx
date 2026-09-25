@@ -6,7 +6,7 @@ import styles from './AppDisclaimerBanner.module.css';
  * 투자 자문이 아닌 도구·데이터·교육 성격을 사용자에게 명확히 보여 주는 안내.
  * 스타일은 CSS 모듈로 번들에 포함되어 public/globals.css 배포와 무관하게 적용됩니다.
  */
-export default function AppDisclaimerBanner({ variant }: { variant: 'login' | 'main' }) {
+export default function AppDisclaimerBanner({ variant, hidden }: { variant: 'login' | 'main'; hidden?: boolean }) {
   if (variant === 'login') {
     return (
       <aside
@@ -33,6 +33,8 @@ export default function AppDisclaimerBanner({ variant }: { variant: 'login' | 'm
   return (
     <aside
       className={`${styles.disclaimer} ${styles.disclaimerMain}`}
+      data-page-disclaimer="main"
+      hidden={hidden || undefined}
       role="note"
       aria-label="서비스 성격 및 면책"
     >

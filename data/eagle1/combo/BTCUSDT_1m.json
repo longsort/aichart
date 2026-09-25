@@ -1,0 +1,45 @@
+{
+  "symbol": "BTCUSDT",
+  "timeframe": "1m",
+  "at": 1790346700996,
+  "promoted": null,
+  "summaryKo": "조합은 맞으나 표본 승격 조건 미달",
+  "hits": [
+    {
+      "id": "reversal_cluster_long",
+      "complete": true,
+      "promote": false,
+      "sampleSize": 0,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "데이터 없음"
+    },
+    {
+      "id": "reversal_cluster_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 0,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 0,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "조합 미완 · 충족 1/3"
+    },
+    {
+      "id": "breakout_continuation_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 0,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    }
+  ]
+}

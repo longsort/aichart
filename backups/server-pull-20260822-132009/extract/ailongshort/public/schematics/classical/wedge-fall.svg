@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Falling Wedge</text>
+  <line x1="120" y1="80" x2="820" y2="300" stroke="#0f172a" stroke-width="2"/>
+  <line x1="120" y1="160" x2="820" y2="400" stroke="#0f172a" stroke-width="2"/>
+  <polyline fill="none" stroke="#16a34a" stroke-width="2.2" points="160,100 260,200 360,170 480,280 580,250 700,340"/>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Both lines fall, range shrinks. Often bullish at end of down-leg.</text>
+</svg>

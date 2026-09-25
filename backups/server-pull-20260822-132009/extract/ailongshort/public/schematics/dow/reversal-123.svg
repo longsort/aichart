@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Dow 1-2-3 Reversal (bullish sketch)</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.6" points="80,80 220,360 380,200 560,300 780,90"/>
+  <text x="220" y="390" font-family="Segoe UI, sans-serif" font-size="20" font-weight="800" fill="#0f172a">1</text>
+  <text x="380" y="188" font-family="Segoe UI, sans-serif" font-size="20" font-weight="800" fill="#0f172a">2</text>
+  <text x="560" y="328" font-family="Segoe UI, sans-serif" font-size="20" font-weight="800" fill="#0f172a">3</text>
+  <line x1="380" y1="200" x2="900" y2="200" stroke="#94a3b8" stroke-dasharray="5 4"/>
+  <text x="790" y="190" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">break of 2</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">1=impulse low  2=reaction high  3=higher low  then break 2. Inverse for bearish.</text>
+</svg>

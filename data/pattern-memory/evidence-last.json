@@ -1,0 +1,632 @@
+{
+  "lookahead": {
+    "ok": true,
+    "lookahead": {
+      "pass": true,
+      "checks": [
+        {
+          "name": "feature_prefix_immune_to_future",
+          "pass": true,
+          "detail": "T feature unchanged after T+ poison"
+        },
+        {
+          "name": "search_prefix_immune_to_future",
+          "pass": true,
+          "detail": "Top-K identical after T+ poison"
+        },
+        {
+          "name": "no_future_timestamp_in_hits",
+          "pass": true,
+          "detail": "All hits strictly before T"
+        },
+        {
+          "name": "features_endExclusive",
+          "pass": true,
+          "detail": "Feature indices <= T"
+        }
+      ]
+    }
+  },
+  "inventory": {
+    "ok": true,
+    "inventory": [
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "5m",
+        "count": 304551,
+        "firstOpenTime": 1694887200000,
+        "lastOpenTime": 1786710600000,
+        "lastClosedOpenTime": 1786710600000,
+        "missingCount": 1528,
+        "duplicateCount": 0,
+        "repair": {
+          "duplicateDropped": 0,
+          "missingFilled": 0,
+          "gapWindowsRepaired": 0,
+          "invalidOhlcRepaired": 0,
+          "negativeVolumeRepaired": 0,
+          "unfinishedDropped": 0,
+          "apiPages": 0
+        },
+        "qualitySeverity": "warning",
+        "source": "csv+overlay+bitget"
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "15m",
+        "count": 2976,
+        "firstOpenTime": 1779880500000,
+        "lastOpenTime": 1782558000000,
+        "lastClosedOpenTime": 1782558000000,
+        "missingCount": 0,
+        "duplicateCount": 0,
+        "repair": {
+          "duplicateDropped": 0,
+          "missingFilled": 0,
+          "gapWindowsRepaired": 0,
+          "invalidOhlcRepaired": 0,
+          "negativeVolumeRepaired": 0,
+          "unfinishedDropped": 0,
+          "apiPages": 0
+        },
+        "qualitySeverity": "ok",
+        "source": "csv+overlay+bitget"
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1h",
+        "count": 1440,
+        "firstOpenTime": 1777377600000,
+        "lastOpenTime": 1782558000000,
+        "lastClosedOpenTime": 1782558000000,
+        "missingCount": 0,
+        "duplicateCount": 0,
+        "repair": {
+          "duplicateDropped": 0,
+          "missingFilled": 0,
+          "gapWindowsRepaired": 0,
+          "invalidOhlcRepaired": 0,
+          "negativeVolumeRepaired": 0,
+          "unfinishedDropped": 0,
+          "apiPages": 0
+        },
+        "qualitySeverity": "ok",
+        "source": "csv+overlay+bitget"
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "4h",
+        "count": 1925,
+        "firstOpenTime": 1761825600000,
+        "lastOpenTime": 1789531200000,
+        "lastClosedOpenTime": 1789531200000,
+        "missingCount": 0,
+        "duplicateCount": 0,
+        "repair": {
+          "duplicateDropped": 0,
+          "missingFilled": 0,
+          "gapWindowsRepaired": 0,
+          "invalidOhlcRepaired": 0,
+          "negativeVolumeRepaired": 0,
+          "unfinishedDropped": 1,
+          "apiPages": 2
+        },
+        "qualitySeverity": "ok",
+        "source": "csv+overlay+bitget"
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1d",
+        "count": 1440,
+        "firstOpenTime": 1658160000000,
+        "lastOpenTime": 1782489600000,
+        "lastClosedOpenTime": 1782489600000,
+        "missingCount": 0,
+        "duplicateCount": 0,
+        "repair": {
+          "duplicateDropped": 0,
+          "missingFilled": 0,
+          "gapWindowsRepaired": 0,
+          "invalidOhlcRepaired": 0,
+          "negativeVolumeRepaired": 0,
+          "unfinishedDropped": 0,
+          "apiPages": 0
+        },
+        "qualitySeverity": "ok",
+        "source": "csv+overlay+bitget"
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1w",
+        "count": 355,
+        "firstOpenTime": 1567353600000,
+        "lastOpenTime": 1781452800000,
+        "lastClosedOpenTime": 1781452800000,
+        "missingCount": 0,
+        "duplicateCount": 0,
+        "repair": {
+          "duplicateDropped": 0,
+          "missingFilled": 0,
+          "gapWindowsRepaired": 0,
+          "invalidOhlcRepaired": 0,
+          "negativeVolumeRepaired": 0,
+          "unfinishedDropped": 0,
+          "apiPages": 0
+        },
+        "qualitySeverity": "ok",
+        "source": "csv+overlay+bitget"
+      },
+      {
+        "symbol": "BTCUSDT",
+        "timeframe": "1M",
+        "count": 81,
+        "firstOpenTime": 1569859200000,
+        "lastOpenTime": 1780243200000,
+        "lastClosedOpenTime": 1780243200000,
+        "missingCount": 0,
+        "duplicateCount": 0,
+        "repair": {
+          "duplicateDropped": 0,
+          "missingFilled": 0,
+          "gapWindowsRepaired": 0,
+          "invalidOhlcRepaired": 0,
+          "negativeVolumeRepaired": 0,
+          "unfinishedDropped": 0,
+          "apiPages": 0
+        },
+        "qualitySeverity": "ok",
+        "source": "csv+overlay+bitget"
+      }
+    ]
+  },
+  "analyze15m": {
+    "ok": true,
+    "result": {
+      "symbol": "BTCUSDT",
+      "timeframe": "15m",
+      "role": "Short Term",
+      "asOfIso": "2026-09-16T11:56:42.582Z",
+      "lastClosedIso": "2026-09-16T11:30:00.000Z",
+      "incremental": true,
+      "logs": [
+        "load BTCUSDT 15m: csv=2976 overlay=0 merged=2976",
+        "incremental from lastClosed 2026-06-27T11:00:00.000Z",
+        "recent API bars=500 overlayAppend=500",
+        "tail fill bars=2976 overlayAppend=2476",
+        "history-head skipped; first=2026-05-27T11:15:00.000Z lookback=2023-09-16T17:56:39.098Z — POST action=sync",
+        "gap starts=1 repairedWindows=0",
+        "closed=5951 quality=warning gaps=1 dup=0 incremental=true"
+      ],
+      "inventory": {
+        "symbol": "BTCUSDT",
+        "timeframe": "15m",
+        "count": 5951,
+        "firstOpenTime": 1779880500000,
+        "lastOpenTime": 1789558200000,
+        "lastClosedOpenTime": 1789558200000,
+        "missingCount": 4803,
+        "duplicateCount": 0,
+        "repair": {
+          "duplicateDropped": 0,
+          "missingFilled": 0,
+          "gapWindowsRepaired": 0,
+          "invalidOhlcRepaired": 0,
+          "negativeVolumeRepaired": 0,
+          "unfinishedDropped": 1,
+          "apiPages": 3
+        },
+        "qualitySeverity": "warning",
+        "source": "csv+overlay+bitget"
+      },
+      "qualityBlocked": false,
+      "unfinished": false,
+      "searchMs": 1738,
+      "candleHits": [
+        {
+          "openTime": 1788071400000,
+          "iso": "2026-08-30T06:30:00.000Z",
+          "cosine": 0.88337142424596,
+          "euclidean": 4.829670294213485,
+          "correlation": 0.8833714242459599,
+          "structureMatch": 1,
+          "volumeMatch": 0,
+          "rerank": 0.7810167538362349,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 5
+        },
+        {
+          "openTime": 1788013800000,
+          "iso": "2026-08-29T14:30:00.000Z",
+          "cosine": 0.8230220081674267,
+          "euclidean": 5.949420002530891,
+          "correlation": 0.8230220081674268,
+          "structureMatch": 1,
+          "volumeMatch": 0,
+          "rerank": 0.7344553547957421,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 5
+        },
+        {
+          "openTime": 1789493400000,
+          "iso": "2026-09-15T17:30:00.000Z",
+          "cosine": 0.7939668288552636,
+          "euclidean": 9.078175392549673,
+          "correlation": 0.7939668288552636,
+          "structureMatch": 1,
+          "volumeMatch": 0,
+          "rerank": 0.7010667480467196,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 10
+        },
+        {
+          "openTime": 1780869600000,
+          "iso": "2026-06-07T22:00:00.000Z",
+          "cosine": 0.7647201470612485,
+          "euclidean": 6.859735460478799,
+          "correlation": 0.7647201470612485,
+          "structureMatch": 1,
+          "volumeMatch": 0,
+          "rerank": 0.6914720740422345,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 5
+        },
+        {
+          "openTime": 1788585300000,
+          "iso": "2026-09-05T05:15:00.000Z",
+          "cosine": 0.7931777551534661,
+          "euclidean": 9.095542751183912,
+          "correlation": 0.7931777551534656,
+          "structureMatch": 0.9299999999999998,
+          "volumeMatch": 0,
+          "rerank": 0.6899949734653507,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 10
+        },
+        {
+          "openTime": 1781272800000,
+          "iso": "2026-06-12T14:00:00.000Z",
+          "cosine": 0.7736545271640164,
+          "euclidean": 6.72823116184312,
+          "correlation": 0.7736545271640162,
+          "structureMatch": 0.9299999999999998,
+          "volumeMatch": 0,
+          "rerank": 0.687467150775642,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 5
+        },
+        {
+          "openTime": 1782481500000,
+          "iso": "2026-06-26T13:45:00.000Z",
+          "cosine": 0.7648658159218026,
+          "euclidean": 9.6981273259985,
+          "correlation": 0.7648658159218026,
+          "structureMatch": 1,
+          "volumeMatch": 0,
+          "rerank": 0.6801741481348992,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 10
+        },
+        {
+          "openTime": 1788269400000,
+          "iso": "2026-09-01T13:30:00.000Z",
+          "cosine": 0.73464541131991,
+          "euclidean": 7.284978911158075,
+          "correlation": 0.73464541131991,
+          "structureMatch": 0.9299999999999998,
+          "volumeMatch": 0,
+          "rerank": 0.6593050505614407,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 5
+        },
+        {
+          "openTime": 1787034600000,
+          "iso": "2026-08-18T06:30:00.000Z",
+          "cosine": 0.7651096557886562,
+          "euclidean": 9.693097424690276,
+          "correlation": 0.7651096557886563,
+          "structureMatch": 0.8499999999999999,
+          "volumeMatch": 0,
+          "rerank": 0.6578476829057481,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 10
+        },
+        {
+          "openTime": 1780910100000,
+          "iso": "2026-06-08T09:15:00.000Z",
+          "cosine": 0.7648871677914121,
+          "euclidean": 9.69768698625786,
+          "correlation": 0.7648871677914124,
+          "structureMatch": 0.8499999999999999,
+          "volumeMatch": 0,
+          "rerank": 0.657689342785717,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 10
+        },
+        {
+          "openTime": 1781471700000,
+          "iso": "2026-06-14T21:15:00.000Z",
+          "cosine": 0.7432372846844835,
+          "euclidean": 10.134351786187743,
+          "correlation": 0.7432372846844832,
+          "structureMatch": 0.8499999999999999,
+          "volumeMatch": 0,
+          "rerank": 0.6423701275994658,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 10
+        },
+        {
+          "openTime": 1781520300000,
+          "iso": "2026-06-15T10:45:00.000Z",
+          "cosine": 0.7228092742886044,
+          "euclidean": 7.4456796293071275,
+          "correlation": 0.7228092742886044,
+          "structureMatch": 0.8499999999999999,
+          "volumeMatch": 0,
+          "rerank": 0.6388520500511807,
+          "regime": "RANGE",
+          "model": "CANDLE_ONLY",
+          "window": 5
+        }
+      ],
+      "volumeHits": [
+        {
+          "openTime": 1788071400000,
+          "iso": "2026-08-30T06:30:00.000Z",
+          "cosine": 0.794933508952256,
+          "euclidean": 8.59208570588003,
+          "correlation": 0.7949335089522561,
+          "structureMatch": 1,
+          "volumeMatch": 0.975797750709927,
+          "rerank": 0.8010091571908389,
+          "regime": "RANGE",
+          "model": "CANDLE_VOLUME",
+          "window": 5
+        },
+        {
+          "openTime": 1788013800000,
+          "iso": "2026-08-29T14:30:00.000Z",
+          "cosine": 0.7546706867280968,
+          "euclidean": 9.397795101931361,
+          "correlation": 0.7546706867280969,
+          "structureMatch": 1,
+          "volumeMatch": 0.9725033317920002,
+          "rerank": 0.7717238150202379,
+          "regime": "RANGE",
+          "model": "CANDLE_VOLUME",
+          "window": 5
+        },
+        {
+          "openTime": 1781520300000,
+          "iso": "2026-06-15T10:45:00.000Z",
+          "cosine": 0.7782398323132027,
+          "euclidean": 8.93496840325956,
+          "correlation": 0.7782398323132027,
+          "structureMatch": 0.8499999999999999,
+          "volumeMatch": 0.9945353572199531,
+          "rerank": 0.7682912016931515,
+          "regime": "RANGE",
+          "model": "CANDLE_VOLUME",
+          "window": 5
+        }
+      ],
+      "candleDir": null,
+      "volumeDir": null,
+      "verdict": "WAIT",
+      "waitReasons": [
+        "표본 부족"
+      ],
+      "outcomesSample": [
+        {
+          "horizon": 1,
+          "closeReturn": -0.002151202994495877,
+          "maxHighReturn": 0.0007748032911950251,
+          "maxLowReturn": -0.0026814011510985798
+        },
+        {
+          "horizon": 2,
+          "closeReturn": -6.2142926085771e-05,
+          "maxHighReturn": 0.0007748032911950251,
+          "maxLowReturn": -0.0026814011510985798
+        },
+        {
+          "horizon": 3,
+          "closeReturn": 0.0036611438793844697,
+          "maxHighReturn": 0.0036611438793844697,
+          "maxLowReturn": -0.0026814011510985798
+        },
+        {
+          "horizon": 5,
+          "closeReturn": 0.002875763068855684,
+          "maxHighReturn": 0.006185204430393818,
+          "maxLowReturn": -0.0026814011510985798
+        },
+        {
+          "horizon": 10,
+          "closeReturn": 0.0030701249866127885,
+          "maxHighReturn": 0.006185204430393818,
+          "maxLowReturn": -0.0026814011510985798
+        },
+        {
+          "horizon": 20,
+          "closeReturn": 0.0034416603532096603,
+          "maxHighReturn": 0.006185204430393818,
+          "maxLowReturn": -0.0026814011510985798
+        }
+      ],
+      "firstTouch": null,
+      "mfeMae": {
+        "mean": null,
+        "median": null,
+        "p25": null,
+        "p50": null,
+        "p75": null,
+        "p90": null
+      },
+      "timeToTarget": {
+        "meanBars": null,
+        "medianBars": null,
+        "p25": null,
+        "p75": null,
+        "missRate": null,
+        "sample": 0
+      },
+      "plans": [],
+      "successFailureCandle": {
+        "successSimilarity": 0.7506174724349491,
+        "failureSimilarity": 0.7942775782616813,
+        "failureRisk": 0.514130443944087,
+        "model": "CANDLE_ONLY"
+      },
+      "successFailureVolume": {
+        "successSimilarity": 0.7782398323132027,
+        "failureSimilarity": 0.7748020978401764,
+        "failureRisk": 0.4988932254801753,
+        "model": "CANDLE_VOLUME"
+      },
+      "backtestCandle": {
+        "model": "CANDLE_ONLY",
+        "sampleCount": 0,
+        "winRate": null,
+        "evGross": null,
+        "evNet": null,
+        "profitFactor": null,
+        "averageR": null,
+        "medianR": null,
+        "mfeMean": null,
+        "maeMean": null,
+        "maxDrawdown": null,
+        "consecutiveLoss": null,
+        "firstTouchRate": null
+      },
+      "backtestVolume": {
+        "model": "CANDLE_VOLUME",
+        "sampleCount": 0,
+        "winRate": null,
+        "evGross": null,
+        "evNet": null,
+        "profitFactor": null,
+        "averageR": null,
+        "medianR": null,
+        "mfeMean": null,
+        "maeMean": null,
+        "maxDrawdown": null,
+        "consecutiveLoss": null,
+        "firstTouchRate": null
+      },
+      "oosCandle": {
+        "model": "CANDLE_ONLY",
+        "sampleCount": 0,
+        "winRate": null,
+        "evGross": null,
+        "evNet": null,
+        "profitFactor": null,
+        "averageR": null,
+        "medianR": null,
+        "mfeMean": null,
+        "maeMean": null,
+        "maxDrawdown": null,
+        "consecutiveLoss": null,
+        "firstTouchRate": null
+      },
+      "oosVolume": {
+        "model": "CANDLE_VOLUME",
+        "sampleCount": 0,
+        "winRate": null,
+        "evGross": null,
+        "evNet": null,
+        "profitFactor": null,
+        "averageR": null,
+        "medianR": null,
+        "mfeMean": null,
+        "maeMean": null,
+        "maxDrawdown": null,
+        "consecutiveLoss": null,
+        "firstTouchRate": null
+      },
+      "walkForward": null,
+      "calibration": [
+        {
+          "bin": "50-60",
+          "n": 0,
+          "predicted": 0.55,
+          "actual": null
+        },
+        {
+          "bin": "60-70",
+          "n": 0,
+          "predicted": 0.6499999999999999,
+          "actual": null
+        },
+        {
+          "bin": "70-80",
+          "n": 0,
+          "predicted": 0.75,
+          "actual": null
+        },
+        {
+          "bin": "80-90",
+          "n": 0,
+          "predicted": 0.8500000000000001,
+          "actual": null
+        },
+        {
+          "bin": "90-101",
+          "n": 0,
+          "predicted": 0.9550000000000001,
+          "actual": null
+        }
+      ],
+      "mtf": [
+        {
+          "tf": "5m",
+          "role": "Entry Timing",
+          "verdict": "WAIT"
+        },
+        {
+          "tf": "15m",
+          "role": "Short Term",
+          "verdict": "WAIT"
+        },
+        {
+          "tf": "1h",
+          "role": "Intraday",
+          "verdict": "WAIT"
+        },
+        {
+          "tf": "4h",
+          "role": "Swing",
+          "verdict": "WAIT"
+        },
+        {
+          "tf": "1d",
+          "role": "Major Trend",
+          "verdict": "WAIT"
+        },
+        {
+          "tf": "1w",
+          "role": "Macro",
+          "verdict": "SHORT"
+        },
+        {
+          "tf": "1M",
+          "role": "Macro Cycle",
+          "verdict": "SHORT"
+        }
+      ],
+      "mtfConflict": false,
+      "note": "승률·EV는 표본·OOS 기준. 확정 수익 아님. Candle+Volume이 항상 우월하지 않음."
+    }
+  },
+  "errors": []
+}

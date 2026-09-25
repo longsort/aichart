@@ -1,0 +1,45 @@
+{
+  "symbol": "BTCUSDT",
+  "timeframe": "4h",
+  "at": 1790346704732,
+  "promoted": null,
+  "summaryKo": "강신호 조합 없음 · 단독 SMC 금지",
+  "hits": [
+    {
+      "id": "reversal_cluster_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 73,
+      "tpBeforeSl": 0.6027397260273972,
+      "netExpectancy": -0.8927881745743117,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "reversal_cluster_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 73,
+      "tpBeforeSl": 0.6027397260273972,
+      "netExpectancy": -0.8927881745743117,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 15,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 15,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    }
+  ]
+}

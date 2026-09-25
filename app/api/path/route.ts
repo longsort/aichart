@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCandlesFromServer } from '@/lib/candlesFromServer';
 
+export const dynamic = 'force-dynamic';
+
 const HTF_PERIOD_SEC: Record<string, number> = {
   '1m': 60, '3m': 180, '5m': 300, '15m': 900,
   '1h': 3600, '4h': 4 * 3600, '1d': 86400, '1w': 7 * 86400, '1M': 30 * 86400, '1Y': 365 * 86400,

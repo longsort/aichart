@@ -1,0 +1,106 @@
+const chart = createChart(host, {
+      autoSize: true,
+      layout: {
+        background: lwcLayoutBackground(th.bg, isMergedAnalysisDeskMode(uiMode)),
+        textColor: th.text,
+        fontSize: Math.max(10, Math.min(18, scaleFs)),
+        fontFamily: CHART_PRO_FONT,
+      },
+      grid: chartGridOptions(th),
+      crosshair: chartCrosshairOptions(th),
+      rightPriceScale: {
+        visible: true,
+        borderColor: th.border,
+        scaleMargins: { top: 0.10, bottom: 0.22 },
+        minimumWidth: chartPriceScaleLayoutRef.current.minimumWidth,
+      },
+      timeScale: {
+        borderColor: th.border,
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: smartMoneyRightOffset,
+        fixLeftEdge: false,
+        fixRightEdge: false,
+        lockVisibleTimeRangeOnResize: true,
+      },
+    });
+
+    const aiToneInit =
+      isMergedAnalysisDeskMode(uiMode) && isMergedDeskAiToneEnabled(candleSettingsRef.current);
+    const candleOpts = aiToneInit
+      ? mergedDeskAiToneCandleOptions()
+      : buildCandlestickApplyOptions(candleSettingsRef.current, th.bg);
+    const series = chart.addSeries(CandlestickSeries, {
+      ...candleOpts,
+      priceLineVisible: true,
+      priceLineWidth: 2,
+      priceLineStyle: LineStyle.Solid,
+      priceLineColor: th.lastPriceLine,
+    });
+
+    const volPal0 = volumeHistogramBarColors(candleSettingsRef.current, th.bg);
+    const volume = chart.addSeries(HistogramSeries, {
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      color: volPal0.up,
+      lastValueVisible: false,
+      priceLineVisible: false,
+    });
+    volume.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    const volumeBuy = chart.addSeries(HistogramSeries, {
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      color: 'rgba(34,197,94,0.78)',
+      lastValueVisible: false,
+      priceLineVisible: false,
+    });
+    volumeBuy.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+
+    const volMa = chart.addSeries(LineSeries, {
+      priceScaleId: '',
+      color: th.volumeHistogramMaLine,
+      lineWidth: 1,
+      lineStyle: LineStyle.Dotted,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    });
+
+    chartRef.current = chart;
+    seriesRef.current = series;
+    const projectedSeries =
+      isMonthDeskChartMode(uiModeOverlayRef.current) ||
+      isMergedAnalysisDeskMode(uiModeOverlayRef.current)
+        ? chart.addSeries(CandlestickSeries, {
+            upColor: 'rgba(255,255,255,0.52)',
+            downColor: 'rgba(255,255,255,0.36)',
+            borderUpColor: 'rgba(255,255,255,0.92)',
+            borderDownColor: 'rgba(255,255,255,0.78)',
+            wickUpColor: 'rgba(255,255,255,0.88)',
+            wickDownColor: 'rgba(255,255,255,0.7)',
+            priceLineVisible: false,
+            lastValueVisible: false,
+          })
+        : null;
+    projectedSeriesRef.current = projectedSeries;
+    volumeRef.current = volume;
+    volumeBuyRef.current = volumeBuy;
+    volumeMaRef.current = volMa;
+    rsiMarkersRef.current?.detach();
+    rsiMarkersRef.current = createSeriesMarkers(series, []);
+    volumeMarkersRef.current?.detach();
+    volumeMarkersRef.current = createSeriesMarkers(volume, []);
+
+    const scheduleOverlayRefresh = () => {
+      /** 마감·안착: 패닝·줌마다 overlayTick→screenOverlays 전부 재계산 — 스로틀 */
+      if (isMonthDeskChartMode(uiModeOverlayRef.current)) {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (now - lastMonthDeskPanOverlayTickAtRef.current < 240) return;
+        lastMonthDeskPanOverlayTickAtRef.current = now;
+      }
+      /** 통합·분석: 스로틀하면 HTML 라벨이 캔들 줌과 따로 움직임 — rAF 합침만 */
+      if (overlayRafRef.current != null) return;
+      overlayRafRef.current = requestAnimationFrame(() => {
+        overlayRafRef.current = null;
+        setOverlayTick(v => v + 1);
+      });

@@ -1,0 +1,19 @@
+---
+description: 스킬 전부 활성화 — 작업 시 사용 가능한 에이전트 스킬을 적극 활용
+alwaysApply: true
+---
+
+# 스킬 전부 활용
+
+- 작업할 때 **사용 가능한 에이전트 스킬을 전부 고려하고, 해당되면 반드시 사용하세요.**
+- 규칙/컨벤션·문서·설정 관련: create-rule, create-skill, update-cursor-settings 스킬 사용.
+- 문서·README·에러 메시지·프로세 작성: crafting-effective-readmes, writing-clearly-and-concisely 스킬 사용.
+- 복잡한 문제·추론·단계별 분석: integrated-reasoning, sequential-thinking, self-reflecting-chain 스킬 사용.
+- 변경 이력·릴리스: changelog-automation 스킬 사용.
+- 에이전트 메모리·자기 평가: agent-memory-skills 스킬 사용.
+- 스킬 찾기·설치: find-skills 스킬 사용.
+- 차트·캔들·분석 관련 작업 시: **crypto-chart-master**(`assets/crypto-chart-master`·`.cursor/skills/crypto-chart-master`) 및 **chart-analysis-core** 스킬을 읽고, 통합·분석 TF 정책은 `lib/mergedDesk4hReference.ts` / `lib/mergedDesk4hReferenceAnalysis.ts`를 따른다.
+- **BTC/ETH zone 네모·작도·앵커·복구** 작업 시: **btc-eth-zone-draw**를 먼저 읽고, 함께 **market-structure-ta** · **longbridge-technical**(SMC) · **mmt-tradingview-charts** · **crypto-chart-master**를 참고한다.
+- **Bitget 고래 DNA·거래량 구간 통계** 작업 시: **bitget-whale-dna** + **technical-analysis** (Bitget TA) + **trading-visualization** + **macro-analyst** (Bitget 매크로) + **chart** (starchild 차트) 스킬을 읽고, 카드 UI 금지 규칙(`no-whale-card-ui.mdc`)을 따른다.
+- 스킬 추가·업데이트: **find-skills** 스킬 → `npx skills find [키워드]` / `npx skills add owner/repo@skill` → `.cursor/skills/` 로 복사 후 `use-all-skills`에 등록.
+- **해당 스킬이 있으면 설명만 하지 말고, 스킬 파일을 읽고 지침대로 실행하세요.**

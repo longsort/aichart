@@ -1,0 +1,37 @@
+1011:function applyFocusLatestBars(
+1037:        ts.setVisibleLogicalRange({ from, to });
+1039:          ts.scrollToRealTime();
+1054:        ts.setVisibleLogicalRange({ from, to });
+1056:          ts.scrollToRealTime();
+1069:        chart.timeScale().setVisibleLogicalRange({ from: f, to: t });
+1472: * timeScale.rightOffset와 맞춰 캔들 오른쪽 빈 축에 zone/라벨을 안착.
+3635:   * true인 동안 scrollToRealTime / 최신봉 강제 포커스 금지 → 옮긴 자리 고정.
+3637:  const mergedDeskUserPanLockRef = useRef(false);
+4155:      mergedDeskUserPanLockRef.current = false;
+4157:      applyFocusLatestBars(chart, series, resolveBarCountForView(), timeframe, { scrollToLatest: true });
+4176:    mergedDeskUserPanLockRef.current = false;
+4178:    applyFocusLatestBars(chart, series, barCount, timeframe, { scrollToLatest: true });
+4191:    mergedDeskUserPanLockRef.current = false;
+4199:      applyFocusLatestBars(chart, series, n, timeframe, { scrollToLatest: true });
+12937:    const chart = createChart(host, {
+12957:        rightOffset: smartMoneyRightOffset,
+12958:        fixLeftEdge: false,
+12959:        fixRightEdge: false,
+12960:        lockVisibleTimeRangeOnResize: true,
+13048:      if (uiModeOverlayRef.current !== 'MERGED_ANALYSIS_DESK') return;
+13061:        mergedDeskUserPanLockRef.current = !atRealtime;
+13079:        const mergedDeskLive = uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK';
+13405:    /** 가격축 자동맞춤은 applyFocusLatestBars(TF 전환·뷰복원)에서만 — setData마다 하면 세로줌이 TF마다 깨짐 */
+13437:            applyFocusLatestBars(chart, series, safe.length, timeframe);
+13451:        const scrollToLatest = !mergedDeskUserPanLockRef.current;
+13455:            applyFocusLatestBars(chart, series, chartCandles.length, timeframe, {
+14158:        rightOffset: monthDeskMode
+14161:            ? Math.max(chartPriceScaleLayout.rightOffset, chartPriceScaleLayout.bitgetRightOffset)
+14163:              ? chartPriceScaleLayout.rightOffset
+14200:          rightOffset: isMergedAnalysisDesk && bitgetVolumePackOn
+14201:            ? Math.max(chartPriceScaleLayout.rightOffset, chartPriceScaleLayout.bitgetRightOffset)
+14203:              ? chartPriceScaleLayout.rightOffset
+17156:                  chartRef.current?.timeScale?.().scrollToRealTime?.();
+17646:                chartRef.current?.timeScale?.().scrollToRealTime?.();
+17949:    mergedDeskUserPanLockRef.current = false;
+17991:                applyFocusLatestBars(c, ser, nextCandles.length, timeframe);

@@ -1,0 +1,14 @@
+{
+  "mode": "practical",
+  "crowded": true,
+  "hidden": [
+    "aux-fvg",
+    "aux-bos",
+    "debug-score"
+  ],
+  "entryVisible": true,
+  "slVisible": true,
+  "tpVisible": true,
+  "movedLabels": false,
+  "calculated_at": 1787366960341
+}

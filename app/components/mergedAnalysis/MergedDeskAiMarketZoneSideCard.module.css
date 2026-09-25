@@ -1,0 +1,288 @@
+/* 전체화면 차트 우측 테두리 카드 — 일반 레이아웃 비침범 */
+
+.card {
+  position: absolute;
+  top: 56px;
+  right: 8px;
+  bottom: 10px;
+  width: min(352px, 36vw);
+  z-index: 100060;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 12px 10px;
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: linear-gradient(165deg, rgba(15, 23, 42, 0.97), rgba(2, 6, 23, 0.96));
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.45);
+  color: #e2e8f0;
+  pointer-events: auto;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #93c5fd;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.onPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  color: #052e16;
+  background: #4ade80;
+}
+
+.sym {
+  font-size: 11px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.close {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.close:hover {
+  color: #f8fafc;
+}
+
+.priceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.8);
+}
+
+.price {
+  font-size: 18px;
+  font-weight: 800;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+}
+
+.status {
+  font-size: 10px;
+  color: #94a3b8;
+  text-align: right;
+  max-width: 55%;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(71, 85, 105, 0.45);
+}
+
+.blockTitle {
+  font-size: 10px;
+  font-weight: 800;
+  color: #93c5fd;
+  margin-bottom: 2px;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.kv strong {
+  color: #f1f5f9;
+  font-weight: 700;
+  text-align: right;
+}
+
+.zoneName {
+  font-size: 13px;
+  font-weight: 800;
+  color: #86efac;
+}
+
+.zoneRange {
+  font-size: 11px;
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoneList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.zoneLi {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 7px;
+  border-radius: 7px;
+  border: 1px solid rgba(71, 85, 105, 0.55);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.zoneLiActive {
+  border-color: rgba(96, 165, 250, 0.65);
+  background: rgba(30, 58, 138, 0.35);
+}
+
+.zoneDot {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: #64748b;
+}
+
+.zoneLiSupport .zoneDot {
+  background: #22c55e;
+}
+
+.zoneLiResist .zoneDot {
+  background: #ef4444;
+}
+
+.zoneLiBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.zoneLiBody strong {
+  font-size: 11px;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+.zoneLiBody em {
+  font-style: normal;
+  font-size: 10px;
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoneLiBody small {
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.probRow,
+.battleRow {
+  display: grid;
+  grid-template-columns: 36px 1fr 40px;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.probRow em,
+.battleRow em {
+  font-style: normal;
+  text-align: right;
+  color: #e2e8f0;
+  font-variant-numeric: tabular-nums;
+}
+
+.probTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(51, 65, 85, 0.9);
+  overflow: hidden;
+}
+
+.probTrack i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #38bdf8, #22c55e);
+}
+
+.probTrack i.def {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.probTrack i.atk {
+  background: linear-gradient(90deg, #f97316, #ef4444);
+}
+
+.sample,
+.note,
+.wait {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.wait {
+  color: #fbbf24;
+}
+
+.explain {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+
+.foot {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 9px;
+  color: #64748b;
+  border-top: 1px solid rgba(51, 65, 85, 0.7);
+}
+
+@media (max-width: 900px) {
+  .card {
+    width: min(100% - 16px, 320px);
+    top: auto;
+    bottom: 8px;
+    right: 8px;
+    left: 8px;
+    max-height: 46vh;
+  }
+}

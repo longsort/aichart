@@ -6,13 +6,14 @@
  */
 import crypto from 'crypto';
 import { verifyUser } from '@/lib/serverUsers';
+import { resolveAppSessionSecret } from '@/lib/serverRouteGuard';
 
 export const APP_SITE_COOKIE = 'ailongshort-site';
 export type AppRole = 'master_admin' | 'user';
 export type AppAuthPayload = { exp: number; user: string; role: AppRole };
 
 export function getAppSessionSecret(): string {
-  return process.env.APP_SESSION_SECRET?.trim() || 'ailongshort-dev-session-secret';
+  return resolveAppSessionSecret();
 }
 
 /** 클라이언트에서 넘어온 문자열 정리 (전각·공백·IME 이슈 완화) */

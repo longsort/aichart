@@ -1,0 +1,26 @@
+{
+  "symbol": "BTCUSDT",
+  "timeframe": "1M",
+  "lastSyncAt": 1789655204601,
+  "lastClosedOpenTime": 1788192000000,
+  "count": 84,
+  "firstOpenTime": 1569859200000,
+  "lastOpenTime": 1788192000000,
+  "repair": {
+    "duplicateDropped": 0,
+    "missingFilled": 0,
+    "gapWindowsRepaired": 0,
+    "invalidOhlcRepaired": 0,
+    "negativeVolumeRepaired": 0,
+    "unfinishedDropped": 0,
+    "apiPages": 3
+  },
+  "incrementalLogs": [
+    "load BTCUSDT 1M: csv=81 overlay=0 merged=81",
+    "incremental from lastClosed 2026-05-31T16:00:00.000Z",
+    "recent API bars=85 overlayAppend=4",
+    "tail fill bars=3 overlayAppend=0",
+    "history-head 2019-09-01T00:00:00.000Z bars=0 append=0",
+    "1W/1M kept native mismatch=0"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "독수리1호 · AI 차트 분석",
+  "short_name": "독수리1호",
+  "description": "SMC · 멀티TF · AI超级变身统计 · 안드로이드·iPhone·PC 공용",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07090d",
+  "theme_color": "#07090d",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

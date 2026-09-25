@@ -10,9 +10,60 @@ import {
   RSI_SWING_LS_THRESHOLD,
   timeframeRank,
   structureRocketMergeMax,
-  analysisMatchesSymbolAndTf,
   normalizeChartTimeframe,
+  CHART_DISABLE_ALL_CANDLE_SPARKLE,
 } from '../../lib/constants';
+import { analysisUsableOnChart } from '@/lib/mergedDesk4hReferenceAnalysis';
+import {
+  mergedDeskChartDisplayCandles,
+  mergedInstitutionalBandCandlesSlice,
+} from '@/lib/mergedDesk4hReference';
+import {
+  readMergedDeskSharedChartView,
+  writeMergedDeskSharedChartView,
+  visibleBarsFromLogicalRange,
+  resolveMergedDeskVisibleBars,
+  resolveMergedDeskBarSpacing,
+  ensureMergedDeskDefaultSharedView,
+  MERGED_DESK_DEFAULT_VISIBLE_BARS,
+  MERGED_DESK_DEFAULT_BAR_SPACING,
+  MERGED_DESK_RIGHT_FUTURE_BARS,
+  MERGED_DESK_ZONE_EXTEND_PAST_LAST_BARS,
+  MERGED_DESK_LABEL_EXTEND_PAST_LAST_BARS,
+  MERGED_DESK_VIEW_SYNC_EVENT,
+  MERGED_DESK_SAVE_VIEW_EVENT,
+  MERGED_DESK_RESTORE_VIEW_EVENT,
+} from '@/lib/mergedDeskSharedChartView';
+import {
+  mergedDeskZoomScaleFromBarSpacing,
+  mergedDeskRocketZoomScale,
+  mergedDeskLabelZoomScale,
+} from '@/lib/mergedDeskZoomScale';
+import { mergedDeskRbFutureTime2 } from '@/lib/mergedDeskBlueRedChannels';
+import { chartPerfBudget, mergedDeskInteractionPerf } from '@/lib/chartPerfBudget';
+import { setVisibleInterval } from '@/lib/visibleInterval';
+import {
+  chartLiveStaleMs,
+  isChartCandleTipStale,
+} from '@/lib/chartLiveKeepAlive';
+import {
+  createChartInteractionKernel,
+  canTipUpdateWithoutFullSetData,
+} from '@/lib/chartInteractionKernel';
+import {
+  avwapExplainSnapTolerance,
+  createChartTouchClickGuard,
+  shouldOpenFeatureExplainCardOnTouch,
+  type ChartTouchClickGuard,
+} from '@/lib/chartTouchClickGuard';
+import { safeHorizLineSeriesSetData, sanitizeSeriesMarkersForLwc, safeSeriesSetMarkers } from '@/lib/chartSeriesSafe';
+import {
+  candlesMatchChartTimeframe,
+  fetchClientMarketCandles,
+  peekClientMarketCandles,
+  putClientMarketCandles,
+  refreshClientMarketCandleTip,
+} from '@/lib/clientMarketCandleCache';
 import {
   loadSettings,
   saveSettings,
@@ -25,9 +76,37 @@ import {
   type InstitutionalBandTouchTierMask,
   type UIMode as SettingsUIMode,
   type UserSettings,
+  monthDeskClearSummaryBundlePatch,
+  isMonthDeskClearSummaryBundleOn,
 } from '@/lib/settings';
 import { SETTINGS_CHANGED_EVENT, useSettingsChangeTick } from '@/lib/useSettingsChangeTick';
+import {
+  MERGED_DESK_CHART_DISPLAY_TICK_EVENT,
+  MERGED_DESK_CHART_LAYOUT_RESET_EVENT,
+  OPEN_MERGED_DESK_CHART_SETTINGS_EVENT,
+} from '@/lib/mergedDeskChartDisplaySettings';
 import { useStableStrongZoneOverlays } from '@/lib/useStableStrongZoneOverlays';
+import {
+  CHART_LABEL_LAYOUT_EVENT,
+  getLabelNudge as pickLabelNudge,
+  getLabelNudgeFontSize as pickLabelNudgeFontSize,
+  publishRenderedChartLabels,
+  focusChartLabelInSettings,
+  isChartTextIdHidden,
+  isChartTextPillLabelHidden,
+  isChartTextWhiteLabelHidden,
+  readHiddenChartTextIds,
+  setChartTextIdVisible,
+  OVERLAY_CHART_TEXT_HIDDEN_KEY,
+  mergedDeskPriceLineLabelId,
+  chartTextHideLabelKey,
+  readLabelHShifts,
+  readLabelNudgeFontSizes,
+  readLabelNudges,
+  readLabelVShifts,
+  stableOverlayLabelKey,
+} from '@/lib/chartLabelLayoutStore';
+import type { LabelOffset } from '@/lib/chartLabelLayoutStore';
 import {
   AI_COMPRESSION_PRESETS,
   patchForAiCompressionPreset,
@@ -42,6 +121,246 @@ import {
   type Pre3SparkleCell,
 } from '@/lib/chartSparkleCandles';
 import {
+  buildObPreBeamChartOverlays,
+  scanObPreBeamCandles,
+  type ObPreBeamPaintCell,
+} from '@/lib/obPreBeamCandleMarkers';
+import {
+  filterMonthDeskEssentialZonesOnly,
+  filterMonthDeskHtfZoneClutter,
+  isMonthDeskChartHtf,
+} from '@/lib/monthDeskChartTidy';
+import { dedupeMonthDeskEntryLines } from '@/lib/monthDeskOverlayPipeline';
+import { buildMonthDeskHistoricalMoneyZoneOverlays } from '@/lib/monthDeskMoneyZone';
+import { monthDeskHistoricalMaxPerSide } from '@/lib/monthDeskDualCoreEntry';
+import {
+  applyMonthDeskProChartLayout,
+  monthDeskProLineShowsLabel,
+} from '@/lib/monthDeskProChartLayout';
+import {
+  isMonthDeskZoneLike,
+  monthDeskZoneCaptionShort,
+  simplifyMonthDeskZoneOverlayLabels,
+  shouldShowMonthDeskZoneCaption,
+} from '@/lib/monthDeskZoneShortLabels';
+import {
+  isMonthDeskAnchoredLineLabelId,
+  isMonthDeskFeatureOverlayId,
+  isMonthDeskMagnetBarSnapOverlayId,
+  isMonthDeskMagnetZoneStrictWidthId,
+  isMonthDeskStickZoneToAnalyzedBarsId,
+} from '@/lib/monthDeskOverlayMagnet';
+import { extractMonthDeskTradePlanRailNodes } from '@/lib/monthDeskTradePlanRail';
+import {
+  buildMonthDeskTradePlanRailGeom,
+  MonthDeskTradePlanRail,
+} from '@/app/components/MonthDeskTradePlanRail';
+import {
+  buildMonthDeskZoneRightBandGeom,
+  MonthDeskZoneRightBandLabels,
+} from '@/app/components/MonthDeskZoneRightBandLabels';
+import {
+  collectMonthDeskFeatureSettleLabels,
+  listMonthDeskFeatureSettleLabels,
+  buildSettleBandSummaryChip,
+  buildSettleLineSummaryRows,
+  resolveSettleBracketForBand,
+} from '@/lib/monthDeskFeatureSettleLabels';
+import { BreakoutFollowHud } from '@/app/components/BreakoutFollowHud';
+import { buildBreakoutFollowPathOverlays } from '@/lib/breakoutFollowChain';
+import {
+  collectMonthDeskSettleCandlePaint,
+  type MonthDeskSettleCandleCell,
+} from '@/lib/monthDeskSettleCandlePaint';
+import { collectMergedDeskSwingSettleCandlePaint } from '@/lib/mergedDeskSwingSettleCandlePaint';
+import {
+  collectMergedDeskRbCoreMarkers,
+  collectMergedDeskRbCoreSettleCandlePaint,
+} from '@/lib/mergedDeskRbCoreBreakSet';
+import {
+  buildMonthDeskSettleChartGuide,
+  settleMarkerDetailLine,
+} from '@/lib/monthDeskSettleChartGuide';
+import { buildMonthDeskChartOrchestratorLite, postProcessMonthDeskChartLayers } from '@/lib/monthDeskChartOrchestrator';
+import {
+  buildMonthDeskClickPrecision,
+  type MonthDeskClickPrecisionResult,
+} from '@/lib/monthDeskChartClickPrecision';
+import { MonthDeskClickPrecisionBar } from '@/app/components/MonthDeskClickPrecisionBar';
+import { MergedDeskFloatingSignalHud } from '@/app/components/mergedAnalysis/MergedDeskFloatingSignalHud';
+import { mergedDeskHideFloatingTextHud } from '@/lib/mergedDeskChartOnlyUi';
+import {
+  findMirageZoneApproachTarget,
+} from '@/lib/mergedDeskMirageZoneApproach';
+import { mirageZonesFromOverlays } from '@/lib/mergedDeskMirageZoneExchangeIntel';
+import { explainMergedDeskRbLabel } from '@/lib/mergedDeskBlueRedLabelGuide';
+import {
+  magnetOnChannelRail,
+  magnetOnSegment,
+  magnetOnZoneRect,
+  clampMagnetAngle,
+  isMergedDeskCoreLabelFeature,
+  isMergedDeskCandleMagnetFace,
+  featureLabelZoom,
+} from '@/lib/mergedDeskLabelMagnet';
+import { buildMergedDeskLabelClickIntel } from '@/lib/mergedDeskLabelClickIntel';
+import { resolveMonthDeskChartLayerMode } from '@/lib/monthDeskChartLayerPolicy';
+import { isMonthDeskChartMode, isZoneLineProMode } from '@/lib/zoneLineProMode';
+import { buildZoneLineProBaseOverlays } from '@/lib/zoneLineProChartPipeline';
+import {
+  type FusionDeskBandExtra,
+  type FusionDeskBandMeta,
+} from '@/lib/monthDeskFusionDeskBand';
+import {
+  buildTripleTrendFusionChartMarkers,
+  buildTripleTrendFusionOverlays,
+  computeTripleTrendFusionBandPackage,
+  parseTripleTrendSignalBandSetting,
+  type TripleTrendFusionPack,
+} from '@/lib/mergedDeskTripleTrendFusionBand';
+import { buildTripleTrendBandDrawModel } from '@/lib/mergedDeskTripleTrendBandDraw';
+import {
+  applyMonthDeskCleanIconOverlayStrip,
+  buildMonthDeskCleanIconMarkers,
+  isMonthDeskCleanIconPreservedChartMarker,
+} from '@/lib/monthDeskCleanZoneLineSignals';
+import {
+  computeAtlasPulseDeskPack,
+  filterOverlaysForAtlasPulseDesk,
+  isAtlasPulsePreservedChartMarker,
+} from '@/lib/monthDeskAtlasPulseDesk';
+import {
+  isMonthDeskUnifiedPulseEngineOn,
+  isUnifiedPulsePreservedChartMarker,
+  monthDeskUnifiedPulseEnginePatch,
+  runMonthDeskUnifiedPulseEngine,
+  buildUnifiedPulseFastChartMarkers,
+  type UnifiedPulseChartMarker,
+  type UnifiedPulseEnginePack,
+} from '@/lib/monthDeskUnifiedPulseEngine';
+import { isMergedAnalysisDeskMode, isDeskPulseChartMode } from '@/lib/mergedAnalysisDeskMode';
+import { isTradeRailLineMode } from '@/lib/analysisModeLinkBus';
+import { buildCandleCardConfluencePack } from '@/lib/mergedDeskCandleCardConfluence';
+import {
+  isMergedAnalysisDeskChartZoneId,
+  isMergedAnalysisDeskLabeledLine,
+  isMergedAnalysisDeskLabeledZone,
+  isMergedAnalysisDeskOverlayId,
+  isMergedDeskReferenceZoneOverlay,
+  isMergedDeskChartExtendOverlay,
+  isMergedDeskStructureScenarioOverlay,
+  isMergedDeskBounceTargetLine,
+  isMergedDeskMirageLspLineHideHtmlLabel,
+  isMergedDeskCandleTrendOverlay,
+  isMergedDeskWaveMovePathOverlay,
+  isMergedDeskDumpLabelPadOverlay,
+  isMergedDeskMirageTvTrendOverlay,
+  isMergedDeskMirageTvZoneOverlay,
+  isMergedDeskHideVerticalDashOverlay,
+  isMergedDeskAnalyzedCandleSpanOverlay,
+  isMergedDeskHotZoneNamedFaceOverlay,
+  isMergedDeskProjectedSupportNamedFaceOverlay,
+  isMergedDeskRbDrawOverlay,
+  isMergedDeskRbCompactFaceOverlay,
+  isMergedDeskRocketRangeNamedFaceOverlay,
+  isMergedDeskAdvVolSeatNamedFaceOverlay,
+  isEagle1ParallelChannelOverlay,
+} from '@/lib/mergedAnalysisOverlayIds';
+import {
+  mergedDeskRocketAnchorPrice,
+  mergedDeskRocketScreenYOffset,
+} from '@/lib/mergedDeskRocketAnchor';
+import { isMergedDeskMirageChartLabelHidden } from '@/lib/mergedDeskMirageChartLabels';
+import {
+  chipSimBadgeText,
+  rankMergedDeskSimilarChips,
+  type ChipSimRank,
+} from '@/lib/mergedDeskChipSimilarity';
+import {
+  alignMergedDeskOverlaysToAnalysisWindow,
+  mergedDeskLastCandleZoneTimes,
+  mergedDeskAnalyzedZoneSpanTimes,
+  mergedDeskAnalyzedZoneScreenSpan,
+  mergedDeskRbCompactFaceScreenSpan,
+  mergedDeskChartAlignCandles,
+  resolveMergedDeskCanonicalCandles,
+  snapMergedOverlayTimeToCandles,
+  isMergedDeskZoneLikeOverlay,
+  isMergedDeskRightAnchorOverlay,
+  filterMergedDeskSignalsToChartWindow,
+  remapMergedDeskMarkerTimesToChart,
+  dedupeMergedDeskRocketsOnePerBar,
+  shouldForceMergedDeskLastCandleTimes,
+  isMergedDeskTradeRailOverlay,
+  mergedDeskTailScreenXSpan,
+  mergedDeskRightZoneScreenSpan,
+  snapMergedDeskScreenOverlaySpan,
+  isMergedDeskChartTimeframe,
+} from '@/lib/mergedAnalysisOverlayTimes';
+import {
+  resolveMirageZoneScreenSpan,
+  resolveMirageZoneFacePixels,
+} from '@/lib/mergedDeskMirageZoneScreen';
+import {
+  runMergedAnalysisDeskEngine,
+  type MergedAnalysisDeskPack,
+} from '@/lib/mergedAnalysisDeskEngine';
+import {
+  isMergedDeskRequestedVisibleZone,
+} from '@/lib/mergedAnalysisDeskVisualCleanup';
+import {
+  classifyMergedDeskHLineRole,
+  dedupeMergedDeskHLinesByPrice,
+  normalizeMergedDeskHLineCleanMode,
+  polishMergedDeskHLineColor,
+  polishMergedDeskHLineWidth,
+  resolveMergedDeskHLineSpan,
+} from '@/lib/mergedDeskHLineClean';
+import {
+  isMergedDeskAiToneEnabled,
+  MERGED_DESK_AI_TONE_BAND,
+  MERGED_DESK_AI_TONE_DARK,
+  mergedDeskAiToneCandleOptions,
+  mergedDeskAiToneVolumeColors,
+} from '@/lib/mergedDeskAiTonePalette';
+import { buildMergedAnalysisBandFusionContext } from '@/lib/mergedAnalysisTradeLayer';
+import { buildMergedDeskUnifiedCloudPack } from '@/lib/mergedDeskUnifiedCloud';
+import {
+  buildMergedDeskInstitutionalBandMarkers,
+  buildMergedDeskMarkerBarDetailMap,
+  buildMergedDeskStructureRocketsForChart,
+  computeMergedDeskBandInteractionEvents,
+  consolidateMergedDeskPulseMarkers,
+  evaluateMergedDeskBandLineAtPrice,
+  type MergedDeskFrontRunSnap,
+} from '@/lib/mergedAnalysisDeskMarkers';
+import { buildBandMove7Overlay } from '@/lib/eagle1Tapoint/bandMove7';
+import { MERGED_VRVP_KO, mergedVrvpPocTone } from '@/lib/mergedAnalysisVrvpLabels';
+import {
+  isEuromapLayerOn,
+  isMergedDeskEuromapOverlayVisible,
+  tintMergedDeskEuromapFill,
+} from '@/lib/mergedDeskEuromapStyle';
+import {
+  computeMonthDeskMergedSignal,
+  buildMonthDeskMergedSignalOverlays,
+  applyMonthDeskMergedSignalToOverlays,
+} from '@/lib/monthDeskMergedSignal';
+import {
+  buildMonthDeskStrikeDeskBundle,
+  buildMonthDeskStrikeDeskOverlays,
+  buildStrikeAiChartMarkers,
+  type MonthDeskStrikeDeskBundle,
+} from '@/lib/monthDeskStrikeDesk';
+import {
+  chartTfToCloseSettleTf,
+} from '@/lib/tfCloseSettleAssessment';
+import {
+  buildTfCloseSettleAllLineSpecs,
+  isSettleCloseOverlayId,
+  SETTLE_REPLACES_ENGINE_CLOSE_IDS,
+} from '@/lib/tfCloseSettleChartOverlays';
+import {
   hasPre3SparkleOnCandles,
   loadPre3SparklePersistMap,
   mergePre3SparklePersistFromAnalysis,
@@ -52,8 +371,11 @@ import {
   hasLineZoneProximitySparkle,
 } from '@/lib/proximityLineZoneSparkle';
 import { subscribeWs } from '@/lib/websocket';
+import { subscribeBitgetCandleWs } from '@/lib/bitgetCandleWebsocket';
 import { fetchWithRetry } from '@/lib/fetchWithRetry';
 import { bollingerBands } from '@/lib/indicators';
+import { TfCandleCloseRemain, tfCandleCloseTitleSuffix } from '@/app/components/TfCandleCloseRemain';
+import { ChartCandleCloseTimer } from '@/app/components/ChartCandleCloseTimer';
 import { buildCandlestickApplyOptions, volumeHistogramBarColors } from '@/lib/chartCandleOptions';
 import {
   buildWadVolumeMarkers,
@@ -64,11 +386,18 @@ import {
   buildTakerFlowSkewMarkers,
   mergeVolumeMarkerLayers,
   thinVolumeMarkersByBarGap,
+  layoutVolumeMarkersHorizontal,
   VOLUME_MARKER_PRIORITY,
   candlesToVolumeHistogramData,
   sanitizeChartCandlesForSeries,
+  alignSeriesPointsToCandleTimes,
 } from '@/lib/volumeHistogramIntelligence';
-import { normalizeHex6 } from '@/lib/chartHexColor';
+import {
+  applyMergedDeskRbVolumeBarColors,
+  computeMergedDeskRbVolumeSync,
+} from '@/lib/mergedDeskRbVolumeSync';
+import { buildMergedDeskAdvVolumePack, mergeAdvVolumeMarkersForDisplay, compactAdvVolBarLabelKo } from '@/lib/mergedDeskAdvVolumeRead';
+import { hexToRgba, normalizeHex6 } from '@/lib/chartHexColor';
 import {
   computeExhaustionZoneRukichSeries,
   EXHAUSTION_ZONE_RUKICH_DISPLAY_START,
@@ -100,20 +429,40 @@ import {
 import { buildWhaleDynamicRsProOverlays } from '@/lib/whaleDynamicRsPro';
 import { buildWhaleLiquidityBiasOverlays } from '@/lib/whaleLiquidityBias';
 import {
+  buildWhaleAnchoredLinRegChannelsOverlays,
+  defaultWhaleAlrSlots,
+} from '@/lib/whaleAnchoredLinRegChannels';
+import { monthDeskLinRegExtendBars } from '@/lib/monthDeskLinRegTrendlines';
+import {
+  computeChartPrimeBiasAndCenterSeries,
   computeChartPrimeTrendChannelOverlays,
   computeSuggestedChartPrimePivotLength,
 } from '@/lib/chartPrimeTrendChannels';
+import {
+  buildCpCenterForwardFillLineData,
+  computeRollingLinRegBiasScoresForMonthDesk,
+} from '@/lib/monthDeskBandCpLinregBias';
+import { buildMonthDeskFusionMidGuideSegments } from '@/lib/monthDeskFusionMidGuide';
+import {
+  clipEnvelopeSegmentToLastBar,
+  clipLineDataToLastBarTime,
+  coalesceMonthDeskEnvelopeSegmentsForDisplay,
+  MERGED_DESK_ENVELOPE_LINE_MAX_SEGMENTS,
+  sliceMonthDeskEnvelopeSegmentsForDisplay,
+} from '@/lib/monthDeskZoneLineEnhance';
 import { buildCandleAnalysisGuideZones } from '@/lib/candleAnalysisGuide';
 import {
   buildSmartOverlayPayload,
   smartOverlayZonesToExecutiveOverlays,
   smartOverlayZonesToOverlays,
 } from '@/lib/smartOverlayPayload';
+import { getTelegramLsConfirmFlags, telegramLsConfirmedForDirection } from '@/lib/telegramLsConfirmGate';
 import { buildCandleAnalysisElliottMvpOverlays } from '@/lib/candleAnalysisElliottMvp';
 import { buildCandleAnalysisPlaybookPathOverlays } from '@/lib/candleAnalysisPlaybookPath';
 import { splitCandleAnalysisAutoOverlays } from '@/lib/candleAnalysisAutoOverlays';
 import { buildBibleModeOverlays, buildBibleModeSummaryLines } from '@/lib/bibleCandlePatterns';
 import { buildPullbackHotZonePack } from '@/lib/pullbackHotZoneEngine';
+import { buildFusionStructureHudData, buildFusionStructureZones } from '@/lib/fusionStructureZones';
 import { buildCandleAnalysisCoreSdZones, buildCandleAnalysisCoreSdPivots } from '@/lib/candleAnalysisCoreSdZones';
 import type { CandleAnalysisPathTuning } from '@/lib/candleAnalysisMemoryPath';
 import {
@@ -126,38 +475,213 @@ import { buildSmartAdaptiveSignalOverlays } from '@/lib/smartAdaptiveSignal';
 import { buildBreakerBlocksAlgoAlphaBundle } from '@/lib/breakerBlocksAlgoAlpha';
 import { patchCloseLevelOverlayPrices } from '@/lib/closeOverlayPricePatch';
 import { SmcDeskAiFusionHud } from './SmcDeskAiFusionHud';
+import { buildMonthDeskChartAnalysisOverlays } from '@/lib/monthDeskChartAnalysisOverlays';
+import {
+  buildMonthDeskProjectedCandles,
+  monthDeskProjectedToLwc,
+} from '@/lib/monthDeskAdvancedChartPath';
+import { isBitgetVolumePackActive } from '@/lib/bitgetVolumePack';
+import { isForexSymbol } from '@/lib/forexMarket';
+import {
+  buildVolumeShockChartGuide,
+  volumeShockGuidePriceLevels,
+  type VolumeShockChartGuide,
+} from '@/lib/volumeShockChartGuide';
+import type { VolumeShockForecastResult } from '@/lib/volumeShockForecast';
+import { candlesToVolumeHistogramWithShock } from '@/lib/volumeShockHistogram';
+import {
+  buildVolumeShockVolumeMarkers,
+  volumeShockPriceLineTitles,
+} from '@/lib/volumeShockBarLabels';
+import { BitgetWhaleVolumeComparePanel } from '@/app/components/BitgetWhaleVolumeComparePanel';
+import { WhaleVolumeSegmentDrawLayer } from '@/app/components/WhaleVolumeSegmentDrawLayer';
+import { VolumeAiZoneDrawLayer } from '@/app/components/VolumeAiZoneDrawLayer';
+import {
+  ChartVolBarLabels,
+  chartVolBarLabelGlyph,
+} from '@/app/components/ChartVolBarLabels';
+import { VolumeAiZoneExplainCard } from '@/app/components/VolumeAiZoneExplainCard';
+import {
+  buildVolumeAiZonePack,
+  projectVolumeAiZonesToScreen,
+  applyVolumeRegimeBarColors,
+  buildVolumeSegmentMarkers,
+  buildVolumeVerdictCandleBorderByTime,
+  applyVolumeVerdictCandleBorders,
+  getVolumePanelLayout,
+  applyChartVolumePanelLayout,
+  buildVolumeZoneExplainCard,
+  buildVolumeLiveExplainCard,
+  getChartPriceScaleLayout,
+} from '@/lib/volumeAiZoneEngine';
+import type {
+  WhaleVolumeLiveMatch,
+  WhaleVolumeMtfPack,
+} from '@/lib/bitgetWhaleVolumeCatalog';
+import type {
+  BitgetWhaleVolumeComparePack,
+  SingleCandleCompare,
+  RangeSegmentCompare,
+} from '@/lib/bitgetWhaleVolumeCompare';
+import { buildWhaleBeamRightOracleGeom } from '@/lib/whaleBeamRightOracleGeom';
+import {
+  applyBeamIntelVolumeColors,
+  beamHitToSegmentSignal,
+  beamHitsToSegmentSignals,
+  type WhaleBeamIntelPack,
+} from '@/lib/whaleVolumeBeamIntel';
+import { buildBitgetWhaleDnaPanel } from '@/lib/bitgetWhaleDnaPanel';
+import {
+  buildWhaleBeamCandleMarkers,
+  buildWhaleBeamVolumeMarkers,
+} from '@/lib/whaleBeamChartMarkers';
+import {
+  syncWhaleSignalsToChart,
+  thinWhaleSignalsByChartTime,
+} from '@/lib/whaleBeamChartSync';
+import {
+  buildMonthDeskSmcDiagramOverlays,
+  buildMonthDeskSmcPlaybookOverlays,
+} from '@/lib/monthDeskSmcDiagram';
+import { buildMonthDeskSmcMoneyPack, type MonthDeskSmcMoneyPackHud } from '@/lib/monthDeskSmcMoneyPack';
+import { computeMonthDeskMtfFusionBoost } from '@/lib/monthDeskMtfFusionBoost';
+import {
+  filterDuplicateMoneyPoolZones,
+  resolveMonthDeskUnifiedCoreMoney,
+} from '@/lib/monthDeskUnifiedCoreMoney';
+import { applyMonthDeskUnifiedEntryZone } from '@/lib/monthDeskUnifiedEntryZone';
 import { SmcDeskCompositePanel } from './SmcDeskCompositePanel';
 import { SmcDeskDepthDeltaStrip } from './SmcDeskDepthDeltaStrip';
 import { buildSmcDeskCompositeModel } from '@/lib/smcDeskCompositeModel';
 import type { SmcDeskCompositeLayerMask } from '@/lib/smcDeskCompositeModel';
 import { buildSmcDeskCompositeChartOverlays } from '@/lib/smcDeskCompositeChartOverlays';
 import {
+  monthDeskEnvelopeStructureAlignmentKo,
+  describeMonthDeskStructureKo,
+  monthDeskStructureMarkerLabel,
+  pickMonthDeskStructureHighlight,
+} from '@/lib/monthDeskStructureHud';
+import { buildMonthDeskTypeomOverlays } from '@/lib/monthDeskTypeomOverlays';
+import { buildCandleTradeAtlas } from '@/lib/candleTradeAtlas';
+import { buildCandleTradeAtlasOverlays } from '@/lib/candleTradeAtlasOverlays';
+import {
+  buildReferenceDeskLwcOverlayPack,
+  isReferenceDeskProtectedOverlay,
+  readReferenceDeskLayerFlags,
+} from '@/lib/referenceDeskLwcLayers';
+import { applyAssetsChartDrawingConventions } from '@/lib/assetsChartDrawingConventions';
+import ReferenceDeskMtfChartStrip from './ReferenceDeskMtfChartStrip';
+import CandleTradeAtlasHud from './CandleTradeAtlasHud';
+import { monthDeskCoreLongHudFromOverlays } from '@/lib/monthDeskCoreLongEntry';
+import { monthDeskZonePalette, resolveMonthDeskZoneSignal } from '@/lib/monthDeskZoneSignalPalette';
+import {
+  filterMonthDeskStreamlineOverlays,
+  filterPhzOverlaysForMonthDeskClearDensity,
+  monthDeskHasEliteTradeDesk,
+  organizeMonthStartDeskOverlays,
+} from '@/lib/monthDeskChartTidy';
+import {
+  harmonizeMonthDeskOverlayStack,
+  softenMonthDeskZoneOverlays,
+} from '@/lib/monthDeskOverlayHarmonize';
+import {
+  declutterMonthDeskTailOverlays,
+  MONTH_DESK_TAIL_QUIET_CLASS,
+} from '@/lib/monthDeskTailDeclutter';
+import { extendMonthDeskHorizontalPlanLines, extendMergedAresHorizontalTradeLines } from '@/lib/monthDeskChartTailSpacing';
+import { capMonthDeskDiagonalTrendLines } from '@/lib/monthDeskTrendLineCap';
+import { buildMonthDeskWhaleChartPack } from '@/lib/monthDeskWhaleChartPack';
+import {
+  buildMonthDeskTailVoteMap,
+  consolidateMonthDeskTailMarkers,
+  fuseMonthDeskCandleVotes,
+  isMonthDeskBandMarker,
+  monthDeskFuseBarTimes,
+  monthDeskUnifiedCandleDetailLines,
+  stripMonthDeskLastBarClashMarkers,
+} from '@/lib/monthDeskUnifiedCandleSignal';
+import { computeMonthDeskClosingHudAugmentation, type MonthDeskSessionBasis } from '@/lib/monthDeskClosingEngine';
+import {
+  computeClosingEnvelopeFuturesScenario,
+  computeClosingEnvelopeVerdictMarkers,
+  computeInstitutionalBandInteractionMarkers,
   computeInstitutionalBandInteractionMarkersUnion,
   computeInstitutionalSuperBandData,
+  computeInstitutionalSuperTrendCore,
+  computeInstitutionalSuperTrendMidLineData,
+  computeInstitutionalSuperTrendEnvelopeSegmentsFused,
   computeInstitutionalSuperTrendMeta,
   institutionalBandTouchMinGapBars,
   INSTITUTIONAL_BAND_DEFAULT_MULT,
   INSTITUTIONAL_BAND_DEFAULT_PERIOD,
   type InstitutionalBandInteractionMarker,
   type InstitutionalBandTouchTier,
+  type MonthDeskBandFusionContext,
 } from '@/lib/institutionalSuperBand';
 import {
-  resolveZoneDirectionalColors,
+  buildHtfEnvelopeBiasScoresOnLtf,
+  institutionalEnvelopeParamsForTf,
+  resolveEnvelopeParentTf,
+} from '@/lib/mergedDeskEnvelopeMtfLink';
+import {
+  resolveZoneDirectionalColorsDistinct,
   ZONE_MID_FILL,
   ZONE_MID_STROKE,
 } from '@/lib/zoneDirectionalColors';
 import { buildSignalSpotForwardReport } from '@/lib/signalSpotForwardStats';
 import { buildBitcoinPowerLawLineData, isBitcoinPowerLawChartSymbol } from '@/lib/bitcoinPowerLawBands';
 import {
+  buildMergedDeskAnchoredVwapDualPack,
+  buildUserAnchoredVwapPacks,
+  normalizeAvwapUserPins,
+  resolveAvwapClickRole,
+  resolveAvwapHtfTf,
+  appendAvwapUserPin,
+  uniqueAvwapAnchorTfs,
+  type AnchoredVwapAnchorMode,
+  type MergedDeskAnchoredVwapPack,
+} from '@/lib/mergedDeskAnchoredVwap';
+import { computeSessionVwapSeries, buildAvwapLineSignalPack, buildAvwapEntryCandidatePack } from '@/lib/vwap';
+import {
+  shouldPaintAvwapOnChart,
+  shouldLoadAvwapSupportingCandles,
+  vwapMasterEnabled,
+  vwapSessionEnabled,
+  vwapAutoExtremeEnabled,
+  vwapPlaceArmed,
+  vwapPoiBandEnabled,
+} from '@/lib/vwap/paintGate';
+import {
+  formatInstitutionalBandTouchMarkerChartText,
+  formatInstitutionalBandTouchMarkerDetailText,
+  markerLooksLikeInstitutionalBandTouch,
+  institutionalBandTouchMarkerStyle,
+} from '@/lib/institutionalBandTouchChartText';
+import { MERGED_DESK_ST_TOUCH_AS_ZONES } from '@/lib/institutionalBandTouchZones';
+import {
+  buildAvwapExplainCard,
+  buildBarSignalsExplainCard,
+  buildStBandExplainCard,
+  formatAvwapAxisTitleKo,
+  pickNearestAvwapSnap,
+  type AvwapExplainSnap,
+  type ChartFeatureExplainCard,
+} from '@/lib/chartFeatureExplain';
+import { applySmoothCandleWheelZoom } from '@/lib/chartSmoothWheelZoom';
+import {
   buildSmcDeskOverlayPack,
   collectStructureMarkCandleHighlights,
   type StructureCandleHighlight,
 } from '@/lib/smcDeskOverlay';
-import { computeParkfLinRegBandSnapshot } from '@/lib/parkfLinregTrendlineEngine';
+import {
+  buildParkfLinRegMidLineData,
+  computeParkfLinRegBandSnapshot,
+} from '@/lib/parkfLinregTrendlineEngine';
 import { buildLinRegSmcConfluenceZones } from '@/lib/linregSmcConfluence';
 import { buildCpLinregFusionOverlays } from '@/lib/cpLinregFusion';
 import { buildLinRegChannelVolumeZones } from '@/lib/linregChannelVolumeZones';
 import { buildSmcDeskConfluenceLsPack } from '@/lib/smcDeskConfluenceLsPack';
+import { buildTvStructureLongShortPack } from '@/lib/tvStructureLongShortPack';
 import { buildSmcDeskBallboySignalOverlay } from '@/lib/smcDeskBallboySignalOverlay';
 import { buildSmcDeskRangeBreakoutZones } from '@/lib/smcDeskRangeBreakoutZones';
 import { buildSmcEntryPlaybookOverlays, computeSmcEntryPlaybook } from '@/lib/smcEntryPlaybook';
@@ -176,6 +700,7 @@ import {
   UTCTimestamp,
   Time,
   TickMarkType,
+  ColorType,
   CrosshairMode,
   LineStyle,
   LineType,
@@ -183,18 +708,41 @@ import {
   type Logical,
   type LineWidth,
   type MouseEventParams,
+  TrackingModeExitMode,
 } from 'lightweight-charts';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useImperativeHandle, forwardRef, Fragment } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useImperativeHandle,
+  forwardRef,
+  Fragment,
+  useDeferredValue,
+} from 'react';
 import { createPortal } from 'react-dom';
 import type { ChartExplainRequest } from '@/types/chartExplain';
 import UIModeSwitcher, { type UIMode } from './UIModeSwitcher';
 import PullbackHotZoneHud from './PullbackHotZoneHud';
+import MergedDeskPatternSilhouetteLayer, {
+  type SilhouetteScreenGeom,
+  type StampScreenPoint,
+} from './MergedDeskPatternSilhouetteLayer';
+import { buildMergedDeskPatternSilhouettePack } from '@/lib/mergedDeskPatternSilhouette';
+import {
+  extractStructureReactionTouches,
+  structureReactionTouchesToStamps,
+} from '@/lib/mergedDeskStructureReactionBundle';
 import UnifiedDeskDashboardGuide from './UnifiedDeskDashboardGuide';
 import { buildRsiOverboughtOversoldMarkers } from '@/lib/chartRsiExtremeMarkers';
 import { buildUnifiedLsSignal } from '@/lib/unifiedSignalEngine';
 import { buildProfileFromPanelFeatures, DEFAULT_UNIFIED_PANEL_FEATURES } from '@/lib/unifiedSignalPanelProfile';
 import { SIGNAL_GRADE_LABEL_KO } from '@/lib/unifiedSignalTypes';
 import ExecutionOverlay, { type ExecutionPositions } from './ExecutionOverlay';
+import { useTfCloseSettleBoard } from '@/lib/useTfCloseSettleBoard';
 import CandleAnalysisHeader from './CandleAnalysisHeader';
 import CandleAnalysisDirectionBadge from './CandleAnalysisDirectionBadge';
 import SignalForwardStatsPanel from './SignalForwardStatsPanel';
@@ -204,7 +752,7 @@ const LS_ROCKET_PERSIST_KEY = 'ailongshort-ls-rocket-emojis-v1';
 const LS_ROCKET_CAP = 500;
 /** 구조 로켓 캔들 마커 — 별도 OFF 없이 항상 표시(마커 레이어 칩과 무관) */
 const CHART_ROCKET_MARKERS_ALWAYS_ON = true;
-/** SuperTrend 스텝 라인 + 밴드 접촉(ST) 마커 — 별도 OFF 없이 항상 표시 */
+/** SuperTrend 라인·ST 접촉 마커 — 모든 모드 공통 표시(마감·안착은 존상·존하 선 + 마커 추가) */
 const CHART_BAND_LINE_AND_TOUCH_ALWAYS_ON = true;
 /** 선확(Front-run) 캔들 마커 — buildSmcDeskMarkerPlan 과 동기 (내부 useEffect 상수와 동일 값 유지) */
 const CHART_FRONT_RUN_MARKERS_ENABLED = false;
@@ -214,12 +762,25 @@ const SMC_DESK_WELCOME_TOAST_KEY = 'ailongshort-smc-desk-welcome-toast-v1';
 function chartMarkerDetailLine(m: { text: string; position: string }): string {
   const tx = String(m.text || '');
   if (!String(tx || '').trim()) return '통합작도 시그널 (색·위치만 표시)';
-  if (tx === 'L' || /^L·\d/.test(tx)) return `롱 마커 (${tx}) — 확정/RSI·상단 판정 등`;
-  if (tx === 'S' || /^S·\d/.test(tx)) return `숏 마커 (${tx}) — 확정/RSI·상단 판정 등`;
+  if (tx === 'L' || /^L·\d/.test(tx) || /^롱ST/.test(tx) || /^[⚡]?L[HP]?[★◆·]/.test(tx)) {
+    return `롱 · 기관밴드(ST) 터치 (${tx}) — 지지·롱 참고 · 확정 아님`;
+  }
+  if (tx === 'S' || /^S·\d/.test(tx) || /^숏ST/.test(tx) || /^[⚡]?S[HP]?[★◆·]/.test(tx)) {
+    return `숏 · 기관밴드(ST) 터치 (${tx}) — 저항·숏 참고 · 확정 아님`;
+  }
   if (tx.includes('🚀')) return '구조 롱 로켓';
   if (tx.includes('📉')) return '구조 숏 로켓';
   if (/^⋈/.test(tx)) {
     return `통합 롱·숏 시그널 — ${tx} — 구조·지표·존 등 가중 합성(참고)`;
+  }
+  if (tx === '안착' || tx === '실패' || tx === '불안') {
+    return `마감 존 대비 종가·터치 휴리스틱(${tx}) — 참고용`;
+  }
+  if (/^⟡/.test(tx)) {
+    return `마감존 선물 시나리오 참고(${tx}) — 우측 패널·가격축 점선은 무효화 기준가 · 확정 신호·수익 보장 아님`;
+  }
+  if (/^⌖/.test(tx)) {
+    return `구조 마감 단계 마커(${tx}) — BOS/CHOCH/MSB 돌파 후 종가 단계 · 우측 패널과 동일 규칙`;
   }
   if (tx.startsWith('ST·')) {
     const segs = tx.split('|');
@@ -286,6 +847,7 @@ function organizeExecutionModeOverlays(items: OverlayItem[]): OverlayItem[] {
     const cat = String(o.category || '');
     if (cat === 'smartAdaptive' || id.startsWith('smart-adaptive-')) return 50;
     if (cat === 'smcDesk') return 45;
+    if (cat === 'monthDeskEnvelope') return 1;
     const zoneLike =
       kind === 'zone' ||
       kind === 'fvg' ||
@@ -295,7 +857,7 @@ function organizeExecutionModeOverlays(items: OverlayItem[]): OverlayItem[] {
       kind === 'bprZone' ||
       kind === 'reactionZone' ||
       cat === 'reactionZone' ||
-      kind === 'channelBand';
+      (kind === 'channelBand' && cat !== 'monthDeskEnvelope');
     if (zoneLike) return 0;
     if (kind === 'harmonic' || kind === 'harmonicLeg') return 5;
     if (
@@ -334,58 +896,7 @@ function organizeExecutionModeOverlays(items: OverlayItem[]): OverlayItem[] {
   });
 }
 
-/** 캔들 위 표시용 — 짧게만(클릭 패널에 전체 근거). unionSource 있으면 합류(H)·정밀(P)를 같은 봉에서 구분 */
-function formatInstitutionalBandTouchMarkerChartText(ev: InstitutionalBandInteractionMarker): string {
-  const sym = ev.tier === 'A' ? '★' : ev.tier === 'B' ? '◆' : '·';
-  const sHint = ev.confluence?.grade === 'S' ? '⚡' : '';
-  const lane = ev.unionSource === 'confluence' ? 'H' : ev.unionSource === 'precision' ? 'P' : '';
-  if (ev.verdict === 'LONG') {
-    return lane ? `${sHint}L${lane}${sym}` : `${sHint}L${sym}`;
-  }
-  return lane ? `${sHint}S${lane}${sym}` : `${sHint}S${sym}`;
-}
-
-/** detailMap용 — 동일 봉에 로켓·L/S와 ST 접촉이 같이 있을 때 접촉 줄만 ST 상세로 연결 */
-function markerLooksLikeInstitutionalBandTouch(m: {
-  shape?: string;
-  text?: string;
-}): boolean {
-  if (m.shape !== 'arrowUp' && m.shape !== 'arrowDown') return false;
-  return /^[⚡]?[LS][HP]?[★◆·]/.test(String(m.text ?? '').trim());
-}
-
-/** 봉 클릭 시 패널용 — 기존 파이프 형식 유지(chartMarkerDetailLine의 ST· 분기) */
-function formatInstitutionalBandTouchMarkerDetailText(ev: InstitutionalBandInteractionMarker): string {
-  const sym = ev.tier === 'A' ? '★' : ev.tier === 'B' ? '◆' : '';
-  const head = ev.verdict === 'LONG' ? `ST·L${sym}` : `ST·S${sym}`;
-  const sum = ev.summaryParts.slice(0, 8).join('·');
-  const prec =
-    ev.precisionParts && ev.precisionParts.length
-      ? `|정밀:${ev.precisionParts.slice(0, 6).join('·')}`
-      : '';
-  const cnf = ev.confluence
-    ? `|합류${ev.confluence.total}·${ev.confluence.grade}|${ev.confluence.parts.slice(0, 5).join('·')}`
-    : '';
-  const pipe =
-    ev.unionSource === 'confluence' ? '|파이프:합류' : ev.unionSource === 'precision' ? '|파이프:정밀' : '';
-  return `${head}|${ev.tier}|${ev.score}|${ev.proximityAtr.toFixed(2)}|${sum}${prec}${cnf}${pipe}`;
-}
-
-function institutionalBandTouchMarkerStyle(ev: InstitutionalBandInteractionMarker): { color: string; size: number } {
-  const sGrade = ev.confluence?.grade === 'S';
-  if (ev.verdict === 'LONG') {
-    return {
-      color: sGrade ? '#fbbf24' : ev.tier === 'A' ? '#2dd4bf' : ev.tier === 'B' ? '#14b8a6' : '#0d9488',
-      size: sGrade || ev.tier === 'A' ? 2 : 1,
-    };
-  }
-  return {
-    color: sGrade ? '#fbbf24' : ev.tier === 'A' ? '#f472b6' : ev.tier === 'B' ? '#fb7185' : '#e11d48',
-    size: sGrade || ev.tier === 'A' ? 2 : 1,
-  };
-}
-
-type LsRocketPersistRow = { time: number; direction: 'LONG' | 'SHORT'; tier: 'structure' };
+type LsRocketPersistRow = { time: number; direction: 'LONG' | 'SHORT'; tier: 'structure' | 'monthDesk' };
 export type LsRocketHudItem = LsRocketPersistRow;
 type HigherTfRocketBoostRow = {
   time: number;
@@ -421,15 +932,22 @@ function mergeRocketPersistence(
   if (slFailSet?.size && candles?.length) {
     list = filterLsRocketsBySlFailures(list, slFailSet, candles);
   }
+  const lastBarT =
+    candles?.length && Number.isFinite(Number(candles[candles.length - 1]!.time))
+      ? Number(candles[candles.length - 1]!.time)
+      : NaN;
   for (const rk of structureRockets ?? []) {
     const dir = rk.direction;
     if (dir !== 'LONG' && dir !== 'SHORT') continue;
-    /**
-     * 같은 time·반대 tier 구조엔 1건만. 예전: findIndex가 time|direction 키라
-     * LONG+SHORT가 같은 봉에 같이 localStorage·HUD에 쌓여 뒷구간만 🚀+📉 겹침(스샷).
-     */
-    list = list.filter((x) => x.time !== rk.time);
-    list.push({ time: rk.time, direction: dir, tier: 'structure' });
+    const t = Number(rk.time);
+    if (!Number.isFinite(t)) continue;
+    const existing = list.find((x) => x.time === t);
+    if (existing) {
+      /** 생신 봉만 방향 수정 — 이미 찍힌 과거 봉은 자리·방향 고정 */
+      if (t === lastBarT) existing.direction = dir;
+      continue;
+    }
+    list.push({ time: t, direction: dir, tier: 'structure' });
   }
   {
     const uniq = new Map<number, LsRocketPersistRow>();
@@ -452,25 +970,49 @@ function buildLsRocketHud(persisted: LsRocketPersistRow[]): LsRocketHudItem[] {
 }
 
 /**
- * 심볼·TF 변경 직후·뷰 복원: 전체 fit 대신 `visibleLimit`만큼 **최신 봉 쪽**이 보이도록 스크롤.
- * (알트 전체 히스토리 fit 시 마지막 캔들이 픽셀로 안 보이는 문제 완화)
+ * 마감·안착: WS 틱마다 `candles` 참조만 바뀌어도 무거운 밴드·시나리오가 전부 재실행되던 것을 막음.
+ * 길이·마지막 봉 시각·H/L/C(소수 3자리)가 같으면 동일 구간으로 보고 상위 useMemo·effect 스킵.
  */
-function applyFocusLatestBars(chart: IChartApi, series: ISeriesApi<'Candlestick'> | null, barCount: number, tf: string): void {
-  if (!series || barCount < 1) return;
-  const n = barCount;
-  const lim = visibleLimit(tf);
-  const vis = Math.min(lim, n);
-  const from = Math.max(0, n - vis);
-  const to = n - 1;
-  requestAnimationFrame(() => {
+function monthDeskSeriesWorkSignature(series: Candle[]): string {
+  const L = series.length;
+  if (!L) return '0||||';
+  const c = series[L - 1];
+  /** 소수 2자리 — WS 틱마다 H/L/C 미세 변동으로 무거운 융합·존선이 전부 도는 것 완화 */
+  const q = (v: number) => Math.round(Number(v) * 100) / 100;
+  return `${L}|${Number(c.time)}|${q(Number(c.high))}|${q(Number(c.low))}|${q(Number(c.close))}`;
+}
+
+/**
+ * 보이는 봉의 H/L만으로 가격축 맞춤.
+ * autoScale은 존·라인 시리즈까지 포함해 캔들이 실선처럼 납작해지는 경우가 있음.
+ */
+function fitPriceScaleToVisibleCandles(
+  series: ISeriesApi<'Candlestick'>,
+  from: number,
+  to: number
+): void {
+  let hi = -Infinity;
+  let lo = Infinity;
+  const i0 = Math.max(0, Math.floor(from));
+  const i1 = Math.max(i0, Math.ceil(to));
+  for (let i = i0; i <= i1; i++) {
     try {
-      chart.timeScale().setVisibleLogicalRange({ from, to });
-      /** 먼저 보이는 구간에 맞춤 */
+      const d = series.dataByIndex(i as unknown as Logical, MismatchDirection.NearestLeft) as
+        | { high?: number; low?: number }
+        | null
+        | undefined;
+      if (!d) continue;
+      const h = Number(d.high);
+      const l = Number(d.low);
+      if (Number.isFinite(h)) hi = Math.max(hi, h);
+      if (Number.isFinite(l)) lo = Math.min(lo, l);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!Number.isFinite(hi) || !Number.isFinite(lo) || hi <= lo) {
+    try {
       series.priceScale().applyOptions({ autoScale: true });
-      /**
-       * lightweight-charts: autoScale === true 이면 패널에서 좌클릭 드래그로 가격축(세로) 이동이 막힘.
-       * 한 프레임 뒤 autoScale 끄면 맞춤된 가격 범위는 유지되고, 좌우·위아래 드래그 패닝이 복구됨.
-       */
       requestAnimationFrame(() => {
         try {
           series.priceScale().applyOptions({ autoScale: false });
@@ -479,22 +1021,189 @@ function applyFocusLatestBars(chart: IChartApi, series: ISeriesApi<'Candlestick'
         }
       });
     } catch {
-      try {
-        chart.timeScale().fitContent();
-        chart.timeScale().scrollToRealTime();
-        series.priceScale().applyOptions({ autoScale: true });
-        requestAnimationFrame(() => {
-          try {
-            series.priceScale().applyOptions({ autoScale: false });
-          } catch {
-            /* ignore */
-          }
+      /* ignore */
+    }
+    return;
+  }
+  const pad = Math.max((hi - lo) * 0.1, (hi + lo) * 0.0004);
+  try {
+    series.priceScale().applyOptions({ autoScale: false });
+    series.priceScale().setVisibleRange({ from: lo - pad, to: hi + pad });
+  } catch {
+    try {
+      series.priceScale().applyOptions({ autoScale: true });
+      requestAnimationFrame(() => {
+        try {
+          series.priceScale().applyOptions({ autoScale: false });
+        } catch {
+          /* ignore */
+        }
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/**
+ * 저장된 화면 비율(barSpacing + visibleBars)을 현재 TF에 적용.
+ * 분·시·일·주·월 **동일 경로** — 1d만 논리범위 강제하던 HTF 분기 제거.
+ * fitContent 금지. @param opts.scrollToLatest false면 드래그 위치 유지.
+ */
+function applyFocusLatestBars(
+  chart: IChartApi,
+  series: ISeriesApi<'Candlestick'> | null,
+  barCount: number,
+  tf: string,
+  opts?: { scrollToLatest?: boolean; fitPriceScale?: boolean }
+): void {
+  if (!series || barCount < 1) return;
+  /** 촘촘한 저장 줌 교정 — 거래소 기본 간격 */
+  if (isMergedDeskChartTimeframe(tf)) {
+    ensureMergedDeskDefaultSharedView(tf);
+  }
+  const seriesLen = candlestickSeriesBarCount(series);
+  const n = seriesLen > 0 ? Math.min(barCount, seriesLen) : barCount;
+  let sharedSpacing = resolveMergedDeskBarSpacing(tf);
+  if (sharedSpacing == null || sharedSpacing < 6) {
+    sharedSpacing = MERGED_DESK_DEFAULT_BAR_SPACING;
+  }
+  let vis = resolveMergedDeskVisibleBars(tf, n);
+  /** 가시봉이 너무 많으면 LWC가 봉폭을 줄임 → 거래량처럼 두껍게 안 보임 */
+  if (vis > 120) vis = Math.min(MERGED_DESK_DEFAULT_VISIBLE_BARS, n);
+  /** 통합모드 공동뷰(barSpacing): 마지막 봉을 가격축에 붙이지 않고 +20봉 우측여백 */
+  const rightPad = MERGED_DESK_RIGHT_FUTURE_BARS;
+  const from = Math.max(0, n - vis);
+  const to = Math.max(0, n - 1) + rightPad;
+  const scrollToLatest = opts?.scrollToLatest !== false;
+  const fitPrice = opts?.fitPriceScale !== false;
+
+  const applyOnce = () => {
+    try {
+      const ts = chart.timeScale();
+      if (!scrollToLatest) {
+        ts.applyOptions({
+          barSpacing: sharedSpacing,
+          minBarSpacing: 5,
+          rightOffset: rightPad,
         });
+        return;
+      }
+      /** 1) 최신 구간 먼저 2) 봉간격 재고정 — LWC가 범위로 spacing을 줄인 뒤 되돌림(거래소형) */
+      ts.setVisibleLogicalRange({ from, to });
+      ts.applyOptions({
+        barSpacing: sharedSpacing,
+        minBarSpacing: 5,
+        rightOffset: rightPad,
+      });
+      const lr = ts.getVisibleLogicalRange?.();
+      if (fitPrice) {
+        if (lr && Number.isFinite(lr.from) && Number.isFinite(lr.to)) {
+          fitPriceScaleToVisibleCandles(series, lr.from, lr.to);
+        } else {
+          fitPriceScaleToVisibleCandles(series, from, to);
+        }
+      }
+    } catch {
+      if (!scrollToLatest) return;
+      try {
+        const safeVis = Math.min(MERGED_DESK_DEFAULT_VISIBLE_BARS, n);
+        const f = Math.max(0, n - safeVis);
+        const t = Math.max(0, n - 1) + rightPad;
+        chart.timeScale().applyOptions({
+          barSpacing: MERGED_DESK_DEFAULT_BAR_SPACING,
+          minBarSpacing: 5,
+          rightOffset: rightPad,
+        });
+        chart.timeScale().setVisibleLogicalRange({ from: f, to: t });
+        chart.timeScale().applyOptions({
+          barSpacing: MERGED_DESK_DEFAULT_BAR_SPACING,
+          minBarSpacing: 5,
+          rightOffset: rightPad,
+        });
+        if (fitPrice) fitPriceScaleToVisibleCandles(series, f, t);
       } catch {
         /* ignore */
       }
     }
+  };
+
+  if (!scrollToLatest) {
+    requestAnimationFrame(applyOnce);
+    return;
+  }
+  requestAnimationFrame(() => {
+    applyOnce();
   });
+}
+
+/** 통합·분석 — barSpacing만, 가시구간(패닝 위치) 건드리지 않음 */
+function applyMergedDeskBarSpacingOnly(chart: IChartApi, tf: string): void {
+  const spacing = resolveMergedDeskBarSpacing(tf);
+  if (spacing == null) return;
+  try {
+    chart.timeScale().applyOptions({ barSpacing: spacing });
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 분·시·일·주·월 공동 — 우측 여백(rightOffset) 포함 최신봉 부착 판정 */
+function isMergedDeskAtRealtimeLogical(
+  lr: { from: number; to: number },
+  seriesLen: number,
+  rightOffset = MERGED_DESK_RIGHT_FUTURE_BARS
+): boolean {
+  if (seriesLen < 2 || !Number.isFinite(lr.to)) return true;
+  const lastIdx = seriesLen - 1;
+  const slack = Math.max(3, rightOffset + 2);
+  return lr.to >= lastIdx - 0.5 && lr.to <= lastIdx + slack;
+}
+
+function captureMergedDeskLogicalRange(chart: IChartApi): { from: number; to: number } | null {
+  try {
+    const lr = chart.timeScale().getVisibleLogicalRange();
+    if (lr && Number.isFinite(lr.from) && Number.isFinite(lr.to)) {
+      return { from: lr.from, to: lr.to };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function restoreMergedDeskLogicalRange(
+  chart: IChartApi,
+  lr: { from: number; to: number } | null | undefined
+): boolean {
+  if (!lr || !Number.isFinite(lr.from) || !Number.isFinite(lr.to)) return false;
+  try {
+    chart.timeScale().setVisibleLogicalRange({ from: lr.from, to: lr.to });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** rightOffset·테마 재적용 시 가시구간이 우측으로 끌리지 않게 보존 */
+function applyMergedDeskTimeScalePreserveRange(
+  chart: IChartApi,
+  apply: () => void,
+  suppressRef?: { current: boolean }
+): void {
+  const lr = captureMergedDeskLogicalRange(chart);
+  if (suppressRef) suppressRef.current = true;
+  try {
+    apply();
+  } catch {
+    /* ignore */
+  }
+  if (lr) restoreMergedDeskLogicalRange(chart, lr);
+  if (suppressRef) {
+    requestAnimationFrame(() => {
+      suppressRef.current = false;
+    });
+  }
 }
 
 /**
@@ -503,40 +1212,67 @@ function applyFocusLatestBars(chart: IChartApi, series: ISeriesApi<'Candlestick'
  * 숫자 꼬리 + TF 토큰을 제거한 **논리 키**로 묶어, 한 TF에서 ON/OFF 해도 전 TF에 동일 적용.
  */
 function stableOverlayVisibilityKey(id: string): string {
-  if (!id || typeof id !== 'string') return id;
-  const isTfToken = (seg: string): boolean => {
-    if (!seg) return false;
-    const s = seg.trim();
-    return (
-      /^(?:\d+(?:m|h|d|w)|\d+M|\d+Y)$/i.test(s) ||
-      /^tf[_-]?(?:\d+(?:m|h|d|w)|\d+M|\d+Y)$/i.test(s) ||
-      /^timeframe[_-]?(?:\d+(?:m|h|d|w)|\d+M|\d+Y)$/i.test(s)
-    );
-  };
-  /** 핫존 등 id에 티커가 들어가면 심볼만 바꿔도 키가 달라져 차트 설정이 '초기화'처럼 보임 — 논리 키에서 제거 */
-  const isLikelySymbolToken = (seg: string): boolean => {
-    const s = seg.trim();
-    if (s.length < 5) return false;
-    return /^[A-Z0-9]{3,}(?:USDT|USDC|BUSD|FDUSD|PERP|USD)$/i.test(s);
-  };
-  const parts = id.split('-').filter((seg) => !isTfToken(seg) && !isLikelySymbolToken(seg));
-  while (parts.length > 1) {
-    const last = parts[parts.length - 1];
-    if (/^\d+$/.test(last) || /^\d+\.\d+$/.test(last)) {
-      parts.pop();
-      continue;
-    }
-    break;
+  return stableOverlayLabelKey(id);
+}
+
+/** 마감 타점 라벨(좌·중·우·픽셀 이동)을 한 번에 저장 */
+const MONTH_DESK_TYPEOM_LABEL_PACK_KEY = 'month-desk-typeom-pack';
+
+/** 구조 로켓 HUD는 봉마다 생기고 사라져 개별 키가 안 남는다 — 한 묶음으로 옮긴다 */
+const LS_ROCKET_HUD_LABEL_ID = 'ls-rocket-hud-group';
+
+function overlayLabelStorageKey(id: string): string {
+  if (id && typeof id === 'string' && id.startsWith('month-desk-typeom-')) {
+    return MONTH_DESK_TYPEOM_LABEL_PACK_KEY;
   }
-  return parts.join('-');
+  return stableOverlayVisibilityKey(id);
+}
+
+/** 마감 타점 가로 점선(keyLevel) — 라벨 Y를 선 가격에 맞출 때 사용 */
+function isMonthDeskTypeomKeyLevelLine(id: string): boolean {
+  return isMonthDeskAnchoredLineLabelId(id);
+}
+
+/** 오버레이 드래그 오프셋 — pinAbs* 가 있으면 마지막 봉 추종을 끊고 사용자가 둔 화면에 고정 */
+type OverlayLabelOffset = {
+  dx: number;
+  dy: number;
+  pinAbsX?: number;
+  pinAbsY?: number;
+  pinWidth?: number;
+};
+
+type OverlayDragAbsSeed = { absLeft: number; absTop: number; width?: number };
+
+function isOverlayAbsPinned(off: OverlayLabelOffset | null | undefined): boolean {
+  return !!off && typeof off.pinAbsX === 'number' && Number.isFinite(off.pinAbsX);
+}
+
+function applyOverlayPinAbs(
+  off: OverlayLabelOffset,
+  left: number,
+  top: number
+): { left: number; top: number } {
+  if (!isOverlayAbsPinned(off)) return { left, top };
+  return {
+    left: off.pinAbsX as number,
+    top:
+      typeof off.pinAbsY === 'number' && Number.isFinite(off.pinAbsY) ? off.pinAbsY : top,
+  };
 }
 
 /** 드래그 오프셋 맵: TF마다 달라진 raw id를 논리 키로 합침 */
-function normalizeOverlayOffsetMap(m: Record<string, { dx: number; dy: number }>): Record<string, { dx: number; dy: number }> {
-  const out: Record<string, { dx: number; dy: number }> = {};
+function normalizeOverlayOffsetMap(m: Record<string, OverlayLabelOffset>): Record<string, OverlayLabelOffset> {
+  const out: Record<string, OverlayLabelOffset> = {};
   for (const [key, val] of Object.entries(m)) {
     if (!val || typeof val.dx !== 'number' || typeof val.dy !== 'number') continue;
-    out[stableOverlayVisibilityKey(key)] = val;
+    const next: OverlayLabelOffset = { dx: val.dx, dy: val.dy };
+    if (typeof val.pinAbsX === 'number' && Number.isFinite(val.pinAbsX)) next.pinAbsX = val.pinAbsX;
+    if (typeof val.pinAbsY === 'number' && Number.isFinite(val.pinAbsY)) next.pinAbsY = val.pinAbsY;
+    if (typeof val.pinWidth === 'number' && Number.isFinite(val.pinWidth) && val.pinWidth > 0) {
+      next.pinWidth = val.pinWidth;
+    }
+    out[stableOverlayVisibilityKey(key)] = next;
   }
   return out;
 }
@@ -568,7 +1304,18 @@ function readLabelSettingsUiFromStorage(): { bodyCollapsed: boolean; pos: LabelS
   }
 }
 
-export type ChartSnapshotRef = { getSnapshot: () => string | null };
+export type ChartSnapshotRef = {
+  getSnapshot: () => string | null;
+  openSettings: () => void;
+  closeSettings: () => void;
+  toggleSettings: () => void;
+  /** 저장된(또는 기본) 가시 봉 수·가격축으로 복원 — 현재 화면을 다시 캡처하지 않음 */
+  restoreDefaultChartView: () => void;
+  /** 지금 화면 줌을 저장(전 TF 공동). 과도한 축소는 거부 */
+  saveChartView: () => boolean;
+  /** 현재 차트 캡처 1회 텔레그램 전송 (테스트) */
+  sendTelegramTest: () => Promise<{ ok: boolean; error?: string }>;
+};
 
 type PriceStripPosition = 'left' | 'center' | 'right';
 
@@ -611,6 +1358,45 @@ function buildPriceStripOverlayStyle(
  */
 function nudgeLabelYFromLastPrice(y: number, _pricePixelY: number | null, _chartH: number, _gap = 36): number {
   return y;
+}
+
+/** 통합·분석 라벨·로켓 줌 — lib/mergedDeskZoomScale (거래소식 완만) */
+
+function mergedDeskFeaturePrice(item: { price1?: unknown; price2?: unknown }): number {
+  const p1 = Number(item.price1);
+  const p2 = Number(item.price2);
+  const a = Number.isFinite(p1) && p1 > 0;
+  const b = Number.isFinite(p2) && p2 > 0;
+  if (a && b) {
+    if (Math.abs(p1 - p2) / Math.max(Math.abs(p1), Math.abs(p2), 1) < 0.003) return p1;
+    return (p1 + p2) / 2;
+  }
+  if (a) return p1;
+  if (b) return p2;
+  return NaN;
+}
+
+function liveSeriesPriceY(
+  series: { priceToCoordinate?: (price: number) => number | null } | null | undefined,
+  price: number
+): number | null {
+  if (!series || !(price > 0) || !Number.isFinite(price)) return null;
+  try {
+    const y = series.priceToCoordinate?.(price);
+    if (y != null && Number.isFinite(Number(y))) return Number(y);
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function isMergedDeskStickLabelId(id: string): boolean {
+  return (
+    id.startsWith('merged-desk-') ||
+    id.startsWith('merged-ares-') ||
+    id.startsWith('merged-trade-') ||
+    id.startsWith('merged-swing-')
+  );
 }
 
 /**
@@ -764,6 +1550,151 @@ function analysisTimeToScreenXMagnet(
  * **차트 시리즈에 실제로 올라간 봉 시각**(`series.dataByIndex`)으로 timeScale X 계산.
  * React `candles`와 `setData` 직후 한두 프레임·길이 불일치 시에도 캔들과 같은 봉을 가리키게 함.
  */
+/** setData에 올린 봉 수 — candleSeries 인덱스를 시리즈 logical에 맞춤 */
+function candlestickSeriesBarCount(series: ISeriesApi<'Candlestick'>): number {
+  try {
+    /**
+     * NearestLeft는 범위 밖 인덱스에도 마지막 봉을 돌려 null이 안 됨 → 예전에 ~250k로 부풀어
+     * logicalToCoordinate(마지막)이 어긋남. 정확 인덱스만 인정.
+     */
+    const at = (i: number) => {
+      try {
+        return series.dataByIndex(i as unknown as Logical, MismatchDirection.None);
+      } catch {
+        return null;
+      }
+    };
+    if (at(0) == null) return 0;
+    let lo = 0;
+    let hi = 1;
+    while (at(hi) != null) {
+      lo = hi;
+      hi = hi * 2 + 1;
+      if (hi > 250_000) break;
+    }
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (at(mid) != null) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo + 1;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * 통합·분석 zone 우측 끝 = 차트에 올라간 **마지막 캔들** X.
+ * tail 배열 길이로 logical을 잡으면 15m 등에서 화면 중간에 끊김.
+ */
+function mergedDeskSeriesLastBarScreenX(
+  series: ISeriesApi<'Candlestick'> | null | undefined,
+  ts: ReturnType<IChartApi['timeScale']> | null | undefined,
+  fallbackCandles?: Candle[]
+): number {
+  if (!series || !ts) return NaN;
+  /** 1순위: 시리즈 마지막 봉의 실제 time → X (logical 길이 오차 무시) */
+  try {
+    const sc = candlestickSeriesBarCount(series);
+    if (sc > 0) {
+      const bar = series.dataByIndex((sc - 1) as unknown as Logical, MismatchDirection.NearestLeft);
+      if (bar?.time != null) {
+        const raw = ts.timeToCoordinate(bar.time as UTCTimestamp);
+        if (raw != null && Number.isFinite(Number(raw))) return Number(raw);
+      }
+      const xc = ts.logicalToCoordinate((sc - 1) as unknown as Logical);
+      if (xc != null && Number.isFinite(Number(xc))) return Number(xc);
+    }
+  } catch {
+    /* ignore */
+  }
+  if (fallbackCandles && fallbackCandles.length > 0) {
+    try {
+      const lastT = Number(fallbackCandles[fallbackCandles.length - 1]!.time);
+      if (Number.isFinite(lastT)) {
+        const raw = ts.timeToCoordinate(lastT as UTCTimestamp);
+        if (raw != null && Number.isFinite(Number(raw))) return Number(raw);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return NaN;
+}
+
+/**
+ * 통합·분석 — 마지막 캔들 + N봉(예측 여백) 화면 X.
+ * timeScale.rightOffset와 맞춰 캔들 오른쪽 빈 축에 zone/라벨을 안착.
+ */
+function mergedDeskSeriesFuturePadScreenX(
+  series: ISeriesApi<'Candlestick'> | null | undefined,
+  ts: ReturnType<IChartApi['timeScale']> | null | undefined,
+  padBars: number = MERGED_DESK_RIGHT_FUTURE_BARS,
+  fallbackCandles?: Candle[]
+): number {
+  if (!series || !ts) return NaN;
+  const pad = Math.max(0, Math.round(Number(padBars) || 0));
+  try {
+    const sc = candlestickSeriesBarCount(series);
+    if (sc > 0) {
+      const xc = ts.logicalToCoordinate((sc - 1 + pad) as unknown as Logical);
+      if (xc != null && Number.isFinite(Number(xc))) return Number(xc);
+    }
+  } catch {
+    /* ignore */
+  }
+  const lastX = mergedDeskSeriesLastBarScreenX(series, ts, fallbackCandles);
+  if (!Number.isFinite(lastX) || pad <= 0) return lastX;
+  try {
+    const opts = ts.options?.() as { barSpacing?: number } | undefined;
+    const spacing = Number(opts?.barSpacing);
+    if (Number.isFinite(spacing) && spacing > 0) return lastX + spacing * pad;
+  } catch {
+    /* ignore */
+  }
+  return lastX;
+}
+
+/**
+ * 이동경로용 — 마지막 봉 이후(미래) 시각도 우측 여백 logical X로 매핑.
+ * 봉 스냅만 쓰면 미래 time2가 마지막 봉에 붙어 경로가 사라짐.
+ */
+function mergedDeskFutureAwareTimeToScreenX(
+  candleSeries: Candle[],
+  t: number,
+  ts: ReturnType<IChartApi['timeScale']>,
+  series: ISeriesApi<'Candlestick'>
+): number {
+  if (!candleSeries.length) return NaN;
+  const tAdj = normalizeOverlayTimeToChartSec(t) ?? t;
+  if (!Number.isFinite(tAdj)) return NaN;
+  const tLast = Number(candleSeries[candleSeries.length - 1]!.time);
+  if (!(tAdj > tLast)) {
+    const m = coreMagnetBarTimeToX(candleSeries, tAdj, ts, series);
+    if (Number.isFinite(m)) return m;
+    return analysisTimeToScreenXMagnet(candleSeries, tAdj, ts, series);
+  }
+  const step =
+    candleSeries.length >= 2
+      ? Math.abs(
+          Number(candleSeries[candleSeries.length - 1]!.time) -
+            Number(candleSeries[candleSeries.length - 2]!.time)
+        )
+      : 3600;
+  const barsAhead = Math.max(0, (tAdj - tLast) / Math.max(step, 1e-6));
+  const pad = Math.min(Math.max(0.15, barsAhead), MERGED_DESK_RIGHT_FUTURE_BARS + 2);
+  try {
+    const sc = candlestickSeriesBarCount(series);
+    if (sc > 0) {
+      const xc = ts.logicalToCoordinate((sc - 1 + pad) as unknown as Logical);
+      if (xc != null && Number.isFinite(Number(xc))) return Number(xc);
+    }
+  } catch {
+    /* ignore */
+  }
+  return mergedDeskSeriesFuturePadScreenX(series, ts, pad, candleSeries);
+}
+
 function coreMagnetBarTimeToX(
   candleSeries: Candle[],
   t: number,
@@ -774,8 +1705,13 @@ function coreMagnetBarTimeToX(
   const tAdj = normalizeOverlayTimeToChartSec(t) ?? t;
   const idx = candleIndexAtOrBefore(candleSeries, tAdj);
   let barTime = Number((candleSeries[idx] as { time?: number }).time);
+  const seriesLen = candlestickSeriesBarCount(series);
+  const seriesIdx =
+    seriesLen > candleSeries.length
+      ? Math.min(seriesLen - 1, Math.max(0, seriesLen - candleSeries.length) + idx)
+      : Math.min(seriesLen > 0 ? seriesLen - 1 : idx, idx);
   try {
-    const sBar = series.dataByIndex(idx as unknown as Logical, MismatchDirection.NearestLeft);
+    const sBar = series.dataByIndex(seriesIdx as unknown as Logical, MismatchDirection.NearestLeft);
     if (sBar && sBar.time != null) {
       const st = Number(sBar.time);
       if (Number.isFinite(st)) barTime = st;
@@ -842,6 +1778,8 @@ function isMagnetBarSnapOverlayId(tid: string): boolean {
   if (tid.startsWith('candle-analysis-')) return true;
   if (tid.startsWith('ca-core-')) return true;
   if (tid.startsWith('smart-overlay-zone')) return true;
+  if (isMonthDeskMagnetBarSnapOverlayId(tid)) return true;
+  if (isMergedAnalysisDeskOverlayId(tid)) return true;
   return false;
 }
 
@@ -873,6 +1811,14 @@ function isCoreAnalysisMagnetZoneStrictWidthId(id: string | undefined): boolean 
     if (id.startsWith('candle-analysis-elliott-seg-') || id === 'candle-analysis-elliott-next') return false;
     if (id.startsWith('candle-analysis-playbook-')) return false;
     return true;
+  }
+  if (isMonthDeskMagnetZoneStrictWidthId(id)) return true;
+  if (isMergedAnalysisDeskOverlayId(id)) {
+    /** 번호 zone(0/가격)·핵심·임계 — 우측 끝까지 연장 · regime/ST만 구간 폭 고정 */
+    if (id.includes('merged-ares-key-') || id.includes('merged-ares-critical-')) return false;
+    if (id.startsWith('merged-swing-regime-')) return true;
+    if (id.startsWith('merged-ares-st-cloud-') || id.startsWith('merged-unified-cloud-') || id.startsWith('merged-cp-cloud')) return true;
+    return false;
   }
   return false;
 }
@@ -994,8 +1940,66 @@ function geomPriceToPixelY(series: ISeriesApi<'Candlestick'>, price: unknown, yF
   return yFallback;
 }
 
+/** 마감존 상·하한 스텝과 동일한 계단 외곽선으로 면 채움 폴리곤(SVG) */
+function buildMonthDeskEnvelopeStepPolygonScreen(
+  points: Array<{ time: number; upper: number; lower: number }>,
+  bandMagnetX: (t: number) => number,
+  series: ISeriesApi<'Candlestick'>,
+  chFb: number
+): { x: number; y: number }[] | null {
+  const n = points.length;
+  if (n < 2) return null;
+  const xs: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const x = bandMagnetX(points[i].time);
+    if (!Number.isFinite(x)) return null;
+    xs.push(x);
+  }
+  const tailW =
+    n >= 2 ? Math.max(8, Math.abs(xs[n - 1] - xs[n - 2]) * 1.02) : 10;
+
+  const upperPath: { x: number; y: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const xl = xs[i];
+    const xr = i + 1 < n ? xs[i + 1] : xl + tailW;
+    const yu = geomPriceToPixelY(series, points[i].upper, chFb);
+    if (![xl, xr, yu].every((v) => Number.isFinite(v))) return null;
+    if (i === 0) upperPath.push({ x: xl, y: yu });
+    upperPath.push({ x: xr, y: yu });
+    if (i < n - 1) {
+      const yUn = geomPriceToPixelY(series, points[i + 1].upper, chFb);
+      if (!Number.isFinite(yUn)) return null;
+      upperPath.push({ x: xr, y: yUn });
+    }
+  }
+
+  const lowerPath: { x: number; y: number }[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const xl = xs[i];
+    const xr = i + 1 < n ? xs[i + 1] : xl + tailW;
+    const yl = geomPriceToPixelY(series, points[i].lower, chFb);
+    if (![xl, xr, yl].every((v) => Number.isFinite(v))) return null;
+    if (i === n - 1) {
+      lowerPath.push({ x: xr, y: yl });
+      lowerPath.push({ x: xl, y: yl });
+    } else {
+      lowerPath.push({ x: xr, y: yl });
+      lowerPath.push({ x: xl, y: yl });
+    }
+    if (i > 0) {
+      const yLm = geomPriceToPixelY(series, points[i - 1].lower, chFb);
+      if (!Number.isFinite(yLm)) return null;
+      lowerPath.push({ x: xl, y: yLm });
+    }
+  }
+
+  return [...upperPath, ...lowerPath];
+}
+
 /** BOS/CHOCH·스윙 등: 겹침 완화 시 아래로만 밀면 줌아웃 시 볼륨 쪽으로 떨어짐 → 수평 분산 대상 */
 function overlayKindWantsHorizontalLabelFan(id: string, kind: string): boolean {
+  if (isMonthDeskFeatureOverlayId(id)) return false;
+  if (isMonthDeskTypeomKeyLevelLine(id)) return true;
   if (kind === 'bos' || kind === 'choch' || kind === 'liquiditySweep' || kind === 'equilibrium') return true;
   if (kind === 'swingLabel' || kind === 'poi') return true;
   if (id.startsWith('smc-desk-')) return true;
@@ -1006,14 +2010,24 @@ function mapOverlays(
   overlays: OverlayItem[],
   candles: Candle[],
   timeframe: string,
-  options?: { useZonePriceRange?: boolean; closeOverlayRange?: { min: number; max: number } }
+  options?: {
+    useZonePriceRange?: boolean;
+    closeOverlayRange?: { min: number; max: number };
+    mergedDeskMode?: boolean;
+  }
 ) {
-  const limit = visibleLimit(timeframe);
-  const visible = candles.slice(-limit);
+  const mergedDesk = options?.mergedDeskMode === true;
+  const limit = mergedDesk ? candles.length : visibleLimit(timeframe);
+  const visible = mergedDesk ? candles : candles.slice(-limit);
   if (visible.length < 2) return [];
 
-  const candleMin = Math.min(...visible.map(c => c.low));
-  const candleMax = Math.max(...visible.map(c => c.high));
+  const priceScan = visible;
+  let candleMin = Infinity;
+  let candleMax = -Infinity;
+  for (const c of priceScan) {
+    if (c.low < candleMin) candleMin = c.low;
+    if (c.high > candleMax) candleMax = c.high;
+  }
   const candleRange = Math.max(1e-9, candleMax - candleMin);
   const zoneMin = ZONE_PRICE_FLOOR;
   const zoneMax = ZONE_PRICE_CEIL;
@@ -1038,13 +2052,71 @@ function mapOverlays(
   };
 
   return overlays.map(item => {
+    const tid = String((item as { id?: string }).id || '');
+    const mergedDeskAbs =
+      options?.mergedDeskMode === true &&
+      isMergedDeskRightAnchorOverlay(item as OverlayItem) &&
+      !isMergedDeskRbDrawOverlay(item as OverlayItem);
+    if (mergedDeskAbs && candles.length >= 2) {
+      const winZone = mergedDeskLastCandleZoneTimes(candles, timeframe);
+      if (!winZone) return item;
+      const { t1: winT1, t2: winT2 } = winZone;
+      const t1n = Number(winT1);
+      const t2n = Number(winT2);
+      const tradeRail = isMergedDeskTradeRailOverlay(item as OverlayItem);
+      const railT2 = tradeRail ? asOverlayFiniteNumber(item.time2) : undefined;
+      const lastBarT = Number(candles[candles.length - 1]!.time);
+      const p1 = asOverlayFiniteNumber(item.price1);
+      const p2 = asOverlayFiniteNumber(item.price2);
+      const cb = item.channelBand;
+      let channelBand = cb;
+      if (cb && Number.isFinite(t1n) && Number.isFinite(t2n)) {
+        const t0 = Number(cb.time1);
+        const tEndCb = Number(cb.time2);
+        const lerp = (a: number, b: number, t: number) => {
+          if (!Number.isFinite(t0) || !Number.isFinite(tEndCb) || tEndCb <= t0) return b;
+          const r = Math.max(0, Math.min(1, (t - t0) / (tEndCb - t0)));
+          return a + (b - a) * r;
+        };
+        channelBand = {
+          ...cb,
+          time1: t1n,
+          time2: t2n,
+          priceHigh1: lerp(cb.priceHigh1, cb.priceHigh2, t1n),
+          priceHigh2: lerp(cb.priceHigh1, cb.priceHigh2, t2n),
+          priceLow1: lerp(cb.priceLow1, cb.priceLow2, t1n),
+          priceLow2: lerp(cb.priceLow1, cb.priceLow2, t2n),
+        };
+      }
+      return {
+        ...item,
+        x1: 0,
+        x2: tradeRail ? (typeof item.x2 === 'number' ? item.x2 : 1) : 1,
+        time1: normalizeOverlayTimeToChartSec(
+          tradeRail && Number.isFinite(lastBarT)
+            ? Number(snapMergedOverlayTimeToCandles(lastBarT, candles))
+            : Number(snapMergedOverlayTimeToCandles(t1n, candles))
+        ) as number,
+        time2: normalizeOverlayTimeToChartSec(
+          tradeRail && railT2 != null
+            ? Number(snapMergedOverlayTimeToCandles(railT2, candles))
+            : Number(snapMergedOverlayTimeToCandles(t2n, candles))
+        ),
+        price1: p1 ?? item.price1,
+        price2: p2 ?? item.price2,
+        channelBand,
+        ...(tradeRail ? { noProject: true as const } : {}),
+      };
+    }
+
     const isTrendAnchor =
       item.kind === 'trendLine' ||
       (item as any).category === 'trendlineEngine' ||
       (item as any).category === 'autoTrendline' ||
       (typeof (item as any).id === 'string' && (item as any).id.startsWith('diag-'));
     const pickTimeForItem = isTrendAnchor ? pickTimeFromFull : pickTime;
-    const isCloseLevel = (item as any).id?.startsWith?.('close-');
+    const isCloseLevel =
+      (item as any).id?.startsWith?.('close-') || isSettleCloseOverlayId(String((item as any).id || ''));
     const isSwingTapZone = (item as any).id === 'swing-tap-zone';
     const useCloseRange = (isCloseLevel || isSwingTapZone) && closeRange;
     const useZoneRange = !useCloseRange && options?.useZonePriceRange && item.category === 'strongZone';
@@ -1193,6 +2265,14 @@ function estimateLineOverlayHtmlLabelBox(
   if (lastClosePixelY != null && !skipLastCloseNudge) {
     lineLabelTop = nudgeLabelYFromLastPrice(lineLabelTop, lastClosePixelY, chartH - 12);
   }
+  let labelH = 28;
+  let labelW = 260;
+  if (isMonthDeskTypeomKeyLevelLine(id) && skipLastCloseNudge) {
+    labelH = 20;
+    labelW = 218;
+    const lineY = baseMinY + y2;
+    lineLabelTop = lineY - labelH / 2;
+  }
   const pri =
     id.startsWith('lux-star-')
       ? 5
@@ -1201,7 +2281,7 @@ function estimateLineOverlayHtmlLabelBox(
         : ['bos', 'choch', 'liquiditySweep', 'equilibrium'].includes(item.kind)
           ? 1
           : 3;
-  return { left: lineLabelLeft, top: lineLabelTop, w: 260, h: 28, pri };
+  return { left: lineLabelLeft, top: lineLabelTop, w: labelW, h: labelH, pri };
 }
 
 /** 동일 id 중복 시 마지막 항목만 유지 — 패닝 시 겹침·복제처럼 보이는 원인 방지 */
@@ -1229,15 +2309,15 @@ type ChartThemePack = {
 
 const chartThemes: Record<'dark' | 'light', ChartThemePack> = {
   dark: {
-    bg: '#070a0f',
-    text: '#e8edf4',
-    gridVert: 'rgba(100,116,139,0.10)',
-    gridHorz: 'rgba(100,116,139,0.055)',
-    border: 'rgba(94,234,212,0.18)',
-    crosshairLine: 'rgba(45,212,191,0.58)',
-    crosshairLabelBg: 'rgba(7,10,15,0.94)',
-    lastPriceLine: 'rgba(45,212,191,0.88)',
-    volumeHistogramMaLine: 'rgba(148, 180, 198, 0.88)',
+    bg: '#05070b',
+    text: '#cbd5e1',
+    gridVert: 'rgba(148,163,184,0.07)',
+    gridHorz: 'rgba(148,163,184,0.045)',
+    border: 'rgba(255,255,255,0.08)',
+    crosshairLine: 'rgba(148,163,184,0.42)',
+    crosshairLabelBg: 'rgba(8,11,16,0.94)',
+    lastPriceLine: 'rgba(148,163,184,0.72)',
+    volumeHistogramMaLine: 'rgba(148, 163, 184, 0.62)',
   },
   light: {
     bg: '#f1f5f9',
@@ -1253,7 +2333,28 @@ const chartThemes: Record<'dark' | 'light', ChartThemePack> = {
 };
 
 const CHART_PRO_FONT =
-  'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif';
+  '"Pretendard Variable", Pretendard, system-ui, -apple-system, "Segoe UI", "Noto Sans KR", sans-serif';
+
+/** 통합·분석: plot 배경 투명이면 under/front HTML이 캔들 뒤로 비침 */
+function lwcLayoutBackground(solid: string, plotTransparent: boolean) {
+  return plotTransparent
+    ? { type: ColorType.Solid, color: 'transparent' }
+    : { color: solid };
+}
+
+function raiseCandleSeriesDrawOrder(series: ISeriesApi<'Candlestick'> | null | undefined) {
+  if (!series || typeof series.setSeriesOrder !== 'function') return;
+  try {
+    series.setSeriesOrder(10_000);
+  } catch {
+    /* ignore */
+  }
+}
+
+function resolveChartThemePack(theme: 'dark' | 'light', aiTone: boolean): ChartThemePack {
+  if (theme === 'dark' && aiTone) return MERGED_DESK_AI_TONE_DARK;
+  return chartThemes[theme];
+}
 
 function chartGridOptions(th: ChartThemePack) {
   return {
@@ -1315,11 +2416,14 @@ function softenZoneFill(css: string | undefined, mult = 0.55, opts?: SoftenZoneF
   return c;
 }
 
-/** `zoneFillPreserve` 존: max-clean / 실행캄 / 기본 레이아웃별 soften 배율 */
-function zoneFillPreserveLayoutMult(maxClean: boolean, executionCalm: boolean): number {
-  if (maxClean) return 0.74;
-  if (executionCalm) return 0.8;
-  return 0.86;
+/** `zoneFillPreserve` 존: max-clean / 실행캄 / 통합·분석 레이아웃별 soften 배율 */
+function zoneFillPreserveLayoutMult(
+  maxClean: boolean,
+  executionCalm: boolean,
+  mergedAnalysisDesk?: boolean
+): number {
+  const base = maxClean ? 0.74 : executionCalm ? 0.8 : 0.86;
+  return mergedAnalysisDesk ? base * 0.52 : base;
 }
 
 /** 통합작도: 캔들 뒤 존 면 — 롱·지지 톤(초록) / 숏·저항 톤(빨강) + 우측 짧은 캡션 */
@@ -1341,10 +2445,12 @@ function withLongShortCaption(lbl: string, direction: 'long' | 'short', fallback
   const t = String(lbl || '').trim();
   const hasDir =
     /(?:^|[\s·])(롱|숏)(?:[\s·]|$)/.test(t) ||
-    /상승|하락|매수|매도|\b(long|short|bull|bear)\b/i.test(t);
+    /상승|하락|매수|매도|폭락|폭등|반등|\b(long|short|bull|bear)\b/i.test(t);
   const prefix = direction === 'long' ? '롱' : '숏';
+  if (!t) return `${prefix}존`;
   if (t && hasDir) return shortUnifiedCaption(t);
   const core = t || fallbackWord;
+  if (core === '존' || core === 'ZN') return `${prefix}존`;
   return shortUnifiedCaption(`${prefix} ${core}`);
 }
 
@@ -1440,11 +2546,11 @@ function unifiedDeskUnderChartZonePresentation(
         captionColor: '#fecaca',
       };
     }
-    if (id === 'reaction-zone-entry') {
+    if (id === 'reaction-zone-atr' || id === 'reaction-zone-entry') {
       return {
         background: ZONE_MID_FILL,
         border: `1px solid ${ZONE_MID_STROKE}`,
-        caption: '반응·진입',
+        caption: '반응',
         captionColor: '#bfdbfe',
       };
     }
@@ -1543,10 +2649,10 @@ function unifiedDeskUnderChartZonePresentation(
   }
   if (kind === 'bprZone') {
     return {
-      background: ZONE_MID_FILL,
-      border: `1px solid ${ZONE_MID_STROKE}`,
+      background: 'rgba(249,115,22,0.22)',
+      border: '1px solid rgba(249,115,22,0.72)',
       caption: sc(lbl) || 'BPR',
-      captionColor: '#bfdbfe',
+      captionColor: '#fdba74',
     };
   }
   if (kind === 'zone') {
@@ -1633,6 +2739,43 @@ function isAiZoneEngineOverlayId(id: string): boolean {
 const AI_ZONE_MAX_SCREEN_OVERLAYS = 96;
 
 function aiZoneScreenOverlayKeepScore(id: string, kind: string, cat: string): number {
+  if (id.startsWith('merged-desk-rb-core-sr-')) return 130;
+  if (id.startsWith('eagle1-ai-zone--') || id.startsWith('eagle1-entry-zone')) return 125;
+  /** AVWAP 피보·골든포켓·헌팅 — 상한에 안 밀리게 최우선권 */
+  if (id.startsWith('merged-desk-avwap-fib-') || id.startsWith('avwap-fib-')) return 118;
+  if (id.startsWith('merged-desk-evidence-')) return 120;
+  if (id.startsWith('merged-desk-practice-ai-')) return 122;
+  if (id.startsWith('merged-desk-mtf-dump-')) return 121;
+  if (
+    id.startsWith('merged-desk-hotzone-') ||
+    id.startsWith('merged-desk-hq-') ||
+    id.startsWith('merged-desk-core-sr-') ||
+    id.startsWith('merged-swing-mid-') ||
+    id.startsWith('merged-choch-ob-')
+  ) {
+    return 102;
+  }
+  if (
+    id.startsWith('merged-desk-downside-plan-') ||
+    id.startsWith('merged-desk-projected-support') ||
+    id.startsWith('merged-desk-support-rebound')
+  ) {
+    return 101;
+  }
+  if (
+    id.startsWith('merged-ares-') ||
+    id.startsWith('merged-swing-') ||
+    id.startsWith('merged-trade-') ||
+    id.startsWith('merged-smc-') ||
+    id.startsWith('merged-ls-fusion-')
+  ) {
+    if (id.includes('merged-ares-key-') || id.includes('merged-ares-critical-')) return 100;
+    if (id.includes('merged-ares-entry-point-')) return 100;
+    if (id.includes('merged-ares-confirm-')) return 99;
+    if (id.startsWith('merged-swing-regime-')) return 55;
+    return 98;
+  }
+  if (id.startsWith('merged-')) return 92;
   if (isAiZoneEngineOverlayId(id)) {
     if (id === 'ai-zone-main' || id === 'ai-zone-long-ref' || id === 'ai-zone-short-ref' || id === 'ai-zone-invalidation' || id === 'ai-zone-target') return 100;
     if (id === 'ai-zone-status' || id === 'ai-cp-lr-label' || id.startsWith('ai-zone-fallback-')) return 99;
@@ -1653,6 +2796,36 @@ function aiZoneScreenOverlayKeepScore(id: string, kind: string, cat: string): nu
   if (kind === 'trendLine' || kind === 'keyLevel' || kind === 'supportLine' || kind === 'resistanceLine') return 40;
   if (kind === 'label' || kind === 'swingLabel' || kind === 'poi' || kind === 'rsiSignal') return 22;
   return 15;
+}
+
+/** 가시 타임스케일 구간과 겹치는 zone·채널만 — HTF 전역 상한(26) 전에 필터 */
+function overlayIntersectsVisibleTimeWindow(
+  item: {
+    time1?: number;
+    time2?: number;
+    monthDeskEnvelopeStep?: { points?: Array<{ time: number }> };
+  },
+  tMin: number | null,
+  tMax: number | null,
+  padSec: number
+): boolean {
+  if (tMin == null || tMax == null || !Number.isFinite(tMin) || !Number.isFinite(tMax)) return true;
+  const lo = Math.min(tMin, tMax) - padSec;
+  const hi = Math.max(tMin, tMax) + padSec;
+  const md = item.monthDeskEnvelopeStep?.points;
+  if (md?.length) {
+    for (const p of md) {
+      const t = Number(p.time);
+      if (Number.isFinite(t) && t >= lo && t <= hi) return true;
+    }
+    return false;
+  }
+  const t1 = Number(item.time1);
+  const t2 = Number(item.time2 ?? item.time1);
+  if (!Number.isFinite(t1) && !Number.isFinite(t2)) return true;
+  const a = Number.isFinite(t1) ? t1 : t2;
+  const b = Number.isFinite(t2) ? t2 : t1;
+  return b >= lo && a <= hi;
 }
 
 /** 캔들분석: 차트에서 zone·OB·FVG 등 면 요소 전부 숨김(가로선·점선·라벨 등은 유지) */
@@ -1691,6 +2864,8 @@ function overlayMatchesBuySellZoneFocus(item: OverlayItem): boolean {
 function candleAnalysisOverlayIsHiddenZone(o: Record<string, unknown>): boolean {
   if (String(o.category || '') === 'smcDesk') return false;
   const id = String(o.id || '');
+  if (id.startsWith('hotzone-')) return false;
+  if (id.startsWith('fusion-structure-')) return false;
   /** analyze.ts major 지지·저항 띠(핵심 지지/저항 N% …) — 캔들분석·통합작도에서도 MAX와 동일하게 유지 */
   if (/^major-support-\d+-zone$/.test(id) || /^major-resistance-\d+-zone$/.test(id)) return false;
   if (id.startsWith('candle-analysis-hash-fib-')) return false;
@@ -1733,6 +2908,13 @@ function overlayMatchesBulkLabelHide(o: Record<string, unknown>): boolean {
   if (id === 'smc-desk-range-break-label') return false;
   if (id.startsWith('smc-entry-playbook-')) return false;
   if (id.startsWith('smc-composite-')) return false;
+  if (id.startsWith('merged-desk-tv-ls-')) return false;
+  if (id.startsWith('tv-structure-ls-')) return false;
+  if (id.startsWith('month-desk-typeom-')) return false;
+  if (id.startsWith('trade-atlas-')) return false;
+  if (id.startsWith('ref-desk-mtf-')) return false;
+  if (id.startsWith('phz-')) return false;
+  if (id.startsWith('hotzone-')) return false;
   return BULK_LABEL_KINDS.has(String(o.kind || ''));
 }
 
@@ -1754,6 +2936,9 @@ function overlayMatchesBulkHLineHide(o: Record<string, unknown>): boolean {
   if (id.startsWith('candle-analysis-auto-scen-')) return false;
   /** 캔들분석 핵심 뷰: 돌파·이론 경로 — 일괄 가로선 숨김과 분리 */
   if (id.startsWith('candle-analysis-exec-')) return false;
+  /** Trade Atlas: 타점·손절·TP — 일괄 가로선 숨김 예외 */
+  if (id.startsWith('trade-atlas-')) return false;
+  if (id.startsWith('ref-desk-mtf-')) return false;
   /** 캔들분석 AI 작도 */
   if (id.startsWith('candle-analysis-ai-draw-')) return false;
   if (id.startsWith('candle-analysis-hash-fib-')) return false;
@@ -1763,6 +2948,8 @@ function overlayMatchesBulkHLineHide(o: Record<string, unknown>): boolean {
   if (id.startsWith('candle-analysis-brk-') && id.includes('-mid')) return false;
   if (id.startsWith('zone-smbc-') && id.includes('-mid')) return false;
   if (id.startsWith('zone-smbc-') && id.includes('-edge-')) return false;
+  if (id.startsWith('phz-')) return false;
+  if (id.startsWith('hotzone-')) return false;
   const lineKinds = new Set([
     'keyLevel',
     'supportLine',
@@ -1792,6 +2979,7 @@ function overlayMatchesBulkHLineHide(o: Record<string, unknown>): boolean {
       if (Math.abs(p1 - p2) <= eps) return true;
     }
   }
+  if (id.startsWith('month-desk-typeom-')) return false;
   if (id.startsWith('ls-plan-') || id.startsWith('smc-composite-') || id.startsWith('close-') || id.startsWith('settlement-level-') || id.startsWith('settlement-path-')) return true;
   if (id.startsWith('key-')) return true;
   if (id.startsWith('tap-') && !id.includes('zone') && !id.includes('beam-path')) return true;
@@ -1805,12 +2993,17 @@ function overlayMatchesBulkZoneHide(o: Record<string, unknown>): boolean {
   const id = String(o.id || '');
   const cat = String(o.category || '');
   if (isAiZoneEngineOverlayId(id)) return false;
+  if (id.startsWith('phz-')) return false;
   /** analyze 엔진 major 핵심 지지·저항 면 — 일괄 존 숨김에서 제외 */
   if (/^major-support-\d+-zone$/.test(id) || /^major-resistance-\d+-zone$/.test(id)) return false;
   /** 캔들분석 핵심 Supply/Demand 띠 — 일괄 존 숨김과 분리(구조 존만 끄고 CA S/D는 유지) */
   if (id.startsWith('ca-core-') || cat === 'candleAnalysisCoreSd') return false;
+  if (id.startsWith('trade-atlas-') || cat === 'tradeAtlas') return false;
+  /** 통합·분석 ARES zone·ST 구름 — 시각정리(존 일괄 끄기)에서 제외 */
+  if (isMergedAnalysisDeskOverlayId(id)) return false;
   if (id.startsWith('htf-cp-')) return false;
   if (id.startsWith('hotzone-cp-')) return false;
+  if (id.startsWith('hotzone-')) return false;
   if (id.startsWith('ai-auto-')) return false;
   if (id.startsWith('candle-analysis-ai-draw-')) return false;
   if (id.startsWith('candle-analysis-hash-fib-')) return false;
@@ -1825,6 +3018,7 @@ function overlayMatchesBulkZoneHide(o: Record<string, unknown>): boolean {
   if (cat === 'patternVision' && /zone|neckline|resistance|support/i.test(id)) return true;
   if (id.startsWith('settlement-zone-')) return true;
   if (cat === 'smcDesk') return true;
+  if (id.startsWith('month-desk-typeom-')) return false;
   return false;
 }
 
@@ -1867,7 +3061,17 @@ function candleOpenContainingTime(candles: Candle[], entrySec: number): number |
     }
   }
   if (ans < 0) return null;
-  return candles[ans].time as number;
+  const openT = candles[ans]!.time as number;
+  const lastIdx = n - 1;
+  if (ans === lastIdx) {
+    const prevT = ans > 0 ? (candles[ans - 1]!.time as number) : openT;
+    const barDur = Math.max(60, openT - prevT);
+    if (entrySec > openT + barDur * 1.02) return null;
+  } else {
+    const nextOpen = candles[ans + 1]!.time as number;
+    if (entrySec >= nextOpen) return null;
+  }
+  return openT;
 }
 
 /** 자율학습 SL 실패 목록 → 봉 시가 기준 키 (L/S·로켓 숨김) */
@@ -1950,17 +3154,27 @@ type ChartMarkerRow = {
  * 축소/확대 시 같은 봉·같은 위치에 여러 마커가 겹치면 렌더 우선순위가 프레임마다 달라 보일 수 있음.
  * 핵심 신호(상위TF 강화⚡, 구조로켓🚀/📉, L/S, 선반영)를 봉 슬롯별로 1개로 안정화해 깜빡임을 줄인다.
  */
-function stabilizeSignalMarkers(rows: ChartMarkerRow[]): ChartMarkerRow[] {
+function stabilizeSignalMarkers(
+  rows: ChartMarkerRow[],
+  candleTimes?: Iterable<number> | null
+): ChartMarkerRow[] {
   const posRank = (p: ChartMarkerRow['position']): number => (p === 'aboveBar' ? 0 : p === 'inBar' ? 1 : 2);
   const pri = (t: string): number => {
+    /** 채널 핵심 이모티콘 — 같은 봉의 L/S·SH에 덮이지 않게 최상위 */
+    if (t.includes('❌') || t.includes('✅') || t.includes('◆')) return 520;
+    if (t.includes('⚡') && (t.includes('↑') || t.includes('↓'))) return 510;
     if (t.includes('⚡')) return 400;
-    if (t.includes('🚀') || t.includes('📉')) return 300;
+    if (t.includes('ST') || t.includes('☁')) return 320;
+    if (t.includes('🧱') || t.includes('구조밀림')) return 360;
+    if (t.includes('🚀') || t.includes('📉')) return 500;
+    if (/^[123]·/.test(t.trim()) || t.includes('가짜돌파') || t.includes('재시험')) return 280;
     if (/^(L|S)(?:·|$)/.test(t) || /^L·|^S·/.test(t)) return 200;
     if (t.startsWith('선반영')) return 150;
     return 10;
   };
+  const cleaned = sanitizeSeriesMarkersForLwc(rows, candleTimes);
   const out = new Map<string, ChartMarkerRow>();
-  for (const r of rows) {
+  for (const r of cleaned) {
     const key = `${Number(r.time)}|${r.position}`;
     const prev = out.get(key);
     if (!prev) {
@@ -1995,6 +3209,39 @@ function formatOverlayPrice(p: number): string {
   if (p >= 1) return p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   if (p >= 0.01) return p.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 });
   return p.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 8 });
+}
+
+/** 핵심돌파·안착·실패 OFF 시, 그 면에 붙은 축 가격태그만 숨김 (차트 전체 가격 아님) */
+function isMergedDeskRbCoreAttachedPriceOff(
+  price: number,
+  overlays: Array<{ id?: string; price1?: number; price2?: number }>,
+  settings: UserSettings,
+  hiddenIds: Iterable<string>
+): boolean {
+  if (!Number.isFinite(price)) return false;
+  for (const o of overlays) {
+    const id = String(o?.id || '');
+    const face = id.startsWith('merged-desk-rb-core-break')
+      ? '핵심돌파'
+      : id.startsWith('merged-desk-rb-core-settle')
+        ? '핵심안착'
+        : id.startsWith('merged-desk-rb-core-fail')
+          ? '핵심실패'
+          : '';
+    if (!face) continue;
+    const layer =
+      face === '핵심돌파' ? 'rb-core-break' : face === '핵심안착' ? 'rb-core-settle' : 'rb-core-fail';
+    const faceOff = !isEuromapLayerOn(settings, layer) || isChartTextPillLabelHidden(face, hiddenIds);
+    if (!faceOff) continue;
+    const a = Number(o.price1);
+    const b = Number(o.price2);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const pad = Math.max(Math.abs(hi - lo) * 0.05, Math.abs(price) * 1e-5);
+    if (price >= lo - pad && price <= hi + pad) return true;
+  }
+  return false;
 }
 
 function extractTelegramCpHotLinesFromOverlays(pool: OverlayItem[]): { cpLine: string | null; hotzoneLine: string | null } {
@@ -2034,7 +3281,8 @@ function extractTelegramCpHotLinesFromOverlays(pool: OverlayItem[]): { cpLine: s
   return { cpLine, hotzoneLine };
 }
 
-const TELEGRAM_1M_TEXT_COOLDOWN_MS = 90_000;
+/** 확정 신호만내도록 한 뒤에도 동일 키 연타 방지 */
+const TELEGRAM_1M_TEXT_COOLDOWN_MS = 300_000;
 
 /** 1m 텔레 본문 보강: 인근 강(수·공급)존, LinReg 밴드 한 줄씩(최대 3) */
 function extractTelegramZoneBandSummaryLines(pool: OverlayItem[], lastClose: number): string[] {
@@ -2190,7 +3438,18 @@ function parseCloseSettlementMarkType(label: string | undefined | null): 'good' 
 }
 
 function closeTfFromId(id: string): string {
-  const s = String(id || '').toLowerCase();
+  const raw = String(id || '');
+  const s = raw.toLowerCase();
+  if (s.startsWith('close-settle-') || s.startsWith('settle-close-')) {
+    const token = s.replace(/^close-settle-/, '').replace(/^settle-close-/, '');
+    if (token === '1mo' || token === '1mth' || token === 'monthly') return '1M';
+    if (token === '1w' || token === 'weekly') return '1W';
+    if (token === '1d' || token === 'daily') return '1D';
+    if (token === '4h') return '4H';
+    if (token === '1h') return '1H';
+    if (token === '15m') return '15M';
+    return token.toUpperCase();
+  }
   /** close-1m(1분)은 substring '1m'만 보면 월봉 1M과 충돌 — id 전체로 구분 */
   if (s === 'close-monthly' || s.includes('close-monthly')) return '1M';
   if (s === 'close-weekly' || s.includes('close-weekly')) return '1W';
@@ -2213,6 +3472,11 @@ function closeTfFromId(id: string): string {
 }
 const PRICE_AXIS_RESERVE_PX = 80;
 const PRICE_STRIP_PADDING_PX = 14;
+
+/** 마감·안착 융합(CP/LinReg/HZ): 긴 TF·저TF 고봉수에서 Chart Prime·폴링 비용 폭증 방지 — 최근 구간만 엔진 돌리고 앞은 0/null 패드 */
+const MONTH_DESK_CP_LR_FUSION_MAX_BARS = 260;
+/** 밴드용 구조 하이라이트 맵은 최근 구간만(오래된 봉 색보조는 비용 대비 체감 낮음) */
+const MONTH_DESK_STRUCTURE_BAND_TAIL_BARS = 300;
 
 function toSolidOverlayColor(c: string | undefined): string {
   if (!c) return '#e2e8f0';
@@ -2306,6 +3570,12 @@ const ChartViewInner = ({
   mtfSignals = [],
   hotZoneEmbed = 'off',
   suppressHotZoneHud = false,
+  mergedDeskPack: mergedDeskPackProp = null,
+  useParentMergedDeskPack = false,
+  mergedStrikeBundle: mergedStrikeBundleProp = null,
+  onMirageZoneSelect,
+  selectedMirageZoneId = null,
+  onMergedDeskChartCandlesChange,
 }: {
   symbol: string;
   timeframe: string;
@@ -2339,6 +3609,20 @@ const ChartViewInner = ({
   hotZoneEmbed?: 'off' | 'left' | 'right';
   /** 듀얼 시 우측 패널은 HUD 중복 방지 */
   suppressHotZoneHud?: boolean;
+  /** 통합·분석 — MergedAnalysisDeskView에서 이미 계산한 pack (중복 runMergedAnalysisDeskEngine 방지) */
+  mergedDeskPack?: MergedAnalysisDeskPack | null;
+  /** true면 Strike·fusion·desk 엔진을 ChartView에서 재계산하지 않음 (첫 paint 프리즈 방지) */
+  useParentMergedDeskPack?: boolean;
+  /** 통합·분석 — 부모 MergedAnalysisDeskView strike bundle (밴드·fusion용) */
+  mergedStrikeBundle?: MonthDeskStrikeDeskBundle | null;
+  /** Mirage TV zone 클릭 → Zone 인텔 패널 */
+  onMirageZoneSelect?: (zoneId: string) => void;
+  selectedMirageZoneId?: string | null;
+  /**
+   * 통합·분석 — 차트 선택 TF 마켓 캔들(표시축)을 부모 desk 엔진에 전달.
+   * 15m 분석 판정은 analysis 유지, 존·지지/저항 기하는 이 시리즈로 작도.
+   */
+  onMergedDeskChartCandlesChange?: (candles: Candle[], chartTf?: string) => void;
 }) => {
   const normalizeUiMode = (mode: unknown): UIMode => {
     const raw = String(mode ?? '').trim();
@@ -2373,8 +3657,70 @@ const ChartViewInner = ({
     minProbabilityEdge: number;
     minConditionsMet: number;
   }>(null);
-  const unifiedDeskMode = uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE';
+  const unifiedDeskMode = uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE' || uiMode === 'FUSION_MODE';
+  const isAiZoneDesk = uiMode === 'AI_ZONE';
+  const isZoneLineProDesk = isZoneLineProMode(uiMode);
+  const isMonthStartDeskMode = isMonthDeskChartMode(uiMode);
+  const isMergedAnalysisDesk = isMergedAnalysisDeskMode(uiMode);
+  /** AI 앱 연동 — 통합·마감·존라인·AI존·고래 동일 Strike/펄스/거래량 파이프 */
+  const isDeskPulseFamily = isDeskPulseChartMode(uiMode);
+  const tradeRailLinesOn = isTradeRailLineMode(uiMode);
+  const isReferenceDeskMode = uiMode === 'REFERENCE_DESK';
+  /** 종가 마감 보드 — settings 선언 전이라 심볼만으로 fetch (표시는 종가마감 토글로 필터) */
+  const closeSettleBoardEnabled = Boolean(String(symbol || '').trim());
+  const {
+    board: monthDeskCloseSettleBoard,
+    error: tfCloseSettleBoardError,
+    loading: tfCloseSettleBoardLoading,
+  } = useTfCloseSettleBoard(symbol, closeSettleBoardEnabled);
+  /** 기본은 TF별 동일 참조; 마감·안착만 예산을 더 보수적으로(폴링·HTML 오버레이·근접 스캔 완화) */
+  const chartPerf = useMemo(() => {
+    /** 통합·분석 — 4h 참조형 zone·오버레이 예산을 분·시·일·주·월 전 TF에 동일 적용 */
+    const perfTf = isMergedAnalysisDesk ? '4h' : timeframe;
+    const base = chartPerfBudget(perfTf);
+    if (!isDeskPulseFamily) return base;
+    const unifiedPulsePerfOn =
+      !isZoneLineProDesk &&
+      (isMergedAnalysisDesk || isMonthDeskUnifiedPulseEngineOn(loadSettings()));
+    if (unifiedPulsePerfOn) {
+      if (isMergedAnalysisDesk) {
+        /** DOM 상한 유지(숨김 금지) · 폴링·stride·settle만 완화 — 렉 주원인 90ms 무stride 폴링 제거 */
+        const desk = mergedDeskInteractionPerf(base, timeframe);
+        return {
+          ...desk,
+          maxScreenOverlaysNonAiZone: Math.max(220, desk.maxScreenOverlaysNonAiZone),
+          proximitySkipWhenOverlayCountGte: Math.max(80, desk.proximitySkipWhenOverlayCountGte),
+          deferOverlayWhileInteracting: false,
+        };
+      }
+      return {
+        ...base,
+        /** pan 중 LWC만 — geometry 폴링은 idle에만 (구 32ms는 손가락 끊김) */
+        geometryPollMs: Math.max(720, base.geometryPollMs + 480),
+        geometryPollStride: Math.min(12, base.geometryPollStride + 7),
+        maxScreenOverlaysNonAiZone: Math.min(26, Math.max(18, base.maxScreenOverlaysNonAiZone - 48)),
+        proximitySkipWhenOverlayCountGte: Math.max(8, base.proximitySkipWhenOverlayCountGte - 28),
+        wsOverlayDebounceMs: base.wsOverlayDebounceMs + 520,
+        interactionSettleMs: base.interactionSettleMs,
+        deferOverlayWhileInteracting: true,
+      };
+    }
+    return {
+      ...base,
+      /** 줌·패닝 시 setOverlayTick·screenOverlays 폭주 완화 — 인터랙션 우선 */
+      geometryPollMs: Math.min(420, base.geometryPollMs + 220),
+      geometryPollStride: Math.min(9, base.geometryPollStride + 4),
+      maxScreenOverlaysNonAiZone: Math.min(44, Math.max(36, base.maxScreenOverlaysNonAiZone - 28)),
+      proximitySkipWhenOverlayCountGte: Math.max(12, base.proximitySkipWhenOverlayCountGte - 20),
+      wsOverlayDebounceMs: base.wsOverlayDebounceMs + 280,
+    };
+  }, [timeframe, isDeskPulseFamily, isZoneLineProDesk, isMergedAnalysisDesk]);
+  const fusionPerfLite =
+    uiMode === 'FUSION_MODE' && normalizeChartTimeframe(String(timeframe || '')) === '1h';
   const candleAnalysisLikeUi = uiMode === 'CANDLE_ANALYSIS' || unifiedDeskMode;
+  /** API 분석 TF≠차트 TF면 엔진 오버레이·합성 패치 금지 — TF 전환 직후 연산 폭증·착시 방지 */
+  /** 통합·분석: 15m 공동 분석을 분·시·일·주·월 차트에 그대로 사용 */
+  const analysisMatchesTf = analysisUsableOnChart(analysis, symbol, timeframe, uiMode);
 
   const selectTimeframe = useCallback(
     (tf: string) => {
@@ -2500,38 +3846,277 @@ const ChartViewInner = ({
   const frameRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const lastFittedRef = useRef<string>('');
+  /** 마감·안착: 새 봉 시각이 바뀔 때만 timeScale을 최신 캔들에 맞춤(미래 LineSeries 시각 제거 후) */
+  const monthDeskCandleTailScrollRef = useRef<number>(0);
+  /** 프로그램이 scroll/focus 할 때 패닝 감지를 잠시 끔 */
+  const mergedDeskSuppressPanDetectRef = useRef(false);
+  /**
+   * 통합·분석 — 분·시·일·주·월 공동 pan.
+   * true = 사용자가 drag로 최신봉에서 벗어남 → setData/새봉이 우측으로 되돌리지 않음 (1d와 동일)
+   */
+  const mergedDeskUserPanLockRef = useRef(false);
+  /** 포인터로 드래그 중 — setData가 viewport를 건드리지 않게 */
+  const mergedDeskPanGestureRef = useRef(false);
+  /** 마지막 사용자 pan 시각 — 직후 applyFocus/restore 금지 */
+  const mergedDeskLastUserPanAtRef = useRef(0);
+  /** drag 중·잠금 시 복원할 논리 가시구간 (전 TF 공동) */
+  const mergedDeskSavedLogicalRangeRef = useRef<{ from: number; to: number } | null>(null);
+  /** TF·심볼 전환 구분 — TF만 바뀔 때 우측 스냅·패닝 잠금 해제 금지 */
+  const mergedDeskNavRef = useRef({ symbol: '', timeframe: '' });
+  /** TF만 바뀐 마켓 로드 — setData 시 이전 TF 논리범위 복원 금지, 캔들 도착 후 1회 최신 정렬 */
+  const mergedDeskTfOnlyLoadRef = useRef(false);
+  /** 심볼·TF 전환 후 캔들이 늦게 와도 applyFocusLatestBars 1회 보장 */
+  const mergedDeskPendingTfFitRef = useRef(false);
+  /** 통합·분석 — setData와 동일 tail 캔들 (screenOverlays time→X 동기) */
+  const chartSeriesCandlesRef = useRef<Candle[]>([]);
+  /** market 로드 직전 심볼·TF — TF만 바뀐 경우 가시구간 전체 리셋 스킵에 사용 */
+  const lastMarketFitContextRef = useRef<{ symbol: string; timeframe: string } | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  /** 마감·안착: 미래 예측(고스트) 캔들 — 흰색 보조 시리즈 */
+  const projectedSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   /** RSI 다이버전스 등 캔들 마커 (lightweight-charts v5 플러그인) */
   const rsiMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   /** WAD 고래 BUY/SELL — 거래량 히스토그램 시리즈 마커 */
   const volumeMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   /** B: 봉 time → 클릭 시 표시할 마커 설명 줄들 */
   const markerBarDetailRef = useRef<Map<number, string[]>>(new Map());
+  /** 기관밴드 터치 원본(클릭 카드용) */
+  const ibTouchEventsRef = useRef<Map<number, InstitutionalBandInteractionMarker[]>>(new Map());
+  /** AVWAP 축 라벨 스냅(클릭 카드용) */
+  const avwapExplainSnapsRef = useRef<AvwapExplainSnap[]>([]);
   /** 4요소 확정 시 진입·손절·목표 가격선 */
   const executionPriceLinesRef = useRef<unknown[]>([]);
   /** BOS+리테스트+RSI/안착 구조 세트업 가격선 */
   const structureTradePriceLinesRef = useRef<unknown[]>([]);
+  /** 마감·안착: 현재 차트 TF의 전봉(확정) 고·저 참고선 */
+  const monthDeskPriorHiLoPriceLinesRef = useRef<unknown[]>([]);
+  /** 종가 마감·안착·실패 — 캔들 위 LineSeries 가로선 (15m~1M) */
+  const tfCloseSettleLineSeriesRef = useRef<ISeriesApi<'Line'>[]>([]);
+  const monthDeskVolumeShockPriceLinesRef = useRef<unknown[]>([]);
+  const whaleBeamPriceLinesRef = useRef<unknown[]>([]);
+  const [volumeShockGuide, setVolumeShockGuide] = useState<VolumeShockChartGuide | null>(null);
+  const [volumeShockResult, setVolumeShockResult] = useState<VolumeShockForecastResult | null>(null);
+  const [volumePhaseCurrent, setVolumePhaseCurrent] = useState<
+    import('@/lib/volumePhaseStats').VolumePhaseCurrentMatch | null
+  >(null);
+  const [whaleVolumeMatch, setWhaleVolumeMatch] = useState<WhaleVolumeLiveMatch | null>(null);
+  const [whaleVolumeMtf, setWhaleVolumeMtf] = useState<WhaleVolumeMtfPack | null>(null);
+  const [whaleVolumeListingKo, setWhaleVolumeListingKo] = useState<string | null>(null);
+  const [whaleCatalogSpanKo, setWhaleCatalogSpanKo] = useState<string | null>(null);
+  const [whaleVolumeLoading, setWhaleVolumeLoading] = useState(false);
+  const [whaleCandleSingle, setWhaleCandleSingle] = useState<SingleCandleCompare | null>(null);
+  const [whaleCandleRange, setWhaleCandleRange] = useState<RangeSegmentCompare | null>(null);
+  const [whaleBeamIntel, setWhaleBeamIntel] = useState<WhaleBeamIntelPack | null>(null);
+  const [whaleCompareOpen, setWhaleCompareOpen] = useState(false);
+  const [whaleComparePack, setWhaleComparePack] = useState<BitgetWhaleVolumeComparePack | null>(null);
+  const [whaleCompareMtf, setWhaleCompareMtf] = useState<WhaleVolumeMtfPack | null>(null);
+  const [whaleCompareLoading, setWhaleCompareLoading] = useState(false);
+  const monthDeskScenarioInputRef = useRef<Candle[]>([]);
+  const monthDeskFusionInputRef = useRef<Candle[]>([]);
   const volumeRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const volumeBuyRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const volumeMaRef = useRef<ISeriesApi<'Line'> | null>(null);
   const zoneRangeSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const closeRangeSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-  /** TV식 SuperTrend 스텝 — 롱=아래 초록, 숏=위 빨강 */
+  /** 마감 존: 하한 스텝(시안)·상한 스텝(로즈) — 마감·안착에서만 설정값과 구분, 참고 UI의 마감존하 / 마감존상 */
   const institutionalLongLineRef = useRef<ISeriesApi<'Line'> | null>(null);
   const institutionalShortLineRef = useRef<ISeriesApi<'Line'> | null>(null);
+  /** 마감·안착: 롱/숏 구간별 색상 마감존(상·하한 쌍) */
+  const institutionalEnvelopeSegRefsRef = useRef<Array<{ upper: ISeriesApi<'Line'>; lower: ISeriesApi<'Line'> }>>([]);
+  const monthDeskCompositeGuideRefsRef = useRef<ISeriesApi<'Line'>[]>([]);
+  /** 연합 Triple Trend — BigBeluga 3밴드 + 융합 시그널 */
+  const fusionDeskBandSegRefsRef = useRef<Array<{ upper: ISeriesApi<'Line'>; lower: ISeriesApi<'Line'> }>>([]);
+  const tripleTrendBandLineRefsRef = useRef<ISeriesApi<'Line'>[]>([]);
+  const fusionDeskBandMidRefsRef = useRef<ISeriesApi<'Line'>[]>([]);
+  const atlasPulsePriceLineRefsRef = useRef<ISeriesApi<'Line'>[]>([]);
+  /** 통합·분석 E/SL/TP — LWC 가격축 점선 (마감·안착 atlas 라인과 분리) */
+  const mergedDeskPriceLineRefsRef = useRef<ISeriesApi<'Line'>[]>([]);
+  /** 통합·분석 E/SL/TP 축 라벨용 createPriceLine */
+  const mergedDeskTradeAxisPriceLinesRef = useRef<unknown[]>([]);
+  /** 마감·안착: ST 밴드 중심(참고) — 점선 */
+  const monthDeskMidLineRefsRef = useRef<ISeriesApi<'Line'>[]>([]);
+  /** 마감·안착: 존선 다중 시리즈 재구성을 연속 state 갱신에 합쳐 메인 스레드 점유 완화 */
+  const monthDeskInstitutionalFxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const monthDeskInstitutionalIdleRef = useRef<number | null>(null);
+  const monthDeskInstitutionalLastFxSigRef = useRef('');
   const powerLawCenterRef = useRef<ISeriesApi<'Line'> | null>(null);
   const powerLawSupportRef = useRef<ISeriesApi<'Line'> | null>(null);
   const powerLawResistanceRef = useRef<ISeriesApi<'Line'> | null>(null);
+  /** 통합·분석 — Anchored VWAP (고점·저점 모두 고가·시가) */
+  const mergedDeskAvwapHighExtRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const mergedDeskAvwapHighOpenRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const mergedDeskAvwapLowExtRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const mergedDeskAvwapLowOpenRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const mergedDeskAvwapAxisPriceLinesRef = useRef<unknown[]>([]);
+  /** 사용자 더블클릭 AVWAP 핀 시리즈 */
+  const mergedDeskAvwapUserSeriesRef = useRef<
+    Array<{ id: string; ext: ISeriesApi<'Line'>; open: ISeriesApi<'Line'> }>
+  >([]);
+  /** 세션 VWAP · POI 밴드 (기존 AVWAP 유지) */
+  const mergedDeskSessionVwapRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const mergedDeskAvwapPoiBandRefs = useRef<
+    Array<{ upper: ISeriesApi<'Line'>; lower: ISeriesApi<'Line'> }>
+  >([]);
+  /** AVWAP 줄선 시그널 원형 마커 (카드 아님) */
+  const mergedDeskAvwapLineMarkersRef = useRef<{
+    highExt: ISeriesMarkersPluginApi<Time> | null;
+    highOpen: ISeriesMarkersPluginApi<Time> | null;
+    lowExt: ISeriesMarkersPluginApi<Time> | null;
+    lowOpen: ISeriesMarkersPluginApi<Time> | null;
+  }>({ highExt: null, highOpen: null, lowExt: null, lowOpen: null });
   const overlayTickDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** 차트 스크롤/줌 시 setState 폭주 방지 — 프레임당 1회만 오버레이 좌표 갱신 */
   const overlayRafRef = useRef<number | null>(null);
+  /**
+   * 거래소급 인터랙션 — pan/pinch 중 overlay·분석 defer, tip-only update, CSS viewport transform.
+   */
+  const chartIxRef = useRef(createChartInteractionKernel());
+  const featureExplainDismissRef = useRef<() => void>(() => {});
+  const chartTouchClickGuardRef = useRef<ChartTouchClickGuard | null>(null);
+  if (!chartTouchClickGuardRef.current) {
+    chartTouchClickGuardRef.current = createChartTouchClickGuard({
+      onPinchStart: () => featureExplainDismissRef.current(),
+    });
+  }
+  const overlayUnderLayerRef = useRef<HTMLDivElement | null>(null);
+  const overlayFrontLayerRef = useRef<HTMLDivElement | null>(null);
+  const chartSeriesTipSigRef = useRef<{
+    len: number;
+    firstT: number;
+    lastT: number;
+    tipOhlc: string;
+  } | null>(null);
+  /** pan/zoom 중 desk 엔진 콜백 defer — idle flush */
+  const mergedDeskEngineWorkPendingRef = useRef<{ work: Candle[]; tf: string } | null>(null);
+  const flushMergedDeskEngineWorkRef = useRef<(() => void) | null>(null);
   /**
    * 가로(논리 범위)·세로(가격 범위) 줌/패닝 시 timeScale 콜백이 빠지는 프레임이 있어
    * HTML 존·라벨이 캔들에서 떨어져 보임 — 직전 차트 기하 시그니처로 폴링 보강.
    */
   const lastOverlayChartGeometrySigRef = useRef<string>('');
+  /** TF 변경 시에도 최신 예산으로 스트라이드·폴링 간격 반영 */
+  const chartPerfRef = useRef(chartPerf);
+  chartPerfRef.current = chartPerf;
+  const chartGeomStrideCounterRef = useRef(0);
+  /** 차트 effect 안에서 정의 후 할당 — TF별 interval effect에서 호출 */
+  const syncHtmlOverlaysFromChartGeometryRef = useRef<(() => void) | null>(null);
   /** 심볼/TF 바뀔 때 이전 /api/market 요청 취소 — 느린 응답이 새 차트를 덮어쓰지 않게 */
   const marketFetchAbortRef = useRef<AbortController | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
+  /** Anchored VWAP 앵커용 일/주봉 (분·시봉 차트에서 공용) */
+  const [avwapHtfCandles, setAvwapHtfCandles] = useState<Candle[]>([]);
+  /** 기관밴드 포락 연동용 상위 TF 캔들 */
+  const [envelopeHtfCandles, setEnvelopeHtfCandles] = useState<Candle[]>([]);
+  const [envelopeHtfTf, setEnvelopeHtfTf] = useState<string | null>(null);
+  /** 사용자 핀 찍은 TF 캔들 — 1h 히스토리 부족 시 HTF 계산 후 투영 */
+  const [avwapPinAnchorByTf, setAvwapPinAnchorByTf] = useState<
+    Record<string, Candle[]>
+  >({});
+  /**
+   * 마감·안착만: `visibleLimit` + 워밍업으로 우측 봉만 사용(고래·일반 차트는 전량).
+   * 존·융합·CP/LinReg는 과거 전 구간이 필요 없어 TF 전환 시 메인 스레드 점유가 크게 줄어듦.
+   */
+  const monthDeskHeavyBarCap = useMemo(() => {
+    if (!isDeskPulseFamily) return 0;
+    /** 통합·분석 — 차트·오버레이 전량 캔들 (cap 없음) */
+    if (isMergedAnalysisDesk) return 0;
+    const lim = visibleLimit(timeframe);
+    return Math.min(920, Math.max(280, Math.round(lim + lim * 0.42 + 160)));
+  }, [isDeskPulseFamily, isMergedAnalysisDesk, timeframe]);
+
+  const candlesForMonthDeskWork = useMemo(() => {
+    if (!isDeskPulseFamily || monthDeskHeavyBarCap <= 0) return candles;
+    if (candles.length <= monthDeskHeavyBarCap) return candles;
+    return candles.slice(-monthDeskHeavyBarCap);
+  }, [isDeskPulseFamily, candles, monthDeskHeavyBarCap]);
+
+  /**
+   * 통합·분석 엔진 work 윈도 — **차트 선택 TF 마켓 캔들만**.
+   * 로드 경로에서 이미 sanitize된 candles를 재사용(LRU+중복 정제 생략).
+   * 분석(verdict·desk pack)은 15m 유지, 기하/setData 축은 마켓 TF.
+   */
+  const candlesForMergedDeskEngine = useMemo(() => {
+    if (isMergedAnalysisDesk) {
+      const live = sanitizeChartCandlesForSeries(candlesForMonthDeskWork, timeframe);
+      return live.length >= 2 ? resolveMergedDeskCanonicalCandles(live, live, timeframe) : live;
+    }
+    const live = sanitizeChartCandlesForSeries(candlesForMonthDeskWork, timeframe);
+    const analysisCandles =
+      analysisMatchesTf &&
+      analysis?.candles &&
+      analysis.candles.length >= 12
+        ? sanitizeChartCandlesForSeries(analysis.candles as Candle[], timeframe)
+        : live;
+    return live.length >= 12 ? live : analysisCandles;
+  }, [
+    candlesForMonthDeskWork,
+    isMergedAnalysisDesk,
+    analysisMatchesTf,
+    analysis,
+    timeframe,
+  ]);
+
+  /**
+   * 통합·분석 차트 표시 축 — setData·라벨·마커·EN면 라벨과 동일.
+   * 항상 마켓 선택 TF (15m 분석 시리즈 금지). 1d/1w/1M은 2017~전량.
+   */
+  const candlesForMergedDeskChart = useMemo(() => {
+    if (!isMergedAnalysisDesk) return [] as Candle[];
+    /** 전 TF 공동 sanitize(갭 메움) — 스킵하면 부시리즈 time이 축에 빈 칸을 만듦 */
+    const live = sanitizeChartCandlesForSeries(candles, timeframe);
+    if (live.length < 2) return live;
+    return mergedDeskChartDisplayCandles(live, timeframe);
+  }, [isMergedAnalysisDesk, candles, timeframe]);
+
+  /**
+   * 부모 desk 엔진 — **엔진 work 윈도(≤480)** 만 전달.
+   * 1d/1w/1M 전량(2017~)을 넘기면 sanitize·엔진이 TF 전환마다 메인스레드를 막음.
+   * 차트 setData 전량은 candlesForMergedDeskChart 경로 유지(숨김·삭제 없음).
+   */
+  useEffect(() => {
+    if (!isMergedAnalysisDesk || !onMergedDeskChartCandlesChange) return;
+    const work =
+      candlesForMergedDeskEngine.length >= 12
+        ? candlesForMergedDeskEngine
+        : candlesForMergedDeskChart.length >= 12
+          ? candlesForMergedDeskChart.slice(-480)
+          : candlesForMergedDeskChart;
+    const payload = { work, tf: timeframe };
+    flushMergedDeskEngineWorkRef.current = () => {
+      const pending = mergedDeskEngineWorkPendingRef.current;
+      if (!pending || !onMergedDeskChartCandlesChange) return;
+      mergedDeskEngineWorkPendingRef.current = null;
+      onMergedDeskChartCandlesChange(pending.work, pending.tf);
+    };
+    /** TF·심볼 전환 직후는 pan defer 무시 — 기능 엔진이 빈 캔들에 고정되는 것 방지 */
+    const forcePush = mergedDeskPendingTfFitRef.current || mergedDeskTfOnlyLoadRef.current;
+    if (!forcePush && chartIxRef.current.shouldDeferAnalysis()) {
+      mergedDeskEngineWorkPendingRef.current = payload;
+      const settleMs = Math.max(160, chartPerfRef.current.interactionSettleMs ?? 140);
+      const flushTimer = window.setTimeout(() => {
+        flushMergedDeskEngineWorkRef.current?.();
+      }, settleMs + 40);
+      return () => {
+        window.clearTimeout(flushTimer);
+        flushMergedDeskEngineWorkRef.current = null;
+      };
+    }
+    mergedDeskEngineWorkPendingRef.current = null;
+    onMergedDeskChartCandlesChange(work, timeframe);
+    return () => {
+      flushMergedDeskEngineWorkRef.current = null;
+    };
+  }, [
+    isMergedAnalysisDesk,
+    onMergedDeskChartCandlesChange,
+    candlesForMergedDeskEngine,
+    candlesForMergedDeskChart,
+    timeframe,
+  ]);
+  const deferredCandlesForMergedDeskEngine = useDeferredValue(candlesForMergedDeskEngine);
+
+  /** createChart teardown 후에도 시리즈 ref가 남으면 SuperTrend 등 라인이 새 차트에 안 붙음 — 마운트마다 증가 */
+  const [chartInstanceId, setChartInstanceId] = useState(0);
   /** pre3 반짝 캔들 본체 펄스(0/1) — prefers-reduced-motion이면 고정 */
   const [sparklePulse, setSparklePulse] = useState(0);
   /** 탭 복귀·가시성 복귀 시 캔들 per-bar 색 재적용 (모바일 Safari 등) */
@@ -2539,6 +4124,10 @@ const ChartViewInner = ({
   /** chartCandleRuleDebug: 크로스헤어 위 봉의 캔들 색 규칙 한 줄 */
   const [candlePaintDebugLine, setCandlePaintDebugLine] = useState('');
   const [overlayTick, setOverlayTick] = useState(0);
+  /** createChart 내부 scheduleOverlayRefresh에서 최신 모드 참조 — 줌 시 마감·안착만 스로틀 */
+  const uiModeOverlayRef = useRef(uiMode);
+  uiModeOverlayRef.current = uiMode;
+  const lastMonthDeskPanOverlayTickAtRef = useRef(0);
   /** 통합작도: TV식 상단 저항·하단 지지 밴드 + BB 리본 (캔들 뒤 HTML 레이어) */
   const [unifiedTvBands, setUnifiedTvBands] = useState<{
     resist: { top: number; height: number } | null;
@@ -2548,9 +4137,62 @@ const ChartViewInner = ({
   } | null>(null);
   /** SMC 데스크: 탭당 1회 환영 토스트(sessionStorage) */
   const [smcDeskWelcomeToast, setSmcDeskWelcomeToast] = useState<string | null>(null);
+  const [fusionHudCollapsed, setFusionHudCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem('ailongshort-fusion-hud-collapsed-v1') === '1';
+    } catch {
+      return false;
+    }
+  });
   /** SMC 데스크 · 합성: 리플레이 슬라이더(과거 봉 종가 근사) */
   const [smcCompositeReplayOffset, setSmcCompositeReplayOffset] = useState(0);
-  /** SuperTrend 우측 요약 배지 */
+  const [fusionShowLegacy, setFusionShowLegacy] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      return window.localStorage.getItem('ailongshort-fusion-show-legacy-v1') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const [fusionShowNew, setFusionShowNew] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      return window.localStorage.getItem('ailongshort-fusion-show-new-v1') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const [fusionZoneExtendPct, setFusionZoneExtendPct] = useState<number>(() => {
+    if (typeof window === 'undefined') return 85;
+    try {
+      const raw = Number(window.localStorage.getItem('ailongshort-fusion-zone-extend-pct-v1') ?? '85');
+      return Number.isFinite(raw) ? Math.max(0, Math.min(100, Math.round(raw))) : 85;
+    } catch {
+      return 85;
+    }
+  });
+  const [fusionLineExtendPct, setFusionLineExtendPct] = useState<number>(() => {
+    if (typeof window === 'undefined') return 85;
+    try {
+      const raw = Number(window.localStorage.getItem('ailongshort-fusion-line-extend-pct-v1') ?? '85');
+      return Number.isFinite(raw) ? Math.max(0, Math.min(100, Math.round(raw))) : 85;
+    } catch {
+      return 85;
+    }
+  });
+  const [fusionNewsAutoStatus, setFusionNewsAutoStatus] = useState<string>('뉴스 자동 동기화 대기');
+  const [fusionNewsAutoCount, setFusionNewsAutoCount] = useState<number>(0);
+  const [fusionTopToolsOpen, setFusionTopToolsOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      return window.localStorage.getItem('ailongshort-fusion-top-tools-open-v1') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const [fusionNewsListOpen, setFusionNewsListOpen] = useState<boolean>(false);
+  /** 마감·안착 제외 모드에서만 — SuperTrend 요약 배지 */
   const [institutionalBadge, setInstitutionalBadge] = useState<{
     lastDir: 'long' | 'short';
     lastLinePrice: number | null;
@@ -2558,6 +4200,126 @@ const ChartViewInner = ({
     currentTrendStartTime: number | null;
   } | null>(null);
   const [lsRocketHud, setLsRocketHud] = useState<LsRocketHudItem[]>([]);
+
+  /** 마지막 봉이 바뀔 때만 갱신 — 매 틱 `candles` 참조로 로켓 HUD·좌표 useMemo가 연쇄 도는 것 방지 */
+  const candleTailLen = candles.length;
+  const candleTailOpenTime = candleTailLen > 0 ? Number(candles[candleTailLen - 1].time) : null;
+  if (isMonthStartDeskMode) monthDeskScenarioInputRef.current = candlesForMonthDeskWork;
+  const monthDeskScenarioWorkSig = isMonthStartDeskMode ? monthDeskSeriesWorkSignature(candlesForMonthDeskWork) : '';
+  /** 마감·안착: 시나리오·(동일 시그니처 시)존선과 SuperTrend 코어 공유 — ST 전체 O(n) 중복 제거 */
+  const monthDeskScenarioSuperTrendCore = useMemo(() => {
+    if (!isMonthStartDeskMode) return null;
+    const safe = sanitizeChartCandlesForSeries(monthDeskScenarioInputRef.current);
+    if (safe.length < 2) return null;
+    return computeInstitutionalSuperTrendCore(safe, INSTITUTIONAL_BAND_DEFAULT_PERIOD, INSTITUTIONAL_BAND_DEFAULT_MULT);
+  }, [isMonthStartDeskMode, monthDeskScenarioWorkSig]);
+  /** 마감·안착: 거대한 L/S 마커 effect가 매 WS 틱 `candles` 참조로만 재실행되지 않게 */
+  const chartMarkersEffectCandleDep =
+    isMonthStartDeskMode ? monthDeskScenarioWorkSig : candles;
+
+  const monthDeskEntryRockets = useMemo((): LsRocketHudItem[] => {
+    if (!isMonthStartDeskMode || !monthDeskCloseSettleBoard?.rows?.length || candleTailOpenTime == null) return [];
+    const tfKey = normalizeChartTimeframe(String(timeframe || ''));
+    const row = monthDeskCloseSettleBoard.rows.find((r) => r.tf === tfKey);
+    if (!row || (row.tf !== '15m' && row.tf !== '1h' && row.tf !== '4h') || !row.entryPlan) return [];
+    const ep = row.entryPlan;
+    const lastT = candleTailOpenTime;
+    const L = ep.long.enabled;
+    const S = ep.short.enabled;
+    if (!L && !S) return [];
+    if (L && !S) return [{ time: lastT, direction: 'LONG', tier: 'monthDesk' }];
+    if (S && !L) return [{ time: lastT, direction: 'SHORT', tier: 'monthDesk' }];
+    return [{ time: lastT, direction: row.formingScore >= 0 ? 'LONG' : 'SHORT', tier: 'monthDesk' }];
+  }, [isMonthStartDeskMode, monthDeskCloseSettleBoard, timeframe, candleTailLen, candleTailOpenTime]);
+
+  const lsRocketHudWithMonthDesk = useMemo(() => {
+    if (!isMonthStartDeskMode) return lsRocketHud;
+    const taken = new Set(lsRocketHud.map((x) => x.time));
+    const extra = monthDeskEntryRockets.filter((x) => !taken.has(x.time));
+    return [...lsRocketHud, ...extra];
+  }, [isMonthStartDeskMode, lsRocketHud, monthDeskEntryRockets]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('ailongshort-fusion-hud-collapsed-v1', fusionHudCollapsed ? '1' : '0');
+    } catch {
+      // ignore persistence failure
+    }
+  }, [fusionHudCollapsed]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('ailongshort-fusion-show-legacy-v1', fusionShowLegacy ? '1' : '0');
+    } catch {
+      // ignore persistence failure
+    }
+  }, [fusionShowLegacy]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('ailongshort-fusion-show-new-v1', fusionShowNew ? '1' : '0');
+    } catch {
+      // ignore persistence failure
+    }
+  }, [fusionShowNew]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('ailongshort-fusion-zone-extend-pct-v1', String(Math.max(0, Math.min(100, Math.round(fusionZoneExtendPct)))));
+    } catch {
+      // ignore persistence failure
+    }
+  }, [fusionZoneExtendPct]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('ailongshort-fusion-line-extend-pct-v1', String(Math.max(0, Math.min(100, Math.round(fusionLineExtendPct)))));
+    } catch {
+      // ignore persistence failure
+    }
+  }, [fusionLineExtendPct]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem('ailongshort-fusion-top-tools-open-v1', fusionTopToolsOpen ? '1' : '0');
+    } catch {
+      // ignore persistence failure
+    }
+  }, [fusionTopToolsOpen]);
+  const syncFusionNewsEvents = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const res = await fetch('/api/news-events', { cache: 'no-store' });
+      const json = (await res.json().catch(() => ({}))) as { events?: any[]; error?: string };
+      const events = Array.isArray(json.events) ? json.events : [];
+      window.localStorage.setItem('ailongshort-news-events-v1', JSON.stringify(events));
+      setFusionNewsAutoCount(events.length);
+      setFusionNewsAutoStatus(
+        events.length > 0
+          ? `뉴스 자동 동기화 ON (${events.length}개)`
+          : `뉴스 자동 동기화 ON (이벤트 없음${json.error ? `: ${json.error}` : ''})`
+      );
+    } catch (err: any) {
+      setFusionNewsAutoStatus(`뉴스 자동 동기화 실패: ${String(err?.message || err || 'unknown')}`);
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let alive = true;
+    const run = async () => {
+      if (!alive) return;
+      await syncFusionNewsEvents();
+    };
+    void run();
+    const id = window.setInterval(() => {
+      void run();
+    }, 15 * 60 * 1000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [syncFusionNewsEvents]);
   const telegramLastSignalRef = useRef<{ key: string; at: number } | null>(null);
   /** `TELEGRAM_SIGNAL_SECRET` 사용 시: 30초 HMAC(12초 캐시) — /api/telegram/signal-capture 2차 검증 */
   const telegramSignalAuthCacheRef = useRef<{ a: string; t: number } | null>(null);
@@ -2612,8 +4374,9 @@ const ChartViewInner = ({
   } | null>(null);
   const [lastUpdate, setLastUpdate] = useState('');
   const [marketError, setMarketError] = useState('');
-  const sendTelegramTestCapture = useCallback(async () => {
-    if (telegramTestSending) return;
+  const sendTelegramTestCapture = useCallback(async (opts?: { notify?: boolean }) => {
+    const notify = opts?.notify !== false;
+    if (telegramTestSending) return { ok: false as const, error: 'busy' };
     setTelegramTestSending(true);
     try {
       const hostPng = await captureTelegramChartFramePngDataUrl(frameRef.current);
@@ -2638,23 +4401,174 @@ const ChartViewInner = ({
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || j?.ok === false) {
-        alert(`텔레그램 테스트 실패: ${j?.error || res.status}`);
-      } else {
-        alert('텔레그램 테스트 전송 완료');
+        const error = String(j?.error || res.status || 'send failed');
+        if (notify) alert(`텔레그램 테스트 실패: ${error}`);
+        return { ok: false as const, error };
       }
+      if (notify) alert('텔레그램 테스트 전송 완료');
+      return { ok: true as const };
     } catch (e: any) {
-      alert(`텔레그램 테스트 오류: ${e?.message || 'send failed'}`);
+      const error = String(e?.message || 'send failed');
+      if (notify) alert(`텔레그램 테스트 오류: ${error}`);
+      return { ok: false as const, error };
     } finally {
       setTelegramTestSending(false);
     }
   }, [telegramTestSending, symbol, timeframe, analysis, getTelegramSignalAuthHeaders]);
+  const resolveBarCountForView = useCallback((): number => {
+    const series = seriesRef.current;
+    const seriesLen = series ? candlestickSeriesBarCount(series) : 0;
+    const mergedLen = chartSeriesCandlesRef.current.length;
+    const engineLen = candlesForMergedDeskEngine.length;
+    const fallbackLen = sanitizeChartCandlesForSeries(candles, timeframe).length;
+    let barCount = fallbackLen;
+    if (isMergedAnalysisDesk) {
+      if (mergedLen >= 2) barCount = mergedLen;
+      else if (engineLen >= 2) barCount = engineLen;
+    }
+    if (seriesLen > 0) barCount = Math.min(barCount, seriesLen);
+    return barCount;
+  }, [candles, candlesForMergedDeskEngine, timeframe, isMergedAnalysisDesk]);
+
+  /** 원하는 줌만 저장 — 4h 기준 barSpacing을 분·시·일·주·월에 공동 적용 */
+  const saveChartView = useCallback((): boolean => {
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series) return false;
+    const seriesLen = candlestickSeriesBarCount(series);
+    try {
+      const ts = chart.timeScale();
+      const lr = ts.getVisibleLogicalRange?.();
+      if (!lr || !Number.isFinite(lr.from) || !Number.isFinite(lr.to)) {
+        alert('화면 비율을 읽을 수 없습니다. 차트가 보인 뒤 다시 저장해 주세요.');
+        return false;
+      }
+      const captured = visibleBarsFromLogicalRange(lr.from, lr.to, seriesLen || undefined);
+      if (captured == null) {
+        alert('너무 축소된 화면입니다. 캔들이 잘 보이게 확대한 뒤 「뷰저장」해 주세요.');
+        return false;
+      }
+      let barSpacing = MERGED_DESK_DEFAULT_BAR_SPACING;
+      try {
+        const opts = ts.options?.() as { barSpacing?: number } | undefined;
+        if (opts?.barSpacing != null && Number(opts.barSpacing) > 0) {
+          barSpacing = Number(opts.barSpacing);
+        }
+      } catch {
+        /* ignore */
+      }
+      writeMergedDeskSharedChartView({
+        visibleBars: captured,
+        barSpacing,
+        sourceTf: timeframe,
+        capturedAt: Date.now(),
+      });
+      mergedDeskUserPanLockRef.current = false;
+      mergedDeskSuppressPanDetectRef.current = true;
+      applyFocusLatestBars(chart, series, resolveBarCountForView(), timeframe, { scrollToLatest: false });
+      requestAnimationFrame(() => {
+        mergedDeskSuppressPanDetectRef.current = false;
+        setOverlayTick((v) => v + 1);
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [timeframe, resolveBarCountForView]);
+
+  /** 저장된 4h 기준 비율만 적용(없으면 기본). 현재 깨진 화면을 다시 저장하지 않음 */
   const restoreDefaultChartView = useCallback(() => {
     const chart = chartRef.current;
     const series = seriesRef.current;
-    if (!chart || !series || candles.length < 1) return;
-    applyFocusLatestBars(chart, series, candles.length, timeframe);
-    requestAnimationFrame(() => setOverlayTick((v) => v + 1));
-  }, [candles, timeframe]);
+    if (!chart || !series) return;
+    const barCount = resolveBarCountForView();
+    if (barCount < 1) return;
+    ensureMergedDeskDefaultSharedView(timeframe || '4h');
+    mergedDeskUserPanLockRef.current = false;
+    mergedDeskPanGestureRef.current = false;
+    mergedDeskSavedLogicalRangeRef.current = null;
+    mergedDeskSuppressPanDetectRef.current = true;
+    applyFocusLatestBars(chart, series, barCount, timeframe, { scrollToLatest: true });
+    requestAnimationFrame(() => {
+      const cap = captureMergedDeskLogicalRange(chart);
+      if (cap) mergedDeskSavedLogicalRangeRef.current = cap;
+      mergedDeskSuppressPanDetectRef.current = false;
+      setOverlayTick((v) => v + 1);
+    });
+  }, [resolveBarCountForView, timeframe]);
+
+  /** 데스크 툴바 칩 — ref 미연결 시 이벤트로 뷰저장/복원 */
+  useEffect(() => {
+    if (!isMergedAnalysisDesk) return;
+    const onSave = () => {
+      void saveChartView();
+    };
+    const onRestore = () => {
+      restoreDefaultChartView();
+    };
+    window.addEventListener(MERGED_DESK_SAVE_VIEW_EVENT, onSave);
+    window.addEventListener(MERGED_DESK_RESTORE_VIEW_EVENT, onRestore);
+    return () => {
+      window.removeEventListener(MERGED_DESK_SAVE_VIEW_EVENT, onSave);
+      window.removeEventListener(MERGED_DESK_RESTORE_VIEW_EVENT, onRestore);
+    };
+  }, [isMergedAnalysisDesk, saveChartView, restoreDefaultChartView]);
+
+  /**
+   * 통합·분석: 분·시·일·주·월 TF 전환 시 동일 경로 — 최신봉 정렬은 새 캔들 setData에서 1회.
+   * 여기서 rightOffset·applyFocus를 40/180/700ms로 돌리면 이전 TF가 우측으로 밀렸다가
+   * 새 봉에서 제자리로 온다(빈 우측·왓다리갓다리).
+   */
+  useEffect(() => {
+    if (!isMergedAnalysisDesk) return;
+    mergedDeskUserPanLockRef.current = false;
+    mergedDeskPanGestureRef.current = false;
+    mergedDeskSavedLogicalRangeRef.current = null;
+    mergedDeskPendingTfFitRef.current = true;
+    const onSync = () => {
+      const chart = chartRef.current;
+      if (chart) applyMergedDeskBarSpacingOnly(chart, timeframe);
+    };
+    window.addEventListener(MERGED_DESK_VIEW_SYNC_EVENT, onSync);
+    /** setData가 못 온 경우만 1회 맞춤 — 반복 재시도 금지 */
+    const tSafety = window.setTimeout(() => {
+      if (!mergedDeskPendingTfFitRef.current && !mergedDeskTfOnlyLoadRef.current) return;
+      const chart = chartRef.current;
+      const series = seriesRef.current;
+      if (!chart || !series || mergedDeskPanGestureRef.current) return;
+      const n = resolveBarCountForView();
+      const seriesLen = candlestickSeriesBarCount(series);
+      if (n < 2 || seriesLen < 2) return;
+      mergedDeskSuppressPanDetectRef.current = true;
+      try {
+        chart.applyOptions({
+          timeScale: {
+            shiftVisibleRangeOnNewBar: false,
+            allowShiftVisibleRangeOnWhitespaceReplacement: false,
+            rightOffset: MERGED_DESK_RIGHT_FUTURE_BARS,
+            rightBarStaysOnScroll: false,
+            lockVisibleTimeRangeOnResize: false,
+          },
+        });
+      } catch {
+        /* ignore */
+      }
+      applyFocusLatestBars(chart, series, n, timeframe, { scrollToLatest: true });
+      requestAnimationFrame(() => {
+        const cap = captureMergedDeskLogicalRange(chart);
+        if (cap) mergedDeskSavedLogicalRangeRef.current = cap;
+        mergedDeskPendingTfFitRef.current = false;
+        mergedDeskTfOnlyLoadRef.current = false;
+        mergedDeskUserPanLockRef.current = true;
+        mergedDeskSuppressPanDetectRef.current = false;
+      });
+    }, 2800);
+    return () => {
+      window.clearTimeout(tSafety);
+      window.removeEventListener(MERGED_DESK_VIEW_SYNC_EVENT, onSync);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 심볼·TF만; 캔들 갱신 시 스크롤 금지
+  }, [isMergedAnalysisDesk, symbol, timeframe]);
   const FEATURE_GAUGE_COLLAPSE_KEY = 'ailongshort-feature-gauge-collapsed';
   const [featureGaugeCollapsed, setFeatureGaugeCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -2666,8 +4580,63 @@ const ChartViewInner = ({
   });
   const [aiCompressionAdvancedOpen, setAiCompressionAdvancedOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mergedParentFs, setMergedParentFs] = useState(false);
+  const [mergedMobileFs, setMergedMobileFs] = useState(false);
+  /** 폰/터치 — Mirage zone 캡션 progressive 숨김 해제 + overlay 재계산 트리거 */
+  const [mergedTouchUi, setMergedTouchUi] = useState(false);
+  const mergedTouchUiRef = useRef(false);
+  mergedTouchUiRef.current = mergedTouchUi;
+  const [volumeAiExplain, setVolumeAiExplain] = useState<
+    { kind: 'zone'; zoneId: string } | { kind: 'live' } | null
+  >(null);
+  const volumeLayoutFullscreen = isFullscreen || mergedParentFs;
+  const volPanelLayout = useMemo(
+    () => getVolumePanelLayout(volumeLayoutFullscreen, mergedMobileFs, isMergedAnalysisDesk),
+    [volumeLayoutFullscreen, mergedMobileFs, isMergedAnalysisDesk]
+  );
+  const bumpVolumePanelLayout = useCallback(() => {
+    const chart = chartRef.current;
+    const volume = volumeRef.current;
+    if (!chart || !volume) return;
+    applyChartVolumePanelLayout(chart, volPanelLayout, {
+      volume,
+      volumeBuy: volumeBuyRef.current,
+      volumeMa: volumeMaRef.current,
+    });
+  }, [volPanelLayout]);
+  const bumpVolumePanelLayoutRef = useRef(bumpVolumePanelLayout);
+  bumpVolumePanelLayoutRef.current = bumpVolumePanelLayout;
+  const lastVolLayoutBumpAtRef = useRef(0);
+  const chartPriceScaleLayoutRef = useRef(
+    getChartPriceScaleLayout({
+      mobileFs: false,
+      chartFullscreen: false,
+      mergedDesk: isMergedAnalysisDesk,
+    })
+  );
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; req: ChartExplainRequest } | null>(null);
   const [settings, setSettings] = useState(defaultSettings);
+  /** 보드 도착 시 스크린·라인 재계산 */
+  useEffect(() => {
+    if (!monthDeskCloseSettleBoard?.rows?.length) return;
+    setOverlayTick((v) => v + 1);
+  }, [monthDeskCloseSettleBoard]);
+
+  const bitgetVolumePackOn = isBitgetVolumePackActive(uiMode, settings, symbol);
+  useEffect(() => {
+    setVolumeAiExplain(null);
+  }, [symbol, timeframe, bitgetVolumePackOn]);
+  /** Bitget.P: TV식 매수/매도 볼륨(WAD) — 전역 OFF여도 막대 분리 */
+  const volumeHistogramIntelOn = settings.chartVolumeIntelligence !== false || bitgetVolumePackOn;
+  const referenceDeskLayerFlags = useMemo(
+    () => readReferenceDeskLayerFlags(settings),
+    [
+      settings.chartReferenceDeskLayerStructure,
+      settings.chartReferenceDeskLayerZones,
+      settings.chartReferenceDeskLayerPatterns,
+      settings.chartReferenceDeskLayerMtfMarkers,
+    ]
+  );
   const smcCompositeDrawingEnabled =
     uiMode === 'SMC_DELTA_DESK' ? true : settings.chartSmcCompositeChartDrawing !== false;
   const settingsChangeTick = useSettingsChangeTick();
@@ -2678,15 +4647,19 @@ const ChartViewInner = ({
     blend: CandleBlendInput | null;
     merged: Map<number, Pre3SparkleCell>;
     structure: Map<number, StructureCandleHighlight> | null;
+    settle: Map<number, MonthDeskSettleCandleCell> | null;
     prox: Map<number, 'LONG' | 'SHORT'>;
     hot: Set<number> | null;
+    obPreBeam: Map<number, ObPreBeamPaintCell> | null;
     candles: Candle[];
   }>({
     blend: null,
     merged: new Map(),
     structure: null,
+    settle: null,
     prox: new Map(),
     hot: null,
+    obPreBeam: null,
     candles: [],
   });
   const themeForChartRef = useRef(theme);
@@ -2711,6 +4684,41 @@ const ChartViewInner = ({
       return next;
     });
   };
+  /** 간결+요약 — 라인요약 UI만 (zone 필터와 분리) */
+  const monthDeskClearSummaryOn = isMonthDeskClearSummaryBundleOn(settings);
+  /** 차트 zone 밀도 — 간결+요약 칩과 별개 (rich=zone 유지) */
+  const monthDeskOverlayClear =
+    isMonthStartDeskMode && settings.chartMonthDeskOverlayDensity !== 'rich';
+  /** 통합 펄스 엔진 — 상단 칩 전부 하나로 (기관밴드·로켓 유지) */
+  const monthDeskUnifiedPulseEngineOn =
+    (isMergedAnalysisDesk ||
+      (isMonthStartDeskMode && !isZoneLineProDesk && isMonthDeskUnifiedPulseEngineOn(settings)));
+  /** 카드·글자 없이 zone·line + 캔들 ▲/▼ 아이콘만 */
+  const monthDeskAtlasPulseOn =
+    monthDeskUnifiedPulseEngineOn ||
+    (isMonthStartDeskMode &&
+      !isZoneLineProDesk &&
+      settings.chartMonthDeskAtlasPulseDeskEnabled !== false);
+  const monthDeskCleanIconOn =
+    isMonthStartDeskMode &&
+    !monthDeskUnifiedPulseEngineOn &&
+    !monthDeskAtlasPulseOn &&
+    settings.chartMonthDeskCleanIconSignalsEnabled !== false;
+  const mirageZoneFaceReveal =
+    isMergedAnalysisDesk &&
+    settings.chartMirageZoneFaceReveal !== 'always' &&
+    !mergedTouchUi &&
+    !mergedMobileFs
+      ? 'progressive'
+      : 'always';
+  const mirageZoneFaceLang =
+    isMergedAnalysisDesk && settings.chartMirageZoneFaceLang === 'en' ? 'en' : 'ko';
+  const toggleMonthDeskClearSummary = useCallback(() => {
+    setSettings((prev) => {
+      const nextOn = prev.chartMonthDeskClearSummaryEnabled === false;
+      return saveSettings({ ...prev, ...monthDeskClearSummaryBundlePatch(nextOn) });
+    });
+  }, []);
   const settingsImportInputRef = useRef<HTMLInputElement | null>(null);
   const exportSettingsJson = useCallback(() => {
     try {
@@ -2761,6 +4769,9 @@ const ChartViewInner = ({
     });
   };
   const effective = getEffectiveFeatureToggles(settings, uiMode as SettingsUIMode);
+  /** 통합·분석 — 마감·안착에서 이전한 초록/빨강 기관 SuperTrend 존상·존하 */
+  const mergedInstitutionalBandsOn =
+    isMergedAnalysisDesk && settings.chartMergedInstitutionalBandEnabled !== false;
   const compositeLayerMask = useMemo(
     (): SmcDeskCompositeLayerMask => ({
       showStructure: effective.showStructure,
@@ -2781,13 +4792,19 @@ const ChartViewInner = ({
   );
   const smcCompositeModel = useMemo(
     () =>
-      buildSmcDeskCompositeModel(analysis as AnalyzeResponse | null, compositeLayerMask, candles, {
-        replayBarOffset: smcCompositeReplayOffset,
-        depthDeltaRegimeFilter: settings.chartDepthDeltaRegimeFilter !== false,
-        depthDeltaAlignmentWeight: settings.chartDepthDeltaAlignmentWeight !== false,
-        depthDeltaTpAdaptive: settings.chartDepthDeltaTpAdaptive !== false,
-      }),
+      buildSmcDeskCompositeModel(
+        analysisMatchesTf ? (analysis as AnalyzeResponse | null) : null,
+        compositeLayerMask,
+        candles,
+        {
+          replayBarOffset: smcCompositeReplayOffset,
+          depthDeltaRegimeFilter: settings.chartDepthDeltaRegimeFilter !== false,
+          depthDeltaAlignmentWeight: settings.chartDepthDeltaAlignmentWeight !== false,
+          depthDeltaTpAdaptive: settings.chartDepthDeltaTpAdaptive !== false,
+        }
+      ),
     [
+      analysisMatchesTf,
       analysis,
       compositeLayerMask,
       candles,
@@ -2798,22 +4815,446 @@ const ChartViewInner = ({
     ]
   );
   const smcDeskCompositeChartOverlays = useMemo(() => {
-    if (!isSmcCompositeMode || !smcCompositeDrawingEnabled) {
+    if (!isSmcCompositeMode || !smcCompositeDrawingEnabled || !analysisMatchesTf) {
       return [] as OverlayItem[];
     }
     return buildSmcDeskCompositeChartOverlays(candles, analysis as AnalyzeResponse | null, smcCompositeModel);
-  }, [isSmcCompositeMode, smcCompositeDrawingEnabled, candles, analysis, smcCompositeModel]);
+  }, [
+    isSmcCompositeMode,
+    smcCompositeDrawingEnabled,
+    analysisMatchesTf,
+    candles,
+    analysis,
+    smcCompositeModel,
+  ]);
   const effectiveCpChannelWidthScale = useMemo(
     () => effectiveChartPrimeChannelWidthScale(settings),
     [settings.chartPrimeTrendChannelsWidthScale, settings.chartTradeSetupFocus]
   );
   /** TV·작도식: 존 면·그리드 뒤 채움을 더 옅게, 가로선은 살짝 가늘게 — 최강분석·통합작도 */
   const maxCleanChartLayout =
-    uiMode === 'MAX_ANALYSIS' || isSmcDeskMode || unifiedDeskMode || uiMode === 'HOT_ZONE';
+    uiMode === 'MAX_ANALYSIS' ||
+    isSmcDeskMode ||
+    unifiedDeskMode ||
+    uiMode === 'HOT_ZONE' ||
+    isMonthStartDeskMode ||
+    isMergedAnalysisDesk;
+  /** 마감존 기준 롱/숏 참고 시나리오 + 무효 가격 — HUD·마커·가격선 공통 */
+  const monthDeskClosingScenario = useMemo(() => {
+    if (!isMonthStartDeskMode) return null;
+    const safe = sanitizeChartCandlesForSeries(monthDeskScenarioInputRef.current);
+    if (safe.length < 7) return null;
+    return computeClosingEnvelopeFuturesScenario(
+      safe,
+      INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+      INSTITUTIONAL_BAND_DEFAULT_MULT,
+      monthDeskScenarioSuperTrendCore
+    );
+  }, [isMonthStartDeskMode, monthDeskScenarioWorkSig, monthDeskScenarioSuperTrendCore]);
+  /** 마감·안착: 동일 TF SMC 구조 돌파~마감 단계(BOS/CHOCH/MSB) — HUD·⌖ 마커 */
+  const monthDeskStructurePick = useMemo(() => {
+    if (!isMonthStartDeskMode) return null;
+    const safe = sanitizeChartCandlesForSeries(monthDeskScenarioInputRef.current);
+    if (safe.length < 8) return null;
+    const sp = Math.max(2, Math.min(4, Math.floor(settings.smcDeskSwingPivot ?? 2)));
+    const tb = Math.max(0, Math.min(8, Math.floor(settings.chartSmcStructureTraceBars ?? 0)));
+    /** ⌖ 픽은 최근 구간만 — 전체 캔들로 collectStructureMark… 돌리면 저TF 전환 시 프리즈 */
+    const MONTH_DESK_STRUCTURE_PICK_MAX = 520;
+    const forPick = safe.length > MONTH_DESK_STRUCTURE_PICK_MAX ? safe.slice(-MONTH_DESK_STRUCTURE_PICK_MAX) : safe;
+    return pickMonthDeskStructureHighlight(forPick, sp, tb, 56);
+  }, [isMonthStartDeskMode, monthDeskScenarioWorkSig, settings.smcDeskSwingPivot, settings.chartSmcStructureTraceBars]);
+  const monthDeskEnvelopeStructureAlignKo = useMemo(
+    () => monthDeskEnvelopeStructureAlignmentKo(monthDeskClosingScenario, monthDeskStructurePick),
+    [monthDeskClosingScenario, monthDeskStructurePick],
+  );
+  /** 마감·안착 강화: MTF·세션 문구·최근 판정 분포·참고 강도(휴리스틱) — HUD·타점 툴팁 */
+  const monthDeskClosingHudAugmentation = useMemo(() => {
+    if (!isMonthStartDeskMode) return null;
+    const safe = sanitizeChartCandlesForSeries(monthDeskScenarioInputRef.current);
+    const basis: MonthDeskSessionBasis =
+      settings.chartMonthDeskSessionBasis === 'utc_calendar' ? 'utc_calendar' : 'chart_candle';
+    return computeMonthDeskClosingHudAugmentation({
+      scenario: monthDeskClosingScenario,
+      analysis: analysis as AnalyzeResponse | null,
+      structurePick: monthDeskStructurePick,
+      candles: safe.length >= 7 ? safe : [],
+      sessionBasis: basis,
+    });
+  }, [
+    isDeskPulseFamily,
+    monthDeskScenarioWorkSig,
+    monthDeskClosingScenario,
+    monthDeskStructurePick,
+    analysis,
+    settings.chartMonthDeskSessionBasis,
+  ]);
+  /** 마감·안착: EQ50(중투) + 무효 + TP1~3 — `smcDeskSwingPivot`과 동일 스윙 정의 */
+  const monthDeskConfirmedForZone = useMemo(() => {
+    if (!isMonthStartDeskMode || !analysisMatchesTf || !analysis) return null;
+    const cs = (analysis as AnalyzeResponse).confirmedSignal;
+    if (!cs) return null;
+    return {
+      confirmed: cs.confirmed,
+      direction: cs.direction ?? null,
+      gatesPassCount: cs.gatesPassCount,
+      readinessTier: cs.readinessTier,
+      mtfBlocked: cs.mtfBlocked,
+      reasons: cs.reasons,
+    };
+  }, [isMonthStartDeskMode, analysisMatchesTf, analysis]);
+  const monthDeskAnalyzeVerdictForZone = useMemo((): 'LONG' | 'SHORT' | null => {
+    if (!analysisMatchesTf || !analysis) return null;
+    const v = (analysis as AnalyzeResponse).verdict;
+    return v === 'LONG' || v === 'SHORT' ? v : null;
+  }, [analysisMatchesTf, analysis]);
+  const monthDeskAnalyzeFusionForZone = useMemo(() => {
+    if (!analysisMatchesTf || !analysis) return null;
+    const a = analysis as AnalyzeResponse;
+    const ind = a.indicators;
+    const atrArr = ind?.atr;
+    const atrLast =
+      atrArr?.length && Number.isFinite(atrArr[atrArr.length - 1])
+        ? Number(atrArr[atrArr.length - 1])
+        : undefined;
+    return {
+      verdict: a.verdict,
+      currentPrice: a.currentPrice,
+      supportLevel: a.supportLevel ?? null,
+      resistanceLevel: a.resistanceLevel ?? null,
+      invalidationLevel: a.invalidationLevel ?? null,
+      targets: a.targets,
+      atr: atrLast,
+      longScore: a.longScore,
+      shortScore: a.shortScore,
+      probability: a.probability ?? null,
+      zoneBiasCard: a.zoneBiasCard ?? null,
+      aiFusionSignal: a.aiFusionSignal ?? null,
+      aiZoneSignal: a.aiZoneSignal ?? null,
+      aiUnifiedLongShort: a.aiUnifiedLongShort ?? null,
+      smcDeskConfluenceLs: a.smcDeskConfluenceLs ?? null,
+      structureBouncePath: a.structureBouncePath ?? null,
+      settlementZone: a.settlementZone ?? null,
+      frontRunSignal: a.frontRunSignal ?? null,
+      smartMoneyMvpSignal: a.smartMoneyMvpSignal ?? null,
+      depthDeltaContext: a.depthDeltaContext ?? null,
+      mtfCloseSettleBoard: monthDeskCloseSettleBoard ?? null,
+      chartTimeframe: timeframe,
+    };
+  }, [analysisMatchesTf, analysis, monthDeskCloseSettleBoard, timeframe]);
+  const monthDeskSmcPlaybookMemo = useMemo(() => {
+    if (!isMonthStartDeskMode) return null;
+    return computeSmcEntryPlaybook(analysisMatchesTf ? analysis ?? null : null, candlesForMonthDeskWork);
+  }, [isMonthStartDeskMode, analysisMatchesTf, analysis, candlesForMonthDeskWork]);
+  const monthDeskSmcDensity =
+    settings.chartMonthDeskSmcDiagramDensity === 'full' ? 'full' : 'lite';
+  const monthDeskTypeomOverlayPack = useMemo(() => {
+    if (!isMonthStartDeskMode || settings.chartMonthDeskTypeomEnabled === false) return [] as OverlayItem[];
+    const safe = sanitizeChartCandlesForSeries(candlesForMonthDeskWork);
+    if (safe.length < 12) return [];
+    return buildMonthDeskTypeomOverlays({
+      candles: safe,
+      timeframe,
+      swingPivot: settings.smcDeskSwingPivot,
+      scenario: monthDeskClosingScenario,
+      stCore: monthDeskScenarioSuperTrendCore,
+      envelopeStructureAlignKo: monthDeskEnvelopeStructureAlignKo,
+      closingHudAugmentKo: monthDeskClosingHudAugmentation?.referenceStrengthLineKo ?? null,
+      confirmedSignal: monthDeskConfirmedForZone,
+      analyzeVerdict: monthDeskAnalyzeVerdictForZone,
+      analyzeFusion: monthDeskAnalyzeFusionForZone,
+      coreLongHighlightEnabled: settings.chartMonthDeskCoreLongHighlightEnabled !== false,
+      coreShortHighlightEnabled: settings.chartMonthDeskCoreShortHighlightEnabled !== false,
+    });
+  }, [
+    isDeskPulseFamily,
+    settings.chartMonthDeskTypeomEnabled,
+    settings.chartMonthDeskCoreLongHighlightEnabled,
+    settings.chartMonthDeskCoreShortHighlightEnabled,
+    settings.smcDeskSwingPivot,
+    monthDeskClosingScenario,
+    monthDeskScenarioSuperTrendCore,
+    monthDeskEnvelopeStructureAlignKo,
+    monthDeskClosingHudAugmentation,
+    monthDeskScenarioWorkSig,
+    candlesForMonthDeskWork,
+    monthDeskConfirmedForZone,
+    monthDeskAnalyzeVerdictForZone,
+    monthDeskAnalyzeFusionForZone,
+    analysis?.longScore,
+    analysis?.shortScore,
+    timeframe,
+  ]);
+  const candleTradeAtlas = useMemo(() => {
+    if (settings.chartTradeAtlasEnabled === false || !analysisMatchesTf || !analysis || candles.length < 5) {
+      return null;
+    }
+    const slice = sanitizeChartCandlesForSeries(candles, timeframe);
+    return buildCandleTradeAtlas(analysis, slice, timeframe);
+  }, [settings.chartTradeAtlasEnabled, analysisMatchesTf, analysis, candles, timeframe]);
+  const tradeAtlasOverlayPack = useMemo(() => {
+    if (!candleTradeAtlas || settings.chartTradeAtlasEnabled === false) return [] as OverlayItem[];
+    const slice = sanitizeChartCandlesForSeries(candles, timeframe);
+    if (slice.length < 2) return [];
+    if (slice.length < 2) return [];
+    const pack = buildCandleTradeAtlasOverlays(candleTradeAtlas, slice, {
+      showZones: settings.chartTradeAtlasShowZones !== false,
+      showLevels: settings.chartTradeAtlasShowLevels !== false,
+      timeframe,
+    });
+    if (
+      uiMode === 'REFERENCE_DESK' &&
+      settings.chartReferenceDeskAssetsDrawingGuide !== false
+    ) {
+      return applyAssetsChartDrawingConventions(pack);
+    }
+    return pack;
+  }, [
+    candleTradeAtlas,
+    candles,
+    timeframe,
+    uiMode,
+    settings.chartTradeAtlasEnabled,
+    settings.chartTradeAtlasShowZones,
+    settings.chartTradeAtlasShowLevels,
+    settings.chartReferenceDeskAssetsDrawingGuide,
+  ]);
+  /** Strike Desk — 핵심 롱·숏 E/SL/TP (최우선 레이어) */
+  const monthDeskStrikeDeskBundle = useMemo(() => {
+    if (useParentMergedDeskPack && isMergedAnalysisDesk && mergedStrikeBundleProp) {
+      return mergedStrikeBundleProp;
+    }
+    if (!isDeskPulseFamily || settings.chartMonthDeskStrikeDeskEnabled === false) return null;
+    const safe = isMergedAnalysisDesk
+      ? candlesForMergedDeskEngine
+      : sanitizeChartCandlesForSeries(candlesForMonthDeskWork, timeframe);
+    if (safe.length < 12) return null;
+    return buildMonthDeskStrikeDeskBundle({
+      candles: safe,
+      timeframe,
+      swingPivot: settings.smcDeskSwingPivot,
+      scenario: monthDeskClosingScenario,
+      stCore: monthDeskScenarioSuperTrendCore,
+      confirmedSignal: monthDeskConfirmedForZone,
+      analyzeVerdict: monthDeskAnalyzeVerdictForZone,
+      analyzeFusion: monthDeskAnalyzeFusionForZone,
+      coreLongEnabled: settings.chartMonthDeskCoreLongHighlightEnabled !== false,
+      coreShortEnabled: settings.chartMonthDeskCoreShortHighlightEnabled !== false,
+      analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+    });
+  }, [
+    useParentMergedDeskPack,
+    mergedStrikeBundleProp,
+    isDeskPulseFamily,
+    isMergedAnalysisDesk,
+    settings.chartMonthDeskStrikeDeskEnabled,
+    settings.chartMonthDeskCoreLongHighlightEnabled,
+    settings.chartMonthDeskCoreShortHighlightEnabled,
+    settings.smcDeskSwingPivot,
+    candlesForMonthDeskWork,
+    candlesForMergedDeskEngine,
+    timeframe,
+    monthDeskClosingScenario,
+    monthDeskScenarioSuperTrendCore,
+    monthDeskConfirmedForZone,
+    monthDeskAnalyzeVerdictForZone,
+    monthDeskAnalyzeFusionForZone,
+    monthDeskScenarioWorkSig,
+    analysisMatchesTf,
+    analysis,
+  ]);
+
+  const monthDeskStrikeOverlayPack = useMemo(() => {
+    if (!monthDeskStrikeDeskBundle) return [] as OverlayItem[];
+    const safe = isMergedAnalysisDesk
+      ? candlesForMergedDeskEngine
+      : sanitizeChartCandlesForSeries(candlesForMonthDeskWork, timeframe);
+    return buildMonthDeskStrikeDeskOverlays(monthDeskStrikeDeskBundle, safe);
+  }, [monthDeskStrikeDeskBundle, candlesForMonthDeskWork, candlesForMergedDeskEngine, isMergedAnalysisDesk, timeframe]);
+
+  /** 라인요약·우측밴드 — Strike + typeom + Atlas 타점·손익 라인 통합 */
+  const monthDeskSettleOverlayPack = useMemo(
+    () =>
+      dedupeOverlaysById([
+        ...monthDeskStrikeOverlayPack,
+        ...monthDeskTypeomOverlayPack,
+        ...tradeAtlasOverlayPack,
+      ]),
+    [monthDeskStrikeOverlayPack, monthDeskTypeomOverlayPack, tradeAtlasOverlayPack]
+  );
+  const monthDeskSmcMoneyPack = useMemo(() => {
+    if (monthDeskUnifiedPulseEngineOn) {
+      return {
+        hud: { long: null, short: null, pools: [], latestBos: null, latestChoch: null } as MonthDeskSmcMoneyPackHud,
+        overlays: [] as OverlayItem[],
+      };
+    }
+    if (!isMonthStartDeskMode || settings.chartMonthDeskMoneyZoneEnabled === false) {
+      return {
+        hud: { long: null, short: null, pools: [], latestBos: null, latestChoch: null } as MonthDeskSmcMoneyPackHud,
+        overlays: [] as OverlayItem[],
+      };
+    }
+    const safe = sanitizeChartCandlesForSeries(candlesForMonthDeskWork);
+    if (safe.length < 20) {
+      return {
+        hud: { long: null, short: null, pools: [], latestBos: null, latestChoch: null } as MonthDeskSmcMoneyPackHud,
+        overlays: [] as OverlayItem[],
+      };
+    }
+    return buildMonthDeskSmcMoneyPack(safe, timeframe, settings.smcDeskSwingPivot, monthDeskSmcDensity, {
+      anchorOverlays: monthDeskTypeomOverlayPack,
+      unifiedEntryMerge: settings.chartMonthDeskFullSmcLayers !== true,
+    });
+  }, [
+    monthDeskUnifiedPulseEngineOn,
+    isDeskPulseFamily,
+    settings.chartMonthDeskMoneyZoneEnabled,
+    settings.chartMonthDeskCompactOverlayLabels,
+    settings.chartMonthDeskFullSmcLayers,
+    candlesForMonthDeskWork,
+    timeframe,
+    settings.smcDeskSwingPivot,
+    monthDeskSmcDensity,
+    monthDeskTypeomOverlayPack,
+  ]);
+  const monthDeskSmcMoneyHud = monthDeskSmcMoneyPack.hud;
+  const monthDeskSmcMoneyOverlays = monthDeskSmcMoneyPack.overlays;
+  const monthDeskSmcDiagramOverlays = useMemo(() => {
+    if (monthDeskUnifiedPulseEngineOn) return [] as OverlayItem[];
+    if (!isMonthStartDeskMode || settings.chartMonthDeskSmcDiagramEnabled === false) return [] as OverlayItem[];
+    const safe = sanitizeChartCandlesForSeries(candlesForMonthDeskWork);
+    if (safe.length < 12) return [];
+    return buildMonthDeskSmcDiagramOverlays(safe, timeframe, settings.smcDeskSwingPivot, monthDeskSmcDensity);
+  }, [
+    monthDeskUnifiedPulseEngineOn,
+    isDeskPulseFamily,
+    settings.chartMonthDeskSmcDiagramEnabled,
+    monthDeskSmcDensity,
+    candlesForMonthDeskWork,
+    timeframe,
+    settings.smcDeskSwingPivot,
+  ]);
+  const monthDeskSmcPlaybookOverlays = useMemo(() => {
+    if (monthDeskUnifiedPulseEngineOn) return [] as OverlayItem[];
+    if (
+      !isMonthStartDeskMode ||
+      settings.chartMonthDeskSmcDiagramEnabled === false ||
+      settings.showSmcDeskEntryPlaybook === false ||
+      !analysis ||
+      !analysisMatchesTf ||
+      candlesForMonthDeskWork.length < 12 ||
+      !monthDeskSmcPlaybookMemo
+    ) {
+      return [] as OverlayItem[];
+    }
+    return buildMonthDeskSmcPlaybookOverlays(
+      monthDeskSmcPlaybookMemo,
+      candlesForMonthDeskWork,
+      timeframe,
+      monthDeskSmcDensity
+    );
+  }, [
+    monthDeskUnifiedPulseEngineOn,
+    isDeskPulseFamily,
+    settings.chartMonthDeskSmcDiagramEnabled,
+    monthDeskSmcDensity,
+    settings.showSmcDeskEntryPlaybook,
+    analysis,
+    analysisMatchesTf,
+    candlesForMonthDeskWork,
+    timeframe,
+    monthDeskSmcPlaybookMemo,
+  ]);
+  const monthDeskEliteDeskActive = useMemo(
+    () => isMonthStartDeskMode && monthDeskHasEliteTradeDesk(monthDeskTypeomOverlayPack),
+    [isMonthStartDeskMode, monthDeskTypeomOverlayPack]
+  );
+  const monthDeskCoreLongHud = useMemo(
+    () =>
+      isMonthStartDeskMode && settings.chartMonthDeskCoreLongHighlightEnabled !== false
+        ? monthDeskCoreLongHudFromOverlays(monthDeskTypeomOverlayPack)
+        : null,
+    [
+      isDeskPulseFamily,
+      settings.chartMonthDeskCoreLongHighlightEnabled,
+      monthDeskTypeomOverlayPack,
+    ]
+  );
+  const monthDeskEliteHudTitle = useMemo(() => {
+    if (!monthDeskEliteDeskActive) return null;
+    const zone = monthDeskTypeomOverlayPack.find((o) => o.id === 'month-desk-unified-zone');
+    const label = zone?.label ? String(zone.label).trim() : '';
+    return label || '연합 타점 데스크';
+  }, [monthDeskEliteDeskActive, monthDeskTypeomOverlayPack]);
+  const monthDeskChartAnalysisContext = useMemo(() => {
+    if (!isMonthStartDeskMode) return null;
+    const unified = monthDeskTypeomOverlayPack.find((o) => o.id === 'month-desk-unified-zone');
+    const planEntryItem = monthDeskTypeomOverlayPack.find((o) => o.id === 'month-desk-plan-entry');
+    const fusionHeadline = unified?.label ? String(unified.label).trim() : null;
+    const fusionTooltip = unified?.labelTooltip ? String(unified.labelTooltip).trim() : null;
+    const mtfSummaryKo =
+      computeMonthDeskMtfFusionBoost(monthDeskCloseSettleBoard, timeframe)?.summaryKo ?? null;
+    const closingRefKo = monthDeskClosingHudAugmentation?.referenceStrengthLineKo ?? null;
+    const preferSide =
+      monthDeskAnalyzeVerdictForZone ??
+      (analysisMatchesTf && analysis?.verdict === 'LONG'
+        ? 'LONG'
+        : analysisMatchesTf && analysis?.verdict === 'SHORT'
+          ? 'SHORT'
+          : null);
+    const ucm =
+      monthDeskSmcMoneyHud.pools.length > 0
+        ? resolveMonthDeskUnifiedCoreMoney({
+            pools: monthDeskSmcMoneyHud.pools,
+            close: Number(candlesForMonthDeskWork.at(-1)?.close),
+            preferSide,
+            fusionDirection: preferSide,
+            fusionScoreLong: analysisMatchesTf ? Number(analysis?.longScore ?? 0) : 0,
+            fusionScoreShort: analysisMatchesTf ? Number(analysis?.shortScore ?? 0) : 0,
+          })
+        : null;
+    const planEntry = planEntryItem?.price1 != null ? Number(planEntryItem.price1) : null;
+    const settleTf = chartTfToCloseSettleTf(String(timeframe || ''));
+    const settleRow =
+      settleTf && monthDeskCloseSettleBoard?.rows?.length
+        ? monthDeskCloseSettleBoard.rows.find((r) => r.tf === settleTf) ?? null
+        : null;
+    return {
+      ucm,
+      fusionHeadline,
+      fusionTooltip,
+      mtfSummaryKo,
+      closingRefKo,
+      planEntry,
+      analysis: analysis ? (analysis as AnalyzeResponse) : null,
+      moneyHud: monthDeskSmcMoneyHud,
+      overlayPack: monthDeskTypeomOverlayPack,
+      timeframe,
+      scenario: monthDeskClosingScenario,
+      settleRow,
+    };
+  }, [
+    isDeskPulseFamily,
+    monthDeskTypeomOverlayPack,
+    monthDeskCloseSettleBoard,
+    timeframe,
+    monthDeskClosingHudAugmentation,
+    monthDeskClosingScenario,
+    monthDeskSmcMoneyHud,
+    monthDeskAnalyzeVerdictForZone,
+    analysisMatchesTf,
+    analysis,
+    candlesForMonthDeskWork,
+  ]);
   /** 실행모드: 레이어는 유지하고 면·선만 살짝 정돈(항목 삭제 없음) */
   const executionCalmLayout = uiMode === 'EXECUTION';
   /** 고래 확장 모드: WHALE · EXECUTION · SMC 데스크 — 고래 툴킷·DRS/LQB 칩 동작 */
-  const isAiMode = uiMode === 'WHALE' || uiMode === 'EXECUTION' || uiMode === 'AI_ZONE' || isSmcDeskMode;
+  const isAiMode =
+    uiMode === 'WHALE' ||
+    uiMode === 'EXECUTION' ||
+    uiMode === 'AI_ZONE' ||
+    uiMode === 'FUSION_MODE' ||
+    isSmcDeskMode;
   const isWhaleOnlyMode = uiMode === 'WHALE';
   /** 한 번에: 라벨·선·존 숨김 + 캔들 마커 숫자 끔 + 고래 확장 모드면 HotZone·HyperTrend 끔 */
   const applyVisualCalm = () => {
@@ -2822,7 +5263,8 @@ const ChartViewInner = ({
     const basePatch: Partial<UserSettings> = {
       chartBulkHideLabels: true,
       chartBulkHideHLines: true,
-      chartBulkHideZones: true,
+      /** 통합·분석: 파랑/빨강 ARES zone은 유지 */
+      chartBulkHideZones: isMergedAnalysisDesk ? false : true,
       chartMarkerMetaA: false,
     };
     if (ai) {
@@ -2899,8 +5341,8 @@ const ChartViewInner = ({
    * — Exh/매집/파워로/구조봉강조·HT 등은 시인성·성능상 기본 끔(필요 시「전체 도구」에서 개별 켬).
    */
   const applyAiZoneUnifiedPreset = () => {
-    if (uiMode !== 'AI_ZONE') return;
-    const m = 'AI_ZONE' as SettingsUIMode;
+    if (!isAiZoneDesk) return;
+    const m = uiMode as SettingsUIMode;
     apply({
       chartBulkHideLabels: false,
       chartBulkHideHLines: false,
@@ -3107,11 +5549,11 @@ const ChartViewInner = ({
         if (!cancelled) setHigherTfRocketBoost([]);
       }
     };
-    load();
-    const timer = window.setInterval(load, 45_000);
+    void load();
+    const clearBoost = setVisibleInterval(() => void load(), 75_000);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      clearBoost();
     };
   }, [symbol, timeframe, candles]);
 
@@ -3199,13 +5641,43 @@ const ChartViewInner = ({
     chartMarkerLayerAux,
     chartMarkerLayerFrontRun,
   } = settings;
-  const zoneFillSoftenMult = maxCleanChartLayout ? 0.44 : executionCalmLayout ? 0.5 : 0.55;
+  /** 우측 가격축 숫자·축폭 — 사용자 chartScaleFontSize 1~20 */
+  const chartPriceScaleLayout = useMemo(
+    () =>
+      getChartPriceScaleLayout({
+        mobileFs: mergedMobileFs,
+        chartFullscreen: volumeLayoutFullscreen,
+        mergedDesk: isMergedAnalysisDesk,
+        axisFontSize: isMergedAnalysisDesk
+          ? Math.max(1, Math.min(20, Number(chartScaleFontSize) || 12))
+          : Math.min(Number(chartScaleFontSize) || 12, Number(overlayPriceStripFontSize) || 10),
+      }),
+    [
+      mergedMobileFs,
+      volumeLayoutFullscreen,
+      isMergedAnalysisDesk,
+      chartScaleFontSize,
+      overlayPriceStripFontSize,
+    ]
+  );
+  chartPriceScaleLayoutRef.current = chartPriceScaleLayout;
+  /** 통합·분석: 차트설정 면 농도 */
+  const zoneFillSoftenMult = isMergedAnalysisDesk
+    ? Math.max(0.12, Math.min(1, (Number(settings.chartMergedDeskZoneFillOpacity) || 46) / 100))
+    : maxCleanChartLayout
+      ? 0.44
+      : executionCalmLayout
+        ? 0.5
+        : 0.55;
   /** canvas 뒤 레이어 전용: 면 알파 추가 축소(대각 채널·존이 캔들을 탁하게 보이게 하는 완화) */
   const UNDER_CHART_FILL_EXTRA_SOFT = maxCleanChartLayout ? 0.34 : executionCalmLayout ? 0.37 : 0.42;
   /** 캔들분석·스마트 존 면 배율(뒤·앞 공통 참고값) */
   const caZoneFillSoftMult = maxCleanChartLayout ? 0.3 : executionCalmLayout ? 0.34 : 0.38;
-  /** 존·채널 ‘면’만 canvas 뒤 — 캔들이 색에 덮이지 않게, 선·라벨은 기존 overlay-layer(앞) 유지 */
+  /** 존·채널 면은 canvas 뒤. 통합·분석은 라벨·가로선 HTML도 tv-host 뒤 + plot 배경 투명 → 캔들 최전면 */
   const OVERLAY_ZONE_FILL_BEHIND_CHART = true;
+  /** 융합·통합·분석: 뒤쪽 존·채널 면을 더 흐리게 해 캔들을 1순위로 */
+  const fusionUnderChartZoneAlphaMult =
+    uiMode === 'FUSION_MODE' ? 0.48 : isMonthStartDeskMode ? 0.5 : isMergedAnalysisDesk ? 0.46 : 1;
   const lsRocketScaleFactor = Math.max(0.5, Math.min(2, (lsRocketScalePct ?? 100) / 100));
   const lsRocketMarkerSize = Math.max(0.5, Math.min(2.5, (lsRocketScalePct ?? 100) / 100));
   const effectiveZoneSensitivity = typeof zoneSignalSensitivityProp === 'number' ? zoneSignalSensitivityProp : (zoneSignalSensitivity ?? 1);
@@ -3271,18 +5743,118 @@ const ChartViewInner = ({
     [settings.chartCandleMonoOutlineHex]
   );
   void structurePriceLinesMaxProp;
-  const labelEditMode = overlayLabelEditMode;
+  /** 기본은 잠금 — 설정에서 "라벨 개별 이동"을 켜야 저장된 위치가 적용되고 드래그가 열린다 */
+  const overlayMoveLocked = settings.chartLabelIndividualMove !== true;
+  const labelEditMode = overlayLabelEditMode && !overlayMoveLocked;
 
-  /** TF 전환 직후 이전 분석 오버레이를 새 캔들에 억지 매핑하면 mapOverlays 비용이 크고 화면이 멈춘 것처럼 보임 */
-  const analysisMatchesTf = analysisMatchesSymbolAndTf(analysis, symbol, timeframe);
-
-  /** mapOverlays·봉 자석·고래 DRS/LQB 엔진이 동일 타임라인을 쓰게 함 — 분기 불일치 시 time2·마지막 봉이 엇갈려 한쪽(지지 등)만 우측 빈 축으로 늘어남 */
+  /** mapOverlays·봉 자석·zone·EN라벨 — setData와 동일 표시 축 (엔진 480과 분리) */
   const candlesForOverlay = useMemo(() => {
+    if (isMergedAnalysisDesk) {
+      if (candlesForMergedDeskChart.length >= 2) return candlesForMergedDeskChart;
+      if (candlesForMergedDeskEngine.length >= 2) return candlesForMergedDeskEngine;
+      const live = sanitizeChartCandlesForSeries(candles, timeframe);
+      if (live.length >= 2) return resolveMergedDeskCanonicalCandles(live, live, timeframe);
+    }
     if (analysisMatchesTf && candles.length) return candles;
     const ac = (analysis as { candles?: Candle[]; symbol?: string; timeframe?: string } | null)?.candles;
     if (ac?.length && analysisMatchesTf) return ac;
     return candles;
-  }, [analysisMatchesTf, analysis, candles]);
+  }, [
+    isMergedAnalysisDesk,
+    candlesForMergedDeskChart,
+    candlesForMergedDeskEngine,
+    analysisMatchesTf,
+    analysis,
+    candles,
+    timeframe,
+  ]);
+
+  /**
+   * 기관밴드 타임라인 — 분·시·일·주·월 공동.
+   * `mergedInstitutionalBandCandlesSlice`: LTF=차트 표시축, HTF=visibleLimit 이상.
+   */
+  const mergedInstitutionalBandCandles = useMemo(() => {
+    if (!mergedInstitutionalBandsOn) return [] as Candle[];
+    const chartBase =
+      candlesForMergedDeskChart.length >= 8
+        ? candlesForMergedDeskChart
+        : candlesForMergedDeskEngine.length >= 8
+          ? candlesForMergedDeskEngine
+          : sanitizeChartCandlesForSeries(
+              candlesForOverlay.length ? candlesForOverlay : candles,
+              timeframe
+            );
+    return mergedInstitutionalBandCandlesSlice(chartBase, timeframe);
+  }, [
+    mergedInstitutionalBandsOn,
+    candlesForMergedDeskChart,
+    candlesForMergedDeskEngine,
+    candlesForOverlay,
+    candles,
+    timeframe,
+  ]);
+  const mergedInstitutionalBandWorkSig = mergedInstitutionalBandsOn
+    ? monthDeskSeriesWorkSignature(mergedInstitutionalBandCandles)
+    : '';
+
+  const monthDeskFusionCandles = useMemo(() => {
+    const base = candlesForOverlay.length ? candlesForOverlay : candles;
+    if (!isMonthStartDeskMode || monthDeskHeavyBarCap <= 0) return base;
+    if (base.length <= monthDeskHeavyBarCap) return base;
+    return base.slice(-monthDeskHeavyBarCap);
+  }, [candlesForOverlay, candles, isMonthStartDeskMode, monthDeskHeavyBarCap]);
+  if (mergedInstitutionalBandsOn) {
+    monthDeskFusionInputRef.current = mergedInstitutionalBandCandles;
+  } else if (isMonthStartDeskMode) {
+    monthDeskFusionInputRef.current = monthDeskFusionCandles;
+  }
+  const monthDeskFusionWorkSig = mergedInstitutionalBandsOn
+    ? mergedInstitutionalBandWorkSig
+    : isMonthStartDeskMode
+      ? monthDeskSeriesWorkSignature(monthDeskFusionCandles)
+      : '';
+  /** 융합·존선·가이드: 시나리오와 동일 워크 시그니처·동일 타임라인이면 ST 코어 재계산 생략 */
+  const monthDeskFusionSuperTrendCore = useMemo(() => {
+    if (!mergedInstitutionalBandsOn && !isMonthStartDeskMode) return null;
+    if (
+      isMonthStartDeskMode &&
+      monthDeskScenarioWorkSig === monthDeskFusionWorkSig &&
+      monthDeskScenarioSuperTrendCore != null
+    ) {
+      const safeF = sanitizeChartCandlesForSeries(monthDeskFusionInputRef.current);
+      const safeS = sanitizeChartCandlesForSeries(monthDeskScenarioInputRef.current);
+      if (
+        safeF.length === safeS.length &&
+        safeF.length > 0 &&
+        Number(safeF[0]?.time) === Number(safeS[0]?.time) &&
+        Number(safeF[safeF.length - 1]?.time) === Number(safeS[safeS.length - 1]?.time)
+      ) {
+        return monthDeskScenarioSuperTrendCore;
+      }
+    }
+    const safe = sanitizeChartCandlesForSeries(monthDeskFusionInputRef.current);
+    if (safe.length < 2) return null;
+    const envP = institutionalEnvelopeParamsForTf(timeframe);
+    return computeInstitutionalSuperTrendCore(safe, envP.period, envP.mult);
+  }, [
+    isDeskPulseFamily,
+    mergedInstitutionalBandsOn,
+    isMonthStartDeskMode,
+    monthDeskScenarioWorkSig,
+    monthDeskFusionWorkSig,
+    monthDeskScenarioSuperTrendCore,
+    timeframe,
+  ]);
+  const institutionalSuperTrendCandleKey = mergedInstitutionalBandsOn
+    ? monthDeskFusionWorkSig
+    : isMonthStartDeskMode
+      ? monthDeskFusionWorkSig
+      : candles;
+  const institutionalSuperTrendOverlayKey = mergedInstitutionalBandsOn
+    ? monthDeskFusionWorkSig
+    : isMonthStartDeskMode
+      ? monthDeskFusionWorkSig
+      : candlesForOverlay;
 
   const smcDeskMarkerPlanCurrent = useMemo(() => {
     if (!isSmcDeskMode) return null;
@@ -3319,19 +5891,34 @@ const ChartViewInner = ({
     effective.showCandle,
   ]);
 
+  const fusionStructureHud = useMemo(() => {
+    if (uiMode !== 'FUSION_MODE' || !analysisMatchesTf) return null;
+    return buildFusionStructureHudData(analysis ?? null, candlesForOverlay);
+  }, [uiMode, analysisMatchesTf, analysis, candlesForOverlay]);
+
   const baseOverlays = useMemo(() => {
     if (!analysisMatchesTf) return [] as OverlayItem[];
+    if ((isMonthStartDeskMode || isMergedAnalysisDesk) && monthDeskUnifiedPulseEngineOn) return [] as OverlayItem[];
     const raw = (analysis?.overlays || []) as OverlayItem[];
     return patchCloseLevelOverlayPrices(raw, analysis ?? null);
-  }, [analysisMatchesTf, analysis]);
+  }, [analysisMatchesTf, analysis, isMonthStartDeskMode, isMergedAnalysisDesk, monthDeskUnifiedPulseEngineOn]);
   const whaleAutoOverlays = useMemo(() => {
+    if (isMonthStartDeskMode && monthDeskUnifiedPulseEngineOn) return [];
     /** SMC 데스크: Bu/Be-OB·BB/MB·유사 MB 박스가 수백 겹으로 화면을 덮음 → 이 모드에서는 생성 안 함 */
     if (isSmcDeskMode) return [];
     const devObOnly = CHART_DEV_ZONES_MSBOB_ONLY;
     const instFlowStandalone =
       settings.institutionalFlowZonesEnabled === true && !devObOnly;
-    if (!isAiMode && !devObOnly && !settings.institutionalFlowZonesEnabled) return [];
-    if (whaleUsePrecomputedMemory && whaleMemoryRows.length > 0 && !instFlowStandalone) {
+    /** 마감·안착 전용: 고래 매집핵심(bu-ob)만 로컬 생성 — AI/기관흐름 미사용 시에도 표시 */
+    const monthDeskWhalePack =
+      isMonthStartDeskMode && !isAiMode && !devObOnly && !instFlowStandalone;
+    if (!isAiMode && !devObOnly && !settings.institutionalFlowZonesEnabled && !monthDeskWhalePack) return [];
+    if (
+      whaleUsePrecomputedMemory &&
+      whaleMemoryRows.length > 0 &&
+      !instFlowStandalone &&
+      !monthDeskWhalePack
+    ) {
       const rows = buildWhaleZonesFromMemoryRows(whaleMemoryRows);
       return devObOnly ? filterDevMsbObWhaleOverlays(rows) : rows;
     }
@@ -3340,9 +5927,31 @@ const ChartViewInner = ({
       timeframe,
       candles,
       options: {
-        showForecastBoxes: instFlowStandalone ? false : devObOnly ? false : whaleShowForecastBoxes,
-        showAccumulationBoxes: instFlowStandalone ? true : devObOnly ? false : whaleShowAccumulationBoxes,
-        showDistributionBoxes: instFlowStandalone ? true : devObOnly ? false : whaleShowDistributionBoxes,
+        showForecastBoxes: monthDeskWhalePack
+          ? false
+          : instFlowStandalone
+            ? false
+            : devObOnly
+              ? false
+              : whaleShowForecastBoxes,
+        showAccumulationBoxes: monthDeskWhalePack
+          ? true
+          : instFlowStandalone
+            ? true
+            : devObOnly
+              ? false
+              : whaleShowAccumulationBoxes,
+        showDistributionBoxes: monthDeskWhalePack
+          ? false
+          : instFlowStandalone
+            ? true
+            : devObOnly
+              ? false
+              : whaleShowDistributionBoxes,
+        skipFlowDirectionalPrune: monthDeskWhalePack,
+        ephemeralPreview: monthDeskWhalePack,
+        /** 매집준비·유사도 예측 분기 생략 → 핵심 OB만 빠르게 */
+        msbObOnlyBuild: devObOnly || monthDeskWhalePack,
         onlyLocked: whaleOnlyLockedBoxes,
         zigzagLen: whaleZigzagLen,
         fibFactor: whaleFibFactor,
@@ -3352,12 +5961,17 @@ const ChartViewInner = ({
         buBbHex: whaleBuBbHex,
         beBbHex: whaleBeBbHex,
         similarityMinSamples: whaleSimilarityMinSamples,
-        msbObOnlyBuild: devObOnly,
       },
     });
-    return devObOnly ? filterDevMsbObWhaleOverlays(zones) : zones;
+    let out = devObOnly ? filterDevMsbObWhaleOverlays(zones) : zones;
+    if (monthDeskWhalePack) {
+      out = out.filter((o) => String(o.id || '').startsWith('whale-auto-bu-ob'));
+    }
+    return out;
   }, [
       isAiMode,
+      isDeskPulseFamily,
+      monthDeskUnifiedPulseEngineOn,
       settings.institutionalFlowZonesEnabled,
       whaleUsePrecomputedMemory,
       whaleMemoryRows,
@@ -3418,22 +6032,56 @@ const ChartViewInner = ({
   }, [whaleAutoOverlays, baseOverlays, timeframe]);
   const whaleHotZoneOverlays = useMemo(() => {
     if (CHART_DEV_ZONES_MSBOB_ONLY) return [];
-    if (!isAiMode) return [];
+    if (isMonthStartDeskMode && monthDeskUnifiedPulseEngineOn) return [];
+    /** 마감·안착: 고래와 동일 Hot Zone(볼륨 레이더) — `isAiMode` 밖이라도 켜져 있으면 계산 */
+    if (!isAiMode && !isMonthStartDeskMode) return [];
+    const hzVerdict =
+      analysisMatchesTf && analysis
+        ? (() => {
+            const v = (analysis as AnalyzeResponse).verdict;
+            return v === 'LONG' || v === 'SHORT' ? v : null;
+          })()
+        : null;
     return buildHotZoneRadarOverlays({
       symbol,
       timeframe,
       candles,
       options: {
         enabled: whaleHotZoneEnabled,
-        lookback: whaleHotZoneLookback,
-        resolution: whaleHotZoneResolution,
+        lookback:
+          isMonthStartDeskMode && (timeframe === '1w' || timeframe === '1d')
+            ? Math.min(whaleHotZoneLookback, timeframe === '1w' ? 48 : 72)
+            : whaleHotZoneLookback,
+        resolution:
+          isMonthStartDeskMode && timeframe === '1w'
+            ? Math.max(whaleHotZoneResolution, 42)
+            : whaleHotZoneResolution,
         srThresholdPct: whaleHotZoneSrThreshold,
-        srLayers: whaleHotZoneLayers,
-        predictLabels: true,
+        srLayers: isMonthStartDeskMode ? 1 : whaleHotZoneLayers,
+        predictLabels: !isMonthStartDeskMode,
         horizonBars: whalePredictHorizonBars,
+        monthDeskDirectional: isMonthStartDeskMode,
+        analyzeVerdict: hzVerdict,
+        maxClusters: isMonthStartDeskMode ? 4 : 8,
       },
     });
-  }, [isAiMode, symbol, timeframe, candles, whaleHotZoneEnabled, whaleHotZoneLookback, whaleHotZoneResolution, whaleHotZoneSrThreshold, whaleHotZoneLayers, whalePredictHorizonBars]);
+  }, [
+    isAiMode,
+    uiMode,
+    isDeskPulseFamily,
+    monthDeskUnifiedPulseEngineOn,
+    symbol,
+    timeframe,
+    candles,
+    whaleHotZoneEnabled,
+    whaleHotZoneLookback,
+    whaleHotZoneResolution,
+    whaleHotZoneSrThreshold,
+    whaleHotZoneLayers,
+    whalePredictHorizonBars,
+    analysisMatchesTf,
+    analysis,
+  ]);
   const whaleHyperTrendOverlays = useMemo(() => {
     if (CHART_DEV_ZONES_MSBOB_ONLY) return [];
     if (!isAiMode) return [];
@@ -3459,7 +6107,7 @@ const ChartViewInner = ({
       candles: candlesForOverlay,
       useVolFilter: true,
       preset:
-        isWhaleOnlyMode || uiMode === 'AI_ZONE' ? 'whaleClean' : isSmcDeskMode ? 'smcDesk' : 'default',
+        isWhaleOnlyMode || isAiZoneDesk ? 'whaleClean' : isSmcDeskMode ? 'smcDesk' : 'default',
     });
   }, [isAiMode, isWhaleOnlyMode, uiMode, symbol, timeframe, candlesForOverlay, whaleDynamicRsProEnabled, isSmcDeskMode]);
   const whaleLiquidityBiasOverlays = useMemo(() => {
@@ -3470,9 +6118,30 @@ const ChartViewInner = ({
       timeframe,
       candles: candlesForOverlay,
       preset:
-        isWhaleOnlyMode || uiMode === 'AI_ZONE' ? 'whaleClean' : isSmcDeskMode ? 'smcDesk' : 'default',
+        isWhaleOnlyMode || isAiZoneDesk ? 'whaleClean' : isSmcDeskMode ? 'smcDesk' : 'default',
     });
   }, [isAiMode, isWhaleOnlyMode, uiMode, symbol, timeframe, candlesForOverlay, whaleLiquidityBiasEnabled, isSmcDeskMode]);
+  const whaleAnchoredLinRegOverlays = useMemo(() => {
+    if (CHART_DEV_ZONES_MSBOB_ONLY) return [] as OverlayItem[];
+    if (settings.whaleAnchoredLinRegEnabled === false) return [] as OverlayItem[];
+    if (!isWhaleOnlyMode && uiMode !== 'EXECUTION') return [] as OverlayItem[];
+    const safe = candlesForOverlay;
+    if (safe.length < 12) return [] as OverlayItem[];
+    return buildWhaleAnchoredLinRegChannelsOverlays({
+      candles: safe,
+      logScale: settings.whaleAlrLogScale === true,
+      slots: defaultWhaleAlrSlots(),
+      extendBars: monthDeskLinRegExtendBars(timeframe),
+      fibParallelRatios: [0.618, 1, 1.618],
+    });
+  }, [
+    candlesForOverlay,
+    timeframe,
+    isWhaleOnlyMode,
+    uiMode,
+    settings.whaleAnchoredLinRegEnabled,
+    settings.whaleAlrLogScale,
+  ]);
   const manualChartPrimePivotLen = Math.max(
     2,
     Math.min(30, Math.round(Number(settings.chartPrimeTrendChannelsLength) || 8))
@@ -3483,17 +6152,17 @@ const ChartViewInner = ({
       : manualChartPrimePivotLen;
   const whaleChartPrimeOverlays = useMemo(() => {
     if (CHART_DEV_ZONES_MSBOB_ONLY) return [];
-    if (!isAiMode || !showChartPrimeTrendChannels || candles.length < 24) return [];
+    if (!isAiMode || !showChartPrimeTrendChannels || candlesForOverlay.length < 24) return [];
     let min = Infinity;
     let max = -Infinity;
-    for (const c of candles) {
+    for (const c of candlesForOverlay) {
       min = Math.min(min, c.low);
       max = Math.max(max, c.high);
     }
     if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return [];
     const visIdx = (arr: Candle[], i: number) => Math.max(0, Math.min(arr.length - 1, Math.floor(i)));
     const visTime = (arr: Candle[], i: number) => Number(arr[visIdx(arr, i)]?.time ?? arr[arr.length - 1]?.time ?? 0);
-    const cp = computeChartPrimeTrendChannelOverlays(candles, min, max, visTime, visIdx, {
+    const cp = computeChartPrimeTrendChannelOverlays(candlesForOverlay, min, max, visTime, visIdx, {
       enableLiquid: chartPrimeTrendChannelsVolumeBg === true,
       length: effectiveChartPrimePivotLength,
       wait: settings.chartPrimeTrendChannelsWait !== false,
@@ -3520,16 +6189,54 @@ const ChartViewInner = ({
     settings.chartPrimeTrendChannelsCenterHex,
     settings.chartPrimeTrendChannelsBottomHex,
     effectiveCpChannelWidthScale,
-    candles,
+    candlesForOverlay,
     timeframe,
   ]);
+  const monthDeskWhaleChartOverlays = useMemo(() => {
+    if (!isMonthStartDeskMode || settings.chartMonthDeskWhaleChartPackEnabled === false) return [];
+    const safe = sanitizeChartCandlesForSeries(candlesForMonthDeskWork);
+    if (safe.length < 24) return [];
+    const aiAuto = (baseOverlays as OverlayItem[]).filter((o) => {
+      const id = String(o.id || '');
+      return id.startsWith('ai-auto-compression') || id.startsWith('ai-auto-live-compression');
+    });
+    return buildMonthDeskWhaleChartPack({
+      candles: safe,
+      timeframe,
+      settings,
+      aiAutoOverlays: aiAuto,
+    });
+  }, [
+    isDeskPulseFamily,
+    settings.chartMonthDeskWhaleChartPackEnabled,
+    settings.parkfEngineOpts,
+    settings.chartPrimeTrendChannelsLength,
+    settings.chartPrimeTrendChannelsAutoLength,
+    settings.chartPrimeTrendChannelsVolumeBg,
+    settings.chartPrimeTrendChannelsWait,
+    settings.chartPrimeTrendChannelsExtend,
+    settings.chartPrimeTrendChannelsShowLastOnly,
+    settings.chartPrimeTrendChannelsShowFills,
+    settings.chartPrimeTrendChannelsTopHex,
+    settings.chartPrimeTrendChannelsCenterHex,
+    settings.chartPrimeTrendChannelsBottomHex,
+    settings.chartPrimeTrendChannelsWidthScale,
+    settings.chartTradeSetupFocus,
+    candlesForMonthDeskWork,
+    timeframe,
+    baseOverlays,
+  ]);
   const smartAdaptiveOverlays = useMemo(() => {
+    /** 마감·안착 최종 표시는 mustHold+bu-ob뿐 — 스마트 적응 신호 전개 비용 제거 */
+    if (isMonthStartDeskMode) return [] as OverlayItem[];
     if (settings.showSmartAdaptiveSignal === false) return [] as OverlayItem[];
     if (!candles.length) return [];
     return buildSmartAdaptiveSignalOverlays(candles, timeframe);
-  }, [candles, timeframe, settings.showSmartAdaptiveSignal]);
+  }, [uiMode, candles, timeframe, settings.showSmartAdaptiveSignal]);
 
   const smcDeskOverlays = useMemo(() => {
+    /** 마감·안착만 패킷 생략 — 다른 모드(WHALE 등)는 설정대로 EQ·구조 유지 */
+    if (isMonthStartDeskMode) return [] as OverlayItem[];
     return buildSmcDeskOverlayPack(candles, timeframe, {
       showEq: settings.showSmcDeskEq === true,
       showOrderBlocks: settings.showSmcDeskOrderBlocks === true,
@@ -3538,6 +6245,7 @@ const ChartViewInner = ({
       swingPivot: Math.max(2, Math.min(4, Math.floor(settings.smcDeskSwingPivot ?? 2))),
     });
   }, [
+    uiMode,
     candles,
     timeframe,
     settings.showSmcDeskEq,
@@ -3552,14 +6260,259 @@ const ChartViewInner = ({
     if (settings.chartSmcStructurePhaseCandles === false) return null;
     const safe = sanitizeChartCandlesForSeries(candles);
     if (safe.length < 8) return null;
+    const tail =
+      isMonthStartDeskMode && safe.length > MONTH_DESK_STRUCTURE_BAND_TAIL_BARS
+        ? safe.slice(-MONTH_DESK_STRUCTURE_BAND_TAIL_BARS)
+        : safe;
+    if (tail.length < 8) return null;
     const sp = Math.max(2, Math.min(4, Math.floor(settings.smcDeskSwingPivot ?? 2)));
     const traceBars = Math.max(0, Math.min(8, Math.floor(settings.chartSmcStructureTraceBars ?? 0)));
-    return collectStructureMarkCandleHighlights(safe, sp, 14, traceBars);
-  }, [candles, settings.chartSmcStructurePhaseCandles, settings.smcDeskSwingPivot, settings.chartSmcStructureTraceBars]);
+    return collectStructureMarkCandleHighlights(tail, sp, 14, traceBars);
+  }, [uiMode, candles, settings.chartSmcStructurePhaseCandles, settings.smcDeskSwingPivot, settings.chartSmcStructureTraceBars]);
+
+  /** 통합·분석: 밴드 색 융합용 구조 맵(동일 돌파·단계 규칙, 캔들 단계 표시 토글과 무관) */
+  const monthDeskStructureHighlightMapForBand = useMemo(() => {
+    if (!mergedInstitutionalBandsOn) return null;
+    const safe = sanitizeChartCandlesForSeries(monthDeskFusionInputRef.current);
+    if (safe.length < 8) return null;
+    const tail =
+      safe.length > MONTH_DESK_STRUCTURE_BAND_TAIL_BARS
+        ? safe.slice(-MONTH_DESK_STRUCTURE_BAND_TAIL_BARS)
+        : safe;
+    const sp = Math.max(2, Math.min(4, Math.floor(settings.smcDeskSwingPivot ?? 2)));
+    const traceBars = Math.max(0, Math.min(8, Math.floor(settings.chartSmcStructureTraceBars ?? 0)));
+    return collectStructureMarkCandleHighlights(tail, sp, 14, traceBars);
+  }, [uiMode, monthDeskFusionWorkSig, settings.smcDeskSwingPivot, settings.chartSmcStructureTraceBars]);
+
+  /** 통합·분석 밴드 융합: 캔들 구조 로켓 HUD와 동일 봉(open time) 정렬 */
+  const monthDeskRocketByBarTimeForBand = useMemo(() => {
+    if (!mergedInstitutionalBandsOn || !lsRocketHudWithMonthDesk.length) return null;
+    const safe = sanitizeChartCandlesForSeries(monthDeskFusionInputRef.current);
+    if (!safe.length) return null;
+    const m = new Map<number, 'LONG' | 'SHORT'>();
+    for (const r of lsRocketHudWithMonthDesk) {
+      if (r.direction !== 'LONG' && r.direction !== 'SHORT') continue;
+      const rawT = Number(r.time);
+      const barOpen = candleOpenContainingTime(safe, rawT);
+      const t = barOpen ?? rawT;
+      if (!Number.isFinite(t)) continue;
+      m.set(t, r.direction);
+    }
+    return m.size > 0 ? m : null;
+  }, [uiMode, lsRocketHudWithMonthDesk, monthDeskFusionWorkSig]);
+
+  /** 통합·분석 밴드 색: Chart Prime 채널 + LinReg 미드(차트 설정과 동일 피벗·폭·ParkF 옵션) */
+  const monthDeskCpLinRegBiasScores = useMemo(() => {
+    if (!mergedInstitutionalBandsOn)
+      return { cp: null as number[] | null, lr: null as number[] | null, cpCenters: null as (number | null)[] | null };
+    const safe = sanitizeChartCandlesForSeries(monthDeskFusionInputRef.current);
+    if (safe.length < 24) return { cp: null, lr: null, cpCenters: null };
+    const cap = MONTH_DESK_CP_LR_FUSION_MAX_BARS;
+    const tail = safe.length > cap ? safe.slice(-cap) : safe;
+    const pad = safe.length - tail.length;
+    /** 프리셋에서 CP 끔 — 밴드 색만 위해 채널 엔진 전체를 돌리면 TF 전환 시 프리즈 원인 */
+    const runChartPrimeFusion = effective.showChartPrimeTrendChannels === true;
+    const cpPack = runChartPrimeFusion
+      ? computeChartPrimeBiasAndCenterSeries(tail, {
+          length: effectiveChartPrimePivotLength,
+          wait: settings.chartPrimeTrendChannelsWait !== false,
+          extend: settings.chartPrimeTrendChannelsExtend === true,
+          show: settings.chartPrimeTrendChannelsShowLastOnly !== false,
+          enableLiquid: chartPrimeTrendChannelsVolumeBg === true,
+          channelWidthScale: effectiveCpChannelWidthScale,
+        })
+      : {
+          biasScores: new Array(tail.length).fill(0),
+          centerPrices: new Array(tail.length).fill(null) as (number | null)[],
+        };
+    const lrScores = computeRollingLinRegBiasScoresForMonthDesk(tail, settings.parkfEngineOpts ?? undefined);
+    const n = safe.length;
+    const cp = new Array(n).fill(0);
+    const lr = new Array(n).fill(0);
+    const cpCenters: (number | null)[] = new Array(n).fill(null);
+    for (let i = 0; i < tail.length; i++) {
+      const j = pad + i;
+      cp[j] = cpPack.biasScores[i] ?? 0;
+      lr[j] = lrScores[i] ?? 0;
+      cpCenters[j] = cpPack.centerPrices[i] ?? null;
+    }
+    let lastCenter: number | null = null;
+    for (let i = 0; i < n; i++) {
+      const v = cpCenters[i];
+      if (v != null && Number.isFinite(v)) lastCenter = v;
+      else if (lastCenter != null) cpCenters[i] = lastCenter;
+    }
+    return { cp, lr, cpCenters };
+  }, [
+    uiMode,
+    monthDeskFusionWorkSig,
+    effectiveChartPrimePivotLength,
+    settings.chartPrimeTrendChannelsWait,
+    settings.chartPrimeTrendChannelsExtend,
+    settings.chartPrimeTrendChannelsShowLastOnly,
+    chartPrimeTrendChannelsVolumeBg,
+    effectiveCpChannelWidthScale,
+    settings.parkfEngineOpts,
+    effective.showChartPrimeTrendChannels,
+  ]);
+
+  /** 마감·안착: OB/FVG 봉별·Hot Zone 봉별 융합은 O(n·요소) — 밴드는 CP+LinReg·구조·시나리오 가중만 사용(반응 우선) */
+  const monthDeskLiquidityFusionScores = useMemo(() => {
+    if (!isMonthStartDeskMode) return { hz: null as number[] | null, obFvg: null as number[] | null };
+    const safe = sanitizeChartCandlesForSeries(monthDeskFusionInputRef.current);
+    if (safe.length < 8) return { hz: null, obFvg: null };
+    const obFvg = new Array(safe.length).fill(0);
+    /** Hot Zone 편향은 봉×클러스터 O(n²) — 존선 색만 별도 계산 시 프리즈. 시각 Hot Zone은 whaleHotZoneOverlays 유지 */
+    return { hz: null, obFvg };
+  }, [uiMode, monthDeskFusionWorkSig]);
+
+  /** 통합·분석: ST·LinReg·CP 중심 → 단일 융합중심선 + 종가 대비 롱/숏 색 구간 */
+  const monthDeskGuideLinePayload = useMemo(() => {
+    if (!mergedInstitutionalBandsOn) return null;
+    const safe = sanitizeChartCandlesForSeries(monthDeskFusionInputRef.current);
+    if (safe.length < 8) return null;
+    const stMid = computeInstitutionalSuperTrendMidLineData(
+      safe,
+      INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+      INSTITUTIONAL_BAND_DEFAULT_MULT,
+      monthDeskFusionSuperTrendCore
+    );
+    const lrMid = buildParkfLinRegMidLineData(safe, settings.parkfEngineOpts ?? undefined);
+    const cpCenters = monthDeskCpLinRegBiasScores.cpCenters;
+    const cpMid =
+      cpCenters && cpCenters.length === safe.length ? buildCpCenterForwardFillLineData(safe, cpCenters) : [];
+    const fusionSegments = buildMonthDeskFusionMidGuideSegments(safe, stMid, lrMid, cpMid);
+    if (!fusionSegments.length && lrMid.length < 2 && cpMid.length < 2) return null;
+    return { fusionSegments, lrMid, cpMid };
+  }, [uiMode, monthDeskFusionWorkSig, settings.parkfEngineOpts, monthDeskCpLinRegBiasScores.cpCenters, monthDeskFusionSuperTrendCore]);
+
+  const monthDeskBandFusionContext = useMemo((): MonthDeskBandFusionContext | null => {
+    if (!isMonthStartDeskMode && !isMergedAnalysisDesk) return null;
+    if (isMergedAnalysisDesk && monthDeskStrikeDeskBundle) {
+      return buildMergedAnalysisBandFusionContext({
+        timeframe,
+        bundle: monthDeskStrikeDeskBundle,
+        analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+        candles: candlesForMergedDeskEngine.length >= 8 ? candlesForMergedDeskEngine : undefined,
+      });
+    }
+    const avRaw = analysisMatchesTf && analysis ? (analysis as { verdict?: string }).verdict : undefined;
+    const analyzeVerdict = avRaw === 'LONG' || avRaw === 'SHORT' ? avRaw : null;
+    return {
+      analyzeVerdict,
+      closingScenarioBias: monthDeskClosingScenario?.bias ?? null,
+      lastClosingVerdict: monthDeskClosingScenario?.lastVerdict ?? null,
+      timeframe,
+      structureByTime: monthDeskStructureHighlightMapForBand,
+      rocketByBarTime: monthDeskRocketByBarTimeForBand,
+      cpBiasScores: monthDeskCpLinRegBiasScores.cp,
+      linRegBiasScores: monthDeskCpLinRegBiasScores.lr,
+      hotZoneBiasScores: monthDeskLiquidityFusionScores.hz,
+      obFvgBiasScores: monthDeskLiquidityFusionScores.obFvg,
+    };
+  }, [
+    uiMode,
+    isMergedAnalysisDesk,
+    monthDeskStrikeDeskBundle,
+    candlesForMergedDeskEngine,
+    analysisMatchesTf,
+    analysis,
+    analysisMatchesTf && analysis ? (analysis as { verdict?: string }).verdict : undefined,
+    monthDeskClosingScenario?.bias,
+    monthDeskClosingScenario?.lastVerdict,
+    timeframe,
+    monthDeskStructureHighlightMapForBand,
+    monthDeskRocketByBarTimeForBand,
+    monthDeskCpLinRegBiasScores.cp,
+    monthDeskCpLinRegBiasScores.lr,
+    monthDeskLiquidityFusionScores.hz,
+    monthDeskLiquidityFusionScores.obFvg,
+  ]);
+
+  /** 통합·분석 기관밴드 전용 융합 — desk 엔진과 분리( CP/LR 재계산 시 전체 데스크 재실행 방지 ) */
+  const monthDeskHtfEnvelopeBiasScores = useMemo(() => {
+    if (!mergedInstitutionalBandsOn) return null as number[] | null;
+    const ltf = sanitizeChartCandlesForSeries(monthDeskFusionInputRef.current, timeframe);
+    if (ltf.length < 8 || !envelopeHtfTf || envelopeHtfCandles.length < 8) return null;
+    return buildHtfEnvelopeBiasScoresOnLtf({
+      ltfCandles: ltf,
+      htfCandles: envelopeHtfCandles,
+      htfTf: envelopeHtfTf,
+    });
+  }, [
+    mergedInstitutionalBandsOn,
+    monthDeskFusionWorkSig,
+    timeframe,
+    envelopeHtfCandles,
+    envelopeHtfTf,
+  ]);
+
+  const mergedInstitutionalBandFusionContext = useMemo((): MonthDeskBandFusionContext | null => {
+    if (!mergedInstitutionalBandsOn || !monthDeskBandFusionContext) return monthDeskBandFusionContext;
+    return {
+      ...monthDeskBandFusionContext,
+      rocketByBarTime: monthDeskRocketByBarTimeForBand,
+      cpBiasScores: monthDeskCpLinRegBiasScores.cp,
+      linRegBiasScores: monthDeskCpLinRegBiasScores.lr,
+      hotZoneBiasScores: monthDeskLiquidityFusionScores.hz,
+      obFvgBiasScores: monthDeskLiquidityFusionScores.obFvg,
+      htfEnvelopeBiasScores: monthDeskHtfEnvelopeBiasScores,
+    };
+  }, [
+    mergedInstitutionalBandsOn,
+    monthDeskBandFusionContext,
+    monthDeskRocketByBarTimeForBand,
+    monthDeskCpLinRegBiasScores.cp,
+    monthDeskCpLinRegBiasScores.lr,
+    monthDeskLiquidityFusionScores.hz,
+    monthDeskLiquidityFusionScores.obFvg,
+    monthDeskHtfEnvelopeBiasScores,
+  ]);
+
+  /** 통합·분석 존선 effect — 객체 참조 대신 시그니처만(불필요한 LineSeries 전량 재생성 방지) */
+  const monthDeskInstitutionalFxSig = useMemo(() => {
+    if (!mergedInstitutionalBandsOn) return '';
+    const guideN = monthDeskGuideLinePayload?.fusionSegments?.length ?? 0;
+    const lrN = monthDeskGuideLinePayload?.lrMid?.length ?? 0;
+    const cpN = monthDeskGuideLinePayload?.cpMid?.length ?? 0;
+    const htfN = monthDeskHtfEnvelopeBiasScores?.length ?? 0;
+    const htfTail =
+      monthDeskHtfEnvelopeBiasScores && htfN > 0
+        ? Number(monthDeskHtfEnvelopeBiasScores[htfN - 1] ?? 0).toFixed(2)
+        : '';
+    return [
+      monthDeskFusionWorkSig,
+      monthDeskClosingScenario?.bias ?? '',
+      monthDeskClosingScenario?.lastVerdict ?? '',
+      timeframe,
+      guideN,
+      `${lrN}:${cpN}`,
+      settings.chartMonthDeskFusionDeskBandEnabled !== false ? '1' : '0',
+      envelopeHtfTf ?? '',
+      `${htfN}:${htfTail}`,
+    ].join('|');
+  }, [
+    mergedInstitutionalBandsOn,
+    monthDeskFusionWorkSig,
+    monthDeskClosingScenario?.bias,
+    monthDeskClosingScenario?.lastVerdict,
+    timeframe,
+    monthDeskGuideLinePayload?.fusionSegments?.length,
+    monthDeskGuideLinePayload?.lrMid?.length,
+    monthDeskGuideLinePayload?.cpMid?.length,
+    settings.chartMonthDeskFusionDeskBandEnabled,
+    monthDeskHtfEnvelopeBiasScores,
+    envelopeHtfTf,
+  ]);
 
   /** LinReg 존을 제외한 오버레이 묶음 — BOS/CHOCH 힌트용(순환 참조 방지) */
-  const overlaysPreLinRegSmc = useMemo(
-    () => [
+  const overlaysPreLinRegSmc = useMemo(() => {
+    /** 마감·안착: 최종 화면은 API mustHold + 로컬 bu-ob만 — 병합·컨플루언스 입력 최소화로 TF 전환 가속 */
+    if (isMonthStartDeskMode) {
+      if (monthDeskUnifiedPulseEngineOn) return [] as OverlayItem[];
+      return [...baseOverlays, ...whaleAutoOverlaysDeduped];
+    }
+    return [
       ...baseOverlays,
       ...smartAdaptiveOverlays,
       ...smcDeskOverlays,
@@ -3570,24 +6523,25 @@ const ChartViewInner = ({
       ...whaleDynamicRsProOverlays,
       ...whaleLiquidityBiasOverlays,
       ...whaleChartPrimeOverlays,
-    ],
-    [
-      baseOverlays,
-      smartAdaptiveOverlays,
-      smcDeskOverlays,
-      whaleAutoOverlaysDeduped,
-      whalePredictionOverlays,
-      whaleHotZoneOverlays,
-      whaleHyperTrendOverlays,
-      whaleDynamicRsProOverlays,
-      whaleLiquidityBiasOverlays,
-      whaleChartPrimeOverlays,
-    ]
-  );
+    ];
+  }, [
+    uiMode,
+    baseOverlays,
+    smartAdaptiveOverlays,
+    smcDeskOverlays,
+    whaleAutoOverlaysDeduped,
+    whalePredictionOverlays,
+    whaleHotZoneOverlays,
+    whaleHyperTrendOverlays,
+    whaleDynamicRsProOverlays,
+    whaleLiquidityBiasOverlays,
+    whaleAnchoredLinRegOverlays,
+    whaleChartPrimeOverlays,
+  ]);
 
-  /** LinReg 밴드 근접 시 smcDesk 존(면) — 카드 대신 차트에 직접 */
+  /** LinReg 밴드 근접 시 smcDesk 존(면) — 차트에 직접 */
   const linRegSmcZoneOverlays = useMemo(() => {
-    if (!isSmcDeskMode || !analysis || candles.length < 24) return [] as OverlayItem[];
+    if (!isSmcDeskMode || !analysis || !analysisMatchesTf || candles.length < 24) return [] as OverlayItem[];
     const snap = computeParkfLinRegBandSnapshot(candles, {});
     if (!snap) return [];
     const last = candles[candles.length - 1];
@@ -3610,11 +6564,17 @@ const ChartViewInner = ({
         timeframe,
       }),
     ];
-  }, [uiMode, analysis, candles, timeframe, overlaysPreLinRegSmc]);
+  }, [uiMode, analysis, analysisMatchesTf, candles, timeframe, overlaysPreLinRegSmc]);
 
   /** SMC 데스크: LinReg+OB+구조 합류 마커·존(기존 로켓/L과 id 분리) */
   const smcDeskConfluenceLsOverlays = useMemo(() => {
-    if (!isSmcDeskMode || settings.showSmcDeskConfluenceLs === false || !analysis || candles.length < 24) {
+    if (
+      !isSmcDeskMode ||
+      settings.showSmcDeskConfluenceLs === false ||
+      !analysis ||
+      !analysisMatchesTf ||
+      candles.length < 24
+    ) {
       return [] as OverlayItem[];
     }
     const snap = computeParkfLinRegBandSnapshot(candles, {});
@@ -3626,27 +6586,66 @@ const ChartViewInner = ({
       snap,
       timeframe,
     });
-  }, [uiMode, settings.showSmcDeskConfluenceLs, analysis, candles, timeframe, overlaysPreLinRegSmc]);
+  }, [
+    uiMode,
+    settings.showSmcDeskConfluenceLs,
+    analysis,
+    analysisMatchesTf,
+    candles,
+    timeframe,
+    overlaysPreLinRegSmc,
+  ]);
+
+  /** TV 캡처형 — 통합분석도 ChartView에서 직접 생성(엔진 pack 누락·지연과 무관하게 클릭 즉시 표시) */
+  const tvStructureLsPackClient = useMemo(() => {
+    if (settings.showTvStructureLs !== true) return null;
+    if (!isMergedAnalysisDesk && !isSmcDeskMode && !isSmartDeskLikeMode) return null;
+    const src =
+      isMergedAnalysisDesk && candlesForMergedDeskEngine.length >= 50
+        ? candlesForMergedDeskEngine
+        : candles;
+    if (src.length < 50) return null;
+    return buildTvStructureLongShortPack({
+      candles: src,
+      swingPivot: Math.max(2, Math.min(4, Math.round(Number(settings.smcDeskSwingPivot) || 2))),
+      maxSignals: 6,
+    });
+  }, [
+    settings.showTvStructureLs,
+    settings.smcDeskSwingPivot,
+    isMergedAnalysisDesk,
+    isSmcDeskMode,
+    isSmartDeskLikeMode,
+    candles,
+    candlesForMergedDeskEngine,
+  ]);
+
+  const tvStructureLsOverlays = useMemo(() => {
+    if (!tvStructureLsPackClient) return [] as OverlayItem[];
+    /** 통합분석은 mergedDeskOverlaysForChart에서 합침 */
+    if (isMergedAnalysisDesk) return [] as OverlayItem[];
+    return tvStructureLsPackClient.overlays;
+  }, [tvStructureLsPackClient, isMergedAnalysisDesk]);
 
   /** AI_ZONE: CP 채널 + LinReg 추세선 합성 컨플루언스 */
-  const cpLinregFusionOverlays = useMemo(
-    () =>
-      buildCpLinregFusionOverlays({
-        uiMode,
-        candles,
-        overlays: overlaysPreLinRegSmc as OverlayItem[],
-        analysis: analysis as AnalyzeResponse | null,
-      }),
-    [uiMode, candles, overlaysPreLinRegSmc, analysis]
-  );
+  const cpLinregFusionOverlays = useMemo(() => {
+    if (isMonthStartDeskMode) return [] as OverlayItem[];
+    if (!analysisMatchesTf) return [] as OverlayItem[];
+    return buildCpLinregFusionOverlays({
+      uiMode,
+      candles,
+      overlays: overlaysPreLinRegSmc as OverlayItem[],
+      analysis: analysis as AnalyzeResponse | null,
+    });
+  }, [analysisMatchesTf, uiMode, candles, overlaysPreLinRegSmc, analysis]);
 
   /** SMC 데스크: 차트 캔들 위 볼배 라벨(종합·합류·MTF 요약) — 카드 아님 */
   const smcDeskBallboyOverlays = useMemo(() => {
-    if (!isSmcDeskMode || settings.showSmcDeskBallboyHud !== true || !analysis) {
+    if (!isSmcDeskMode || settings.showSmcDeskBallboyHud !== true || !analysis || !analysisMatchesTf) {
       return [] as OverlayItem[];
     }
     return buildSmcDeskBallboySignalOverlay({ analysis, candles });
-  }, [uiMode, settings.showSmcDeskBallboyHud, analysis, candles]);
+  }, [uiMode, settings.showSmcDeskBallboyHud, analysis, analysisMatchesTf, candles]);
 
   const smcDeskRangeBreakoutOverlays = useMemo(() => {
     if (!isSmcDeskMode || settings.showSmcDeskRangeBreakoutZones !== true || candles.length < 8) {
@@ -3655,13 +6654,31 @@ const ChartViewInner = ({
     return buildSmcDeskRangeBreakoutZones({ candles });
   }, [uiMode, settings.showSmcDeskRangeBreakoutZones, candles]);
 
-  const smcEntryPlaybookMemo = useMemo(() => computeSmcEntryPlaybook(analysis ?? null, candles), [analysis, candles]);
+  const smcEntryPlaybookMemo = useMemo(() => {
+    if (!isSmcDeskMode) return null;
+    return computeSmcEntryPlaybook(analysisMatchesTf ? analysis ?? null : null, candles);
+  }, [isSmcDeskMode, analysisMatchesTf, analysis, candles]);
   const smcEntryPlaybookOverlays = useMemo(() => {
-    if (!isSmcDeskMode || settings.showSmcDeskEntryPlaybook === false || !analysis || candles.length < 12) {
+    if (
+      !isSmcDeskMode ||
+      settings.showSmcDeskEntryPlaybook === false ||
+      !analysis ||
+      !analysisMatchesTf ||
+      candles.length < 12 ||
+      !smcEntryPlaybookMemo
+    ) {
       return [] as OverlayItem[];
     }
     return buildSmcEntryPlaybookOverlays(smcEntryPlaybookMemo, candles, timeframe);
-  }, [uiMode, settings.showSmcDeskEntryPlaybook, analysis, candles, timeframe, smcEntryPlaybookMemo]);
+  }, [
+    uiMode,
+    settings.showSmcDeskEntryPlaybook,
+    analysis,
+    analysisMatchesTf,
+    candles,
+    timeframe,
+    smcEntryPlaybookMemo,
+  ]);
   const bjDoubleTapOverlays = useMemo(() => {
     if (!isSmartMoneyMvpMode) return [] as OverlayItem[];
     if (!showScenario) return [] as OverlayItem[];
@@ -3674,18 +6691,20 @@ const ChartViewInner = ({
   }, [isSmartMoneyMvpMode, showScenario, candles, effectiveChartPrimePivotLength]);
 
   const overlays = useMemo(() => {
+    if ((isMonthStartDeskMode || isMergedAnalysisDesk) && monthDeskUnifiedPulseEngineOn) return [] as OverlayItem[];
     const merged: OverlayItem[] = [
       ...overlaysPreLinRegSmc,
       ...linRegSmcZoneOverlays,
       ...cpLinregFusionOverlays,
       ...smcDeskConfluenceLsOverlays,
+      ...tvStructureLsOverlays,
       ...smcDeskBallboyOverlays,
       ...smcDeskRangeBreakoutOverlays,
       ...smcEntryPlaybookOverlays,
       ...bjDoubleTapOverlays,
       ...smcDeskCompositeChartOverlays,
     ];
-    if (uiMode !== 'AI_ZONE' || candles.length < 8) return merged;
+    if (!isAiZoneDesk || candles.length < 8) return merged;
 
     // AI_ZONE 극단 정리: LL/LH(고점·저점 구간) 추세선 2개만 표시.
     const n = candles.length;
@@ -3761,6 +6780,7 @@ const ChartViewInner = ({
     linRegSmcZoneOverlays,
     cpLinregFusionOverlays,
     smcDeskConfluenceLsOverlays,
+    tvStructureLsOverlays,
     smcDeskBallboyOverlays,
     smcDeskRangeBreakoutOverlays,
     smcEntryPlaybookOverlays,
@@ -3768,6 +6788,8 @@ const ChartViewInner = ({
     smcDeskCompositeChartOverlays,
     uiMode,
     candles,
+    isDeskPulseFamily,
+    monthDeskUnifiedPulseEngineOn,
   ]);
   const isVisionTriangle = (id: string) => /^vision-(sym|asc|desc)-/.test(id);
   const isVisionFlag = (id: string) => /^vision-(bullflag|bearflag|flag)-/.test(id);
@@ -3775,11 +6797,12 @@ const ChartViewInner = ({
   const isVisionReversal = (id: string) => /^vision-(dt|db|hs|ihs)-/.test(id);
   const isVisionRange = (id: string) => /^vision-(range|chup|chdn)-/.test(id);
   const filteredOverlays = useMemo(() => {
+    if ((isMonthStartDeskMode || isMergedAnalysisDesk) && monthDeskUnifiedPulseEngineOn) return [] as OverlayItem[];
     const hasCompositeOverlays = overlays.some((item: any) =>
       String(item?.id || '').startsWith('smc-composite-')
     );
-    if (uiMode === 'AI_ZONE') {
-      // AI_ZONE 종합 모드: 기존 엔진 기능(존·라인·밴드·추세선)을 한 화면에 통합
+    if (isAiZoneDesk) {
+      // AI_ZONE·월초 데스크: 기존 엔진 기능(존·라인·밴드·추세선)을 한 화면에 통합
       return overlays.filter((item: any) => {
         const id = String(item?.id || '');
         const kind = String(item?.kind || '');
@@ -3844,6 +6867,46 @@ const ChartViewInner = ({
     return overlays.filter(item => {
       const cat = (item as any).category;
       const tid = String((item as any).id || '');
+      /** 독수리1호 평행채널엔진 — 칩 ON일 때만 팩에 들어오며 구조/존 토글과 분리 */
+      if (isEagle1ParallelChannelOverlay(item as OverlayItem)) return true;
+      if (isMergedAnalysisDesk && (
+        tid.startsWith('merged-desk-hotzone-') ||
+        tid.startsWith('merged-desk-hq-') ||
+        tid.startsWith('merged-desk-core-sr-') ||
+        tid.startsWith('merged-desk-rb-core-sr-') ||
+        tid.startsWith('merged-swing-mid-') ||
+        tid.startsWith('merged-choch-ob-') ||
+        tid.startsWith('merged-desk-downside-plan-') ||
+        tid.startsWith('merged-desk-projected-support') ||
+        tid.startsWith('merged-desk-support-rebound') ||
+        tid.startsWith('merged-desk-trade-rail-')
+      )) {
+        return true;
+      }
+      if (isMonthStartDeskMode && item.kind === 'trendLine') {
+        const mdWhalePack = settings.chartMonthDeskWhaleChartPackEnabled !== false;
+        if (mdWhalePack) {
+          if (
+            tid.startsWith('parkf-lr-') ||
+            tid.startsWith('parkf-xsec-') ||
+            tid.startsWith('whale-alr-') ||
+            tid.startsWith('diag-') ||
+            tid.startsWith('md-path-')
+          ) {
+            return false;
+          }
+        } else if (
+          tid.startsWith('parkf-pri-') ||
+          tid.startsWith('parkf-sec-') ||
+          tid.startsWith('parkf-xsec-') ||
+          tid.startsWith('parkf-lr-sm') ||
+          tid.startsWith('parkf-lr-md') ||
+          tid.startsWith('diag-') ||
+          tid.startsWith('cptc-')
+        ) {
+          return false;
+        }
+      }
       if (uiMode === 'SMART_MONEY_MVP') {
         if (tid.startsWith('smartmoney-mvp-')) return true;
       }
@@ -3859,7 +6922,9 @@ const ChartViewInner = ({
     }
     if (tid.startsWith('htf-cp-')) return false;
     if (tid.startsWith('hotzone-cp-')) return false;
-    if (tid.startsWith('ai-auto-')) return isAiMode;
+    if (tid.startsWith('ai-auto-')) {
+      return isAiMode || (isMonthStartDeskMode && settings.chartMonthDeskWhaleChartPackEnabled !== false);
+    }
     if (tid.startsWith('whale-drs-')) return isAiMode && whaleDynamicRsProEnabled;
     if (tid.startsWith('whale-lqb-')) return isAiMode && whaleLiquidityBiasEnabled;
     if (tid.startsWith('smart-adaptive-')) return settings.showSmartAdaptiveSignal !== false;
@@ -3871,7 +6936,8 @@ const ChartViewInner = ({
       return false;
     }
     if (tid.startsWith('ls-plan-')) return true;
-    if (tid.startsWith('close-')) return settings.chartTfCloseSettlementLines !== false;
+    if (tid.startsWith('close-') || isSettleCloseOverlayId(tid))
+      return settings.chartTfCloseSettlementLines !== false;
     if (tid.startsWith('structure-bounce-')) {
       return uiMode === 'WHALE' && whaleStructureBounceEnabled && showStructure;
     }
@@ -3899,7 +6965,13 @@ const ChartViewInner = ({
     if (cat === 'volatilityTrendScore' || tid.startsWith('vts-')) {
       if (!showVolatilityTrendScore) return false;
     }
-    if (cat === 'chartPrimeTrendChannels' && !showChartPrimeTrendChannels) return false;
+    if (
+      cat === 'chartPrimeTrendChannels' &&
+      !showChartPrimeTrendChannels &&
+      !(isMergedAnalysisDesk && isMergedDeskWaveMovePathOverlay(item as OverlayItem))
+    ) {
+      return false;
+    }
     if (cat === 'patternVision') {
       if (!showVision) return false;
       const baseId = item.id.replace(/-label$/, '').replace(/-zone-\d+$/, '').replace(/-resistance-\d+$/, '').replace(/-support-\d+$/, '').replace(/-neckline-\d+$/, '');
@@ -3914,9 +6986,9 @@ const ChartViewInner = ({
       if (isSmcCompositeMode && tid.startsWith('smc-composite-')) return true;
       const beamLabel = item.kind === 'label' && ((item as any).id?.startsWith?.('beam-forecast-') || (item as any).id?.startsWith?.('beam-confirm-'));
       if (beamLabel) return true;
-      /** ParkF LinReg·피벗 추세선 콜아웃 — 구조 라벨과 별도로 유지(구조 OFF여도 점선·라벨 세트 복구) */
+      /** ParkF LinReg·피벗 추세선 콜아웃 — 마감·안착은 6선 제한으로 피벗 라벨 숨김 */
       const parkfCallout = item.kind === 'label' && tid.startsWith('parkf-');
-      if (parkfCallout) return true;
+      if (parkfCallout && !isMonthStartDeskMode) return true;
       const lvrbSig = item.kind === 'label' && (item as any).id?.startsWith?.('lvrb-sig-');
       if (lvrbSig && showLvrb) return true;
       const vtsSig = item.kind === 'label' && tid.startsWith('vts-');
@@ -3931,7 +7003,44 @@ const ChartViewInner = ({
         tid.startsWith('smc-entry-playbook-') &&
         isSmcDeskMode &&
         settings.showSmcDeskEntryPlaybook !== false;
-      if (!harmonicPoint && !tailongCloseLabel && !chartPrimeLiq && !smcEntryPlaybookLbl) return false;
+      const tvStructureLsLbl = item.kind === 'label' && tid.startsWith('merged-desk-tv-ls-');
+      const tvStructureLsLblAlt = item.kind === 'label' && tid.startsWith('tv-structure-ls-');
+      const eagle1PceLbl =
+        item.kind === 'label' && isEagle1ParallelChannelOverlay(item as OverlayItem);
+      /** 채널 핵심 핀 — 이모티콘 설정 ON일 때만 (라벨 OFF여도) */
+      const rbCorePinLbl =
+        item.kind === 'label' &&
+        settings.chartMergedDeskRbCoreMarkersEnabled === true &&
+        (tid.startsWith('merged-desk-rb-core-pin-') || tid.startsWith('merged-desk-rb-core-mk-'));
+      /** 채널면·매수면·핵심돌파·게이트 시그널 핀 — 띠 ON이면 라벨 OFF여도 유지 */
+      const rbSignalPinLbl =
+        item.kind === 'label' &&
+        (showChartPrimeTrendChannels ||
+          isMergedDeskWaveMovePathOverlay(item as OverlayItem)) &&
+        (tid.startsWith('merged-desk-rb-ai-') ||
+          tid.startsWith('merged-desk-rb-master') ||
+          tid.startsWith('merged-desk-rb-entry') ||
+          tid.startsWith('merged-desk-rb-tp') ||
+          tid.startsWith('merged-desk-rb-core-break') ||
+          tid.startsWith('merged-desk-rb-core-settle') ||
+          tid.startsWith('merged-desk-rb-phase') ||
+          tid.startsWith('merged-desk-rb-schematic') ||
+          tid.startsWith('merged-desk-wave-path') ||
+          tid.startsWith('merged-desk-rb-future') ||
+          String((item as OverlayItem).overlayZoneExtraClass || '').includes('merged-desk-rb-signal-pin') ||
+          String((item as OverlayItem).overlayZoneExtraClass || '').includes('merged-desk-rb-schematic-node'));
+      if (
+        !harmonicPoint &&
+        !tailongCloseLabel &&
+        !chartPrimeLiq &&
+        !smcEntryPlaybookLbl &&
+        !tvStructureLsLbl &&
+        !tvStructureLsLblAlt &&
+        !eagle1PceLbl &&
+        !rbCorePinLbl &&
+        !rbSignalPinLbl
+      )
+        return false;
     }
     if (!showRsi && (item.kind === 'rsiSignal' || item.kind === 'rsiDivergenceLine' || cat === 'rsi')) return false;
     /**
@@ -3971,9 +7080,45 @@ const ChartViewInner = ({
       const chartPrimeTrendLine =
         item.kind === 'trendLine' && cat === 'chartPrimeTrendChannels' && showChartPrimeTrendChannels;
       const smcPlaybookTrend = item.kind === 'trendLine' && cat === 'smcDesk' && tid.startsWith('smc-entry-playbook-');
-      if (!engineTrendDiagonal && !chartPrimeTrendLine && !smcPlaybookTrend) return false;
+      const tailongPathLine =
+        item.kind === 'trendLine' &&
+        (cat === 'tailongPath' || tid.startsWith('tailong-path-')) &&
+        (showStructure || showTailongClose || showReactionZone);
+      const mergedDeskTrendKeep =
+        isMergedAnalysisDesk &&
+        item.kind === 'trendLine' &&
+        (isMergedDeskWaveMovePathOverlay(item as OverlayItem) ||
+          isMergedDeskCandleTrendOverlay(item as OverlayItem) ||
+          isEagle1ParallelChannelOverlay(item as OverlayItem) ||
+          tid.startsWith('merged-swing-channel-') ||
+          tid.startsWith('merged-ares-mlsp-tv-') ||
+          tid.startsWith('merged-desk-candle-trend') ||
+          String((item as OverlayItem).overlayZoneExtraClass || '').includes('merged-desk-trendline-keep') ||
+          String((item as OverlayItem).overlayZoneExtraClass || '').includes('merged-desk-candle-trend'));
+      const mergedDeskBandKeep =
+        isMergedAnalysisDesk &&
+        item.kind === 'channelBand' &&
+        (isMergedDeskWaveMovePathOverlay(item as OverlayItem) ||
+          isEagle1ParallelChannelOverlay(item as OverlayItem));
+      if (
+        !engineTrendDiagonal &&
+        !chartPrimeTrendLine &&
+        !smcPlaybookTrend &&
+        !tailongPathLine &&
+        !mergedDeskTrendKeep &&
+        !mergedDeskBandKeep
+      )
+        return false;
     }
-    if (!showFib && (item.kind === 'fibLine' || cat === 'fib')) return false;
+    if (!showFib && (item.kind === 'fibLine' || cat === 'fib')) {
+      /** 통합 AVWAP 피보·GP — 칩(피보·GP·헌팅) ON이면 showFib OFF여도 유지 */
+      const avwapFibKeep =
+        isMergedAnalysisDesk &&
+        (tid.startsWith('merged-desk-avwap-fib-') ||
+          tid.startsWith('avwap-fib-') ||
+          String((item as OverlayItem).overlayZoneExtraClass || '').includes('merged-desk-avwap-fib'));
+      if (!avwapFibKeep) return false;
+    }
     if (!showHarmonic && (item.kind === 'harmonic' || item.kind === 'harmonicLeg' || cat === 'harmonic')) return false;
     if (!showZones && ['zone', 'fvg', 'ob', 'supplyZone', 'demandZone'].includes(item.kind)) {
       if (
@@ -3987,9 +7132,64 @@ const ChartViewInner = ({
       ) {
         return true;
       }
-      const whaleHotZoneKeep = isAiMode && whaleHotZoneEnabled && isWhaleHotZoneOverlay(item as Record<string, unknown>);
+      /** 통합분석 — HotZone/HQ/스윙 진입존은 showZones OFF여도 표시 */
+      const mergedEntryZoneKeep =
+        isMergedAnalysisDesk &&
+        (tid.startsWith('merged-desk-hotzone-') ||
+          tid.startsWith('merged-desk-hq-') ||
+          tid.startsWith('merged-desk-core-sr-') ||
+          tid.startsWith('merged-desk-rb-core-sr-') ||
+          tid.startsWith('merged-desk-tv-ls-') ||
+          tid.startsWith('merged-swing-mid-') ||
+          tid.startsWith('merged-choch-ob-') ||
+          tid.startsWith('merged-retrace-') ||
+          tid.startsWith('merged-desk-avwap-fib-') ||
+          tid.startsWith('avwap-fib-') ||
+          tid.startsWith('merged-desk-evidence-') ||
+          tid.startsWith('merged-desk-practice-ai-') ||
+          tid.startsWith('merged-desk-mtf-dump-') ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-hotzone-entry'
+          ) ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-avwap-fib'
+          ) ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-evidence-zone'
+          ) ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-practice-ai-zone'
+          ) ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-mtf-dump-zone'
+          ) ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-core-sr'
+          ) ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-tv-ls-zone'
+          ) ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-swing-mid-entry'
+          ) ||
+          tid.startsWith('merged-desk-rb-ai-') ||
+          tid.startsWith('merged-desk-rb-core-') ||
+          tid.startsWith('merged-desk-rb-schematic') ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-rb-ai-face'
+          ) ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-rb-schematic-face'
+          ) ||
+          String((item as { overlayZoneExtraClass?: string }).overlayZoneExtraClass || '').includes(
+            'merged-desk-rb-core-break-zone'
+          ));
+      const whaleHotZoneKeep =
+        (isAiMode || isMonthStartDeskMode) &&
+        whaleHotZoneEnabled &&
+        isWhaleHotZoneOverlay(item as Record<string, unknown>);
       const whaleCoreSrKeep = isAiMode && whaleCoreSrZoneEnabled && isMajorCoreSrOverlay(item as Record<string, unknown>);
-      if (!whaleHotZoneKeep && !whaleCoreSrKeep) return false;
+      if (!mergedEntryZoneKeep && !whaleHotZoneKeep && !whaleCoreSrKeep) return false;
     }
     if (!showReactionZone && (item.kind === 'reactionZone' || (item as any).category === 'reactionZone')) return false;
     if (!showBpr && (item.kind === 'bprZone' || cat === 'bpr')) return false;
@@ -4052,12 +7252,14 @@ const ChartViewInner = ({
     whaleLiquidityBiasEnabled,
     whaleStructureBounceEnabled,
     uiMode,
+    isDeskPulseFamily,
+    monthDeskUnifiedPulseEngineOn,
     settings.chartSmcCompositeChartDrawing,
   ]);
 
   const candleAnalysisSliceForUi = useMemo(() => {
     if (!candleAnalysisLikeUi) return null;
-    const tfOk = analysis ? analysisMatchesSymbolAndTf(analysis, symbol, timeframe) : false;
+    const tfOk = analysis ? analysisUsableOnChart(analysis, symbol, timeframe, uiMode) : false;
     /** 차트 series와 동일한 `candles` 우선 — 분석 스냅샷만 쓰면 timeScale·FVG/VIFVG 앵커가 어긋남 */
     if (tfOk && candles.length) return candles;
     const ac = (analysis as { candles?: Candle[] } | null)?.candles;
@@ -4291,9 +7493,11 @@ const ChartViewInner = ({
   }, [uiMode, candles]);
 
   const hotZonePullbackPack = useMemo(() => {
-    if (uiMode !== 'HOT_ZONE' || candles.length < 40) return null;
+    const monthDeskHotOn =
+      isMonthStartDeskMode && settings.chartMonthDeskPullbackHotZoneEnabled !== false;
+    if (!(uiMode === 'HOT_ZONE' || monthDeskHotOn) || candles.length < 40) return null;
     return buildPullbackHotZonePack({ candles, timeframe, symbol, mtfSignals });
-  }, [uiMode, candles, timeframe, symbol, mtfSignals]);
+  }, [uiMode, settings.chartMonthDeskPullbackHotZoneEnabled, candles, timeframe, symbol, mtfSignals]);
 
   /** 핫존 핫 캔들 봉 — 줄·존 근접과 달리 label 오버레이라 proximity 스캔에 안 잡혀 별도 연동 */
   const hotZoneCandleHighlightTimes = useMemo(() => {
@@ -4301,6 +7505,21 @@ const ChartViewInner = ({
     if (!arr?.length) return null;
     return new Set(arr.map((n) => Number(n)));
   }, [hotZonePullbackPack]);
+
+  /** OB(선포착) 형성 봉 + N봉 이내 롱빔/숏빔 — 캔들 마커·본봉 색 */
+  const obPreBeamScan = useMemo(() => {
+    if (!isMonthStartDeskMode && settings.showCandle === false) return null;
+    if (candles.length < 4) return null;
+    const safe = sanitizeChartCandlesForSeries(candles, timeframe);
+    if (safe.length < 4) return null;
+    return scanObPreBeamCandles(safe, {
+      lookbackBars: isMonthDeskChartHtf(timeframe) ? 280 : 420,
+      maxAheadBars: 12,
+      timeframe,
+    });
+  }, [isMonthStartDeskMode, settings.showCandle, candles, timeframe]);
+
+  const obPreBeamCandlePaintByTime = obPreBeamScan?.paintByTime ?? null;
 
   /** 캔들 per-bar 색: 겹침 분리(본봉/테/심) + 클래식·모노 */
   const candleBlendInput = useMemo((): CandleBlendInput => {
@@ -4332,6 +7551,20 @@ const ChartViewInner = ({
   );
 
   const modeFilteredOverlays = useMemo(() => {
+    /** 벤치마크 LWC — 구조·존·패턴·MTF 레이어 (Atlas는 tradeAtlasOverlayPack 별도) */
+    if (uiMode === 'REFERENCE_DESK') {
+      const flags = readReferenceDeskLayerFlags(settings);
+      return buildReferenceDeskLwcOverlayPack({
+        pool: filteredOverlays,
+        analysis: analysisMatchesTf ? analysis : null,
+        candles,
+        timeframe,
+        flags,
+        mtfSignals,
+        strongZones: analysisMatchesTf ? stableStrongZoneOverlays : [],
+        assetsDrawingGuide: settings.chartReferenceDeskAssetsDrawingGuide !== false,
+      });
+    }
     /** Smart Adaptive Signal — 클라이언트 전용, 모드별 화이트리스트에도 항상 끼워 넣음 */
     const smartAdaptivePack = filteredOverlays.filter(
       (o: any) =>
@@ -4473,8 +7706,8 @@ const ChartViewInner = ({
       return dedupeOverlaysById([...phz]);
     }
 
-    // AI_ZONE는 전용 파이프를 사용: 통합작도 재조합(candleAnalysisLikeUi)으로 인한 누락 방지
-    if (uiMode === 'AI_ZONE') {
+    // AI_ZONE·월초 데스크는 전용 파이프를 사용: 통합작도 재조합(candleAnalysisLikeUi)으로 인한 누락 방지
+    if (isAiZoneDesk) {
       const aiZoneCorePack = filteredOverlays.filter((o: any) => {
         const id = String(o?.id || '');
         return id.startsWith('ai-zone-') || id.startsWith('ai-lllh-') || id.startsWith('ai-cp-lr-');
@@ -4623,6 +7856,12 @@ const ChartViewInner = ({
         !caShowEll || !analysis ? [] : !executive ? buildCandleAnalysisElliottMvpOverlays(candleSlice, analysis, timeframe) : [];
       const playbookPath =
         !caShowPb || !analysis ? [] : !executive ? buildCandleAnalysisPlaybookPathOverlays(analysis, candleSlice, timeframe) : [];
+      const breakoutFollowPath =
+        !analysis || isMonthStartDeskMode || executive || !analysisMatchesTf
+          ? []
+          : analysis.breakoutFollow?.phase !== 'idle'
+            ? buildBreakoutFollowPathOverlays(analysis.breakoutFollow, candleSlice, timeframe)
+            : [];
       const autoAnalysisZones = !caShowAuto ? [] : candleAnalysisAutoSplit.chartOverlays;
       const smartZonesRaw = so
         ? executive
@@ -4658,8 +7897,11 @@ const ChartViewInner = ({
           : [];
       const guideZones = [
         ...guideBase,
+        ...(uiMode === 'FUSION_MODE' && analysisMatchesTf ? buildFusionStructureZones(analysis ?? null, candleSlice) : []),
+        ...(uiMode === 'FUSION_MODE' && whaleHotZoneEnabled ? whaleHotZoneOverlays : []),
         ...elliottMvp,
         ...playbookPath,
+        ...breakoutFollowPath,
         ...autoAnalysisZones,
         ...hashFib,
         ...bosWaves,
@@ -4708,6 +7950,55 @@ const ChartViewInner = ({
         ...candleAnalysisMerged.filter((item: any) => !candleAnalysisOverlayIsHiddenZone(item as Record<string, unknown>)),
         ...smcDeskOnly,
       ]);
+      if (uiMode === 'FUSION_MODE') {
+        const isFusionNewOverlay = (item: OverlayItem): boolean => {
+          const id = String(item.id || '');
+          return (
+            id.startsWith('fusion-structure-') ||
+            id.startsWith('smart-overlay-zone-') ||
+            id.startsWith('key-mustBreak-') ||
+            id.startsWith('key-mustHold-') ||
+            id.startsWith('key-invalidation-') ||
+            id.startsWith('settlement-zone-') ||
+            id.startsWith('settlement-level-') ||
+            id.startsWith('settlement-path-')
+          );
+        };
+        const fusionPriority = (item: OverlayItem): number => {
+          const id = String(item.id || '');
+          const kind = String(item.kind || '');
+          if (id.startsWith('fusion-structure-')) return 100;
+          if (id.startsWith('hotzone-')) return 68;
+          if (id.startsWith('smart-overlay-zone-') && (kind === 'zone' || kind === 'keyLevel')) return 92;
+          if (id.startsWith('key-mustBreak-') || id.startsWith('key-mustHold-') || id.startsWith('key-invalidation-')) return 88;
+          if (id.startsWith('settlement-zone-') || id.startsWith('settlement-level-') || id.startsWith('settlement-path-')) return 85;
+          if (kind === 'zone') return 70;
+          if (kind === 'keyLevel' || kind === 'supportLine' || kind === 'resistanceLine') return 64;
+          if (kind === 'trendLine' && (id.startsWith('diag-') || id.startsWith('cptc-'))) return 38;
+          return 0;
+        };
+        const fusionKeep = mergedCa
+          .filter((item) => {
+            const id = String(item.id || '');
+            const kind = String(item.kind || '');
+            const cat = String(item.category || '');
+            const isNew = isFusionNewOverlay(item as OverlayItem);
+            const isLegacy = !isNew;
+            if ((!fusionShowNew && isNew) || (!fusionShowLegacy && isLegacy)) return false;
+            if (id.startsWith('fusion-structure-')) return true;
+            if (id.startsWith('hotzone-')) return whaleHotZoneEnabled;
+            if (id.startsWith('smart-overlay-zone-')) return kind === 'zone' || kind === 'keyLevel';
+            if (id.startsWith('key-mustBreak-') || id.startsWith('key-mustHold-') || id.startsWith('key-invalidation-')) return true;
+            if (id.startsWith('settlement-zone-') || id.startsWith('settlement-level-') || id.startsWith('settlement-path-')) return true;
+            if (kind === 'zone' || kind === 'keyLevel' || kind === 'supportLine' || kind === 'resistanceLine') return true;
+            if (kind === 'trendLine' && (id.startsWith('diag-') || id.startsWith('cptc-'))) return true;
+            if (cat === 'smcDesk' || cat === 'patternVision' || cat === 'harmonic' || cat === 'rsi') return false;
+            return false;
+          })
+          .sort((a, b) => fusionPriority(b as OverlayItem) - fusionPriority(a as OverlayItem))
+          .slice(0, fusionPerfLite ? 30 : 42);
+        mergedCa = dedupeOverlaysById(fusionKeep);
+      }
       if (settings.chartBuySellZoneFocus === true) {
         mergedCa = mergedCa.filter((item) => overlayMatchesBuySellZoneFocus(item as OverlayItem));
       }
@@ -4884,14 +8175,17 @@ const ChartViewInner = ({
               (o.kind === 'trendLine' || o.kind === 'label' || String(o?.id || '').startsWith('cptc-'))
           )
         : [];
-      const linregTrendlines = filteredOverlays.filter(
-        (o: any) =>
-          o.kind === 'trendLine' &&
-          (o.category === 'trendlineEngine' ||
-            o.category === 'autoTrendline' ||
-            String(o?.id || '').startsWith('parkf-') ||
-            String(o?.id || '').startsWith('diag-'))
-      );
+      const linregTrendlines = [
+        ...filteredOverlays.filter(
+          (o: any) =>
+            o.kind === 'trendLine' &&
+            (o.category === 'trendlineEngine' ||
+              o.category === 'autoTrendline' ||
+              String(o?.id || '').startsWith('parkf-') ||
+              String(o?.id || '').startsWith('diag-'))
+        ),
+        ...whaleAnchoredLinRegOverlays.filter((o) => o.kind === 'trendLine' || o.kind === 'channelBand'),
+      ];
       const breakoutLevel = filteredOverlays.filter((item: any) =>
         String(item?.id || '').startsWith('key-mustBreak-')
       );
@@ -4934,6 +8228,43 @@ const ChartViewInner = ({
       ];
     }
     const strong = showWhaleZone && analysisMatchesTf ? stableStrongZoneOverlays : [];
+    /** 존·라인: LinReg + CP + HotZone + Strike 만 (SMC·타입옴·phz 전부 제외) */
+    if (isZoneLineProDesk) {
+      return buildZoneLineProBaseOverlays({
+        filteredOverlays: filteredOverlays as OverlayItem[],
+        strikePack: monthDeskStrikeOverlayPack,
+        whaleHotZoneOverlays,
+        whaleHotZoneEnabled,
+        showChartPrimeTrendChannels,
+        pullbackHotOverlays: hotZonePullbackPack?.overlays ?? [],
+        pullbackHotEnabled: settings.chartMonthDeskPullbackHotZoneEnabled !== false,
+      });
+    }
+    /** 마감·안착·통합·분석: mustHold + … — 통합엔진은 desk 팩만 */
+    if (isMonthStartDeskMode || isMergedAnalysisDesk) {
+      if (monthDeskUnifiedPulseEngineOn && !isZoneLineProDesk) {
+        return [];
+      }
+      const mustHold = filteredOverlays.filter((o: any) => String(o?.id || '').startsWith('key-mustHold-'));
+      const buObCore = whaleAutoOverlaysDeduped.filter((o: any) => String(o?.id || '').startsWith('whale-auto-bu-ob'));
+      const whaleHotRadar =
+        whaleHotZoneEnabled && whaleHotZoneOverlays.length ? whaleHotZoneOverlays : ([] as OverlayItem[]);
+      const phzOverlays =
+        settings.chartMonthDeskPullbackHotZoneEnabled !== false
+          ? hotZonePullbackPack?.overlays ?? []
+          : [];
+      return dedupeOverlaysById([
+        ...monthDeskStrikeOverlayPack,
+        ...mustHold,
+        ...buObCore,
+        ...whaleHotRadar,
+        ...monthDeskSmcDiagramOverlays,
+        ...monthDeskSmcMoneyOverlays,
+        ...monthDeskTypeomOverlayPack,
+        ...phzOverlays,
+        ...monthDeskSmcPlaybookOverlays,
+      ]);
+    }
     if (uiMode === 'FOCUS') {
       const focusList = strong.length ? [...strong, ...filteredOverlays] : filteredOverlays;
       return focusList.filter((o: any) => o.id !== 'swing-tap-zone');
@@ -4982,14 +8313,32 @@ const ChartViewInner = ({
     candleAnalysisShowEngineFvg,
     candleAnalysisShowTrendPattern,
     settings.chartBuySellZoneFocus,
+    fusionShowLegacy,
+    fusionShowNew,
+    fusionPerfLite,
     bibleModeOverlays,
     hotZonePullbackPack,
+    whaleHotZoneOverlays,
+    whaleHotZoneEnabled,
+    whaleAutoOverlaysDeduped,
+    whaleAnchoredLinRegOverlays,
     smcDeskMarkerPlanCurrent,
+    monthDeskTypeomOverlayPack,
+    monthDeskStrikeOverlayPack,
+    monthDeskSmcDiagramOverlays,
+    monthDeskSmcPlaybookOverlays,
+    monthDeskSmcMoneyOverlays,
+    settings.chartReferenceDeskLayerStructure,
+    settings.chartReferenceDeskLayerZones,
+    settings.chartReferenceDeskLayerPatterns,
+    settings.chartReferenceDeskLayerMtfMarkers,
+    settings.chartReferenceDeskAssetsDrawingGuide,
+    mtfSignals,
   ]);
 
   const modeFilteredOverlaysDeduped = useMemo(
-    () => dedupeOverlaysById(modeFilteredOverlays),
-    [modeFilteredOverlays]
+    () => dedupeOverlaysById([...modeFilteredOverlays, ...tradeAtlasOverlayPack]),
+    [modeFilteredOverlays, tradeAtlasOverlayPack]
   );
 
   const smcDeskInspectBundle = useMemo(() => {
@@ -5137,38 +8486,964 @@ const ChartViewInner = ({
   const chartBulkHideLabels = settings.chartBulkHideLabels === true;
   const chartBulkHideHLines = settings.chartBulkHideHLines === true;
   const chartBulkHideZones = settings.chartBulkHideZones === true;
+  /** 통합·분석 차트설정 라벨 ON/OFF — 면·선 유지, 글자만 */
+  const mergedDeskOverlayLabelsOn =
+    !isMergedAnalysisDesk ||
+    (settings.chartMergedDeskOverlayLabelsEnabled !== false && !chartBulkHideLabels);
+  /** 통합·분석 우측 축 가격알약(E/SL/TP·종가마감) — HTML 라벨과 독립 */
+  const mergedDeskRightAxisPricesOn =
+    !isMergedAnalysisDesk || settings.chartMergedDeskRightAxisPricesEnabled !== false;
   /** 통합작도: 차트 위 텍스트·핀 대신 존·선·톤만 — 일괄 라벨 숨김과 동일 필터 적용 */
-  const unifiedDeskHideOverlayText = unifiedDeskMode;
+  const unifiedDeskHideOverlayText = unifiedDeskMode && uiMode !== 'FUSION_MODE';
   /**
    * 통합작도는 본질적으로 텍스트를 끄지만, **AI_ZONE**은 캡션·핵심 라벨이 본기능이므로 동일 압박을 받지 않음.
    * `라벨X` / `존X`는 `overlayMatchesBulk*()` + `isAiZoneEngineOverlayId` 예외로 `ai-*`는 통과.
    */
-  const suppressHtmlOverlayCaptions = (chartBulkHideLabels && uiMode !== 'AI_ZONE') || (unifiedDeskHideOverlayText && uiMode !== 'AI_ZONE');
+  const suppressHtmlOverlayCaptions =
+    !mergedDeskOverlayLabelsOn ||
+    (chartBulkHideLabels && uiMode !== 'FUSION_MODE') ||
+    unifiedDeskHideOverlayText;
   /**
    * 존(공급·수요·OB 등) 면 위 캡션·가격띠: `라벨 전부 끄기` 시 기본으로 같이 꺼짐.
    * 최강분석에서는 존 식별을 위해 캡션만 유지(핀·기타 HTML 라벨은 suppressHtmlOverlayCaptions 그대로).
    * AI_ZONE은 존 캡션이 읽을 거리 — 통합 압박에서 제외.
    */
   const suppressZoneHtmlCaptions =
-    (unifiedDeskHideOverlayText && uiMode !== 'AI_ZONE') ||
-    (chartBulkHideLabels && uiMode !== 'MAX_ANALYSIS' && !isSmcDeskMode && uiMode !== 'AI_ZONE');
+    !mergedDeskOverlayLabelsOn ||
+    unifiedDeskHideOverlayText ||
+    (chartBulkHideLabels &&
+      uiMode !== 'MAX_ANALYSIS' &&
+      !isSmcDeskMode &&
+      uiMode !== 'FUSION_MODE' &&
+      !isMonthStartDeskMode);
+
+  const monthDeskLayerMode = useMemo(
+    () => (isMonthStartDeskMode ? resolveMonthDeskChartLayerMode(settings, uiMode) : 'full'),
+    [isMonthStartDeskMode, uiMode, settings.chartMonthDeskLayerMode, settings.chartMonthDeskOverlayDensity]
+  );
+
+  const monthDeskPreOrchestratorList = useMemo(() => {
+    if (!isMonthStartDeskMode) return null as OverlayItem[] | null;
+    /** 통합엔진 — atlas 팩만 쓰므로 수백 개 overlay 조립 생략 */
+    if (monthDeskUnifiedPulseEngineOn) return [] as OverlayItem[];
+    let list = modeFilteredOverlaysDeduped as OverlayItem[];
+    if (isZoneLineProDesk) {
+      return dedupeMonthDeskEntryLines(list);
+    }
+    if (monthDeskOverlayClear) {
+      list = filterPhzOverlaysForMonthDeskClearDensity(list);
+    }
+    if (isMonthDeskChartHtf(timeframe)) {
+      list = filterMonthDeskHtfZoneClutter(list, timeframe);
+    }
+    list = filterMonthDeskStreamlineOverlays(list);
+    if (
+      monthDeskLayerMode !== 'strike' &&
+      settings.chartMonthDeskMoneyZoneEnabled !== false &&
+      monthDeskSmcMoneyHud.pools.length > 0
+    ) {
+      const safeDesk = sanitizeChartCandlesForSeries(candlesForMonthDeskWork);
+      list = applyMonthDeskUnifiedEntryZone(list, monthDeskSmcMoneyHud, safeDesk, {
+        compactLabels:
+          settings.chartMonthDeskCompactOverlayLabels === true || monthDeskOverlayClear,
+        fusionDirection: monthDeskAnalyzeVerdictForZone,
+        fusionScoreLong: analysisMatchesTf ? Number(analysis?.longScore ?? 0) : 0,
+        fusionScoreShort: analysisMatchesTf ? Number(analysis?.shortScore ?? 0) : 0,
+        timeframe,
+      });
+      list = filterDuplicateMoneyPoolZones(list);
+      if (monthDeskLayerMode === 'full') {
+        const closeDesk = Number(safeDesk[safeDesk.length - 1]?.close);
+        const ucmHist = resolveMonthDeskUnifiedCoreMoney({
+          pools: monthDeskSmcMoneyHud.pools,
+          close: closeDesk,
+          preferSide:
+            monthDeskAnalyzeVerdictForZone === 'LONG' || monthDeskAnalyzeVerdictForZone === 'SHORT'
+              ? monthDeskAnalyzeVerdictForZone
+              : null,
+          fusionDirection: monthDeskAnalyzeVerdictForZone,
+          fusionScoreLong: analysisMatchesTf ? Number(analysis?.longScore ?? 0) : 0,
+          fusionScoreShort: analysisMatchesTf ? Number(analysis?.shortScore ?? 0) : 0,
+        });
+        list = [
+          ...list,
+          ...buildMonthDeskHistoricalMoneyZoneOverlays(monthDeskSmcMoneyHud, safeDesk, {
+            excludePriceMid: ucmHist?.priceMid ?? null,
+            maxPerSide: monthDeskHistoricalMaxPerSide(timeframe),
+            timeframe,
+          }),
+        ];
+      }
+    }
+    list = dedupeMonthDeskEntryLines(list);
+    if (
+      (monthDeskLayerMode === 'standard' ||
+        monthDeskLayerMode === 'full' ||
+        monthDeskLayerMode === 'zoneLinePro') &&
+      monthDeskWhaleChartOverlays.length > 0
+    ) {
+      list = dedupeOverlaysById([...list, ...monthDeskWhaleChartOverlays]);
+    }
+    if (monthDeskLayerMode !== 'strike' && monthDeskChartAnalysisContext) {
+      const safeChart = sanitizeChartCandlesForSeries(candlesForMonthDeskWork);
+      list = [
+        ...list,
+        ...buildMonthDeskChartAnalysisOverlays({
+          candles: safeChart,
+          ucm: monthDeskChartAnalysisContext.ucm,
+          fusionHeadline: monthDeskChartAnalysisContext.fusionHeadline,
+          fusionTooltip: monthDeskChartAnalysisContext.fusionTooltip,
+          mtfSummaryKo: monthDeskChartAnalysisContext.mtfSummaryKo,
+          closingRefKo: monthDeskChartAnalysisContext.closingRefKo,
+          analysis: monthDeskChartAnalysisContext.analysis,
+          moneyHud: monthDeskChartAnalysisContext.moneyHud,
+          planEntry: monthDeskChartAnalysisContext.planEntry,
+          overlayPack: monthDeskChartAnalysisContext.overlayPack,
+          timeframe: monthDeskChartAnalysisContext.timeframe,
+          scenario: monthDeskChartAnalysisContext.scenario,
+          settleRow: monthDeskChartAnalysisContext.settleRow,
+          preferCandlePaint: settings.chartMonthDeskSettleCandlePaint === true,
+          featureSettleLineLabels: monthDeskClearSummaryOn,
+          breakoutFollow:
+            analysisMatchesTf && monthDeskLayerMode === 'full' ? analysis?.breakoutFollow ?? null : null,
+          breakoutFollowPathEnabled:
+            monthDeskLayerMode === 'full' && settings.chartMonthDeskBreakoutFollowPath !== false,
+        }),
+      ];
+    }
+    if (monthDeskLayerMode === 'full' && obPreBeamScan) {
+      const safeOb = sanitizeChartCandlesForSeries(candlesForMonthDeskWork);
+      list = [...list, ...buildObPreBeamChartOverlays(safeOb, obPreBeamScan, timeframe)];
+    }
+    return list;
+  }, [
+    isDeskPulseFamily,
+    monthDeskUnifiedPulseEngineOn,
+    isZoneLineProDesk,
+    modeFilteredOverlaysDeduped,
+    monthDeskOverlayClear,
+    timeframe,
+    monthDeskLayerMode,
+    settings.chartMonthDeskMoneyZoneEnabled,
+    settings.chartMonthDeskCompactOverlayLabels,
+    settings.chartMonthDeskSettleCandlePaint,
+    settings.chartMonthDeskBreakoutFollowPath,
+    monthDeskSmcMoneyHud,
+    monthDeskAnalyzeVerdictForZone,
+    analysisMatchesTf,
+    analysis,
+    monthDeskWhaleChartOverlays,
+    monthDeskChartAnalysisContext,
+    monthDeskClearSummaryOn,
+    obPreBeamScan,
+    candlesForMonthDeskWork,
+  ]);
+
+  const monthDeskChartOrchestratorOut = useMemo(() => {
+    if (!isMonthStartDeskMode || monthDeskPreOrchestratorList == null) return null;
+    const safe = sanitizeChartCandlesForSeries(candlesForMonthDeskWork, timeframe);
+    if (safe.length < 4) return null;
+    const orchInput = {
+      items: monthDeskPreOrchestratorList,
+      candles: safe,
+      timeframe,
+      settlePack: monthDeskSettleOverlayPack,
+      typeomPack: monthDeskTypeomOverlayPack,
+      settings,
+      analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+      analysisMatches: analysisMatchesTf,
+      overlayClear: monthDeskOverlayClear,
+      uiMode,
+    };
+    if (monthDeskUnifiedPulseEngineOn) {
+      return buildMonthDeskChartOrchestratorLite(orchInput);
+    }
+    return postProcessMonthDeskChartLayers(orchInput);
+  }, [
+    isDeskPulseFamily,
+    monthDeskUnifiedPulseEngineOn,
+    monthDeskPreOrchestratorList,
+    candlesForMonthDeskWork,
+    timeframe,
+    monthDeskSettleOverlayPack,
+    monthDeskTypeomOverlayPack,
+    settings,
+    analysisMatchesTf,
+    analysis,
+    monthDeskOverlayClear,
+    uiMode,
+  ]);
+
+  const monthDeskMergedSignalPack = useMemo(() => {
+    if (!isDeskPulseFamily || isZoneLineProDesk) return null;
+    if (monthDeskUnifiedPulseEngineOn && !isMergedAnalysisDesk) return null;
+    if (settings.chartMonthDeskMergedSignalEnabled !== true) return null;
+    const candleSrc = isMergedAnalysisDesk ? candlesForMergedDeskEngine : candlesForMonthDeskWork;
+    const safe = sanitizeChartCandlesForSeries(candleSrc, timeframe);
+    if (safe.length < 4) return null;
+    const signal = computeMonthDeskMergedSignal({
+      candles: safe,
+      timeframe,
+      boardFusion: monthDeskStrikeDeskBundle?.fusion ?? null,
+      strikeBundle: monthDeskStrikeDeskBundle,
+      candleIntel: monthDeskChartOrchestratorOut?.candleIntel ?? null,
+      settleGuide: monthDeskChartOrchestratorOut?.settleGuide?.guide ?? null,
+      analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+    });
+    if (!signal) return null;
+    const overlays = buildMonthDeskMergedSignalOverlays(signal, safe);
+    return { signal, ...overlays };
+  }, [
+    isDeskPulseFamily,
+    isZoneLineProDesk,
+    isMergedAnalysisDesk,
+    monthDeskUnifiedPulseEngineOn,
+    settings.chartMonthDeskMergedSignalEnabled,
+    candlesForMergedDeskEngine,
+    candlesForMonthDeskWork,
+    timeframe,
+    monthDeskStrikeDeskBundle,
+    monthDeskChartOrchestratorOut?.candleIntel,
+    monthDeskChartOrchestratorOut?.settleGuide,
+    analysisMatchesTf,
+    analysis,
+  ]);
+
+  const monthDeskFusionDeskBandPack = useMemo(() => {
+    if (!mergedInstitutionalBandsOn || isZoneLineProDesk) return null;
+    if (settings.chartMonthDeskFusionDeskBandEnabled === false) return null;
+    const safe = sanitizeChartCandlesForSeries(monthDeskFusionInputRef.current);
+    if (safe.length < 8) return null;
+    const envP = institutionalEnvelopeParamsForTf(timeframe);
+    const stMid = computeInstitutionalSuperTrendMidLineData(
+      safe,
+      envP.period,
+      envP.mult,
+      monthDeskFusionSuperTrendCore
+    );
+    const lrMid = buildParkfLinRegMidLineData(safe, settings.parkfEngineOpts ?? undefined);
+    const cpCenters = monthDeskCpLinRegBiasScores.cpCenters;
+    const cpMid =
+      cpCenters && cpCenters.length === safe.length
+        ? buildCpCenterForwardFillLineData(safe, cpCenters)
+        : [];
+    const leg =
+      monthDeskStrikeDeskBundle?.primary === 'SHORT'
+        ? monthDeskStrikeDeskBundle?.short
+        : monthDeskStrikeDeskBundle?.long ?? monthDeskStrikeDeskBundle?.short;
+    const extra: FusionDeskBandExtra = {
+      boardScoreLong: monthDeskStrikeDeskBundle?.fusion?.scoreLong,
+      boardScoreShort: monthDeskStrikeDeskBundle?.fusion?.scoreShort,
+      candleIntelBias: monthDeskChartOrchestratorOut?.candleIntel?.bias ?? 'NEUTRAL',
+      settleStep: monthDeskChartOrchestratorOut?.settleGuide?.guide?.step,
+      strikePrimary: monthDeskStrikeDeskBundle?.primary,
+      strikeEntry: leg?.entry ?? null,
+      strikeSl: leg?.stopLoss ?? null,
+      strikeTp1: leg?.tp1 ?? null,
+      strikeTp2: leg?.tp2 ?? null,
+      strikeTp3: leg?.tp3 ?? null,
+      fusedCandleDir:
+        monthDeskChartOrchestratorOut?.candleIntel?.bias === 'LONG'
+          ? 'LONG'
+          : monthDeskChartOrchestratorOut?.candleIntel?.bias === 'SHORT'
+            ? 'SHORT'
+            : monthDeskStrikeDeskBundle?.primary === 'LONG' || monthDeskStrikeDeskBundle?.primary === 'SHORT'
+              ? monthDeskStrikeDeskBundle.primary
+              : 'WAIT',
+      strikeZoneTop: leg?.zoneTop ?? null,
+      strikeZoneBot: leg?.zoneBot ?? null,
+    };
+    return computeTripleTrendFusionBandPackage({
+      candles: safe,
+      timeframe,
+      fusion: mergedInstitutionalBandFusionContext ?? monthDeskBandFusionContext,
+      extra,
+      stMid,
+      lrMid,
+      cpMid,
+      signalBand: parseTripleTrendSignalBandSetting(settings.chartTripleTrendSignalBand),
+    });
+  }, [
+    isDeskPulseFamily,
+    isZoneLineProDesk,
+    settings.chartMonthDeskFusionDeskBandEnabled,
+    settings.chartTripleTrendSignalBand,
+    settings.parkfEngineOpts,
+    monthDeskFusionWorkSig,
+    monthDeskFusionSuperTrendCore,
+    monthDeskCpLinRegBiasScores.cpCenters,
+    monthDeskStrikeDeskBundle,
+    mergedInstitutionalBandFusionContext,
+    monthDeskBandFusionContext,
+    monthDeskChartOrchestratorOut?.candleIntel?.bias,
+    monthDeskChartOrchestratorOut?.settleGuide?.guide?.step,
+    timeframe,
+  ]);
+
+  const monthDeskAtlasPulsePack = useMemo(() => {
+    if (!monthDeskAtlasPulseOn || !monthDeskStrikeDeskBundle || isMergedAnalysisDesk) return null;
+    const safe = sanitizeChartCandlesForSeries(candlesForMonthDeskWork, timeframe);
+    if (safe.length < 8) return null;
+    const probePack = buildMonthDeskStrikeDeskOverlays(monthDeskStrikeDeskBundle, safe);
+    if (monthDeskUnifiedPulseEngineOn) {
+      return runMonthDeskUnifiedPulseEngine({
+        candles: safe,
+        timeframe,
+        bundle: monthDeskStrikeDeskBundle,
+        fusion: monthDeskBandFusionContext,
+        analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+        probePack,
+      });
+    }
+    return computeAtlasPulseDeskPack({
+      candles: safe,
+      timeframe,
+      bundle: monthDeskStrikeDeskBundle,
+      probePack,
+      fusion: monthDeskBandFusionContext,
+      analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+    });
+  }, [
+    monthDeskAtlasPulseOn,
+    monthDeskUnifiedPulseEngineOn,
+    monthDeskStrikeDeskBundle,
+    candlesForMonthDeskWork,
+    timeframe,
+    monthDeskBandFusionContext,
+    analysisMatchesTf,
+    analysis,
+  ]);
+
+  const mergedAnalysisDeskPack = useMemo((): MergedAnalysisDeskPack | null => {
+    /** 부모 MergedAnalysisDeskView pack — ChartView에서 엔진 이중 실행 금지(응답 없음 방지) */
+    if (useParentMergedDeskPack) return mergedDeskPackProp ?? null;
+    if (!isMergedAnalysisDesk || !monthDeskStrikeDeskBundle) return null;
+    const safe = deferredCandlesForMergedDeskEngine;
+    if (safe.length < 8) return null;
+    const probePack = buildMonthDeskStrikeDeskOverlays(monthDeskStrikeDeskBundle, safe);
+    return runMergedAnalysisDeskEngine({
+      candles: safe,
+      timeframe,
+      bundle: monthDeskStrikeDeskBundle,
+      fusion: monthDeskBandFusionContext,
+      analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+      probePack,
+      settleBoard: monthDeskCloseSettleBoard,
+    });
+  }, [
+    mergedDeskPackProp,
+    useParentMergedDeskPack,
+    isMergedAnalysisDesk,
+    monthDeskStrikeDeskBundle,
+    deferredCandlesForMergedDeskEngine,
+    timeframe,
+    monthDeskBandFusionContext,
+    analysisMatchesTf,
+    analysis,
+    monthDeskCloseSettleBoard,
+  ]);
+
+  /** 캔들분석·통합작도 — ActiveTrade 없을 때 캔들·카드·마감 합류 E/SL/TP 전폭선 */
+  const candleCardTradeRailPack = useMemo(() => {
+    if (isMergedAnalysisDesk) return null;
+    if (!tradeRailLinesOn) return null;
+    if (!(candleAnalysisLikeUi || uiMode === 'MAX_ANALYSIS' || uiMode === 'HOT_ZONE')) return null;
+    const safe = sanitizeChartCandlesForSeries(candles, timeframe);
+    if (safe.length < 8) return null;
+    return buildCandleCardConfluencePack({
+      candles: safe,
+      timeframe,
+      analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+      settleBoard: monthDeskCloseSettleBoard,
+      settleRow: (() => {
+        const settleTf = chartTfToCloseSettleTf(String(timeframe || ''));
+        if (!settleTf || !monthDeskCloseSettleBoard?.rows?.length) return null;
+        return monthDeskCloseSettleBoard.rows.find((r) => r.tf === settleTf) ?? null;
+      })(),
+      currentPrice: analysisMatchesTf ? (analysis as AnalyzeResponse)?.currentPrice ?? null : null,
+    });
+  }, [
+    isMergedAnalysisDesk,
+    tradeRailLinesOn,
+    candleAnalysisLikeUi,
+    uiMode,
+    candles,
+    timeframe,
+    analysisMatchesTf,
+    analysis,
+    monthDeskCloseSettleBoard,
+  ]);
+
+  /** 통합·분석 — 패턴 실루엣·스탬프 (카드 없음) */
+  const mergedDeskPatternSilhouettePack = useMemo(() => {
+    if (!isMergedAnalysisDesk || settings.chartMergedDeskPatternSilhouetteEnabled === false) return null;
+    const bars =
+      candlesForMergedDeskChart.length >= 24
+        ? candlesForMergedDeskChart
+        : candles.length >= 24
+          ? candles
+          : [];
+    if (bars.length < 24) return null;
+    return buildMergedDeskPatternSilhouettePack({
+      candles: bars,
+      analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+      activePlan: mergedAnalysisDeskPack?.activeTradePlan ?? null,
+      enabled: true,
+    });
+  }, [
+    isMergedAnalysisDesk,
+    settings.chartMergedDeskPatternSilhouetteEnabled,
+    candlesForMergedDeskChart,
+    candles,
+    analysisMatchesTf,
+    analysis,
+    mergedAnalysisDeskPack?.activeTradePlan,
+  ]);
+
+  const mergedDeskPatternSilhouetteScreen = useMemo(() => {
+    if (!mergedDeskPatternSilhouettePack) return null;
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series) return null;
+    const ts = chart.timeScale();
+    const chartBars =
+      candlesForMergedDeskChart.length >= 2
+        ? candlesForMergedDeskChart
+        : candles.length >= 2
+          ? candles
+          : [];
+    const toX = (t: number) => {
+      try {
+        const tSnap =
+          chartBars.length >= 2 ? Number(snapMergedOverlayTimeToCandles(t, chartBars)) : t;
+        const x = ts.timeToCoordinate(tSnap as Time);
+        return typeof x === 'number' && Number.isFinite(x) ? x : null;
+      } catch {
+        return null;
+      }
+    };
+    const toY = (p: number) => {
+      try {
+        const y = series.priceToCoordinate(p);
+        return typeof y === 'number' && Number.isFinite(y) ? y : null;
+      } catch {
+        return null;
+      }
+    };
+    const a = mergedDeskPatternSilhouettePack.anchors;
+    const xL = toX(a.left.time);
+    const xR = toX(a.right.time);
+    const yT = toY(a.top.price);
+    const yB = toY(a.bottom.price);
+    let box: SilhouetteScreenGeom | null = null;
+    if (xL != null && xR != null && yT != null && yB != null) {
+      const left = Math.min(xL, xR);
+      const right = Math.max(xL, xR);
+      const top = Math.min(yT, yB);
+      const bot = Math.max(yT, yB);
+      const padX = Math.max(4, (right - left) * 0.04);
+      const padY = Math.max(3, (bot - top) * 0.04);
+      box = {
+        left: left - padX,
+        top: top - padY,
+        width: Math.max(28, right - left + padX * 2),
+        height: Math.max(28, bot - top + padY * 2),
+      };
+    }
+    /** 구조반응 번들: 도식저항·반등·요이만 터치봉에도 이모지 연동 */
+    const reactionStamps = structureReactionTouchesToStamps(
+      extractStructureReactionTouches(mergedAnalysisDeskPack?.overlays)
+    );
+    const stamps: StampScreenPoint[] = [];
+    const seen = new Set<string>();
+    for (const s of [...mergedDeskPatternSilhouettePack.stamps, ...reactionStamps]) {
+      const x = toX(s.time);
+      const y = toY(s.price);
+      if (x == null || y == null) continue;
+      const key = `${Math.round(x)}|${Math.round(y)}|${s.kind}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      stamps.push({ x, y, kind: s.kind });
+    }
+    return { box, stamps };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    mergedDeskPatternSilhouettePack,
+    overlayTick,
+    chartInstanceId,
+    candlesForMergedDeskChart,
+    candles,
+    mergedAnalysisDeskPack?.overlays,
+  ]);
+
+  /** 거래량쌍 통계·빅롱/빅숏 — 막대 setData와 분리 (sidecar) */
+  const mergedDeskAdvVolumeSidecar = useMemo(() => {
+    if (!isMergedAnalysisDesk || settings.chartMergedDeskAdvVolumeEnabled === false) return null;
+    const volRows =
+      candlesForMergedDeskChart.length >= 4
+        ? candlesForMergedDeskChart
+        : sanitizeChartCandlesForSeries(candles, timeframe);
+    if (volRows.length < 8) return null;
+    const maP = Math.max(8, Math.min(60, settings.chartVolumeMaPeriod > 0 ? settings.chartVolumeMaPeriod : 20));
+    const lastClose =
+      volRows.length > 0 && Number(volRows[volRows.length - 1]?.close) > 0
+        ? Number(volRows[volRows.length - 1]!.close)
+        : null;
+    const analysisSpot = Number((analysis as AnalyzeResponse | null)?.currentPrice);
+    const spotPx =
+      Number.isFinite(analysisSpot) && analysisSpot > 0 ? analysisSpot : lastClose;
+    return buildMergedDeskAdvVolumePack(volRows, {
+      timeframe,
+      rvolPeriod: maP,
+      maxHistMarks: 8,
+      minBarGap: Math.max(5, Math.min(8, Math.floor(settings.chartVolumeMarkerMinBarGap ?? 5))),
+      swingAnchorOn: settings.chartMergedDeskSwingAnchorVolumeEnabled !== false,
+      whaleBeamIntel: bitgetVolumePackOn ? whaleBeamIntel : null,
+      spotPx,
+    });
+  }, [
+    isMergedAnalysisDesk,
+    settings.chartMergedDeskAdvVolumeEnabled,
+    settings.chartMergedDeskSwingAnchorVolumeEnabled,
+    settings.chartVolumeMaPeriod,
+    settings.chartVolumeMarkerMinBarGap,
+    candlesForMergedDeskChart,
+    candles,
+    timeframe,
+    bitgetVolumePackOn,
+    whaleBeamIntel,
+    analysis,
+  ]);
+
+  const mergedDeskPriceLinesSig = useMemo(() => {
+    const burstPls =
+      isMergedAnalysisDesk && mergedDeskAdvVolumeSidecar?.burstPriceLines?.length
+        ? mergedDeskAdvVolumeSidecar.burstPriceLines
+        : [];
+    const basePls =
+      (isMergedAnalysisDesk ? mergedAnalysisDeskPack?.priceLines : null) ??
+      (candleCardTradeRailPack?.linked ? candleCardTradeRailPack.priceLines : null) ??
+      monthDeskAtlasPulsePack?.priceLines ??
+      [];
+    const pls = [...basePls, ...burstPls];
+    if (!pls.length) return '';
+    return pls
+      .map((p) => `${p.title}:${p.price}:${p.color}:${p.lineStyle}:${p.lineWidth}:${p.axisLabel ? 1 : 0}`)
+      .join('|');
+  }, [
+    isMergedAnalysisDesk,
+    mergedAnalysisDeskPack?.priceLines,
+    mergedDeskAdvVolumeSidecar?.burstPriceLines,
+    candleCardTradeRailPack,
+    monthDeskAtlasPulsePack?.priceLines,
+  ]);
+
+  const mergedDeskChartSeriesSpanSig = useMemo(() => {
+    if (!tradeRailLinesOn) return '';
+    const raw =
+      isMergedAnalysisDesk && candlesForMergedDeskChart.length >= 2
+        ? candlesForMergedDeskChart
+        : isMergedAnalysisDesk && candlesForMergedDeskEngine.length >= 2
+          ? candlesForMergedDeskEngine
+          : candles;
+    if (raw.length < 2) return '';
+    return `${raw.length}|${raw[0]!.time}|${raw[raw.length - 1]!.time}`;
+  }, [
+    tradeRailLinesOn,
+    isMergedAnalysisDesk,
+    candlesForMergedDeskChart,
+    candlesForMergedDeskEngine,
+    candles,
+  ]);
+
+  const deskPulsePack = isMergedAnalysisDesk ? mergedAnalysisDeskPack : monthDeskAtlasPulsePack;
+
+  /**
+   * 15m 공동 분석 원본 캔들 — 차트 TF와 분석 TF가 달라도
+   * zone은 절대시각 스냅만 사용(인덱스 remap 금지). source는 호환용.
+   * (mergedDeskOverlaysForChart / anchored 보다 먼저 선언 — TDZ 방지)
+   */
+  const mergedDeskAnalysisSourceCandles = useMemo<Candle[] | undefined>(() => {
+    if (!isMergedAnalysisDesk) return undefined;
+    const ac = (analysis as AnalyzeResponse | null)?.candles;
+    if (analysisMatchesTf && Array.isArray(ac) && ac.length >= 2) return ac as Candle[];
+    return undefined;
+  }, [isMergedAnalysisDesk, analysisMatchesTf, analysis]);
+
+  /** 통합·분석 — desk pack + TV롱숏(클라이언트 즉시 작도). ON=전부 표시 / OFF=전부 제거 */
+  const mergedDeskOverlaysForChart = useMemo(() => {
+    if (!isMergedAnalysisDesk) return [] as OverlayItem[];
+    const aiZoneDeskMode = settings.chartMergedDeskAiAnalysisZoneEnabled !== false;
+    const isCloudOv = (o: OverlayItem) => {
+      const id = String(o.id || '');
+      const extra = String(o.overlayZoneExtraClass || '');
+      return (
+        id.startsWith('merged-cp-cloud') ||
+        id.startsWith('merged-unified-cloud') ||
+        id.startsWith('merged-ares-st-cloud') ||
+        extra.includes('merged-cp-cloud') ||
+        extra.includes('merged-unified-cloud') ||
+        extra.includes('merged-ares-st-cloud')
+      );
+    };
+    const cloudEnabled = !aiZoneDeskMode && settings.chartMergedDeskUnifiedCloudEnabled !== false;
+    const btccionOn = !aiZoneDeskMode && settings.chartMergedDeskBtccionDrawEnabled !== false;
+    const baseRaw = (deskPulsePack?.overlays as OverlayItem[] | undefined) ?? [];
+    /** 엔진에 섞인 TV 조각 제거 → 토글 ON일 때만 클라이언트 pack 통째로 합침 */
+    let withoutTv = baseRaw.filter((o) => !String(o.id || '').startsWith('merged-desk-tv-ls-'));
+    if (!btccionOn) {
+      withoutTv = withoutTv.filter((o) => !String(o.id || '').startsWith('merged-desk-btccion-'));
+    }
+    /** 통합구름 칩 OFF → 제거 / ON인데 없으면 ChartView에서 CP밴드 직접 생성 */
+    withoutTv = withoutTv.filter((o) => !isCloudOv(o));
+    if (cloudEnabled) {
+      const fromPack = baseRaw.filter(isCloudOv);
+      if (fromPack.length) {
+        withoutTv = [...withoutTv, ...fromPack];
+      } else {
+        const cloudCandles =
+          candlesForMergedDeskEngine.length >= 2 ? candlesForMergedDeskEngine : candlesForOverlay;
+        if (cloudCandles.length >= 24) {
+          const pack = deskPulsePack as MergedAnalysisDeskPack | null;
+          const verdict =
+            pack?.tradeJudgment?.direction === 'LONG' || pack?.tradeJudgment?.direction === 'SHORT'
+              ? pack.tradeJudgment.direction
+              : pack?.unifiedTradePlan?.direction === 'LONG' ||
+                  pack?.unifiedTradePlan?.direction === 'SHORT'
+                ? pack.unifiedTradePlan.direction
+                : null;
+          const built = buildMergedDeskUnifiedCloudPack({
+            candles: cloudCandles,
+            timeframe,
+            analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+            analyzeVerdict: verdict,
+          });
+          if (built.overlays.length) withoutTv = [...withoutTv, ...built.overlays];
+        }
+      }
+    }
+    const tvOn = !aiZoneDeskMode && settings.showTvStructureLs === true;
+    const tvOv = tvOn ? tvStructureLsPackClient?.overlays ?? [] : [];
+    const rawOverlays = dedupeOverlaysById([...withoutTv, ...tvOv]);
+    if (!rawOverlays.length) return [] as OverlayItem[];
+    /** 라벨·zone time 정렬 = 차트 표시 축 (1d/1w/1M 전량) */
+    const alignCandles =
+      candlesForMergedDeskChart.length >= 2
+        ? candlesForMergedDeskChart
+        : candlesForMergedDeskEngine.length >= 2
+          ? candlesForMergedDeskEngine
+          : candlesForOverlay;
+    if (alignCandles.length < 2) return rawOverlays;
+    const aligned = alignMergedDeskOverlaysToAnalysisWindow(
+      rawOverlays,
+      alignCandles,
+      timeframe,
+      mergedDeskAnalysisSourceCandles
+    );
+    return extendMergedAresHorizontalTradeLines(aligned, alignCandles, timeframe);
+  }, [
+    isMergedAnalysisDesk,
+    deskPulsePack,
+    candles,
+    candlesForMergedDeskChart,
+    candlesForMergedDeskEngine,
+    candlesForOverlay,
+    timeframe,
+    settings.showTvStructureLs,
+    settings.chartMergedDeskAiAnalysisZoneEnabled,
+    settings.chartMergedDeskUnifiedCloudEnabled,
+    settings.chartMergedDeskBtccionDrawEnabled,
+    tvStructureLsPackClient,
+    analysisMatchesTf,
+    analysis,
+    mergedDeskAnalysisSourceCandles,
+  ]);
+
+  const unifiedPulseStrategyStrip = useMemo(() => {
+    if (!monthDeskUnifiedPulseEngineOn || !deskPulsePack) return null;
+    return (deskPulsePack.meta as UnifiedPulseEnginePack['meta']).strategy ?? null;
+  }, [monthDeskUnifiedPulseEngineOn, deskPulsePack]);
+
+  const mergedDeskApproachCaption = useMemo(() => {
+    if (!isMergedAnalysisDesk) return null;
+    const price = analysis?.currentPrice ?? monthDeskStrikeDeskBundle?.close ?? null;
+    const overlays =
+      (useParentMergedDeskPack ? mergedDeskPackProp?.overlays : mergedAnalysisDeskPack?.overlays) ?? [];
+    if (price == null || !overlays.length) return null;
+    const hit = findMirageZoneApproachTarget(mirageZonesFromOverlays(overlays as OverlayItem[]), price);
+    if (!hit?.near) return null;
+    const zone = (overlays as OverlayItem[]).find((o) => String(o.id) === hit.zoneId);
+    return zone ? String(zone.label || '').split('·')[0]?.trim() || null : null;
+  }, [
+    isMergedAnalysisDesk,
+    analysis?.currentPrice,
+    monthDeskStrikeDeskBundle?.close,
+    useParentMergedDeskPack,
+    mergedDeskPackProp?.overlays,
+    mergedAnalysisDeskPack?.overlays,
+  ]);
+
+  /** 통합·분석 VRVP — LWC priceToCoordinate Y (분·시·일·주·월 TF·줌 동기) */
+  const mergedVrvpScreen = useMemo(() => {
+    if (!isMergedAnalysisDesk || !mergedAnalysisDeskPack?.vrvp) return null;
+    const series = seriesRef.current;
+    const host = hostRef.current;
+    const chart = chartRef.current;
+    const profile = mergedAnalysisDeskPack.vrvp;
+    if (!series || !host || !profile.bars.length) return null;
+
+    const height = host.getBoundingClientRect().height;
+    const width = host.getBoundingClientRect().width;
+    if (!(height > 8)) return null;
+
+    const mapY = (price: number): number | null => {
+      const y = geomPriceToPixelY(series, price, NaN);
+      return Number.isFinite(y) && y >= -4 && y <= height + 4 ? y : null;
+    };
+
+    const bars = profile.bars
+      .map((b) => {
+        const y = mapY(b.price);
+        if (y == null) return null;
+        return {
+          price: b.price,
+          ratio: b.ratio,
+          isPoc: b.isPoc,
+          y,
+          widthPct: Math.max(42, 6 + Math.round(b.ratio * 94)),
+        };
+      })
+      .filter((b): b is NonNullable<typeof b> => b != null)
+      /** 최다 거래(POC) 막대만 — 나머지 프로파일 막대 숨김 */
+      .filter((b) => b.isPoc);
+
+    if (!bars.length && profile.poc == null) return null;
+
+    const pocY = profile.poc != null ? mapY(profile.poc) : bars[0]?.y ?? null;
+    const topNodes = bars.slice(0, 1);
+    const pocExtend = settings.chartMergedDeskVrvpPocExtend === 'extend20' ? 'extend20' : 'short';
+
+    let pocRail: { left: number; width: number } | null = null;
+    if (pocExtend === 'extend20' && chart && pocY != null) {
+      const seriesCandles =
+        chartSeriesCandlesRef.current.length >= 2
+          ? chartSeriesCandlesRef.current
+          : candlesForMergedDeskChart.length >= 2
+            ? candlesForMergedDeskChart
+            : candles;
+      if (seriesCandles.length >= 2) {
+        const iEnd = seriesCandles.length - 1;
+        const tLast = Number(seriesCandles[iEnd]!.time);
+        const t2 = mergedDeskRbFutureTime2(
+          seriesCandles,
+          tLast,
+          iEnd,
+          MERGED_DESK_RIGHT_FUTURE_BARS
+        );
+        const ts = chart.timeScale();
+        let xEnd: number | null = null;
+        try {
+          const xc = ts.timeToCoordinate(t2 as UTCTimestamp);
+          if (xc != null && Number.isFinite(Number(xc))) xEnd = Number(xc);
+        } catch {
+          /* ignore */
+        }
+        if (xEnd == null) {
+          try {
+            const lc = ts.logicalToCoordinate((iEnd + MERGED_DESK_RIGHT_FUTURE_BARS) as unknown as Logical);
+            if (lc != null && Number.isFinite(Number(lc))) xEnd = Number(lc);
+          } catch {
+            /* ignore */
+          }
+        }
+        if (xEnd != null && Number.isFinite(xEnd)) {
+          const left = 2;
+          const right = Math.max(left + 24, Math.min(width - 4, xEnd));
+          pocRail = { left, width: Math.max(24, right - left) };
+        }
+      }
+    }
+
+    return {
+      bars,
+      pocY,
+      poc: profile.poc ?? bars[0]?.price ?? null,
+      developingPoc: profile.developingPoc ?? null,
+      developingPocY:
+        profile.developingPoc != null ? mapY(profile.developingPoc) : null,
+      nearHvnAbove: profile.nearHvnAbove ?? null,
+      nearHvnAboveY:
+        profile.nearHvnAbove != null ? mapY(profile.nearHvnAbove) : null,
+      nearHvnBelow: profile.nearHvnBelow ?? null,
+      nearHvnBelowY:
+        profile.nearHvnBelow != null ? mapY(profile.nearHvnBelow) : null,
+      pocStateKo: profile.pocStateKo ?? null,
+      vaHighY: null as number | null,
+      vaLowY: null as number | null,
+      vaHigh: null as number | null,
+      vaLow: null as number | null,
+      vaCoveragePct: profile.vaCoveragePct,
+      timeframe: profile.timeframe,
+      candleCount: profile.candleCount,
+      topNodes,
+      height,
+      pocExtend,
+      pocRail,
+      pocTone: mergedVrvpPocTone({
+        side: profile.pocSideBias,
+        buyPct: profile.pocBuyPct,
+        sellPct: profile.pocSellPct,
+        strength: profile.pocStrength,
+      }),
+      pocBiasKo: profile.pocBiasKo ?? null,
+    };
+  }, [
+    isMergedAnalysisDesk,
+    mergedAnalysisDeskPack,
+    overlayTick,
+    chartInstanceId,
+    settings.chartMergedDeskVrvpPocExtend,
+    candlesForMergedDeskChart,
+    candles,
+  ]);
+
+  const [monthDeskClickPrecision, setMonthDeskClickPrecision] =
+    useState<MonthDeskClickPrecisionResult | null>(null);
 
   const overlayBulkFiltered = useMemo(() => {
-    let list = modeFilteredOverlaysDeduped;
+    let list = modeFilteredOverlaysDeduped as OverlayItem[];
+    if (isDeskPulseFamily) {
+      if (monthDeskUnifiedPulseEngineOn && isMergedAnalysisDesk) {
+        list = mergedDeskOverlaysForChart;
+      } else if (monthDeskUnifiedPulseEngineOn && deskPulsePack) {
+        list = deskPulsePack.overlays;
+      } else if (monthDeskChartOrchestratorOut) {
+        list = monthDeskChartOrchestratorOut.overlays;
+      } else if (monthDeskPreOrchestratorList) {
+        list = monthDeskPreOrchestratorList;
+      }
+      if (
+        monthDeskAtlasPulseOn &&
+        deskPulsePack &&
+        !monthDeskUnifiedPulseEngineOn
+      ) {
+        const filtered = filterOverlaysForAtlasPulseDesk(list);
+        list = dedupeOverlaysById([
+          ...deskPulsePack.overlays,
+          ...filtered,
+        ]);
+      }
+      if (monthDeskClickPrecision?.overlays.length && !monthDeskAtlasPulseOn) {
+        list = dedupeOverlaysById([...list, ...monthDeskClickPrecision.overlays]);
+      }
+      if (monthDeskMergedSignalPack && !monthDeskAtlasPulseOn) {
+        list = applyMonthDeskMergedSignalToOverlays(list, monthDeskMergedSignalPack);
+      }
+    }
+    /** settle LineSeries가 그리는 TF — analyze close-* 중복 제거 */
+    if (settings.chartTfCloseSettlementLines !== false && monthDeskCloseSettleBoard?.rows?.length) {
+      list = list.filter((o) => !SETTLE_REPLACES_ENGINE_CLOSE_IDS.has(String((o as { id?: string }).id || '')));
+    }
     const isSmartMvpCore = (o: unknown) => String((o as { id?: string })?.id || '').startsWith('smartmoney-mvp-');
-    const hideLbl = (chartBulkHideLabels && uiMode !== 'AI_ZONE') || (unifiedDeskHideOverlayText && uiMode !== 'AI_ZONE') || CHART_DEV_ZONES_MSBOB_ONLY;
-    const hideHl = (chartBulkHideHLines && uiMode !== 'AI_ZONE') || CHART_DEV_ZONES_MSBOB_ONLY;
+    const hideLbl =
+      !mergedDeskOverlayLabelsOn ||
+      (chartBulkHideLabels && uiMode !== 'FUSION_MODE') ||
+      unifiedDeskHideOverlayText ||
+      CHART_DEV_ZONES_MSBOB_ONLY;
+    const hideHl = chartBulkHideHLines || CHART_DEV_ZONES_MSBOB_ONLY;
     if (hideLbl) {
-      list = list.filter((o) => isSmartMvpCore(o) || !overlayMatchesBulkLabelHide(o as Record<string, unknown>));
+      list = list.filter((o) => {
+        const id = String((o as { id?: string })?.id || '');
+        const fusionCore =
+          id.startsWith('fusion-structure-') ||
+          id.startsWith('smart-overlay-zone-') ||
+          id.startsWith('key-mustBreak-') ||
+          id.startsWith('key-mustHold-') ||
+          id.startsWith('key-invalidation-') ||
+          (isMonthStartDeskMode && id.startsWith('whale-auto-bu-ob')) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-typeom-')) ||
+          (isMonthStartDeskMode && id.startsWith('trade-atlas-')) ||
+          (uiMode === 'REFERENCE_DESK' && id.startsWith('trade-atlas-')) ||
+          (uiMode === 'REFERENCE_DESK' &&
+            isReferenceDeskProtectedOverlay(o as OverlayItem, referenceDeskLayerFlags)) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-chart-')) ||
+          (isMonthStartDeskMode &&
+            (id.startsWith('parkf-') ||
+              id.startsWith('cptc-') ||
+              id.startsWith('ai-auto-compression') ||
+              id.startsWith('whale-alr-') ||
+              id.startsWith('md-path-'))) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-core-money-')) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-pin-')) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-signal-')) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-strike-')) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-merged-signal-')) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-click-precision-')) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-smc-')) ||
+          (isMonthStartDeskMode && id.startsWith('month-desk-plan-')) ||
+          (isMonthStartDeskMode && id.startsWith('phz-')) ||
+          (isMonthStartDeskMode && whaleHotZoneEnabled && id.startsWith('hotzone-')) ||
+          (isMergedAnalysisDesk && isMergedAnalysisDeskOverlayId(id));
+        return isSmartMvpCore(o) || fusionCore || !overlayMatchesBulkLabelHide(o as Record<string, unknown>);
+      });
     }
     if (hideHl) {
-      list = list.filter((o) => isSmartMvpCore(o) || !overlayMatchesBulkHLineHide(o as Record<string, unknown>));
+      list = list.filter((o) => {
+        const id = String((o as { id?: string }).id || '');
+        if (isMonthStartDeskMode && id.startsWith('month-desk-typeom-')) return true;
+        if (isMonthStartDeskMode && id.startsWith('month-desk-click-precision-')) return true;
+        if (isMonthStartDeskMode && id.startsWith('month-desk-merged-signal-')) return true;
+        if (isMergedAnalysisDesk && isMergedAnalysisDeskOverlayId(id)) return true;
+        if (id.startsWith('trade-atlas-')) return true;
+        /** 종가TF 마감·안착·실패선 — 가로선X와 분리(종가TF 토글로만 제어) */
+        if (isSettleCloseOverlayId(id) && settings.chartTfCloseSettlementLines !== false) return true;
+        if (id.startsWith('close-') && settings.chartTfCloseSettlementLines !== false) return true;
+        if (uiMode === 'REFERENCE_DESK' && isReferenceDeskProtectedOverlay(o as OverlayItem, referenceDeskLayerFlags)) {
+          return true;
+        }
+        if (isMonthStartDeskMode && id.startsWith('phz-')) return true;
+        if (isMonthStartDeskMode && whaleHotZoneEnabled && id.startsWith('hotzone-')) return true;
+        return isSmartMvpCore(o) || !overlayMatchesBulkHLineHide(o as Record<string, unknown>);
+      });
     }
-    if (chartBulkHideZones && uiMode !== 'AI_ZONE') {
+    if (chartBulkHideZones && !isAiZoneDesk) {
       list = list.filter((o) => {
         if (isSmartMvpCore(o)) return true;
-        if (isAiMode && whaleHotZoneEnabled && isWhaleHotZoneOverlay(o as Record<string, unknown>)) return true;
+        if (
+          (isAiMode || isMonthStartDeskMode) &&
+          whaleHotZoneEnabled &&
+          isWhaleHotZoneOverlay(o as Record<string, unknown>)
+        )
+          return true;
         if (isAiMode && whaleCoreSrZoneEnabled && isMajorCoreSrOverlay(o as Record<string, unknown>)) return true;
+        if (isMonthStartDeskMode && String((o as { id?: string }).id || '').startsWith('whale-auto-bu-ob'))
+          return true;
+        if (isMonthStartDeskMode && String((o as { id?: string }).id || '').startsWith('month-desk-typeom-'))
+          return true;
+        if (String((o as { id?: string }).id || '').startsWith('trade-atlas-')) return true;
+        if (
+          uiMode === 'REFERENCE_DESK' &&
+          isReferenceDeskProtectedOverlay(o as OverlayItem, referenceDeskLayerFlags)
+        ) {
+          return true;
+        }
+        if (
+          isMonthStartDeskMode &&
+          (String((o as { id?: string }).id || '').startsWith('month-desk-core-money-') ||
+            String((o as { id?: string }).id || '') === 'month-desk-unified-zone' ||
+            String((o as { id?: string }).id || '') === 'month-desk-unified-core' ||
+            String((o as { id?: string }).id || '').startsWith('month-desk-history-money-'))
+        )
+          return true;
+        if (isMonthStartDeskMode && String((o as { id?: string }).id || '').startsWith('phz-')) return true;
+        if (
+          isMonthStartDeskMode &&
+          whaleHotZoneEnabled &&
+          String((o as { id?: string }).id || '').startsWith('hotzone-')
+        )
+          return true;
+        if (isMergedAnalysisDesk && isMergedAnalysisDeskOverlayId(String((o as { id?: string }).id || '')))
+          return true;
         return !overlayMatchesBulkZoneHide(o as Record<string, unknown>);
       });
     }
@@ -5178,14 +9453,31 @@ const ChartViewInner = ({
     return list;
   }, [
     modeFilteredOverlaysDeduped,
+    monthDeskChartOrchestratorOut,
+    monthDeskPreOrchestratorList,
+    monthDeskClickPrecision,
+    monthDeskMergedSignalPack,
+    monthDeskAtlasPulseOn,
+    monthDeskUnifiedPulseEngineOn,
+    monthDeskAtlasPulsePack,
+    mergedAnalysisDeskPack,
+    deskPulsePack,
+    mergedDeskOverlaysForChart,
+    monthDeskCloseSettleBoard,
+    isDeskPulseFamily,
+    isMergedAnalysisDesk,
+    mergedDeskOverlayLabelsOn,
     chartBulkHideLabels,
     chartBulkHideHLines,
     chartBulkHideZones,
     unifiedDeskHideOverlayText,
     uiMode,
+    isAiZoneDesk,
     isAiMode,
     whaleHotZoneEnabled,
     whaleCoreSrZoneEnabled,
+    referenceDeskLayerFlags,
+    settings.chartTfCloseSettlementLines,
   ]);
 
   const hasStrongZones = analysisMatchesTf && stableStrongZoneOverlays.length > 0;
@@ -5197,35 +9489,96 @@ const ChartViewInner = ({
 
   /** 가로 줄선·존 근접 봉 → 금색/시안 펄스 (pre3와 병합 시 pre3 우선) */
   const lineZoneProximityByTime = useMemo(() => {
-    /** AI 분석 모드: 오버레이가 많을 때 근접/스파클 전 캔들·존 전수 스캔이 메인 병목 — 생략 */
-    if (uiMode === 'AI_ZONE') return new Map<number, 'LONG' | 'SHORT'>();
+    if (isMonthStartDeskMode) return new Map<number, 'LONG' | 'SHORT'>();
+    if (isAiZoneDesk || overlayDevEnhanced.length >= chartPerf.proximitySkipWhenOverlayCountGte) {
+      return new Map<number, 'LONG' | 'SHORT'>();
+    }
     const safe = sanitizeChartCandlesForSeries(candles);
     const sens = Number.isFinite(settings.chartLineZoneProximitySensitivity)
       ? Math.max(0.35, Math.min(2.6, settings.chartLineZoneProximitySensitivity))
       : 1;
     return collectLineZoneProximitySparkle(overlayDevEnhanced as OverlayItem[], safe, sens);
-  }, [uiMode, overlayDevEnhanced, candles, settings.chartLineZoneProximitySensitivity]);
+  }, [uiMode, chartPerf, overlayDevEnhanced, candles, settings.chartLineZoneProximitySensitivity]);
 
   /** 마지막 봉이 존·줄선 가격에 근접 시 해당 오버레이 id — HTML 라벨 애니메이션 */
   const overlayLabelProximityIds = useMemo(() => {
-    if (uiMode === 'AI_ZONE') return new Set<string>();
+    if (isMonthStartDeskMode) return new Set<string>();
+    if (isAiZoneDesk || overlayDevEnhanced.length >= chartPerf.proximitySkipWhenOverlayCountGte) {
+      return new Set<string>();
+    }
     const safe = sanitizeChartCandlesForSeries(candles);
     const sens = Number.isFinite(settings.chartLineZoneProximitySensitivity)
       ? Math.max(0.35, Math.min(2.6, settings.chartLineZoneProximitySensitivity))
       : 1;
     return collectOverlayIdsNearLastCandle(overlayDevEnhanced as OverlayItem[], safe, sens);
-  }, [uiMode, overlayDevEnhanced, candles, settings.chartLineZoneProximitySensitivity]);
+  }, [uiMode, chartPerf, overlayDevEnhanced, candles, settings.chartLineZoneProximitySensitivity]);
 
-  const anchored = useMemo(
-    () =>
-      candlesForOverlay.length
-        ? mapOverlays(overlayDevEnhanced, candlesForOverlay, timeframe, {
+  const mergedDeskAlignCandles = useMemo(() => {
+    if (!isMergedAnalysisDesk) return candlesForOverlay;
+    if (candlesForMergedDeskChart.length >= 2) return candlesForMergedDeskChart;
+    return candlesForMergedDeskEngine.length >= 2 ? candlesForMergedDeskEngine : candlesForOverlay;
+  }, [
+    isMergedAnalysisDesk,
+    candlesForOverlay,
+    candlesForMergedDeskChart,
+    candlesForMergedDeskEngine,
+  ]);
+
+  /** 칩 중 현재가·방향과 제일 비슷한 상위 3개 — 칩 자체에 유1·유2·유3 */
+  const mergedDeskChipSimRankById = useMemo(() => {
+    if (!isMergedAnalysisDesk) return new Map<string, ChipSimRank>();
+    const bars = mergedDeskAlignCandles.length >= 2 ? mergedDeskAlignCandles : candles;
+    return rankMergedDeskSimilarChips(overlayDevEnhanced as OverlayItem[], bars);
+  }, [isMergedAnalysisDesk, overlayDevEnhanced, mergedDeskAlignCandles, candles]);
+
+  const anchored = useMemo(() => {
+    let list = overlayDevEnhanced as OverlayItem[];
+    if (isMergedAnalysisDesk && mergedDeskAdvVolumeSidecar?.overlays?.length) {
+      list = [...list, ...(mergedDeskAdvVolumeSidecar.overlays as OverlayItem[])];
+    }
+    if (isMergedAnalysisDesk && mergedDeskAlignCandles.length >= 2) {
+      list = alignMergedDeskOverlaysToAnalysisWindow(
+        list,
+        mergedDeskAlignCandles,
+        timeframe,
+        mergedDeskAnalysisSourceCandles
+      );
+    }
+    const mapCandles =
+      isMergedAnalysisDesk && mergedDeskAlignCandles.length >= 2
+        ? mergedDeskAlignCandles
+        : candlesForOverlay;
+    const base =
+      mapCandles.length > 0
+        ? mapOverlays(list, mapCandles, timeframe, {
             useZonePriceRange: useZoneRange,
             closeOverlayRange: (analysis as any)?.closeOverlayRange,
+            mergedDeskMode: isMergedAnalysisDesk,
           })
-        : [],
-    [overlayDevEnhanced, candlesForOverlay, timeframe, useZoneRange, analysis]
-  );
+        : [];
+    const ttOverlays =
+      settings.chartMonthDeskFusionDeskBandEnabled !== false && monthDeskFusionDeskBandPack
+        ? buildTripleTrendFusionOverlays(monthDeskFusionDeskBandPack as TripleTrendFusionPack, mapCandles, {
+            includeFlipLines: false,
+            includeSmcChannel: false,
+            idPrefix: 'merged-tt-fusion-',
+          })
+        : [];
+    /** 마감·안착 존 면(SVG 반투명 채움)은 성능 부담으로 제거 — 존선만 LineSeries로 표시 */
+    return [...base, ...ttOverlays];
+  }, [
+    overlayDevEnhanced,
+    candlesForOverlay,
+    mergedDeskAlignCandles,
+    timeframe,
+    useZoneRange,
+    analysis,
+    isMergedAnalysisDesk,
+    monthDeskFusionDeskBandPack,
+    settings.chartMonthDeskFusionDeskBandEnabled,
+    mergedDeskAnalysisSourceCandles,
+    mergedDeskAdvVolumeSidecar,
+  ]);
 
   const [executionPositions, setExecutionPositions] = useState<ExecutionPositions | null>(null);
   useEffect(() => {
@@ -5395,10 +9748,10 @@ const ChartViewInner = ({
       } catch {}
     });
 
-    if (uiMode === 'CANDLE_ANALYSIS' || uiMode === 'BIBLE_MODE' || uiMode === 'HOT_ZONE') return;
+    if (uiMode === 'CANDLE_ANALYSIS' || uiMode === 'BIBLE_MODE' || uiMode === 'HOT_ZONE' || uiMode === 'REFERENCE_DESK') return;
 
     const confirmed = (analysis as { confirmedSignal?: { confirmed?: boolean; direction?: string }; symbol?: string; timeframe?: string })?.confirmedSignal;
-    const match = analysisMatchesSymbolAndTf(analysis, symbol, timeframe);
+    const match = analysisUsableOnChart(analysis, symbol, timeframe, uiMode);
     if (!series || !match || !analysis) return;
     if (CHART_DEV_ZONES_MSBOB_ONLY) return;
     if (settings.chartBulkHideHLines) return;
@@ -5469,6 +9822,136 @@ const ChartViewInner = ({
     };
   }, [analysis, symbol, timeframe]);
 
+  /**
+   * 종가 마감·안착·실패 — 15m~1M 전봉 종가 + 현재 TF 전고·전저.
+   * 캔들 차트 LineSeries + createPriceLine(축 라벨) 이중 보장.
+   */
+  useEffect(() => {
+    const chart = chartRef.current;
+    const candleSeries = seriesRef.current;
+
+    const clearAll = () => {
+      const c = chartRef.current;
+      const s = seriesRef.current;
+      tfCloseSettleLineSeriesRef.current.forEach((api) => {
+        try {
+          c?.removeSeries(api);
+        } catch {}
+      });
+      tfCloseSettleLineSeriesRef.current = [];
+      const legacy = monthDeskPriorHiLoPriceLinesRef.current;
+      legacy.forEach((line) => {
+        try {
+          (s as any)?.removePriceLine?.(line);
+        } catch {}
+      });
+      legacy.length = 0;
+    };
+
+    clearAll();
+
+    const show = settings.chartTfCloseSettlementLines !== false;
+    if (!show || !chart || !candleSeries || CHART_DEV_ZONES_MSBOB_ONLY) {
+      return clearAll;
+    }
+
+    const specs = buildTfCloseSettleAllLineSpecs(monthDeskCloseSettleBoard, String(timeframe || ''), {
+      whiteLines: false,
+    });
+    if (!specs.length) return clearAll;
+
+    const safe =
+      isMergedAnalysisDesk && chartSeriesCandlesRef.current.length >= 2
+        ? chartSeriesCandlesRef.current
+        : sanitizeChartCandlesForSeries(
+            candlesForOverlay.length >= 2
+              ? candlesForOverlay
+              : candles.length >= 2
+                ? candles
+                : [],
+            timeframe
+          );
+    if (safe.length < 2) return clearAll;
+
+    const hClean = isMergedAnalysisDesk
+      ? normalizeMergedDeskHLineCleanMode(settings.chartMergedDeskHLineClean)
+      : 'classic';
+    const axisBg = 'rgba(15,23,42,0.92)';
+    /** 통합·분석: 우측 축가격 토글 / 그 외: bulk hide */
+    const showAxis = isMergedAnalysisDesk
+      ? mergedDeskRightAxisPricesOn
+      : !settings.chartBulkHideLabels;
+
+    for (const spec of specs) {
+      const settleTitle = String(spec.title || '').trim() || '정산선';
+      const role = classifyMergedDeskHLineRole(settleTitle);
+      const span =
+        resolveMergedDeskHLineSpan(safe, role === 'primary' ? 'primary' : 'secondary', hClean) ?? {
+          t0: Number(safe[0]!.time) as UTCTimestamp,
+          tN: Number(safe[safe.length - 1]!.time) as UTCTimestamp,
+        };
+      const lineColor = polishMergedDeskHLineColor(spec.color, role, hClean);
+      const lineWidth = polishMergedDeskHLineWidth(spec.lineWidth || 1, role, hClean);
+      const lineStyle =
+        hClean === 'classic'
+          ? spec.dashed
+            ? LineStyle.Dashed
+            : LineStyle.Solid
+          : LineStyle.Dotted;
+      try {
+        const api = chart.addSeries(LineSeries, {
+          color: lineColor,
+          lineWidth,
+          lineStyle,
+          priceLineVisible: false,
+          /** 통합·분석: 시리즈 title+lastValue가 우측 축에 이중 스택 → 선만, 축 라벨은 priceLine */
+          lastValueVisible: !isMergedAnalysisDesk,
+          crosshairMarkerVisible: false,
+          title: isMergedAnalysisDesk ? '' : settleTitle,
+        });
+        if (safeHorizLineSeriesSetData(api, span.t0, span.tN, spec.price)) {
+          tfCloseSettleLineSeriesRef.current.push(api);
+        } else {
+          try {
+            chart.removeSeries(api);
+          } catch {}
+        }
+      } catch {}
+
+      try {
+        const pl = (candleSeries as any).createPriceLine({
+          price: spec.price,
+          color: lineColor,
+          title: showAxis ? settleTitle.slice(0, 22) : '',
+          lineWidth,
+          lineStyle,
+          /** 본선은 LineSeries — 축 라벨만 priceLine */
+          lineVisible: false,
+          lastValueVisible: false,
+          axisLabelVisible: showAxis,
+          axisLabelColor: axisBg,
+          axisLabelTextColor: lineColor,
+        });
+        monthDeskPriorHiLoPriceLinesRef.current.push(pl);
+      } catch {}
+    }
+
+    return clearAll;
+  }, [
+    monthDeskCloseSettleBoard,
+    symbol,
+    timeframe,
+    chartInstanceId,
+    candles,
+    candlesForOverlay,
+    overlayTick,
+    settings.chartTfCloseSettlementLines,
+    settings.chartBulkHideLabels,
+    settings.chartMergedDeskHLineClean,
+    isMergedAnalysisDesk,
+    mergedDeskRightAxisPricesOn,
+  ]);
+
   const screenOverlays = useMemo(() => {
     const chart = chartRef.current;
     const series = seriesRef.current;
@@ -5479,9 +9962,17 @@ const ChartViewInner = ({
      * `candlesForOverlay` 기준인데 여기서만 `candles`를 쓰면 길이·인덱스가 달라 줌·축소 시 우측 빈 축으로 드리프트.
      * 라이브 캔들 우선일 때는 둘이 같지만, 분기마다 반드시 동일 소스를 쓴다.
      */
-    const overlaySourceCandles = candlesForOverlay.length ? candlesForOverlay : candles;
+    /** 통합·분석 — setData에 올린 tail과 동일 배열 (인덱스·마지막 봉 X 일치) */
+    const overlaySourceCandles =
+      isMergedAnalysisDesk && chartSeriesCandlesRef.current.length >= 2
+        ? chartSeriesCandlesRef.current
+        : isMergedAnalysisDesk && candlesForOverlay.length >= 2
+          ? candlesForOverlay
+          : candlesForOverlay.length
+            ? candlesForOverlay
+            : candles;
     if (!overlaySourceCandles.length) return [];
-    const candleSeries = sanitizeChartCandlesForSeries(overlaySourceCandles);
+    const candleSeries = sanitizeChartCandlesForSeries(overlaySourceCandles, timeframe);
     if (!candleSeries.length) return [];
     const rect = host.getBoundingClientRect();
     const pad = 20;
@@ -5498,6 +9989,15 @@ const ChartViewInner = ({
     /** 모든 분석 오버레이: time → X 는 항상 시리즈 캔들 시각 스냅 후 동일 파이프 */
     const resolveTimeX = (t: number) =>
       analysisTimeToScreenX(candleSeries, t, ts, series, rect, pad, tMin, tMax);
+    /** 피벗 추세선·Mirage 채널 — 선형 비율 폴백 없이 봉 시각만(timeScale 네이티브) */
+    const strictMagnetTimeToX = (t: number): number => {
+      const tAdj = normalizeOverlayTimeToChartSec(t) ?? t;
+      const tSnap = Number(snapMergedOverlayTimeToCandles(tAdj, candleSeries));
+      if (!Number.isFinite(tSnap)) return NaN;
+      const m = coreMagnetBarTimeToX(candleSeries, tSnap, ts, series);
+      if (Number.isFinite(m)) return m;
+      return analysisTimeToScreenXMagnet(candleSeries, tSnap, ts, series);
+    };
     /** coordinateToTime / 캔들.time 과 동일 단위 (기존 tMin·resolveX와 맞춤) */
     const extractTime = (t: unknown): number | null => {
       if (t == null) return null;
@@ -5557,13 +10057,165 @@ const ChartViewInner = ({
         /* ignore */
       }
     }
-    /** 우측(미래 축)으로 보내지 않음 — 0.92*폭 폴백은 줌아웃 시 빈 축에 존이 붙는 원인이었음 */
-    if (!Number.isFinite(safeXLastBar)) {
-      safeXLastBar = Math.min(chartRightPx * 0.5, chartRightPx);
+    /**
+     * 통합·분석 — 마지막 봉 X는 **차트에 실제로 올라간 시리즈 봉 수** 기준.
+     * tail 슬라이스 배열 길이로 logical을 잡으면 시리즈가 더 길 때 화면 중간을 가리켜
+     * zone 우측이 마지막 캔들까지 안 가고 중간에서 끊긴다.
+     */
+    if (isMergedAnalysisDesk && series) {
+      const lastX = mergedDeskSeriesLastBarScreenX(series, ts, candleSeries);
+      if (Number.isFinite(lastX)) safeXLastBar = lastX;
     }
-    /** 마지막 데이터 봉 X — 줌아웃 시 우측 빈 시간축까지 선·존을 늘리지 않음 */
-    const extendRightCap = Math.min(chartRightPx, safeXLastBar);
+    /**
+     * 마지막 봉 X — 통합·분석은 우끝(chartRightPx) 폴백 금지(패닝 시 우측 들러붙음).
+     * 그 외 모드는 기존 폴백 유지.
+     */
+    if (!Number.isFinite(safeXLastBar)) {
+      safeXLastBar = isMergedAnalysisDesk
+        ? NaN
+        : Math.min(chartRightPx * 0.5, chartRightPx);
+    }
+    /** 첫 데이터 봉 X — 통합·분석 오버레이가 빈 축(첫 봉 왼쪽)으로 밀리는 것 차단 */
+    let safeXFirstBar = NaN;
+    if (candleSeries.length > 0) {
+      const firstT = Number(candleSeries[0]!.time);
+      const m = Number.isFinite(firstT)
+        ? coreMagnetBarTimeToX(candleSeries, firstT, ts, series)
+        : NaN;
+      if (Number.isFinite(m)) safeXFirstBar = m;
+      if (!Number.isFinite(safeXFirstBar)) {
+        try {
+          const xc = ts.logicalToCoordinate(0 as unknown as Logical);
+          if (xc != null && Number.isFinite(Number(xc))) safeXFirstBar = Number(xc);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    /** 기본 우측 캡: 마지막 데이터 봉. 통합·분석은 화면 우끝 폴백 금지(라벨·zone 빈 축 부착 방지) */
+    const extendRightCap = Number.isFinite(safeXLastBar)
+      ? isMergedAnalysisDesk
+        ? safeXLastBar
+        : Math.min(chartRightPx, safeXLastBar)
+      : isMergedAnalysisDesk
+        ? NaN
+        : chartRightPx;
+    const futureRightRoom = Math.max(0, chartRightPx - (Number.isFinite(extendRightCap) ? Math.min(chartRightPx, extendRightCap) : 0));
+    const fusionZoneExtendCap =
+      uiMode === 'FUSION_MODE'
+        ? Math.min(chartRightPx, (Number.isFinite(extendRightCap) ? Math.min(chartRightPx, extendRightCap) : 0) + futureRightRoom * (Math.max(0, Math.min(100, fusionZoneExtendPct)) / 100))
+        : isMergedAnalysisDesk && Number.isFinite(safeXLastBar)
+          ? safeXLastBar
+          : extendRightCap;
+    const fusionLineExtendCap =
+      uiMode === 'FUSION_MODE'
+        ? Math.min(chartRightPx, (Number.isFinite(extendRightCap) ? Math.min(chartRightPx, extendRightCap) : 0) + futureRightRoom * (Math.max(0, Math.min(100, fusionLineExtendPct)) / 100))
+        : isMergedAnalysisDesk && Number.isFinite(safeXLastBar)
+          ? safeXLastBar
+          : extendRightCap;
+    const fusionDistinctHueById = new Map<string, number>();
+    if (uiMode === 'FUSION_MODE') {
+      const targetKinds = new Set<string>([
+        'zone',
+        'fvg',
+        'ob',
+        'supplyZone',
+        'demandZone',
+        'bprZone',
+        'reactionZone',
+        'line',
+        'trendLine',
+        'keyLevel',
+        'supportLine',
+        'resistanceLine',
+      ]);
+      const picked = anchored.filter((it: any) => targetKinds.has(String((it as OverlayItem).kind || '')));
+      const bucketById = new Map<string, 'long' | 'short' | 'neutral'>();
+      for (const raw of picked) {
+        const it = raw as OverlayItem;
+        const id = String(it.id || '');
+        if (!id || bucketById.has(id)) continue;
+        const tag = `${id} ${String(it.label || '')} ${String(it.category || '')}`.toLowerCase();
+        const longHit =
+          it.structureBias === 'bullish' ||
+          /long|bull|buy|support|demand|pullback|musthold|entry/i.test(tag);
+        const shortHit =
+          it.structureBias === 'bearish' ||
+          /short|bear|sell|resist|supply|rebound|mustbreak|invalid/i.test(tag);
+        bucketById.set(id, longHit && !shortHit ? 'long' : shortHit && !longHit ? 'short' : 'neutral');
+      }
+      const idsLong = Array.from(bucketById.entries()).filter(([, b]) => b === 'long').map(([id]) => id).sort((a, b) => a.localeCompare(b));
+      const idsShort = Array.from(bucketById.entries()).filter(([, b]) => b === 'short').map(([id]) => id).sort((a, b) => a.localeCompare(b));
+      const idsNeutral = Array.from(bucketById.entries()).filter(([, b]) => b === 'neutral').map(([id]) => id).sort((a, b) => a.localeCompare(b));
+      const paintBucket = (ids: string[], hueStart: number, hueSpan: number) => {
+        if (!ids.length) return;
+        ids.forEach((id, idx) => {
+          const step = (idx * 137.508) % Math.max(1, hueSpan);
+          const hue = Math.round((hueStart + step) % 360);
+          fusionDistinctHueById.set(id, hue);
+        });
+      };
+      // Long=green family, Short=red family, Neutral=blue/purple family.
+      paintBucket(idsLong, 122, 58);
+      paintBucket(idsShort, 350, 28);
+      paintBucket(idsNeutral, 205, 70);
+    }
     const items = anchored.flatMap((item: any) => {
+      /** 줌해도 기능·라벨은 유지. 화면 밖은 overlay overflow로만 가림 */
+      const sourceItem = item as OverlayItem;
+      const srcId = String(sourceItem.id || '');
+      const fusionHue = uiMode === 'FUSION_MODE' ? fusionDistinctHueById.get(srcId) : undefined;
+      const fusionModeText = uiMode === 'FUSION_MODE' ? String(fusionStructureHud?.modeText || '') : '';
+      const fusionConfluenceText = uiMode === 'FUSION_MODE' ? String(fusionStructureHud?.cptcConfluenceText || '') : '';
+      const fusionLongStrong = fusionConfluenceText.includes('롱 강화');
+      const fusionShortStrong = fusionConfluenceText.includes('숏 강화');
+      const fusionNeutral = fusionConfluenceText.includes('관망');
+      const fusionIsLongItem = srcId.includes('-long-') || String(sourceItem.label || '').includes('[롱');
+      const fusionIsShortItem = srcId.includes('-short-') || String(sourceItem.label || '').includes('[숏');
+      const fusionIsWatch = fusionModeText.includes('관망');
+      const fusionIsConservative = fusionIsWatch || fusionModeText.includes('보수');
+      const fusionAggressiveTarget =
+        srcId.includes('-tp-stretch-') ||
+        srcId.includes('-must-break') ||
+        srcId.includes('-entry3');
+      const fusionDefensiveTarget =
+        srcId.includes('-must-hold') ||
+        srcId.includes('-invalid-zone') ||
+        srcId.includes('-trigger');
+      const fillAlpha = fusionIsWatch
+        ? (fusionAggressiveTarget ? 0.12 : fusionDefensiveTarget ? 0.34 : 0.24)
+        : fusionIsConservative
+          ? (fusionAggressiveTarget ? 0.17 : fusionDefensiveTarget ? 0.38 : 0.3)
+          : 0.36;
+      let lineAlpha = fusionIsWatch
+        ? (fusionAggressiveTarget ? 0.34 : fusionDefensiveTarget ? 0.62 : 0.44)
+        : fusionIsConservative
+          ? (fusionAggressiveTarget ? 0.42 : fusionDefensiveTarget ? 0.68 : 0.5)
+          : 0.52;
+      if (fusionLongStrong) {
+        if (fusionIsLongItem) lineAlpha = Math.min(0.68, lineAlpha + 0.12);
+        if (fusionIsShortItem) lineAlpha = Math.max(0.22, lineAlpha - 0.14);
+      } else if (fusionShortStrong) {
+        if (fusionIsShortItem) lineAlpha = Math.min(0.68, lineAlpha + 0.12);
+        if (fusionIsLongItem) lineAlpha = Math.max(0.22, lineAlpha - 0.14);
+      } else if (fusionNeutral) {
+        lineAlpha = Math.max(0.28, lineAlpha - 0.08);
+      }
+      const labelBgAlpha = fusionIsWatch
+        ? (fusionAggressiveTarget ? 0.1 : fusionDefensiveTarget ? 0.22 : 0.14)
+        : fusionIsConservative
+          ? (fusionAggressiveTarget ? 0.13 : fusionDefensiveTarget ? 0.24 : 0.17)
+          : 0.18;
+      const normalizedItem: OverlayItem = fusionHue != null
+        ? {
+            ...sourceItem,
+            color: `hsla(${fusionHue} 36% 47% / ${fillAlpha})`,
+            lineLabelColor: `hsla(${fusionHue} 34% 54% / ${lineAlpha})`,
+            labelBackgroundColor: `hsla(${fusionHue} 26% 28% / ${labelBgAlpha})`,
+            labelTextColor: '#cbd5e1',
+          }
+        : sourceItem;
+      item = normalizedItem;
       const cat = String((item as any).category || '');
       const tid = typeof (item as any).id === 'string' ? String((item as any).id) : '';
       const magnetElliottSeg =
@@ -5578,8 +10230,55 @@ const ChartViewInner = ({
       const isZoneKind = ['zone', 'fvg', 'ob', 'supplyZone', 'demandZone', 'bprZone', 'reactionZone'].includes(
         item.kind
       );
+      const mdStep = item.monthDeskEnvelopeStep;
+      if (item.kind === 'channelBand' && mdStep?.points && mdStep.points.length >= 2) {
+        const bandMagnetX = (t: number) => {
+          const m = coreMagnetBarTimeToX(candleSeries, t, ts, series);
+          return Number.isFinite(m) ? m : resolveTimeX(t);
+        };
+        const chFbMd = rect.height * 0.5;
+        const polyMd = buildMonthDeskEnvelopeStepPolygonScreen(mdStep.points, bandMagnetX, series, chFbMd);
+        if (!polyMd || polyMd.length < 3) return [];
+        let minPxMd = Infinity;
+        let minPyMd = Infinity;
+        let maxPxMd = -Infinity;
+        let maxPyMd = -Infinity;
+        for (const p of polyMd) {
+          minPxMd = Math.min(minPxMd, p.x);
+          minPyMd = Math.min(minPyMd, p.y);
+          maxPxMd = Math.max(maxPxMd, p.x);
+          maxPyMd = Math.max(maxPyMd, p.y);
+        }
+        return [
+          {
+            ...item,
+            channelBandScreen: polyMd,
+            x1: minPxMd,
+            y1: minPyMd,
+            x2: maxPxMd,
+            y2: maxPyMd,
+            xMaxRight: maxPxMd,
+            priceStripRight,
+            chartWidth: rect.width,
+            chartHeight: rect.height,
+          },
+        ];
+      }
+      const isDeskCandleTrend =
+        isMergedAnalysisDesk &&
+        (isMergedDeskCandleTrendOverlay(item as OverlayItem) ||
+          isMergedDeskMirageTvTrendOverlay(item as OverlayItem));
+      const isRbDraw = isMergedDeskRbDrawOverlay(item as OverlayItem);
+      const isChartPrimePivotTrend =
+        cat === 'chartPrimeTrendChannels' &&
+        (isLineKind(item.kind) || item.kind === 'channelBand') &&
+        !(isMergedAnalysisDesk && isMergedDeskWaveMovePathOverlay(item as OverlayItem)) &&
+        !isRbDraw;
+      const isPivotAnchoredTrend = isDeskCandleTrend || isChartPrimePivotTrend;
+      const isWaveMovePathBand =
+        isMergedAnalysisDesk && isMergedDeskWaveMovePathOverlay(item as OverlayItem);
       if (item.kind === 'channelBand' && item.channelBand) {
-        const b = item.channelBand as {
+        let b = item.channelBand as {
           time1: number;
           time2: number;
           priceHigh1: number;
@@ -5587,14 +10286,112 @@ const ChartViewInner = ({
           priceLow1: number;
           priceLow2: number;
         };
+        if (isMergedAnalysisDesk && candleSeries.length >= 2 && !isRbDraw && !isWaveMovePathBand) {
+          const anchorLast =
+            isMergedDeskRightAnchorOverlay(item as OverlayItem) && !isPivotAnchoredTrend;
+          if (anchorLast) {
+            const snapped = isMergedDeskAnalyzedCandleSpanOverlay(item as OverlayItem)
+              ? mergedDeskAnalyzedZoneSpanTimes(candleSeries, item as OverlayItem)
+              : mergedDeskLastCandleZoneTimes(candleSeries, timeframe);
+            if (snapped) {
+              const t1n = Number(snapped.t1);
+              const t2n = Number(snapped.t2);
+              if (Number.isFinite(t1n) && Number.isFinite(t2n)) {
+                const t0 = Number(b.time1);
+                const tEndCb = Number(b.time2);
+                const lerp = (a: number, bp: number, t: number) => {
+                  if (!Number.isFinite(t0) || !Number.isFinite(tEndCb) || tEndCb <= t0) return bp;
+                  const r = Math.max(0, Math.min(1, (t - t0) / (tEndCb - t0)));
+                  return a + (bp - a) * r;
+                };
+                b = {
+                  ...b,
+                  time1: t1n,
+                  time2: t2n,
+                  priceHigh1: lerp(b.priceHigh1, b.priceHigh2, t1n),
+                  priceHigh2: lerp(b.priceHigh1, b.priceHigh2, t2n),
+                  priceLow1: lerp(b.priceLow1, b.priceLow2, t1n),
+                  priceLow2: lerp(b.priceLow1, b.priceLow2, t2n),
+                };
+              }
+            }
+          } else {
+            b = {
+              ...b,
+              time1: Number(snapMergedOverlayTimeToCandles(b.time1, candleSeries)),
+              time2: Number(snapMergedOverlayTimeToCandles(b.time2, candleSeries)),
+            };
+          }
+        }
         const bandMagnetX = (t: number) => {
+          if (isWaveMovePathBand || isRbDraw) {
+            const fx = mergedDeskFutureAwareTimeToScreenX(candleSeries, t, ts, series);
+            return Number.isFinite(fx) ? fx : resolveTimeX(t);
+          }
+          if (isPivotAnchoredTrend) {
+            const s = strictMagnetTimeToX(t);
+            return Number.isFinite(s) ? s : resolveTimeX(t);
+          }
           const m = coreMagnetBarTimeToX(candleSeries, t, ts, series);
           return Number.isFinite(m) ? m : resolveTimeX(t);
         };
         let xA = bandMagnetX(b.time1);
         let xB = bandMagnetX(b.time2);
+        /**
+         * 파랑빨강띠: time2 유지. 삼각 꼭짓점은 마지막 봉 클램프 없이 futureAware X.
+         */
+        /** 통합·분석 — 형성봉(time)·마지막봉(time) → X만. last-N·우끝 픽셀 강제 금지(패닝 고정) */
+        if (
+          isMergedAnalysisDesk &&
+          (isMergedDeskMirageTvZoneOverlay(item as OverlayItem) ||
+            isMergedDeskAnalyzedCandleSpanOverlay(item as OverlayItem)) &&
+          !isPivotAnchoredTrend &&
+          candleSeries.length >= 2
+        ) {
+          const spanTimes = mergedDeskAnalyzedZoneSpanTimes(candleSeries, item as OverlayItem);
+          if (spanTimes) {
+            const xa = bandMagnetX(Number(spanTimes.t1));
+            const xb = bandMagnetX(Number(spanTimes.t2));
+            if (Number.isFinite(xa)) xA = xa;
+            if (Number.isFinite(xb)) xB = xb;
+            else if (Number.isFinite(safeXLastBar)) xB = safeXLastBar;
+          }
+        } else if (
+          isMergedAnalysisDesk &&
+          isMergedDeskRightAnchorOverlay(item as OverlayItem) &&
+          !isPivotAnchoredTrend &&
+          candleSeries.length >= 2 &&
+          Number.isFinite(safeXLastBar)
+        ) {
+          /** E/SL/TP 짧은 레일만 last-N */
+          const span = mergedDeskRightZoneScreenSpan(
+            candleSeries,
+            timeframe,
+            bandMagnetX,
+            safeXLastBar
+          );
+          if (span) {
+            xA = span.xLeft;
+            xB = span.xRight;
+          }
+        }
         if (Math.abs(xB - xA) < 1.5) {
           xB = xA + 1.5;
+        }
+        /** Triple·일반 채널 — 마지막 캔들 +10봉까지 면 연장 */
+        if (
+          isMergedAnalysisDesk &&
+          !isRbDraw &&
+          !isWaveMovePathBand &&
+          candleSeries.length >= 2
+        ) {
+          const xExt = mergedDeskSeriesFuturePadScreenX(
+            series,
+            ts,
+            MERGED_DESK_LABEL_EXTEND_PAST_LAST_BARS,
+            candleSeries
+          );
+          if (Number.isFinite(xExt) && xExt > xB) xB = xExt;
         }
         const chFb = rect.height * 0.5;
         const nH1 = geomPriceToPixelY(series, b.priceHigh1, chFb);
@@ -5634,15 +10431,34 @@ const ChartViewInner = ({
       let t1Src =
         typeof item.time1 === 'number' ? item.time1 : ((candleSeries[0]?.time as number) ?? 0);
       if (isZoneKind && Number.isFinite(lastDataTForClamp) && typeof t1Src === 'number' && t1Src > lastDataTForClamp) {
-        t1Src = lastDataTForClamp;
+        const ex = String((item as OverlayItem).overlayZoneExtraClass || '');
+        if (
+          !ex.includes('merged-desk-thismuch-right-band') &&
+          !isMergedDeskWaveMovePathOverlay(item as OverlayItem) &&
+          !isRbDraw
+        ) {
+          t1Src = lastDataTForClamp;
+        }
       }
       let t2Src = item.time2 != null && typeof item.time2 === 'number' ? item.time2 : null;
-      if (isZoneKind && t2Src != null && Number.isFinite(lastDataTForClamp) && t2Src > lastDataTForClamp) {
-        t2Src = lastDataTForClamp;
+      if (
+        isZoneKind &&
+        !isRbDraw &&
+        t2Src != null &&
+        Number.isFinite(lastDataTForClamp) &&
+        t2Src > lastDataTForClamp
+      ) {
+        const ex = String((item as OverlayItem).overlayZoneExtraClass || '');
+        if (
+          !ex.includes('merged-desk-thismuch-right-band') &&
+          !isMergedDeskWaveMovePathOverlay(item as OverlayItem) &&
+          !isRbDraw
+        ) {
+          t2Src = lastDataTForClamp;
+        }
       }
       /** SMC 데스크: Fluid S/D·DRS/LQB 존 우측을 마지막 캔들 시각에 고정(형성 구간만 쓰면 줌 시 우측 빈 축으로 어긋남) */
-      if (
-        isSmcDeskMode &&
+      if (isSmcDeskMode &&
         isZoneKind &&
         Number.isFinite(lastDataTForClamp) &&
         t2Src != null &&
@@ -5658,22 +10474,95 @@ const ChartViewInner = ({
           t2Src = lastDataTForClamp;
         }
       }
+      /** 통합·분석 — 1d/1w/1M 포함: time→마지막 봉 우측 (analyze 슬라이스 좌측 착시 제거) */
+      const isMergedDeskZoneLike =
+        isMergedAnalysisDesk &&
+        isMergedDeskRightAnchorOverlay(item as OverlayItem) &&
+        !isPivotAnchoredTrend;
+      const isAnalyzedSpanZone =
+        isMergedAnalysisDesk && isMergedDeskAnalyzedCandleSpanOverlay(item as OverlayItem);
+      if (candleSeries.length >= 2 && Number.isFinite(lastDataTForClamp)) {
+        if (isMergedDeskZoneLike && isMergedDeskTradeRailOverlay(item as OverlayItem)) {
+          t1Src = lastDataTForClamp;
+          if (typeof item.time2 === 'number') t2Src = Number(item.time2);
+        } else if (isAnalyzedSpanZone && !isRbDraw) {
+          /** zone = 분석 형성 캔들(좌) → 마지막 봉(우) — 절대시각 스냅, N봉 강제 금지 */
+          const zoneSpan = mergedDeskAnalyzedZoneSpanTimes(candleSeries, item as OverlayItem);
+          if (zoneSpan) {
+            t1Src = Number(zoneSpan.t1);
+            t2Src = Number(zoneSpan.t2);
+          } else {
+            t2Src = lastDataTForClamp;
+          }
+        } else if (isMergedDeskZoneLike && !isRbDraw) {
+          const snapped = mergedDeskLastCandleZoneTimes(candleSeries, timeframe);
+          if (snapped) {
+            t1Src = Number(snapped.t1);
+            t2Src = Number(snapped.t2);
+          }
+        }
+      }
+      const isWaveMovePath =
+        isMergedAnalysisDesk && isMergedDeskWaveMovePathOverlay(item as OverlayItem);
+      if (isPivotAnchoredTrend && !isWaveMovePath && !isRbDraw) {
+        if (typeof t1Src === 'number') {
+          t1Src = Number(snapMergedOverlayTimeToCandles(t1Src, candleSeries));
+        }
+        if (t2Src != null && typeof t2Src === 'number') {
+          t2Src = Number(snapMergedOverlayTimeToCandles(t2Src, candleSeries));
+        }
+      }
+      const isMergedRefZone =
+        isMergedAnalysisDesk && isMergedDeskChartExtendOverlay(item as OverlayItem);
+      /** 융합모드: 라벨/존/선을 분석 캔들 봉에 강제 부착(확대·축소 시 드리프트 방지) */
+      const fusionForceAttach = uiMode === 'FUSION_MODE';
       /** 캔들분석·핵심 존·선: time→X 봉 자석(모든 모드 공통 id 목록) */
-      const barMagnetSnap = typeof tid === 'string' && isMagnetBarSnapOverlayId(tid);
+      const barMagnetSnap =
+        !isWaveMovePath &&
+        !isRbDraw &&
+        (fusionForceAttach ||
+          isPivotAnchoredTrend ||
+          (typeof tid === 'string' && isMagnetBarSnapOverlayId(tid)));
       let x1: number;
       let x2: number | null;
-      if (barMagnetSnap && typeof t1Src === 'number') {
-        const m1 = coreMagnetBarTimeToX(candleSeries, t1Src, ts, series);
-        x1 = Number.isFinite(m1) ? m1 : resolveTimeX(t1Src);
+      const pivotTimeToX = (t: number) => {
+        const s = strictMagnetTimeToX(t);
+        return Number.isFinite(s) ? s : resolveTimeX(t);
+      };
+      const wavePathTimeToX = (t: number) => {
+        const x = mergedDeskFutureAwareTimeToScreenX(candleSeries, t, ts, series);
+        return Number.isFinite(x) ? x : resolveTimeX(t);
+      };
+      if ((isWaveMovePath || isRbDraw) && typeof t1Src === 'number') {
+        x1 = wavePathTimeToX(t1Src);
+      } else if (barMagnetSnap && typeof t1Src === 'number') {
+        if (isPivotAnchoredTrend) {
+          x1 = pivotTimeToX(t1Src);
+        } else {
+          const m1 = coreMagnetBarTimeToX(candleSeries, t1Src, ts, series);
+          x1 = Number.isFinite(m1) ? m1 : resolveTimeX(t1Src);
+        }
       } else {
         x1 = resolveTimeX(t1Src);
       }
-      if (barMagnetSnap && t2Src != null && typeof t2Src === 'number') {
-        const m2 = coreMagnetBarTimeToX(candleSeries, t2Src, ts, series);
-        x2 = Number.isFinite(m2) ? m2 : resolveTimeX(t2Src);
+      if ((isWaveMovePath || isRbDraw) && t2Src != null && typeof t2Src === 'number') {
+        x2 = wavePathTimeToX(t2Src);
+      } else if (barMagnetSnap && t2Src != null && typeof t2Src === 'number') {
+        if (isPivotAnchoredTrend) {
+          x2 = pivotTimeToX(t2Src);
+        } else {
+          const m2 = coreMagnetBarTimeToX(candleSeries, t2Src, ts, series);
+          x2 = Number.isFinite(m2) ? m2 : resolveTimeX(t2Src);
+        }
       } else {
         x2 = t2Src != null ? resolveTimeX(t2Src) : null;
       }
+      /**
+       * 파랑빨강띠 추세선/면: time2(파동 문닫힘) 유지.
+       * 마지막 실봉 X로 덮어쓰면 파동 테두리가 항상 최신봉에 붙음.
+       */
+      /** time2 화면 X — 이후 가로선 투영 등에서 x2가 덮이기 전에 보관(마감 타점 우측 연장 앵커) */
+      const xAnalyzedRightEdge = x2 != null && Number.isFinite(x2) ? Number(x2) : Number(x1);
       const yFallback = rect.height * 0.5;
       /** 핀·짧은 캡션은 화면 안 가독용 클램프 — 선·밴드 면은 geom만(꼭짓점 클램프 시 면 왜곡). */
       const pinLikeKind =
@@ -5749,22 +10638,61 @@ const ChartViewInner = ({
           y1 = mid - minZoneH * 0.5;
           y2 = mid + minZoneH * 0.5;
         }
+        if (
+          isMergedAnalysisDesk &&
+          isMergedDeskMirageTvZoneOverlay(item as OverlayItem) &&
+          y2 != null
+        ) {
+          const mirageMinH = Math.max(12, Math.round(14 * zoneSticky));
+          if (Math.abs(y1 - y2) < mirageMinH) {
+            const mid = (y1 + y2) / 2;
+            y1 = mid - mirageMinH * 0.5;
+            y2 = mid + mirageMinH * 0.5;
+          }
+        }
       }
       const zoneTintedColor = isZone ? (applyUserZoneFill(item.color, zoneFillUserOpts) ?? item.color) : item.color;
       const isLine = isLineKind(item.kind);
       const isFuturePathMain = String(item.id || '').startsWith('tap-beam-path-main-');
+      const fusionExtendAllToRight = uiMode === 'FUSION_MODE';
       /**
        * 핵심 분석 면(major / ca-core / 고래 strict): zoneSpanOnly — 우측 빈 축까지 임의 연장 방지.
        * 플래그 누락 시에도 strict id면 span-only로 취급.
        */
+      const isMergedRefZoneExtend =
+        isMergedAnalysisDesk && isMergedDeskChartExtendOverlay(item as OverlayItem) && isZoneKind;
+      const isMirageTvZoneSpan =
+        isMergedAnalysisDesk && isMergedDeskMirageTvZoneOverlay(item as OverlayItem);
+      const isMergedAresChartZone =
+        isMergedAnalysisDesk && isMergedAnalysisDeskChartZoneId(tid);
+      /**
+       * TradingView식 zone: 좌=분석 형성봉 고정, 우=마지막 캔들까지.
+       * Mirage만이 아니라 통합·분석 zone 면 전부 동일.
+       */
+      const isMergedTvStyleZoneSpan =
+        isMergedAnalysisDesk &&
+        isZoneKind &&
+        !isMergedDeskWaveMovePathOverlay(item as OverlayItem) &&
+        (isMirageTvZoneSpan ||
+          isMergedDeskAnalyzedCandleSpanOverlay(item as OverlayItem) ||
+          isMergedAresChartZone ||
+          isMergedDeskChartExtendOverlay(item as OverlayItem));
       const zoneSpanOnly =
-        (item as OverlayItem).zoneSpanOnly === true || isCoreAnalysisMagnetZoneStrictWidthId(tid);
+        isMergedAnalysisDesk && isZoneKind
+          ? !isMergedTvStyleZoneSpan
+          : !isMergedRefZoneExtend &&
+            (((item as OverlayItem).zoneSpanOnly === true && !fusionExtendAllToRight) ||
+              isCoreAnalysisMagnetZoneStrictWidthId(tid));
       /**
        * OB/S&D 존은 "분석된 구간(time1~time2)" 자체가 의미라 우측 최신봉까지 강제 연장하면
        * 줌 시 면/라벨이 붙어 다니는 것처럼 보여 혼동됨. 해당 계열은 구간 폭 고정.
+       * 단 통합·분석 TV식 zone은 형성→마지막봉이 요구이므로 제외.
        */
       const stickZoneToAnalyzedBars =
         isZone &&
+        !isMergedTvStyleZoneSpan &&
+        !isMirageTvZoneSpan &&
+        !isMergedAresChartZone &&
         (item.kind === 'ob' ||
           item.kind === 'supplyZone' ||
           item.kind === 'demandZone' ||
@@ -5773,14 +10701,19 @@ const ChartViewInner = ({
           tid.includes('aichart-1') ||
           tid.includes('aichart') ||
           tid.startsWith('smc-desk-ob-') ||
-          /(?:^|-)ob(?:-|$)/i.test(tid));
-      const noProjectLine = isLine && (item as OverlayItem).noProject === true;
+          /(?:^|-)ob(?:-|$)/i.test(tid) ||
+          isMonthDeskStickZoneToAnalyzedBarsId(tid));
+      const noProjectLine = isLine && ((item as OverlayItem).noProject === true && !fusionExtendAllToRight);
       const extendToRight =
-        (!zoneSpanOnly && isZone && !stickZoneToAnalyzedBars) ||
-        (isLine && !isFuturePathMain && !noProjectLine);
+        isMergedAnalysisDesk && isZoneKind
+          ? isMergedTvStyleZoneSpan
+          : isMergedRefZoneExtend ||
+            (fusionExtendAllToRight && (isZone || (isLine && !isFuturePathMain))) ||
+            (!zoneSpanOnly && isZone && !stickZoneToAnalyzedBars) ||
+            (isLine && !isFuturePathMain && !noProjectLine);
       const isLuxAutoTrendline = cat === 'autoTrendline';
       const isParkfTrendline = cat === 'trendlineEngine' && String((item as any).id || '').startsWith('parkf-');
-      let xMaxRight = extendToRight ? extendRightCap : (x2 ?? x1);
+      let xMaxRight = extendToRight ? (isZone ? fusionZoneExtendCap : fusionLineExtendCap) : (x2 ?? x1);
       /** 캔들분석·핵심 존은 extendRightCap·resolveTimeX와 섞이면 우측이 미래 축으로 튐 — 일반 존 연장만 적용 */
       if (isZone && extendToRight && candleSeries.length > 0 && !barMagnetSnap) {
         const zMode = settings.zoneHorizontalExtendMode ?? 'chartEdge';
@@ -5789,7 +10722,7 @@ const ChartViewInner = ({
           const lastT = Number(candleSeries[candleSeries.length - 1]!.time);
           if (Number.isFinite(lastT)) {
             const xLast = resolveTimeX(lastT);
-            xMaxRight = Math.min(extendRightCap, Math.max(x1 + minZoneW, xLast));
+            xMaxRight = Math.min(fusionZoneExtendCap, Math.max(x1 + minZoneW, xLast));
           }
         } else if (zMode === 'pastZoneEnd') {
           const t1 = typeof item.time1 === 'number' ? item.time1 : NaN;
@@ -5808,7 +10741,7 @@ const ChartViewInner = ({
           const tCap = Number(candleSeries[idx1]!.time);
           if (Number.isFinite(tCap)) {
             const xCap = resolveTimeX(tCap);
-            xMaxRight = Math.min(extendRightCap, Math.max(x1 + minZoneW, xCap));
+            xMaxRight = Math.min(fusionZoneExtendCap, Math.max(x1 + minZoneW, xCap));
           }
         }
       }
@@ -5817,20 +10750,45 @@ const ChartViewInner = ({
         if (Number.isFinite(lastT)) {
           const xLast = resolveTimeX(lastT);
           const xAnchorRight = x2 ?? x1;
-          xMaxRight = Math.min(extendRightCap, Math.max(xAnchorRight, xLast));
+          xMaxRight = Math.min(fusionLineExtendCap, Math.max(xAnchorRight, xLast));
         }
       }
       /**
        * 모든 존(zone/fvg/ob/supply/demand/…): 과거 time2에서 끊기지 않고 **마지막(실시간) 캔들 X**까지 면 확장.
        * 우측 한계는 `extendRightCap`(빈 시간축 밖으로 나가지 않음).
        */
-      if (isZone && Number.isFinite(extendRightCap) && !stickZoneToAnalyzedBars) {
-        xMaxRight = Math.min(extendRightCap, Math.max(xMaxRight, safeXLastBar));
+      if (isZone && Number.isFinite(fusionZoneExtendCap) && !stickZoneToAnalyzedBars && !isMergedAnalysisDesk) {
+        xMaxRight = Math.min(fusionZoneExtendCap, Math.max(xMaxRight, safeXLastBar));
+      }
+      /**
+       * 마감 타점: time2~**시간축 가시 우끝(chartRightPx)** 까지 보간.
+       * 비융합 모드에서 fusionZone/LineExtendCap은 마지막 봉 X(≈time2)로 캡되어 (cap-ach)=0 이었음 → 슬라이더 무효.
+       */
+      const rawTypeomPct = Number(settings.chartMonthDeskTypeomRightExtendPct);
+      const typeomExtendPct = Number.isFinite(rawTypeomPct)
+        ? Math.max(0, Math.min(100, Math.round(rawTypeomPct)))
+        : 0;
+      if (
+        (tid.startsWith('month-desk-typeom-') ||
+          tid.startsWith('month-desk-unified-') ||
+          tid.startsWith('month-desk-plan-')) &&
+        (isZone || isLine) &&
+        Number.isFinite(chartRightPx)
+      ) {
+        const cap = chartRightPx;
+        const ach = Number.isFinite(xAnalyzedRightEdge) ? xAnalyzedRightEdge : Number(x1);
+        const effPct = isZone ? typeomExtendPct : typeomExtendPct <= 0 ? 100 : typeomExtendPct;
+        if (!isZone || typeomExtendPct > 0) {
+          const span = Math.max(0, cap - ach);
+          xMaxRight = ach + span * (effPct / 100);
+          xMaxRight = Math.min(cap, Math.max(Number(x1) + 6, xMaxRight));
+        }
       }
       // 추세선: 픽셀 선형 보간 대신 (시간,가격) 직선 → 우측 끝 가격으로 변환 (로그축·가격축과 일치, 똑바른 작도)
       if (
         isLine &&
-        !(item as OverlayItem).noProject &&
+        !isPivotAnchoredTrend &&
+        ((!(item as OverlayItem).noProject) || fusionExtendAllToRight) &&
         typeof item.time1 === 'number' &&
         typeof item.time2 === 'number' &&
         typeof item.price1 === 'number' &&
@@ -5847,16 +10805,312 @@ const ChartViewInner = ({
           y2 = yExt;
         }
       }
+      /** 마감 타점 가로선: 빈 축 쪽 X에서 coordinateToTime 실패 시에도 우측 연장 반영 */
+      if (isMergedAnalysisDesk && isLine && typeof item.price1 === 'number' && typeof item.price2 === 'number') {
+        const pm = Math.max(Math.abs(item.price1), Math.abs(item.price2), 1e-12);
+        const horiz = Math.abs(item.price1 - item.price2) / pm < 1e-9;
+        const mergedHorizRail =
+          horiz &&
+          (tid.startsWith('month-desk-typeom-') ||
+            tid.startsWith('merged-ares-line-') ||
+            tid.startsWith('merged-desk-trade-rail-') ||
+            tid.startsWith('atlas-pulse-') ||
+            isMergedDeskTradeRailOverlay(item as OverlayItem) ||
+            (tid.startsWith('merged-swing-channel-') &&
+              isMergedDeskRightAnchorOverlay(item as OverlayItem) &&
+              !isPivotAnchoredTrend));
+        if (mergedHorizRail && Number.isFinite(safeXLastBar)) {
+          x1 = safeXLastBar;
+          x2 = xMaxRight;
+          y2 = y1;
+        }
+      }
       /**
        * major / ca-core S·D / 고래: x1·x2는 위에서 `item.time1`~`time2`(analyze 가시 윈도)만 봉 자석.
        * 예전에 전체 시리즈 첫·마지막 봉으로 덮어쓰면 패닝 시 **최신 봉 X**가 화면 오른쪽 빈 축으로
        * 밀려 핵심 지지/저항 가로선이 캔들과 떨어져 보였음 — 덮어쓰기 금지.
        */
-      if (Number.isFinite(x1) && x2 != null && Number.isFinite(x2) && x2 <= x1) {
-        x1 = x2 - Math.min(160, Math.max(32, rect.width * 0.1));
+      if (
+        !isPivotAnchoredTrend &&
+        Number.isFinite(x1) &&
+        x2 != null &&
+        Number.isFinite(x2) &&
+        x2 <= x1
+      ) {
+        /** zone 면: 붕괴 시 마지막 봉 stub 금지 — 형성봉 X를 다시 잡고 좌측으로 최소폭 */
+        const isDeskZoneFace =
+          isMergedAnalysisDesk &&
+          isZoneKind &&
+          (isMergedDeskMirageTvZoneOverlay(item as OverlayItem) ||
+            isMergedDeskAnalyzedCandleSpanOverlay(item as OverlayItem));
+        if (isDeskZoneFace && candleSeries.length >= 2) {
+          const deskTimeToX = (t: number) => {
+            const m = coreMagnetBarTimeToX(candleSeries, t, ts, series);
+            return Number.isFinite(m) ? m : resolveTimeX(t);
+          };
+          const spanFix = mergedDeskAnalyzedZoneScreenSpan(
+            candleSeries,
+            item as OverlayItem,
+            deskTimeToX,
+            Number.isFinite(safeXLastBar) ? safeXLastBar : x2,
+            safeXFirstBar
+          );
+          if (spanFix && spanFix.xRight > spanFix.xLeft) {
+            x1 = spanFix.xLeft;
+            x2 = spanFix.xRight;
+            xMaxRight = spanFix.xRight;
+          } else {
+            const barGap =
+              candleSeries.length >= 2
+                ? Math.abs(
+                    resolveTimeX(Number(candleSeries[candleSeries.length - 1]!.time)) -
+                      resolveTimeX(Number(candleSeries[Math.max(0, candleSeries.length - 8)]!.time))
+                  )
+                : 48;
+            const minW = Math.max(48, Number.isFinite(barGap) && barGap > 8 ? barGap : 48);
+            x1 = x2 - minW;
+          }
+        } else {
+          /** 뷰포트 비율 폭 금지 — 패닝 시 우측에 들러붙음. 봉 간격 추정만 사용 */
+          const barGap =
+            candleSeries.length >= 2
+              ? Math.abs(
+                  resolveTimeX(Number(candleSeries[candleSeries.length - 1]!.time)) -
+                    resolveTimeX(Number(candleSeries[candleSeries.length - 2]!.time))
+                )
+              : 8;
+          const minW = Math.max(8, Number.isFinite(barGap) && barGap > 1 ? barGap : 8);
+          x1 = x2 - minW;
+        }
+      }
+      /** 통합·분석 — E/SL/TP 짧은 레일만 last-N 스냅. zone 면은 time1/time2 좌표 유지(패닝 고정) */
+      if (
+        isMergedAnalysisDesk &&
+        isMergedDeskTradeRailOverlay(item as OverlayItem) &&
+        isLineKind(item.kind) &&
+        !isPivotAnchoredTrend &&
+        Number.isFinite(safeXLastBar)
+      ) {
+        const deskTimeToX = (t: number) => {
+          const m = coreMagnetBarTimeToX(candleSeries, t, ts, series);
+          return Number.isFinite(m) ? m : resolveTimeX(t);
+        };
+        const snap = snapMergedDeskScreenOverlaySpan(
+          candleSeries,
+          timeframe,
+          deskTimeToX,
+          safeXLastBar,
+          chartRightPx
+        );
+        x1 = Math.max(snap.xLeft, safeXLastBar - Math.max(48, rect.width * 0.06));
+        x2 = Math.min(chartRightPx, Math.max(safeXLastBar, snap.xRight));
+        xMaxRight = x2;
+        y2 = y1;
+      }
+      /** zone 네모 — 좌·우 = time1/time2 → X (화면 우끝·last-N 덮어쓰기 금지) */
+      if (
+        isMergedAnalysisDesk &&
+        isZoneKind &&
+        !isPivotAnchoredTrend
+      ) {
+        const deskTimeToX = (t: number) => {
+          const m = coreMagnetBarTimeToX(candleSeries, t, ts, series);
+          return Number.isFinite(m) ? m : resolveTimeX(t);
+        };
+        const isSpan =
+          isMergedDeskMirageTvZoneOverlay(item as OverlayItem) ||
+          isMergedDeskAnalyzedCandleSpanOverlay(item as OverlayItem);
+        if (isSpan) {
+          let span: { xLeft: number; xRight: number } | null = null;
+          if (isMergedDeskMirageTvZoneOverlay(item as OverlayItem) && series) {
+            span = resolveMirageZoneScreenSpan({
+              item: item as OverlayItem,
+              candleSeries,
+              timeframe,
+              timeScale: ts,
+              series,
+              timeToX: deskTimeToX,
+              safeXLastBar: Number.isFinite(safeXLastBar) ? safeXLastBar : deskTimeToX(Number(t2Src ?? lastDataTForClamp)),
+              chartRightPx,
+            });
+          }
+          if (!span) {
+            span = mergedDeskAnalyzedZoneScreenSpan(
+              candleSeries,
+              item as OverlayItem,
+              deskTimeToX,
+              Number.isFinite(safeXLastBar) ? safeXLastBar : NaN,
+              safeXFirstBar
+            );
+          }
+          if (span) {
+            x1 = span.xLeft;
+            x2 = span.xRight;
+            xMaxRight = span.xRight;
+          } else {
+            if (typeof t1Src === 'number' && Number.isFinite(t1Src)) {
+              const xa = deskTimeToX(t1Src);
+              if (Number.isFinite(xa)) x1 = xa;
+            }
+            const tEnd =
+              t2Src != null && Number.isFinite(Number(t2Src))
+                ? Number(t2Src)
+                : lastDataTForClamp;
+            if (Number.isFinite(tEnd)) {
+              const xb = deskTimeToX(tEnd);
+              if (Number.isFinite(xb)) {
+                x2 = xb;
+                xMaxRight = xb;
+              } else if (Number.isFinite(safeXLastBar)) {
+                x2 = safeXLastBar;
+                xMaxRight = safeXLastBar;
+              }
+            }
+          }
+        }
+        const isRbCoreZoneFace =
+          tid.startsWith('merged-desk-rb-core-settle') ||
+          tid.startsWith('merged-desk-rb-core-fail') ||
+          tid.startsWith('merged-desk-rb-core-break') ||
+          String((item as OverlayItem).overlayZoneExtraClass || '').includes('merged-desk-rb-core-set');
+        if (isRbCoreZoneFace) {
+          const deskTimeToX = (t: number) => {
+            const m = coreMagnetBarTimeToX(candleSeries, t, ts, series);
+            return Number.isFinite(m) ? m : resolveTimeX(t);
+          };
+          if (typeof t1Src === 'number' && Number.isFinite(t1Src)) {
+            const xa = deskTimeToX(t1Src);
+            if (Number.isFinite(xa)) x1 = xa;
+          }
+          const lastX = mergedDeskSeriesLastBarScreenX(series, ts, candleSeries);
+          if (Number.isFinite(lastX)) {
+            x2 = lastX;
+            xMaxRight = lastX;
+          }
+        }
+        /** 요만큼·이만큼 우측 세로존 — 미래 time 클램프 때문에 폭0 되던 문제: 마지막봉 우측 픽셀 안착 */
+        const zoneExtraCls = String((item as OverlayItem).overlayZoneExtraClass || '');
+        if (
+          isMergedAnalysisDesk &&
+          isZoneKind &&
+          zoneExtraCls.includes('merged-desk-thismuch-right-band') &&
+          Number.isFinite(safeXLastBar)
+        ) {
+          const band = (() => {
+            const t = normalizeChartTimeframe(timeframe) || timeframe;
+            if (t === '1m' || t === '3m') return { yo: 4, yi: 6, gap: 1 };
+            if (t === '5m' || t === '15m') return { yo: 5, yi: 8, gap: 1 };
+            if (t === '30m' || t === '1h') return { yo: 6, yi: 10, gap: 1 };
+            if (t === '4h' || t === '6h' || t === '12h') return { yo: 5, yi: 8, gap: 1 };
+            return { yo: 4, yi: 7, gap: 1 };
+          })();
+          const xYo1 = mergedDeskSeriesFuturePadScreenX(series, ts, band.yo, candleSeries);
+          const xYi0 = mergedDeskSeriesFuturePadScreenX(
+            series,
+            ts,
+            band.yo + band.gap,
+            candleSeries
+          );
+          const xYi1 = mergedDeskSeriesFuturePadScreenX(
+            series,
+            ts,
+            band.yo + band.gap + band.yi,
+            candleSeries
+          );
+          const xYo0 = Number.isFinite(safeXLastBar)
+            ? safeXLastBar + Math.max(2, (Number(xYo1) - safeXLastBar) * 0.08)
+            : NaN;
+          if (zoneExtraCls.includes('merged-desk-thismuch-yo') && Number.isFinite(xYo0) && Number.isFinite(xYo1)) {
+            x1 = Math.min(xYo0, xYo1);
+            x2 = Math.max(xYo0, xYo1);
+            xMaxRight = x2;
+          } else if (
+            zoneExtraCls.includes('merged-desk-thismuch-yi') &&
+            Number.isFinite(xYi0) &&
+            Number.isFinite(xYi1)
+          ) {
+            x1 = Math.min(xYi0, xYi1);
+            x2 = Math.max(xYi0, xYi1);
+            xMaxRight = x2;
+          }
+        }
+      }
+      /** 통합·분석 — 첫 봉보다 왼쪽이면 클램프하되, 패닝으로 첫 봉이 화면 밖(음수)일 때는 그대로 */
+      if (
+        isMergedAnalysisDesk &&
+        Number.isFinite(safeXFirstBar) &&
+        safeXFirstBar >= 0 &&
+        !isPivotAnchoredTrend
+      ) {
+        if (Number.isFinite(x1) && x1 < safeXFirstBar) x1 = safeXFirstBar;
+        if (x2 != null && Number.isFinite(x2) && x2 < safeXFirstBar) x2 = safeXFirstBar;
+      }
+      /**
+       * 통합·분석 피벗 추세선 — 줌·축소 후에도 (time,price) 꼭짓점만 사용.
+       * 파동 이동경로(고스트 미래 시각)는 제외 — pivot 스냅하면 time2가 마지막 봉에 붙어 점선이 사라짐.
+       */
+      if (
+        isMergedAnalysisDesk &&
+        isPivotAnchoredTrend &&
+        isLineKind(item.kind) &&
+        !isWaveMovePath &&
+        !isRbDraw
+      ) {
+        if (typeof item.time1 === 'number') {
+          const px = pivotTimeToX(item.time1);
+          if (Number.isFinite(px)) x1 = px;
+        }
+        if (typeof item.time2 === 'number') {
+          const px = pivotTimeToX(item.time2);
+          if (Number.isFinite(px)) {
+            x2 = px;
+            xMaxRight = px;
+          }
+        }
+        if (typeof item.price1 === 'number') {
+          y1 = geomPriceToPixelY(series, item.price1, yFallback);
+        }
+        if (typeof item.price2 === 'number') {
+          y2 = geomPriceToPixelY(series, item.price2, y1);
+        }
+      }
+      /** 파동경로: futureAware X 유지 + 폭 0 붕괴 방지 */
+      if ((isWaveMovePath || isRbDraw) && isLineKind(item.kind)) {
+        if (typeof item.time1 === 'number') {
+          const px = wavePathTimeToX(item.time1);
+          if (Number.isFinite(px)) x1 = px;
+        }
+        if (typeof item.time2 === 'number') {
+          const px = wavePathTimeToX(item.time2);
+          if (Number.isFinite(px)) {
+            x2 = px;
+            xMaxRight = px;
+          }
+        }
+        if (
+          x2 != null &&
+          Number.isFinite(x1) &&
+          Number.isFinite(x2) &&
+          Math.abs(x2 - x1) < 2
+        ) {
+          x2 = x1 + (Number(item.time2) >= Number(item.time1) ? 12 : -12);
+          xMaxRight = x2;
+        }
+        if (typeof item.price1 === 'number') {
+          y1 = geomPriceToPixelY(series, item.price1, yFallback);
+        }
+        if (typeof item.price2 === 'number') {
+          y2 = geomPriceToPixelY(series, item.price2, y1);
+        }
       }
       const zoneTimeEndScreenX =
-        isZone && typeof x2 === 'number' && Number.isFinite(x2) ? Number(x2) : undefined;
+        isMergedAnalysisDesk && Number.isFinite(safeXLastBar)
+          ? safeXLastBar
+          : isMergedRefZoneExtend && Number.isFinite(safeXLastBar)
+            ? safeXLastBar
+            : (isZone || isLine) && typeof x2 === 'number' && Number.isFinite(x2)
+              ? Number(x2)
+              : undefined;
       return [{
         ...item,
         color: zoneTintedColor,
@@ -5865,15 +11119,15 @@ const ChartViewInner = ({
         x2: isZone ? xMaxRight : x2,
         y2,
         xMaxRight,
-        ...(isZone && zoneTimeEndScreenX !== undefined ? { zoneTimeEndScreenX } : {}),
+        ...(zoneTimeEndScreenX !== undefined ? { zoneTimeEndScreenX } : {}),
         priceStripRight,
         chartWidth: rect.width,
         chartHeight: rect.height,
       }];
     });
-    /** AI_ZONE: 종합 오버레이 팔레트 통일 + 우선순위별 가시성 보정 */
+    /** AI_ZONE·월초: 종합 오버레이 팔레트 통일 + 우선순위별 가시성 보정 */
     let out: typeof items = items;
-    if (uiMode === 'AI_ZONE') {
+    if (isAiZoneDesk) {
       const latestCloseForAi = Number(
         (candlesForOverlay[candlesForOverlay.length - 1] as any)?.close ??
         (candles[candles.length - 1] as any)?.close
@@ -6007,7 +11261,7 @@ const ChartViewInner = ({
         return zRank(ida) - zRank(idb) || ida.localeCompare(idb);
       });
     }
-    if (uiMode === 'AI_ZONE' && out.length > AI_ZONE_MAX_SCREEN_OVERLAYS) {
+    if (isAiZoneDesk && out.length > AI_ZONE_MAX_SCREEN_OVERLAYS) {
       const max = AI_ZONE_MAX_SCREEN_OVERLAYS;
       const withScore = out.map((row) => {
         const r = row as { id?: string; kind?: string; category?: string };
@@ -6020,6 +11274,93 @@ const ChartViewInner = ({
         (a, b) => b.s - a.s || String((a.row as { id?: string }).id).localeCompare(String((b.row as { id?: string }).id))
       );
       out = withScore.slice(0, max).map((x) => x.row) as typeof out;
+    } else if (!isAiZoneDesk && out.length > chartPerf.maxScreenOverlaysNonAiZone) {
+      let pool = out;
+      if (isMergedAnalysisDesk && tMin != null && tMax != null) {
+        /** 줌 시 형성봉이 화면 밖이어도 기능·라벨은 유지 */
+      }
+      const max = chartPerf.maxScreenOverlaysNonAiZone;
+      const withScore = pool.map((row) => {
+        const r = row as { id?: string; kind?: string; category?: string };
+        const id = String(r.id || '');
+        const k = String(r.kind || '');
+        const c = String(r.category || '');
+        return { row, s: aiZoneScreenOverlayKeepScore(id, k, c) };
+      });
+      withScore.sort(
+        (a, b) => b.s - a.s || String((a.row as { id?: string }).id).localeCompare(String((b.row as { id?: string }).id))
+      );
+      if (isMergedAnalysisDesk) {
+        const rank = (id: string) => {
+          if (id.startsWith('merged-desk-rb-core-sr-')) return -6;
+          if (id.startsWith('merged-desk-mtf-dump-')) return -3;
+          if (id.startsWith('eagle1-ai-zone--') || id.startsWith('eagle1-entry-zone')) return -4;
+          if (id.startsWith('merged-desk-hotzone-') || id.startsWith('merged-desk-hq-') || id.startsWith('merged-swing-mid-')) {
+            return -2;
+          }
+          if (id.startsWith('merged-desk-core-sr-') || id.startsWith('merged-choch-ob-')) return -1;
+          if (id.startsWith('merged-desk-downside-plan-')) return -1;
+          if (id.startsWith('merged-desk-projected-support') || id.startsWith('merged-desk-support-rebound')) {
+            return 0;
+          }
+          if (id.includes('merged-ares-key-') || id.includes('merged-ares-critical-')) return 0;
+          if (id.includes('merged-ares-entry-point-')) return 0;
+          if (id.includes('merged-ares-confirm-')) return 1;
+          if (id.startsWith('merged-swing-regime-')) return 3;
+          if (id.startsWith('merged-ares-st-cloud-') || id.startsWith('merged-unified-cloud-') || id.startsWith('merged-cp-cloud')) return 2;
+          if (id.startsWith('merged-desk-rb-')) return -2;
+          if (id.startsWith('merged-desk-wave-path') || id.startsWith('merged-desk-rb-future')) return -2;
+          return 1;
+        };
+        withScore.sort(
+          (a, b) =>
+            rank(String((a.row as { id?: string }).id || '')) -
+              rank(String((b.row as { id?: string }).id || '')) ||
+            b.s - a.s
+        );
+        const pinned = pool.filter((row) => {
+          const id = String((row as { id?: string }).id || '');
+          return (
+            id.startsWith('eagle1-ai-zone--') ||
+            id.startsWith('eagle1-entry-zone') ||
+            id.startsWith('merged-desk-hotzone-') ||
+            id.startsWith('merged-desk-hq-') ||
+            id.startsWith('merged-desk-core-sr-') ||
+            id.startsWith('merged-desk-rb-') ||
+            id.startsWith('merged-desk-wave-path') ||
+            id.startsWith('merged-desk-rb-future') ||
+            id.startsWith('merged-swing-mid-') ||
+            id.startsWith('merged-choch-ob-') ||
+            id.startsWith('merged-desk-downside-plan-') ||
+            id.startsWith('merged-desk-projected-support') ||
+            id.startsWith('merged-desk-support-rebound') ||
+            id.includes('merged-ares-key-') ||
+            id.includes('merged-ares-critical-') ||
+            id.includes('merged-ares-entry-point-') ||
+            id.startsWith('merged-desk-mtf-dump-') ||
+            id.startsWith('merged-trade-') ||
+            id.startsWith('merged-ares-st-cloud-') ||
+            id.startsWith('merged-unified-cloud-') ||
+            id.startsWith('merged-cp-cloud') ||
+            id.includes('merged-ares-scenario-') ||
+            id.includes('merged-ares-tb-') ||
+            id.includes('merged-ares-mlsp-') ||
+            id.startsWith('month-desk-strike-')
+          );
+        });
+        const sliced = withScore.slice(0, max).map((x) => x.row);
+        const seen = new Set(sliced.map((r) => String((r as { id?: string }).id || '')));
+        for (const p of pinned) {
+          const pid = String((p as { id?: string }).id || '');
+          if (pid && !seen.has(pid)) {
+            sliced.push(p);
+            seen.add(pid);
+          }
+        }
+        out = sliced as typeof out;
+      } else {
+        out = withScore.slice(0, max).map((x) => x.row) as typeof out;
+      }
     }
     return out;
   }, [
@@ -6031,19 +11372,356 @@ const ChartViewInner = ({
     settings.zoneHorizontalExtendMode,
     settings.zoneExtendPastEndBars,
     settings.zoneStickyStrength,
+    settings.chartMonthDeskTypeomRightExtendPct,
     uiMode,
+    fusionPerfLite,
+    chartPerf,
+    fusionZoneExtendPct,
+    fusionLineExtendPct,
+    fusionStructureHud?.modeText,
+    isMergedAnalysisDesk,
+    timeframe,
   ]);
 
-  const lsRocketHudPositions = useMemo(() => {
+  const lsRocketLast = candles.length > 0 ? candles[candles.length - 1] : null;
+  const lsRocketBarGeomSig = `${candleTailLen}|${lsRocketLast ? Number(lsRocketLast.time) : 0}|${
+    lsRocketLast ? Math.round(Number(lsRocketLast.high) * 1e4) / 1e4 : 0
+  }|${lsRocketLast ? Math.round(Number(lsRocketLast.low) * 1e4) / 1e4 : 0}`;
+
+
+  const whaleSegmentSignalsRaw = useMemo(
+    () => beamHitsToSegmentSignals(whaleBeamIntel),
+    [whaleBeamIntel]
+  );
+
+  const whaleSegmentSignals = useMemo(() => {
+    if (!candles.length) return [];
+    const synced = syncWhaleSignalsToChart(whaleSegmentSignalsRaw, candles);
+    const thinned = thinWhaleSignalsByChartTime(synced, candles, {
+      maxPast: isMergedAnalysisDesk ? 0 : 3,
+      minBarGap: 10,
+      liveClearance: 8,
+    });
+    return thinned;
+  }, [whaleSegmentSignalsRaw, candles, isMergedAnalysisDesk]);
+
+  const whaleLiveSignal = useMemo(() => {
+    const fromSeg = whaleSegmentSignals.find((s) => s.isLive);
+    if (fromSeg) return fromSeg;
+    if (whaleBeamIntel?.live) return beamHitToSegmentSignal(whaleBeamIntel.live);
+    return null;
+  }, [whaleSegmentSignals, whaleBeamIntel]);
+
+  const whaleDnaPanel = useMemo(
+    () =>
+      buildBitgetWhaleDnaPanel({
+        intel: whaleBeamIntel,
+        single: whaleCandleSingle,
+        range: whaleCandleRange,
+        mtf: whaleVolumeMtf,
+        dataSpanKo: whaleCatalogSpanKo ?? undefined,
+      }),
+    [whaleBeamIntel, whaleCandleSingle, whaleCandleRange, whaleVolumeMtf, whaleCatalogSpanKo]
+  );
+
+  const whaleRightOracle = useMemo(() => {
+    if (!bitgetVolumePackOn || !whaleLiveSignal || !whaleDnaPanel) return null;
     const chart = chartRef.current;
     const series = seriesRef.current;
     const host = hostRef.current;
-    if (!chart || !series || !host || candles.length === 0 || lsRocketHud.length === 0) return [];
-    const seriesCandles = sanitizeChartCandlesForSeries(candles);
+    if (!chart || !series || !host || candles.length === 0) return null;
+
+    const seriesCandles = sanitizeChartCandlesForSeries(candles, timeframe);
+    if (!seriesCandles.length) return null;
+
+    const rect = host.getBoundingClientRect();
+    const ts = chart.timeScale();
+    const pad = 20;
+    const tAt0 = ts.coordinateToTime(0) as { timestamp?: number } | number | null;
+    const tAtW = ts.coordinateToTime(timeScaleRightPixelX(ts, rect.width) as UTCTimestamp) as
+      | { timestamp?: number }
+      | number
+      | null;
+    const tMin = tAt0 != null ? (typeof tAt0 === 'object' ? tAt0.timestamp : tAt0) : null;
+    const tMax = tAtW != null ? (typeof tAtW === 'object' ? tAtW.timestamp : tAtW) : null;
+    const resolveTimeX = (t: number) =>
+      analysisTimeToScreenX(seriesCandles, t, ts, series, rect, pad, tMin, tMax);
+    const priceToY = (p: number) => {
+      const raw = series.priceToCoordinate(p);
+      return raw != null ? Number(raw) : null;
+    };
+
+    const last = seriesCandles[seriesCandles.length - 1]!;
+    const prev = seriesCandles.length >= 2 ? seriesCandles[seriesCandles.length - 2]! : null;
+
+    const geom = buildWhaleBeamRightOracleGeom({
+      signal: whaleLiveSignal,
+      dna: whaleDnaPanel,
+      resolveTimeX,
+      priceToY,
+      chartWidth: rect.width,
+      chartHeight: rect.height,
+      lastBarTime: Number(last.time),
+      prevBarTime: prev ? Number(prev.time) : undefined,
+      priceAxisReserve: chartPriceScaleLayout.minimumWidth + 10,
+      volPanelTopRatio: volPanelLayout.volPanelTopRatio,
+      marginOnly: true,
+    });
+    return geom;
+  }, [
+    bitgetVolumePackOn,
+    whaleLiveSignal,
+    whaleDnaPanel,
+    candles,
+    overlayTick,
+    timeframe,
+    lsRocketBarGeomSig,
+    volPanelLayout.volPanelTopRatio,
+  ]);
+
+  const volumeAiCanonicalCandles = useMemo(() => {
+    if (!bitgetVolumePackOn) return [] as Candle[];
+    const raw =
+      isMergedAnalysisDesk && candlesForMergedDeskEngine.length >= 8
+        ? candlesForMergedDeskEngine
+        : candles;
+    return sanitizeChartCandlesForSeries(raw, timeframe);
+  }, [bitgetVolumePackOn, candles, timeframe, isMergedAnalysisDesk, candlesForMergedDeskEngine]);
+
+  const volumeAiZonePack = useMemo(() => {
+    if (!bitgetVolumePackOn || volumeAiCanonicalCandles.length < 8) return null;
+    return buildVolumeAiZonePack(volumeAiCanonicalCandles, timeframe);
+  }, [bitgetVolumePackOn, volumeAiCanonicalCandles, timeframe]);
+
+  const volumeAiExplainCard = useMemo(() => {
+    if (!volumeAiExplain || !volumeAiZonePack) return null;
+    if (volumeAiExplain.kind === 'live') {
+      if (!volumeAiZonePack.liveCompare) return null;
+      return { ...buildVolumeLiveExplainCard(volumeAiZonePack.liveCompare), accent: '#2dd4bf' };
+    }
+    const zone = volumeAiZonePack.zones.find((z) => z.id === volumeAiExplain.zoneId);
+    if (!zone) return null;
+    return { ...buildVolumeZoneExplainCard(zone), accent: zone.color };
+  }, [volumeAiExplain, volumeAiZonePack]);
+
+  const volumeAiZoneScreen = useMemo(() => {
+    if (!bitgetVolumePackOn || !volumeAiZonePack?.zones.length) return null;
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    const host = hostRef.current;
+    if (!chart || !series || !host || candles.length === 0) return null;
+
+    const seriesCandles = volumeAiCanonicalCandles;
+    if (!seriesCandles.length) return null;
+
+    const rect = host.getBoundingClientRect();
+    const ts = chart.timeScale();
+    const pad = 20;
+    const tAt0 = ts.coordinateToTime(0) as { timestamp?: number } | number | null;
+    const tAtW = ts.coordinateToTime(timeScaleRightPixelX(ts, rect.width) as UTCTimestamp) as
+      | { timestamp?: number }
+      | number
+      | null;
+    const tMin = tAt0 != null ? (typeof tAt0 === 'object' ? tAt0.timestamp : tAt0) : null;
+    const tMax = tAtW != null ? (typeof tAtW === 'object' ? tAtW.timestamp : tAtW) : null;
+    const resolveTimeX = (t: number) =>
+      analysisTimeToScreenX(seriesCandles, t, ts, series, rect, pad, tMin, tMax);
+
+    const resolveBarSpanX = (fromIdx: number, toIdx: number) => {
+      const lo = Math.min(fromIdx, toIdx);
+      const hi = Math.max(fromIdx, toIdx);
+      if (lo < 0 || hi >= seriesCandles.length) return null;
+      const xLo = resolveTimeX(Number(seriesCandles[lo]!.time));
+      const xHi = resolveTimeX(Number(seriesCandles[hi]!.time));
+      if (!Number.isFinite(xLo) || !Number.isFinite(xHi)) return null;
+      const refIdx = lo + 1 < seriesCandles.length ? lo + 1 : lo > 0 ? lo - 1 : lo;
+      const xRef = resolveTimeX(Number(seriesCandles[refIdx]!.time));
+      const step = refIdx !== lo && Number.isFinite(xRef) ? Math.abs(xRef - xLo) : 0;
+      const half = Math.max(3, step > 0 ? step * 0.5 : 5);
+      return { x1: Math.min(xLo, xHi) - half, x2: Math.max(xLo, xHi) + half };
+    };
+
+    return projectVolumeAiZonesToScreen({
+      pack: volumeAiZonePack,
+      candles: seriesCandles,
+      timeframe,
+      resolveBarSpanX,
+      chartHeight: rect.height,
+      volPanelTopRatio: volPanelLayout.volPanelTopRatio,
+    });
+  }, [
+    bitgetVolumePackOn,
+    volumeAiZonePack,
+    volumeAiCanonicalCandles,
+    candles,
+    overlayTick,
+    timeframe,
+    lsRocketBarGeomSig,
+    isMergedAnalysisDesk,
+    volPanelLayout.volPanelTopRatio,
+  ]);
+
+  /** 통합·분석 — 거래량 봉 X에 짧은 라벨만 (과다·떠다니는 장문 금지) */
+  const chartVolBarLabelScreen = useMemo(() => {
+    if (!isMergedAnalysisDesk || settings.chartMergedDeskAdvVolumeEnabled === false) return null;
+    const chart = chartRef.current;
+    const host = hostRef.current;
+    if (!chart || !host) return null;
+    const pack = mergedDeskAdvVolumeSidecar;
+    if (!pack?.markers?.length) return null;
+    const volRows =
+      candlesForMergedDeskChart.length >= 4
+        ? candlesForMergedDeskChart
+        : sanitizeChartCandlesForSeries(candles, timeframe);
+    const markers = layoutVolumeMarkersHorizontal(
+      pack.markers,
+      volRows.map((c) => ({ time: Number(c.time) })),
+      6,
+      4
+    );
+    if (!markers.length) return null;
+    const rect = host.getBoundingClientRect();
+    /** 거래량 패널 안쪽 상단 — 봉 머리 바로 위 */
+    const top = Math.max(0, Math.round(rect.height * volPanelLayout.volPanelTopRatio) + 2);
+    const ts = chart.timeScale();
+    const items: Array<{ key: string; x: number; text: string; color: string; glyph: 'up' | 'down' | 'sq' }> = [];
+    let lastX = -9999;
+    for (const m of markers) {
+      const tx = compactAdvVolBarLabelKo(String(m.text || ''));
+      if (!tx) continue;
+      let x: number | null = null;
+      try {
+        const xc = ts.timeToCoordinate(m.time);
+        if (xc != null && Number.isFinite(Number(xc))) x = Number(xc);
+      } catch {
+        /* ignore */
+      }
+      if (x == null || x < 8 || x > rect.width - 8) continue;
+      /** 겹침 방지 — 짧은 라벨 기준 */
+      if (Math.abs(x - lastX) < 48) continue;
+      lastX = x;
+      items.push({
+        key: `${m.time}|${tx}`,
+        x,
+        text: tx,
+        color: m.color,
+        glyph: chartVolBarLabelGlyph(tx),
+      });
+      if (items.length >= 6) break;
+    }
+    if (!items.length) return null;
+    return { top, items };
+  }, [
+    isMergedAnalysisDesk,
+    settings.chartMergedDeskAdvVolumeEnabled,
+    mergedDeskAdvVolumeSidecar,
+    candlesForMergedDeskChart,
+    candles,
+    timeframe,
+    volPanelLayout.volPanelTopRatio,
+    overlayTick,
+  ]);
+
+  const lsRocketHudPositions = useMemo(() => {
+    /** 구조 로켓은 마커 레이어 OFF여도 표시(기능 유지) — euromap rocket 토글은 색/투명만 */
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    const host = hostRef.current;
+    if (!chart || !series || !host || candles.length === 0 || lsRocketHudWithMonthDesk.length === 0) return [];
+    const seriesCandlesRaw =
+      isMergedAnalysisDesk && chartSeriesCandlesRef.current.length >= 2
+        ? chartSeriesCandlesRef.current
+        : candles;
+    const seriesCandles = sanitizeChartCandlesForSeries(seriesCandlesRaw, timeframe);
     if (!seriesCandles.length) return [];
     const rect = host.getBoundingClientRect();
     const ts = chart.timeScale();
-    const twRocket = timeScalePixelWidth(ts, rect.width);
+    const out: Array<{ key: string; left: number; top: number; item: LsRocketHudItem }> = [];
+    for (const item of lsRocketHudWithMonthDesk) {
+      const tOpen = candleOpenContainingTime(seriesCandles, item.time);
+      const barIdx =
+        tOpen != null ? seriesCandles.findIndex((c) => Number(c.time) === tOpen) : -1;
+      const bar = barIdx >= 0 ? seriesCandles[barIdx]! : null;
+      if (!bar) continue;
+      const tBar = Number(bar.time);
+      let x: number | null = null;
+      try {
+        const xc = ts.timeToCoordinate(tBar as UTCTimestamp);
+        if (xc != null && Number.isFinite(Number(xc))) x = Number(xc);
+      } catch {
+        /* ignore */
+      }
+      if (x == null && barIdx >= 0) {
+        try {
+          const lc = ts.logicalToCoordinate(barIdx as unknown as Logical);
+          if (lc != null && Number.isFinite(Number(lc))) x = Number(lc);
+        } catch {
+          /* ignore */
+        }
+      }
+      if (x == null || x < -28 || x > rect.width + 28) continue;
+      const price = mergedDeskRocketAnchorPrice(bar, item.direction);
+      if (!(price > 0)) continue;
+      const yRaw = series.priceToCoordinate(price);
+      if (yRaw == null || !Number.isFinite(Number(yRaw))) continue;
+      const rocketZoom = mergedDeskZoomScaleFromBarSpacing(
+        Number((ts.options?.() as { barSpacing?: number } | undefined)?.barSpacing)
+      );
+      const yOff = mergedDeskRocketScreenYOffset(item.direction, rocketZoom);
+      const y = Number(yRaw) + yOff;
+      if (y < -28 || y > rect.height + 28) continue;
+      out.push({ key: `${tBar}|${item.direction}|${item.tier}`, left: x, top: y, item });
+    }
+    /** 기존 로켓: 한 봉·한 세로줄에 1개. 스냅 시각이 달라도 같은 캔들이면 합친다 */
+    if (out.length > 1) {
+      const pick = (a: (typeof out)[number], b: (typeof out)[number]) => {
+        const prefer =
+          (b.item.tier === 'structure' && a.item.tier !== 'structure') ||
+          (b.item.tier === a.item.tier && b.item.time >= a.item.time);
+        return prefer ? b : a;
+      };
+      const byBar = new Map<number, (typeof out)[number]>();
+      for (const p of out) {
+        const tOpen = candleOpenContainingTime(seriesCandles, p.item.time) ?? Number(p.item.time);
+        const prev = byBar.get(tOpen);
+        byBar.set(tOpen, prev ? pick(prev, p) : p);
+      }
+      const byCol = new Map<number, (typeof out)[number]>();
+      for (const p of byBar.values()) {
+        const col = Math.round(p.left);
+        const prev = byCol.get(col);
+        byCol.set(col, prev ? pick(prev, p) : p);
+      }
+      return [...byCol.values()];
+    }
+    return out;
+    /** 마지막 봉은 `lsRocketBarGeomSig`로만 감지 — `candles` 참조 매 틱 변경에 묶이지 않음 */
+  }, [isMergedAnalysisDesk, isMonthStartDeskMode, lsRocketHudWithMonthDesk, overlayTick, lsRocketBarGeomSig, timeframe, settings]);
+
+  const wyckoffBlinkPins = useMemo(() => {
+    if (!isMergedAnalysisDesk) return [] as Array<{
+      key: string;
+      left: number;
+      top: number;
+      side: 'low' | 'high';
+      label: string;
+      primary: boolean;
+    }>;
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    const host = hostRef.current;
+    if (!chart || !series || !host) return [];
+    const pins = (screenOverlays as OverlayItem[]).filter((o) =>
+      String(o.id || '').startsWith('merged-desk-') && String(o.id || '').includes('-blink-')
+    );
+    if (!pins.length) return [];
+    const seriesCandlesRaw =
+      chartSeriesCandlesRef.current.length >= 2 ? chartSeriesCandlesRef.current : candles;
+    const seriesCandles = sanitizeChartCandlesForSeries(seriesCandlesRaw, timeframe);
+    if (!seriesCandles.length) return [];
+    const rect = host.getBoundingClientRect();
+    const ts = chart.timeScale();
+    const tw = timeScalePixelWidth(ts, rect.width);
     const pad = 20;
     const tAt0 = ts.coordinateToTime(0) as { timestamp?: number } | number | null;
     const tAtW = ts.coordinateToTime(timeScaleRightPixelX(ts, rect.width) as UTCTimestamp) as
@@ -6054,22 +11732,34 @@ const ChartViewInner = ({
     const tMax = tAtW != null ? (typeof tAtW === 'object' ? tAtW.timestamp : tAtW) : null;
     const resolveX = (tBar: number): number =>
       analysisTimeToScreenX(seriesCandles, tBar, ts, series, rect, pad, tMin, tMax);
-    const out: Array<{ key: string; left: number; top: number; item: LsRocketHudItem }> = [];
-    for (const item of lsRocketHud) {
-      const tOpen = candleOpenContainingTime(seriesCandles, item.time);
-      const bar =
-        tOpen != null ? seriesCandles.find((c) => (c.time as number) === tOpen) ?? null : null;
-      if (!bar) continue;
-      const tBar = bar.time as number;
-      const x = Math.max(0, Math.min(twRocket, resolveX(tBar)));
-      const price = item.direction === 'LONG' ? bar.low : bar.high;
-      const yRaw = series.priceToCoordinate(price);
+    const out: Array<{
+      key: string;
+      left: number;
+      top: number;
+      side: 'low' | 'high';
+      label: string;
+      primary: boolean;
+    }> = [];
+    for (const o of pins) {
+      const extra = String(o.overlayZoneExtraClass || '');
+      const side: 'low' | 'high' = extra.includes('--red') ? 'high' : 'low';
+      const t = Number(o.time1);
+      const p = Number(o.price1);
+      if (!Number.isFinite(t) || !Number.isFinite(p)) continue;
+      const x = Math.max(0, Math.min(tw, resolveX(t)));
+      const yRaw = series.priceToCoordinate(p);
       if (yRaw == null) continue;
-      const y = Math.max(0, Math.min(rect.height, Number(yRaw)));
-      out.push({ key: `${item.time}|${item.direction}|${item.tier}`, left: x, top: y, item });
+      out.push({
+        key: String(o.id),
+        left: x,
+        top: Math.max(0, Math.min(rect.height, Number(yRaw))),
+        side,
+        label: String(o.label || ''),
+        primary: extra.includes('--primary'),
+      });
     }
     return out;
-  }, [lsRocketHud, candles, overlayTick]);
+  }, [isMergedAnalysisDesk, screenOverlays, overlayTick, timeframe, candles]);
 
   /** Pine: Exhaustion Zone [by rukich] — 봉 시각·가격 좌표는 analysisTimeToScreenX / priceToCoordinate (줌·패닝 동기화) */
   const exhaustionZoneRukichGeom = useMemo(() => {
@@ -6123,14 +11813,14 @@ const ChartViewInner = ({
   const OVERLAY_OFFSETS_KEY = 'ailongshort-overlay-offsets';
   /** 심볼만 — TF마다 따로 두면 1h에서 맞춘 드래그가 4h에서 초기화됨 */
   const overlayLayoutScopeKey = symbol;
-  const isOffsetBlock = (v: unknown): v is Record<string, { dx: number; dy: number }> => {
+  const isOffsetBlock = (v: unknown): v is Record<string, OverlayLabelOffset> => {
     if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
     const vals = Object.values(v);
     if (vals.length === 0) return false;
     const s = vals[0] as { dx?: unknown; dy?: unknown };
     return typeof s?.dx === 'number' && typeof s?.dy === 'number';
   };
-  const readScopedOverlayOffsets = (): Record<string, { dx: number; dy: number }> => {
+  const readScopedOverlayOffsets = (): Record<string, OverlayLabelOffset> => {
     if (typeof window === 'undefined') return {};
     try {
       const raw = window.localStorage.getItem(OVERLAY_OFFSETS_KEY);
@@ -6140,11 +11830,11 @@ const ChartViewInner = ({
 
       const symBlock = parsed[overlayLayoutScopeKey];
       if (isOffsetBlock(symBlock)) {
-        return normalizeOverlayOffsetMap(symBlock as Record<string, { dx: number; dy: number }>);
+        return normalizeOverlayOffsetMap(symBlock as Record<string, OverlayLabelOffset>);
       }
 
       const prefix = `${overlayLayoutScopeKey}|`;
-      const merged: Record<string, { dx: number; dy: number }> = {};
+      const merged: Record<string, OverlayLabelOffset> = {};
       for (const k of Object.keys(parsed)) {
         if (k.startsWith(prefix)) {
           const block = parsed[k];
@@ -6157,25 +11847,25 @@ const ChartViewInner = ({
         (v) => v && typeof v === 'object' && v !== null && !Array.isArray(v) && !('dx' in (v as object))
       );
       if (!hasScopedShape && isOffsetBlock(parsed)) {
-        return normalizeOverlayOffsetMap(parsed as Record<string, { dx: number; dy: number }>);
+        return normalizeOverlayOffsetMap(parsed as Record<string, OverlayLabelOffset>);
       }
       return {};
     } catch {
       return {};
     }
   };
-  const persistScopedOverlayOffsets = (nextScoped: Record<string, { dx: number; dy: number }>) => {
+  const persistScopedOverlayOffsets = (nextScoped: Record<string, OverlayLabelOffset>) => {
     if (typeof window === 'undefined') return;
     try {
       const raw = window.localStorage.getItem(OVERLAY_OFFSETS_KEY);
-      let root: Record<string, Record<string, { dx: number; dy: number }>> = {};
+      let root: Record<string, Record<string, OverlayLabelOffset>> = {};
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
           const hasScopedShape = Object.values(parsed).some(
             (v) => v && typeof v === 'object' && v !== null && !Array.isArray(v) && !('dx' in (v as object))
           );
-          root = hasScopedShape ? (parsed as Record<string, Record<string, { dx: number; dy: number }>>) : {};
+          root = hasScopedShape ? (parsed as Record<string, Record<string, OverlayLabelOffset>>) : {};
         }
       }
       const prefix = `${overlayLayoutScopeKey}|`;
@@ -6188,13 +11878,40 @@ const ChartViewInner = ({
       window.localStorage.setItem(OVERLAY_OFFSETS_KEY, JSON.stringify(root));
     } catch {}
   };
-  const [overlayOffsets, setOverlayOffsets] = useState<Record<string, { dx: number; dy: number }>>(() => {
+  const [overlayOffsets, setOverlayOffsets] = useState<Record<string, OverlayLabelOffset>>(() => {
     return readScopedOverlayOffsets();
   });
   useEffect(() => {
     setOverlayOffsets(readScopedOverlayOffsets());
   }, [overlayLayoutScopeKey]);
   const NUDGE = 6;
+
+  /** 설정 패널에서 라벨을 옮기면 저장소만 바뀌므로, 이벤트를 받아 다시 읽는다 */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onLayout = () => {
+      setOverlayOffsets(readScopedOverlayOffsets());
+      try {
+        const raw = window.localStorage.getItem(OVERLAY_FONT_SIZES_KEY);
+        setOverlayFontSizes(raw ? JSON.parse(raw) : {});
+      } catch {
+        /* ignore */
+      }
+      setOverlayLabelHShiftState(readLabelHShifts());
+      setOverlayLabelVShiftState(readLabelVShifts());
+      setOverlayLabelNudges(readLabelNudges());
+      setOverlayLabelNudgeFontSizes(readLabelNudgeFontSizes());
+      try {
+        const hid = readHiddenChartTextIds();
+        setHiddenOverlayChartTextIdsState(new Set(hid));
+      } catch {
+        /* ignore */
+      }
+      setOverlayTick((v) => v + 1);
+    };
+    window.addEventListener(CHART_LABEL_LAYOUT_EVENT, onLayout);
+    return () => window.removeEventListener(CHART_LABEL_LAYOUT_EVENT, onLayout);
+  }, [overlayLayoutScopeKey]);
 
   const OVERLAY_FONT_SIZES_KEY = 'ailongshort-overlay-font-sizes';
   const DEFAULT_FONT_SIZE = 11;
@@ -6272,24 +11989,125 @@ const ChartViewInner = ({
       return {};
     }
   });
+  const [overlayLabelVShift, setOverlayLabelVShiftState] = useState<Record<string, number>>(() =>
+    readLabelVShifts()
+  );
+  /** 설정 패널 "라벨 개별 조정" 값 — 좌표식이 아니라 CSS로만 얹는다 */
+  const [overlayLabelNudges, setOverlayLabelNudges] = useState<Record<string, LabelOffset>>(() =>
+    readLabelNudges()
+  );
+  const [overlayLabelNudgeFontSizes, setOverlayLabelNudgeFontSizes] = useState<
+    Record<string, number>
+  >(() => readLabelNudgeFontSizes());
+  /**
+   * 라벨 wrapper에 붙일 클래스·CSS 변수.
+   * 변수는 상속되므로 wrapper 하나만 건드리면 그 안의 캡션·핀·배지 글자에 전부 적용된다.
+   */
+  const labelNudgeAttrs = (id: string): { className: string; style: React.CSSProperties } => {
+    const nudge = pickLabelNudge(overlayLabelNudges, id);
+    const fs = pickLabelNudgeFontSize(overlayLabelNudgeFontSizes, id);
+    const moved = nudge.dx !== 0 || nudge.dy !== 0;
+    if (!moved && fs == null) return { className: '', style: {} };
+    const style: Record<string, string> = {};
+    if (moved) {
+      style['--ov-label-dx'] = `${nudge.dx}px`;
+      style['--ov-label-dy'] = `${nudge.dy}px`;
+    }
+    if (fs != null) style['--ov-label-fs'] = `${fs}px`;
+    return {
+      className: [moved ? 'ov-label-nudge' : '', fs != null ? 'ov-label-fs' : '']
+        .filter(Boolean)
+        .join(' '),
+      style: style as React.CSSProperties,
+    };
+  };
   const getFontFamily = (id: string) => {
     const k = stableOverlayVisibilityKey(id);
     return overlayFontFamily[k] ?? (k !== id ? overlayFontFamily[id] : undefined) ?? '';
   };
   const getLabelAlign = (id: string): LabelAlign => {
-    const k = stableOverlayVisibilityKey(id);
+    const k = overlayLabelStorageKey(id);
     const saved = overlayLabelAlign[k] ?? (k !== id ? overlayLabelAlign[id] : undefined);
+    /** 개별 저장 정렬이 최우선 — 통합모드도 사용자가 좌·중·우 조절 가능 */
     if (saved) return saved;
+    if (typeof id === 'string' && id.startsWith('month-desk-typeom-')) return 'right';
     if (id.startsWith('smartmoney-mvp-')) return 'right';
+    if (
+      isMergedAnalysisDesk &&
+      typeof id === 'string' &&
+      (isMergedAnalysisDeskOverlayId(id) ||
+        id.startsWith('merged-hq-') ||
+        id.startsWith('merged-desk-') ||
+        id.startsWith('merged-ares-') ||
+        id.startsWith('merged-smc-') ||
+        id.includes('merged-ares-key-') ||
+        id.includes('merged-ares-critical-') ||
+        id.includes('merged-ares-confirm-'))
+    ) {
+      const d = settings.chartMergedDeskLabelAlignDefault;
+      return d === 'left' || d === 'center' || d === 'right' ? d : 'right';
+    }
+    if (
+      id.includes('merged-ares-key-') ||
+      id.includes('merged-ares-critical-') ||
+      id.includes('merged-ares-confirm-') ||
+      id.startsWith('merged-ares-line-') ||
+      id.startsWith('merged-desk-') ||
+      id.startsWith('merged-ares-') ||
+      id.startsWith('merged-smc-') ||
+      id.startsWith('merged-hq-')
+    ) {
+      return 'right';
+    }
     return 'left';
   };
   const getLabelHShift = (id: string) => {
-    const k = stableOverlayVisibilityKey(id);
+    const k = overlayLabelStorageKey(id);
     const saved = overlayLabelHShift[k] ?? (k !== id ? overlayLabelHShift[id] : undefined);
-    if (typeof saved === 'number') return saved;
-    if (id.startsWith('smartmoney-mvp-tp-')) return 190;
-    if (id.startsWith('smartmoney-mvp-')) return 140;
-    return 0;
+    let base = 0;
+    if (typeof saved === 'number') base = saved;
+    else if (id.startsWith('smartmoney-mvp-tp-')) base = 190;
+    else if (id.startsWith('smartmoney-mvp-')) base = 140;
+    /** 구조 로켓 = 절대 고정. 돈자리·요이만 = 분석봉 부착(전역 좌우 제외, 개별만) */
+    if (
+      id === LS_ROCKET_HUD_LABEL_ID ||
+      id.startsWith('ls-rocket') ||
+      id.includes('structure-rocket')
+    ) {
+      return 0;
+    }
+    if (id.startsWith('merged-desk-thismuch') || id.startsWith('merged-desk-rb-smc')) {
+      return base;
+    }
+    if (
+      id.startsWith('merged-desk-rb-schematic') ||
+      id.includes('structure-reaction')
+    ) {
+      return base;
+    }
+    const globalX = Number(settings.chartMergedDeskGlobalLabelShiftX) || 0;
+    return base + globalX;
+  };
+  /** 라벨 글자만 위아래로 — 존·띠 도형은 그대로 둔다 */
+  const getLabelVShift = (id: string) => {
+    const k = overlayLabelStorageKey(id);
+    const saved = overlayLabelVShift[k] ?? (k !== id ? overlayLabelVShift[id] : undefined);
+    return typeof saved === 'number' ? saved : 0;
+  };
+  /** 사용자가 그 라벨에 직접 지정한 글자 크기만 — 전역 기본값은 돌려주지 않는다 */
+  const getExplicitFontSize = (id: string): number | null => {
+    const k = stableOverlayVisibilityKey(id);
+    const v = overlayFontSizes[k] ?? (k !== id ? overlayFontSizes[id] : undefined);
+    return Number.isFinite(v) ? Number(v) : null;
+  };
+  /**
+   * 라벨 하나를 옮길 때 쓰는 값 묶음.
+   * `right` 기준으로 붙는 라벨은 dx 부호가 반대라 `rightDx`를 그대로 빼서 쓴다.
+   */
+  const getLabelNudge = (id: string) => {
+    const dx = getLabelHShift(id);
+    const dy = getLabelVShift(id);
+    return { dx, dy, rightDx: -dx, fontSize: getExplicitFontSize(id) };
   };
   const setFontFamily = (id: string, font: string) => {
     const k = stableOverlayVisibilityKey(id);
@@ -6308,7 +12126,7 @@ const ChartViewInner = ({
     setOverlayTick(v => v + 1);
   };
   const setLabelAlign = (id: string, align: LabelAlign) => {
-    const k = stableOverlayVisibilityKey(id);
+    const k = overlayLabelStorageKey(id);
     setOverlayLabelAlignState(prev => {
       const next = { ...prev, [k]: align };
       if (k !== id) delete next[id];
@@ -6319,7 +12137,7 @@ const ChartViewInner = ({
   };
   const setLabelHShift = (id: string, value: number) => {
     const v = Math.max(LABEL_H_SHIFT_MIN, Math.min(LABEL_H_SHIFT_MAX, Math.round(value)));
-    const k = stableOverlayVisibilityKey(id);
+    const k = overlayLabelStorageKey(id);
     setOverlayLabelHShiftState(prev => {
       const next = { ...prev };
       if (v === 0) {
@@ -6372,13 +12190,11 @@ const ChartViewInner = ({
   };
 
   /** 차트 위 글자(말풍선·가격 스트립 등)만 끔 — 가로줄·존(fill)은 유지 */
-  const OVERLAY_CHART_TEXT_HIDDEN_IDS_KEY = 'ailongshort-overlay-chart-text-hidden-ids';
+  const OVERLAY_CHART_TEXT_HIDDEN_IDS_KEY = OVERLAY_CHART_TEXT_HIDDEN_KEY;
   const [hiddenOverlayChartTextIds, setHiddenOverlayChartTextIdsState] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set();
     try {
-      const raw = window.localStorage.getItem(OVERLAY_CHART_TEXT_HIDDEN_IDS_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      const base = new Set(Array.isArray(arr) ? arr : []);
+      const base = new Set(readHiddenChartTextIds());
       const aug = new Set(base);
       for (const x of base) {
         const s = stableOverlayVisibilityKey(x);
@@ -6389,24 +12205,19 @@ const ChartViewInner = ({
       return new Set();
     }
   });
-  const isOverlayChartTextVisible = (id: string) =>
-    (uiMode === 'AI_ZONE' && isAiZoneEngineOverlayId(String(id || ''))) ||
-    !isOverlayIdHidden(id, hiddenOverlayChartTextIds);
+  const isOverlayChartTextVisible = (id: string, label?: string) =>
+    !isOverlayIdHidden(id, hiddenOverlayChartTextIds) &&
+    !isChartTextIdHidden(id, hiddenOverlayChartTextIds, label);
+  /** 우측 하얀 글자 — 노란 알약과 별도 키 */
+  const isOverlayWhiteFaceVisible = (label?: string) =>
+    !isChartTextWhiteLabelHidden(String(label || ''), hiddenOverlayChartTextIds);
+  /** 노란/초록 알약 — 글자 이름만. 핵심돌파와 AI채널면은 서로 독립 */
+  const isOverlayPillFaceVisible = (label?: string) =>
+    !isChartTextPillLabelHidden(String(label || ''), hiddenOverlayChartTextIds);
   const setOverlayChartTextVisible = (id: string, visible: boolean) => {
-    const stable = stableOverlayVisibilityKey(id);
-    setHiddenOverlayChartTextIdsState(prev => {
-      const next = new Set(prev);
-      if (visible) {
-        next.delete(id);
-        next.delete(stable);
-      } else {
-        next.add(stable);
-        if (stable !== id) next.add(id);
-      }
-      try { window.localStorage.setItem(OVERLAY_CHART_TEXT_HIDDEN_IDS_KEY, JSON.stringify([...next])); } catch {}
-      return next;
-    });
-    setOverlayTick(v => v + 1);
+    setChartTextIdVisible(id, visible);
+    setHiddenOverlayChartTextIdsState(new Set(readHiddenChartTextIds()));
+    setOverlayTick((v) => v + 1);
   };
   const prevIsAiModeRef = useRef<boolean | undefined>(undefined);
   useEffect(() => {
@@ -6420,6 +12231,11 @@ const ChartViewInner = ({
     setHiddenOverlayChartTextIdsState(new Set());
     try { window.localStorage.setItem(OVERLAY_HIDDEN_IDS_KEY, JSON.stringify([])); } catch {}
     try { window.localStorage.setItem(OVERLAY_CHART_TEXT_HIDDEN_IDS_KEY, JSON.stringify([])); } catch {}
+    try {
+      setHiddenOverlayChartTextIdsState(new Set());
+    } catch {
+      /* ignore */
+    }
   }, [isAiMode]);
   type ChartSectionVisibility = { s1: boolean; s2: boolean; s3: boolean };
   const CHART_SECTION_VIS_KEY = 'ailongshort-chart-section-visibility-v2';
@@ -6455,17 +12271,498 @@ const ChartViewInner = ({
   const visibleScreenOverlays = useMemo(
     () => screenOverlays.filter((o: any) => {
       const id = String(o?.id || '');
-      if (uiMode === 'AI_ZONE' && isAiZoneEngineOverlayId(id)) return true;
-      if (isAiMode && whaleHotZoneEnabled && isWhaleHotZoneOverlay(o as Record<string, unknown>)) return true;
+      if (isMergedAnalysisDesk && isMergedDeskHideVerticalDashOverlay(o as OverlayItem)) return false;
+      if (isMergedAnalysisDesk && !isMergedDeskEuromapOverlayVisible(settings, o)) return false;
+      if (isAiZoneDesk && isAiZoneEngineOverlayId(id)) return true;
+      if (
+        (isAiMode || isMonthStartDeskMode) &&
+        whaleHotZoneEnabled &&
+        isWhaleHotZoneOverlay(o as Record<string, unknown>)
+      )
+        return true;
       if (isAiMode && whaleCoreSrZoneEnabled && isMajorCoreSrOverlay(o as Record<string, unknown>)) return true;
       return !isOverlayIdHidden(o.id, hiddenOverlayIds);
     }),
-    [screenOverlays, hiddenOverlayIds, uiMode, isAiMode, whaleHotZoneEnabled, whaleCoreSrZoneEnabled]
+    [screenOverlays, hiddenOverlayIds, uiMode, isAiMode, whaleHotZoneEnabled, whaleCoreSrZoneEnabled, isMergedAnalysisDesk, settings]
   );
   const hasAiZoneEngineVisible = useMemo(
     () => visibleScreenOverlays.some((o: any) => isAiZoneEngineOverlayId(String(o?.id || ''))),
     [visibleScreenOverlays]
   );
+  /** 화면에 실제로 뜬 라벨을 설정 패널이 골라 옮길 수 있게 공개한다 */
+  useEffect(() => {
+    const rows: Array<{ id: string; label: string }> = [];
+    for (const raw of visibleScreenOverlays as Array<Record<string, unknown>>) {
+      const id = String(raw?.id ?? '').trim();
+      if (!id) continue;
+      /** label이 비어도 존 면 캡션(zoneFaceBase/Signal)으로 글자가 뜨는 오버레이가 있다 */
+      const kind = String(raw?.kind ?? '');
+      const kindKo: Record<string, string> = {
+        demandZone: '수요존',
+        supplyZone: '공급존',
+        zone: '존',
+        ob: 'OB',
+        fvg: 'FVG',
+        bprZone: 'BPR',
+        reactionZone: '반응존',
+        bos: 'BOS',
+        choch: 'CHOCH',
+        keyLevel: '레벨선',
+        trendLine: '추세선',
+        trendline: '추세선',
+        swingLabel: '스윙',
+        poi: 'POI',
+        liquiditySweep: '스윕',
+        eql: 'EQL',
+      };
+      const text =
+        String(raw?.label ?? '').trim() ||
+        [String(raw?.zoneFaceBase ?? '').trim(), String(raw?.zoneFaceSignal ?? '').trim()]
+          .filter(Boolean)
+          .join('·') ||
+        String(raw?.labelTooltip ?? '').trim().slice(0, 40) ||
+        kindKo[kind] ||
+        kind;
+      if (!text) continue;
+      const extra = String(raw?.overlayZoneExtraClass ?? '');
+      const face = String(raw?.zoneFaceBase ?? '').trim();
+      const isWhiteLine =
+        kind === 'keyLevel' ||
+        kind === 'trendLine' ||
+        kind === 'trendline' ||
+        kind === 'supportLine' ||
+        kind === 'resistanceLine' ||
+        id.startsWith('merged-desk-trade-rail-') ||
+        id.startsWith('merged-ares-mlsp-') ||
+        id.includes('-gate') ||
+        extra.includes('merged-ares-level-line') ||
+        extra.includes('merged-ares-mlsp-') ||
+        extra.includes('merged-desk-trade-rail');
+      rows.push({ id, label: isWhiteLine ? `흰글자·${text.replace(/^흰글자·/, '')}` : text });
+      if (face && face !== text && !text.includes(face)) {
+        rows.push({ id, label: `흰글자·${face}` });
+      }
+      const p1 = Number(raw?.price1);
+      const p2 = Number(raw?.price2);
+      if (kind === 'label' && Number.isFinite(p1) && p1 > 0) {
+        rows.push({ id, label: `가격핀·${formatOverlayPrice(p1)}` });
+      } else if (Number.isFinite(p1) && p1 > 0 && Number.isFinite(p2) && p2 > 0 && Math.abs(p1 - p2) > 1e-8) {
+        const hi = Math.max(p1, p2);
+        const lo = Math.min(p1, p2);
+        rows.push({ id: `${id}#px-hi`, label: `가격·${formatOverlayPrice(hi)}` });
+        rows.push({ id: `${id}#px-lo`, label: `가격·${formatOverlayPrice(lo)}` });
+      } else if (Number.isFinite(p1) && p1 > 0) {
+        rows.push({ id: `${id}#px`, label: `가격·${formatOverlayPrice(p1)}` });
+      }
+    }
+    if (lsRocketHudPositions.length > 0) {
+      rows.push({ id: LS_ROCKET_HUD_LABEL_ID, label: `구조 로켓 🚀📉 (${lsRocketHudPositions.length}개 묶음)` });
+    }
+    if (isMergedAnalysisDesk) {
+      for (const pl of mergedAnalysisDeskPack?.priceLines ?? []) {
+        const title = String(pl?.title || '').trim();
+        if (!title) continue;
+        rows.push({ id: mergedDeskPriceLineLabelId(title), label: `축·${title}` });
+      }
+    }
+    publishRenderedChartLabels(rows);
+  }, [visibleScreenOverlays, lsRocketHudPositions, isMergedAnalysisDesk, mergedAnalysisDeskPack?.priceLines]);
+
+  /** Triple·연합밴드 — 단일 SVG (LineSeries 대체 · 캔들 bar X 스냅) */
+  const tripleTrendBandDrawModel = useMemo(() => {
+    if (
+      settings.chartMonthDeskFusionDeskBandEnabled === false ||
+      !monthDeskFusionDeskBandPack ||
+      !mergedInstitutionalBandsOn
+    ) {
+      return null;
+    }
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    const host = hostRef.current;
+    if (!chart || !series || !host) return null;
+    const overlaySourceCandles =
+      isMergedAnalysisDesk && chartSeriesCandlesRef.current.length >= 2
+        ? chartSeriesCandlesRef.current
+        : candlesForOverlay.length >= 2
+          ? candlesForOverlay
+          : candles;
+    const candleSeries = sanitizeChartCandlesForSeries(overlaySourceCandles, timeframe);
+    if (candleSeries.length < 8) return null;
+    const rect = host.getBoundingClientRect();
+    const ts = chart.timeScale();
+    const timeToX = (t: number) => {
+      const snap = Number(snapMergedOverlayTimeToCandles(t, candleSeries));
+      const barT = Number.isFinite(snap) ? snap : t;
+      const m = coreMagnetBarTimeToX(candleSeries, barT, ts, series);
+      return Number.isFinite(m) ? m : null;
+    };
+    const chFb = rect.height * 0.5;
+    const priceToY = (p: number) => geomPriceToPixelY(series, p, chFb);
+    return buildTripleTrendBandDrawModel(monthDeskFusionDeskBandPack as TripleTrendFusionPack, {
+      width: rect.width,
+      height: rect.height,
+      timeToX,
+      priceToY,
+      maxSegments: 3,
+      maxPointsPerSeg: 64,
+      includeFlips: false,
+    });
+  }, [
+    settings.chartMonthDeskFusionDeskBandEnabled,
+    monthDeskFusionDeskBandPack,
+    mergedInstitutionalBandsOn,
+    overlayTick,
+    chartInstanceId,
+    candlesForOverlay,
+    candles,
+    timeframe,
+    isMergedAnalysisDesk,
+  ]);
+
+  /** 마감·안착 — 우측 손절·진입·반등1~3 점선 레일 (가격축 직전) */
+  const monthDeskTradePlanRailGeom = useMemo(() => {
+    if (!isMonthStartDeskMode) return null;
+    const series = seriesRef.current;
+    const host = hostRef.current;
+    if (!series || !host) return null;
+    const rect = host.getBoundingClientRect();
+    const nodes = extractMonthDeskTradePlanRailNodes(
+      monthDeskTypeomOverlayPack,
+      visibleScreenOverlays as Array<{ id?: string; y1?: number; y2?: number; price1?: number }>
+    );
+    if (nodes.length < 2) return null;
+    const dir =
+      monthDeskAnalyzeVerdictForZone === 'SHORT'
+        ? 'SHORT'
+        : monthDeskAnalyzeVerdictForZone === 'LONG'
+          ? 'LONG'
+          : analysisMatchesTf && analysis?.verdict === 'SHORT'
+            ? 'SHORT'
+            : 'LONG';
+    return buildMonthDeskTradePlanRailGeom({
+      chartW: rect.width,
+      chartH: rect.height,
+      nodes,
+      screen: visibleScreenOverlays as Array<{ id?: string; y1?: number; y2?: number }>,
+      priceToY: (p) => {
+        try {
+          const y = series.priceToCoordinate(p);
+          return y != null && Number.isFinite(Number(y)) ? Number(y) : null;
+        } catch {
+          return null;
+        }
+      },
+      direction: dir,
+      followHeadlineKo:
+        analysisMatchesTf && analysis?.breakoutFollow?.phase !== 'idle'
+          ? analysis.breakoutFollow.headlineKo
+          : null,
+    });
+  }, [
+    isDeskPulseFamily,
+    monthDeskTypeomOverlayPack,
+    visibleScreenOverlays,
+    overlayTick,
+    monthDeskAnalyzeVerdictForZone,
+    analysisMatchesTf,
+    analysis?.verdict,
+    analysis?.breakoutFollow?.headlineKo,
+    analysis?.breakoutFollow?.phase,
+  ]);
+
+  /** 통합·분석 — E/SL/TP 우측 빈 축 가로 점선 라벨 */
+  const mergedAnalysisTradeRightBandGeom = useMemo(() => {
+    if (!isMergedAnalysisDesk || !mergedAnalysisDeskPack?.tradeSignal) return null;
+    const series = seriesRef.current;
+    const host = hostRef.current;
+    if (!series || !host) return null;
+    const rect = host.getBoundingClientRect();
+    const pack = (mergedAnalysisDeskPack.overlays ?? []).filter((o) =>
+      String(o.id || '').startsWith('merged-ares-line-')
+    );
+    if (!pack.length) return null;
+    return buildMonthDeskZoneRightBandGeom({
+      chartW: rect.width,
+      chartH: rect.height,
+      pack,
+      screen: visibleScreenOverlays as Array<{
+        id?: string;
+        kind?: string;
+        y1: number;
+        y2?: number;
+        x1: number;
+        x2?: number;
+        xMaxRight?: number;
+        zoneTimeEndScreenX?: number;
+      }>,
+      priceToY: (p) => {
+        try {
+          const y = series.priceToCoordinate(p);
+          return y != null && Number.isFinite(Number(y)) ? Number(y) : null;
+        } catch {
+          return null;
+        }
+      },
+    });
+  }, [isMergedAnalysisDesk, mergedAnalysisDeskPack, visibleScreenOverlays, overlayTick]);
+
+  const monthDeskSettleCandlePaintOn =
+    isMonthStartDeskMode && settings.chartMonthDeskSettleCandlePaint === true;
+
+  const monthDeskSettleLabelMode: 'off' | 'summary' | 'full' =
+    !isMonthStartDeskMode || !monthDeskClearSummaryOn ? 'off' : 'full';
+  const monthDeskFeatureSettleLabelsOn = monthDeskSettleLabelMode !== 'off';
+  const monthDeskFeatureSettleCollectOn =
+    isMonthStartDeskMode && (monthDeskClearSummaryOn || monthDeskSettleCandlePaintOn);
+
+  /** 마감·안착 — 라인·존별 돌파·안착·실패 기능 라벨 */
+  const monthDeskFeatureSettleByOverlayId = useMemo(() => {
+    if (!monthDeskFeatureSettleCollectOn || candles.length < 4) return null;
+    const safe = sanitizeChartCandlesForSeries(candles, timeframe);
+    const settleTf = chartTfToCloseSettleTf(String(timeframe || ''));
+    const settleRow =
+      settleTf && monthDeskCloseSettleBoard?.rows?.length
+        ? monthDeskCloseSettleBoard.rows.find((r) => r.tf === settleTf) ?? null
+        : null;
+    const m = collectMonthDeskFeatureSettleLabels(safe, monthDeskSettleOverlayPack, {
+      scenario: monthDeskClosingScenario,
+      settleRow,
+      chartTimeframe: timeframe,
+      stCore: monthDeskScenarioSuperTrendCore,
+    });
+    return m.size > 0 ? m : null;
+  }, [
+    monthDeskFeatureSettleCollectOn,
+    candles,
+    timeframe,
+    monthDeskSettleOverlayPack,
+    monthDeskClosingScenario,
+    monthDeskCloseSettleBoard,
+    monthDeskScenarioSuperTrendCore,
+    overlayTick,
+  ]);
+
+  const monthDeskFeatureSettleList = useMemo(
+    () =>
+      monthDeskFeatureSettleByOverlayId
+        ? listMonthDeskFeatureSettleLabels(monthDeskFeatureSettleByOverlayId)
+        : [],
+    [monthDeskFeatureSettleByOverlayId]
+  );
+
+  const monthDeskSettleSummaryChip = useMemo(
+    () =>
+      monthDeskClearSummaryOn && monthDeskFeatureSettleByOverlayId
+        ? buildSettleBandSummaryChip(monthDeskFeatureSettleByOverlayId, monthDeskClosingScenario)
+        : '',
+    [monthDeskClearSummaryOn, monthDeskFeatureSettleByOverlayId, monthDeskClosingScenario]
+  );
+
+  const monthDeskSettleLineSummaryRows = useMemo(
+    () =>
+      monthDeskClearSummaryOn && monthDeskFeatureSettleByOverlayId
+        ? buildSettleLineSummaryRows(
+            monthDeskFeatureSettleByOverlayId,
+            monthDeskSettleOverlayPack,
+            monthDeskSettleSummaryChip
+          )
+        : [],
+    [
+      monthDeskClearSummaryOn,
+      monthDeskFeatureSettleByOverlayId,
+      monthDeskSettleOverlayPack,
+      monthDeskSettleSummaryChip,
+    ]
+  );
+
+  /** 마감·안착 — 3단계 가이드 + 캔들 마커 (오케스트레이터 단일 소스) */
+  const monthDeskSettleChartGuidePack = useMemo(() => {
+    if (!monthDeskSettleCandlePaintOn || candles.length < 6) return null;
+    if (monthDeskChartOrchestratorOut?.settleGuide) {
+      return monthDeskChartOrchestratorOut.settleGuide;
+    }
+    const safe = sanitizeChartCandlesForSeries(candles, timeframe);
+    return buildMonthDeskSettleChartGuide(safe, monthDeskSettleOverlayPack, {
+      timeframe,
+      analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+    });
+  }, [
+    monthDeskSettleCandlePaintOn,
+    monthDeskChartOrchestratorOut,
+    candles,
+    timeframe,
+    monthDeskSettleOverlayPack,
+    analysisMatchesTf,
+    analysis,
+    overlayTick,
+  ]);
+
+  /** 마감·안착 — 존 형성 구간 우측에 진입·손절·목표 TP + 상태 라벨 */
+  const monthDeskZoneRightBandGeom = useMemo(() => {
+    if (!monthDeskFeatureSettleLabelsOn) return null;
+    const series = seriesRef.current;
+    const host = hostRef.current;
+    if (!series || !host) return null;
+    const rect = host.getBoundingClientRect();
+    const zoneScreen = visibleScreenOverlays.filter((o: { kind?: string }) =>
+      ['zone', 'fvg', 'ob', 'supplyZone', 'demandZone'].includes(String(o.kind || ''))
+    ) as Array<{
+      id?: string;
+      kind?: string;
+      y1: number;
+      y2?: number;
+      x1: number;
+      x2?: number;
+      zoneTimeEndScreenX?: number;
+    }>;
+    let envelopeBandPrices: { lower: number; upper: number } | null = null;
+    if (monthDeskScenarioSuperTrendCore && candles.length >= 4) {
+      const safeBand = sanitizeChartCandlesForSeries(candles, timeframe);
+      const i = safeBand.length - 1;
+      const fl = monthDeskScenarioSuperTrendCore.finalLower[i];
+      const fu = monthDeskScenarioSuperTrendCore.finalUpper[i];
+      if (Number.isFinite(fl) && Number.isFinite(fu)) {
+        envelopeBandPrices = { lower: Number(fl), upper: Number(fu) };
+      }
+    }
+    return buildMonthDeskZoneRightBandGeom({
+      chartW: rect.width,
+      chartH: rect.height,
+      pack: monthDeskSettleOverlayPack,
+      settleByOverlayId: monthDeskFeatureSettleByOverlayId,
+      envelopeBandPrices,
+      screen: [...visibleScreenOverlays, ...zoneScreen] as Array<{
+        id?: string;
+        kind?: string;
+        y1: number;
+        y2?: number;
+        x1: number;
+        x2?: number;
+        xMaxRight?: number;
+        zoneTimeEndScreenX?: number;
+      }>,
+      priceToY: (p) => {
+        try {
+          const y = series.priceToCoordinate(p);
+          return y != null && Number.isFinite(Number(y)) ? Number(y) : null;
+        } catch {
+          return null;
+        }
+      },
+    });
+  }, [
+    monthDeskFeatureSettleLabelsOn,
+    monthDeskSettleOverlayPack,
+    monthDeskFeatureSettleByOverlayId,
+    monthDeskScenarioSuperTrendCore,
+    candles,
+    timeframe,
+    visibleScreenOverlays,
+    overlayTick,
+  ]);
+
+  /** 벤치마크 LWC — Trade Atlas E·SL·TP1~3 우측 가격 라벨 */
+  const referenceDeskTradeAtlasRightBandGeom = useMemo(() => {
+    if (!isReferenceDeskMode || tradeAtlasOverlayPack.length === 0) return null;
+    const series = seriesRef.current;
+    const host = hostRef.current;
+    if (!series || !host) return null;
+    const rect = host.getBoundingClientRect();
+    return buildMonthDeskZoneRightBandGeom({
+      chartW: rect.width,
+      chartH: rect.height,
+      pack: tradeAtlasOverlayPack,
+      rightEdgeAnchor: true,
+      screen: visibleScreenOverlays as Array<{
+        id?: string;
+        kind?: string;
+        y1: number;
+        y2?: number;
+        x1: number;
+        x2?: number;
+        xMaxRight?: number;
+        zoneTimeEndScreenX?: number;
+      }>,
+      priceToY: (p) => {
+        try {
+          const y = series.priceToCoordinate(p);
+          return y != null && Number.isFinite(Number(y)) ? Number(y) : null;
+        } catch {
+          return null;
+        }
+      },
+    });
+  }, [isReferenceDeskMode, tradeAtlasOverlayPack, visibleScreenOverlays, overlayTick]);
+
+  /** 마감·안착 — 돌파·안착·zone 인텔 캔들 본체 색 (오케스트레이터 단일 소스) */
+  const monthDeskSettleCandlePaintByTime = useMemo(() => {
+    if (!monthDeskSettleCandlePaintOn || candles.length < 4) return null;
+    if (monthDeskChartOrchestratorOut?.settleCandlePaint) {
+      return monthDeskChartOrchestratorOut.settleCandlePaint;
+    }
+    const safe = sanitizeChartCandlesForSeries(candles, timeframe);
+    const m = collectMonthDeskSettleCandlePaint(
+      safe,
+      monthDeskSettleOverlayPack,
+      analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+      timeframe
+    );
+    return m.size > 0 ? m : null;
+  }, [
+    monthDeskSettleCandlePaintOn,
+    monthDeskChartOrchestratorOut,
+    candles,
+    timeframe,
+    monthDeskSettleOverlayPack,
+    analysisMatchesTf,
+    analysis,
+    overlayTick,
+  ]);
+
+  /** 통합·분석 — 종가·스윙 ENTER + 채널 핵심 돌파/안착을 캔들 색으로 */
+  const mergedDeskSettleCandlePaintByTime = useMemo(() => {
+    if (!isMergedAnalysisDesk) return null;
+    if (candles.length < 4) return null;
+    const safe = sanitizeChartCandlesForSeries(candles, timeframe);
+    const out = new Map<number, MonthDeskSettleCandleCell>();
+    if (settings.chartMonthDeskSettleCandlePaint !== false) {
+      const fromSwing = collectMergedDeskSwingSettleCandlePaint({
+        candles: safe,
+        timeframe,
+        settleBoard: monthDeskCloseSettleBoard,
+        swingMid: mergedAnalysisDeskPack?.swingMidEntry ?? null,
+      });
+      const fromZones = collectMonthDeskSettleCandlePaint(
+        safe,
+        (mergedAnalysisDeskPack?.overlays as OverlayItem[] | undefined) ?? [],
+        analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+        timeframe
+      );
+      for (const [t, cell] of fromZones) out.set(t, cell);
+      for (const [t, cell] of fromSwing) out.set(t, cell);
+    }
+    /** 파란·빨간 띠 핵심 돌파/안착/실패 — 항상 합류(설정으로 끌 수 있음) */
+    const fromRb = collectMergedDeskRbCoreSettleCandlePaint(safe, timeframe);
+    if (fromRb) {
+      for (const [t, cell] of fromRb) out.set(t, cell);
+    }
+    return out.size > 0 ? out : null;
+  }, [
+    isMergedAnalysisDesk,
+    settings.chartMonthDeskSettleCandlePaint,
+    settings.chartMergedDeskRbCoreCandlePaintEnabled,
+    settings.chartMergedDeskBlueRedChannelsEnabled,
+    candles,
+    timeframe,
+    monthDeskCloseSettleBoard,
+    mergedAnalysisDeskPack?.swingMidEntry,
+    mergedAnalysisDeskPack?.overlays,
+    analysisMatchesTf,
+    analysis,
+    overlayTick,
+    settingsChangeTick,
+  ]);
 
   /** 캔들분석 핵심 S/D 존 캡션: 우측 정렬 시 세로로 겹치면 아래로 밀어 TV처럼 읽히게 */
   const caCoreSdZoneCaptionDy = useMemo(() => {
@@ -6535,6 +12832,18 @@ const ChartViewInner = ({
     return y != null && Number.isFinite(Number(y)) ? Number(y) : null;
   }, [candles, overlayTick]);
 
+  const mergedDeskZoomScale = useMemo(() => {
+    if (!isMergedAnalysisDesk) return 1;
+    const chart = chartRef.current;
+    if (!chart) return 1;
+    try {
+      const opts = chart.timeScale().options?.() as { barSpacing?: number } | undefined;
+      return mergedDeskZoomScaleFromBarSpacing(Number(opts?.barSpacing));
+    } catch {
+      return 1;
+    }
+  }, [isMergedAnalysisDesk, overlayTick]);
+
   /**
    * 핀·가로선 HTML 라벨 겹침 완화.
    * 구조(BOS/CHOCH)·스윙 등은 세로로만 밀면 줌아웃 시 볼륨 영역까지 밀리므로 dy 상한 + 같은 높이끼리 수평 분산(dx).
@@ -6559,21 +12868,33 @@ const ChartViewInner = ({
       const offKey = stableOverlayVisibilityKey(id);
       const whaleAuto = id.startsWith('whale-auto-');
       const liveOff =
-        whaleAuto || isSmcEntryPlaybookOverlayId(id)
+        whaleAuto || isSmcEntryPlaybookOverlayId(id) || overlayMoveLocked
           ? { dx: 0, dy: 0 }
           : overlayOffsets[offKey] ?? overlayOffsets[id] ?? { dx: 0, dy: 0 };
 
       if (kind === 'label' || kind === 'swingLabel' || kind === 'poi') {
         if (id.startsWith('ca-core-pivot-')) continue;
+        if (id.startsWith('merged-desk-') && id.includes('-blink-')) continue;
         const isSmbc = id.startsWith('zone-smbc-mk-');
         const isBiblePin = id.startsWith('bible-cp-') && !id.startsWith('bible-cp-frame-');
         if (!textVisible(id) && !isSmbc) continue;
-        const w = isSmbc ? 30 : isBiblePin ? 40 : 210;
+        const skipCloseNudge =
+          isMonthDeskFeatureOverlayId(id) ||
+          id.startsWith('merged-ares-mlsp-') ||
+          id.startsWith('merged-ares-tb-label-') ||
+          id.startsWith('merged-desk-rb-ai-') ||
+          id.startsWith('merged-desk-rb-master') ||
+          id.startsWith('merged-desk-rb-entry') ||
+          id.startsWith('merged-desk-rb-tp') ||
+          id.startsWith('merged-desk-rb-core-break') ||
+          id.startsWith('merged-desk-rb-core-settle') ||
+          id.startsWith('merged-desk-rb-phase');
+        const w = isSmbc ? 30 : isBiblePin ? 40 : id.startsWith('merged-desk-rb-') ? 92 : 210;
         const h = isSmbc ? 28 : isBiblePin ? 40 : 36;
         const left = o.x1 + liveOff.dx + getLabelHShift(id);
         let top = o.y1 + liveOff.dy;
         const chartH = typeof o.chartHeight === 'number' ? o.chartHeight : 720;
-        if (lastClosePixelY != null && !isSmbc) {
+        if (lastClosePixelY != null && !isSmbc && !skipCloseNudge) {
           top = nudgeLabelYFromLastPrice(top, lastClosePixelY, chartH - 8);
         }
         const pri =
@@ -6615,6 +12936,12 @@ const ChartViewInner = ({
       placed.some((p) => !(r + GAP <= p.l || p.r + GAP <= l || b + GAP <= p.t || p.b + GAP <= t));
 
     for (const b of boxes) {
+      /** 마감·안착: 라벨을 분석 앵커(time/price)에 고정 — 겹침 스택으로 좌표 밀지 않음 */
+      if (isMonthDeskFeatureOverlayId(b.id) || isMergedDeskStickLabelId(b.id)) {
+        dyMap.set(b.id, 0);
+        placed.push({ l: b.left, t: b.top, r: b.left + b.w, b: b.top + b.h });
+        continue;
+      }
       const fan = overlayKindWantsHorizontalLabelFan(b.id, b.kind);
       const maxDy = fan ? MAX_DY_STRUCTURE : MAX_DY;
       let dy = 0;
@@ -6771,7 +13098,79 @@ const ChartViewInner = ({
     setOverlayTick(x => x + 1);
   };
 
+  /** 통합모드 차트설정·초기화 — 레이아웃 LS / 표시 tick 동기화 */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncZoneFromLs = () => {
+      try {
+        const raw = window.localStorage.getItem(ZONE_LABEL_POSITION_KEY);
+        if (raw === 'center' || raw === 'left' || raw === 'right') setZoneLabelPositionState(raw);
+        const n = parseInt(window.localStorage.getItem(ZONE_LABEL_H_SHIFT_KEY) || '0', 10);
+        if (Number.isFinite(n)) setZoneLabelHShiftState(Math.max(-200, Math.min(200, n)));
+      } catch {
+        /* ignore */
+      }
+    };
+    const onLayoutReset = () => {
+      setOverlayOffsets({});
+      setOverlayFontSizes({});
+      setOverlayFontFamilyState({});
+      setOverlayLabelAlignState({});
+      setOverlayLabelHShiftState({});
+      setHiddenOverlayIdsState(new Set());
+      setHiddenOverlayChartTextIdsState(new Set());
+      setZoneLabelPositionState('right');
+      setZoneLabelHShiftState(0);
+      setPriceDisplayPosition('left');
+      setPriceDisplayHShift(0);
+      setCloseStripPosition('left');
+      setCloseStripHShiftState(0);
+      setSettings(loadSettings());
+      setOverlayTick((v) => v + 1);
+    };
+    const onDisplayTick = () => {
+      syncZoneFromLs();
+      setSettings(loadSettings());
+      setOverlayTick((v) => v + 1);
+    };
+    window.addEventListener(MERGED_DESK_CHART_LAYOUT_RESET_EVENT, onLayoutReset);
+    window.addEventListener(MERGED_DESK_CHART_DISPLAY_TICK_EVENT, onDisplayTick);
+    return () => {
+      window.removeEventListener(MERGED_DESK_CHART_LAYOUT_RESET_EVENT, onLayoutReset);
+      window.removeEventListener(MERGED_DESK_CHART_DISPLAY_TICK_EVENT, onDisplayTick);
+    };
+  }, []);
+
   const [labelMenuOpen, setLabelMenuOpen] = useState(false);
+  const [settingsPortalHost, setSettingsPortalHost] = useState<Element | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onOpenChartSettings = () => {
+      /** 통합모드 — 구 차트설정 패널 열지 않음 (전용 패널만) */
+      if (isMergedAnalysisDesk) {
+        setLabelMenuOpen(false);
+        window.dispatchEvent(new Event(OPEN_MERGED_DESK_CHART_SETTINGS_EVENT));
+        return;
+      }
+      setLabelMenuOpen(true);
+    };
+    window.addEventListener('ailongshort-open-chart-settings', onOpenChartSettings);
+    return () => window.removeEventListener('ailongshort-open-chart-settings', onOpenChartSettings);
+  }, [isMergedAnalysisDesk]);
+
+  /** 통합모드에서 구 패널이 열려 있으면 강제 닫기 */
+  useEffect(() => {
+    if (isMergedAnalysisDesk && labelMenuOpen) setLabelMenuOpen(false);
+  }, [isMergedAnalysisDesk, labelMenuOpen]);
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const syncPortalHost = () => {
+      setSettingsPortalHost(document.fullscreenElement);
+    };
+    syncPortalHost();
+    document.addEventListener('fullscreenchange', syncPortalHost);
+    return () => document.removeEventListener('fullscreenchange', syncPortalHost);
+  }, []);
   /** 패널 본문만 접기 — 헤더·우측 버튼 유지. 위치·접힘은 localStorage 유지 */
   const [labelSettingsBodyCollapsed, setLabelSettingsBodyCollapsed] = useState(
     () => readLabelSettingsUiFromStorage().bodyCollapsed
@@ -6786,6 +13185,19 @@ const ChartViewInner = ({
     onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 960px), (hover: none) and (pointer: coarse)');
+    const sync = () => setMergedTouchUi(mq.matches);
+    sync();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', sync);
+      return () => mq.removeEventListener('change', sync);
+    }
+    mq.addListener(sync);
+    return () => mq.removeListener(sync);
   }, []);
 
   const NARROW_CA_TOOLS_LS = 'ailongshort-ca-narrow-tools-open-v1';
@@ -6803,22 +13215,76 @@ const ChartViewInner = ({
     } catch {}
   }, [caNarrowToolsOpen]);
 
-  /** AI 분석(데스크톱): 기본은 한 줄(통합 프리셋), 상세 토글은 "전체 도구"에서 */
-  const AI_ZONE_CHART_TOOLS_EXPANDED_KEY = 'ailongshort-ai-zone-chart-tools-expanded-v1';
-  const [aiZoneChartToolsExpanded, setAiZoneChartToolsExpanded] = useState(() => {
+  /** 데스크톱: 캔들분석·통합작도·AI ZONE 공통 — 기본 한 줄(프리셋), 펼치면 전체 칩 */
+  const CHART_TOOLBAR_EXPANDED_KEY = 'ailongshort-chart-toolbar-expanded-v2';
+  const LEGACY_AI_ZONE_CHART_TOOLS_EXPANDED_KEY = 'ailongshort-ai-zone-chart-tools-expanded-v1';
+  const [chartToolbarExpanded, setChartToolbarExpanded] = useState(() => {
     try {
       if (typeof window === 'undefined') return false;
-      return window.localStorage.getItem(AI_ZONE_CHART_TOOLS_EXPANDED_KEY) === '1';
+      const v2 = window.localStorage.getItem(CHART_TOOLBAR_EXPANDED_KEY);
+      if (v2 === '1') return true;
+      if (v2 === '0') return false;
+      const migrated =
+        window.localStorage.getItem(LEGACY_AI_ZONE_CHART_TOOLS_EXPANDED_KEY) === '1';
+      if (migrated) {
+        window.localStorage.setItem(CHART_TOOLBAR_EXPANDED_KEY, '1');
+        return true;
+      }
+      window.localStorage.setItem(CHART_TOOLBAR_EXPANDED_KEY, '0');
+      return false;
     } catch {
       return false;
     }
   });
   useEffect(() => {
     try {
-      window.localStorage.setItem(AI_ZONE_CHART_TOOLS_EXPANDED_KEY, aiZoneChartToolsExpanded ? '1' : '0');
+      window.localStorage.setItem(CHART_TOOLBAR_EXPANDED_KEY, chartToolbarExpanded ? '1' : '0');
     } catch {}
-  }, [aiZoneChartToolsExpanded]);
-  const aiZoneQuickToolsCollapsed = uiMode === 'AI_ZONE' && !isNarrowUi && !aiZoneChartToolsExpanded;
+  }, [chartToolbarExpanded]);
+
+  /** 상단 chart-quick-menu 전체(프리셋·분석·텔레 칩 등) 숨김 — 데스크톱·모바일 공통, localStorage 유지 */
+  const CHART_TOOLS_STRIP_COLLAPSED_KEY = 'ailongshort-chart-tools-strip-collapsed-v1';
+  const [chartToolsStripCollapsed, setChartToolsStripCollapsed] = useState(() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      return window.localStorage.getItem(CHART_TOOLS_STRIP_COLLAPSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHART_TOOLS_STRIP_COLLAPSED_KEY, chartToolsStripCollapsed ? '1' : '0');
+    } catch {}
+  }, [chartToolsStripCollapsed]);
+
+  /** 상단 바: TF 격자·SAS·설정·↕이동 등 접기 — PC·모바일 공통 */
+  const CHART_TF_BAR_COLLAPSED_KEY = 'ailongshort-chart-tf-bar-collapsed-v1';
+  const [chartTfBarCollapsed, setChartTfBarCollapsed] = useState(() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      return window.localStorage.getItem(CHART_TF_BAR_COLLAPSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHART_TF_BAR_COLLAPSED_KEY, chartTfBarCollapsed ? '1' : '0');
+    } catch {}
+  }, [chartTfBarCollapsed]);
+  const tfChipLbl = (tf: string) => (tf === '1w' ? '1W' : tf === '1M' ? '1M' : tf === '1Y' ? '1Y' : tf);
+  /** TF 칩 봉 마감 카운트다운 — 5초 틱(전역 리렌더 완화, 표시만) */
+  const [tfCloseNowMs, setTfCloseNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const clear = setVisibleInterval(() => setTfCloseNowMs(Date.now()), 5000);
+    return () => clear();
+  }, []);
+
+  const chartToolbarPresetRow =
+    !isNarrowUi &&
+    !chartToolbarExpanded &&
+    (isAiZoneDesk || candleAnalysisLikeUi || isWhaleOnlyMode);
 
   const narrowChartChromeRef = useRef<HTMLDivElement | null>(null);
   const [narrowChromeBottomGap, setNarrowChromeBottomGap] = useState(0);
@@ -6834,7 +13300,7 @@ const ChartViewInner = ({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [isNarrowUi, caNarrowToolsOpen, chartSectionVis.s1]);
+  }, [isNarrowUi, caNarrowToolsOpen, chartSectionVis.s1, chartToolsStripCollapsed]);
 
   const candleAnalysisHeaderTopPx = useMemo(() => {
     if (!isNarrowUi || uiMode !== 'CANDLE_ANALYSIS') return 8;
@@ -7111,7 +13577,7 @@ const ChartViewInner = ({
       display: 'flex',
       flexDirection: 'column',
       pointerEvents: 'auto',
-      zIndex: 2400,
+      zIndex: 100010,
       boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
     };
     const sheetShadow = '0 -12px 40px rgba(0,0,0,0.5)';
@@ -7168,7 +13634,22 @@ const ChartViewInner = ({
 
   const CHART_PAD = 20;
   const DRAG_DY_MAX = 300;
-  type DragState = { id: string; startClientX: number; startClientY: number; startDx: number; startDy: number; baseLeft: number; xMaxRight: number; currentDx: number; currentDy: number };
+  type DragState = {
+    id: string;
+    startClientX: number;
+    startClientY: number;
+    startDx: number;
+    startDy: number;
+    baseLeft: number;
+    xMaxRight: number;
+    currentDx: number;
+    currentDy: number;
+    startAbsLeft: number;
+    startAbsTop: number;
+    currentAbsLeft: number;
+    currentAbsTop: number;
+    pinWidth?: number;
+  };
   const [dragState, setDragState] = useState<DragState | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const didDragRef = useRef(false);
@@ -7185,16 +13666,34 @@ const ChartViewInner = ({
         const clampedDx = Math.max(minDx, Math.min(maxDx, dx));
         const dy = prev.startDy + (e.clientY - prev.startClientY);
         const clampedDy = Math.max(-DRAG_DY_MAX, Math.min(DRAG_DY_MAX, dy));
-        return { ...prev, currentDx: clampedDx, currentDy: clampedDy };
+        const absLeft = prev.startAbsLeft + (e.clientX - prev.startClientX);
+        const absTop = prev.startAbsTop + (e.clientY - prev.startClientY);
+        const clampedAbsLeft = Math.max(CHART_PAD, Math.min(prev.xMaxRight - 40, absLeft));
+        const clampedAbsTop = Math.max(-40, Math.min(4000, absTop));
+        return {
+          ...prev,
+          currentDx: clampedDx,
+          currentDy: clampedDy,
+          currentAbsLeft: clampedAbsLeft,
+          currentAbsTop: clampedAbsTop,
+        };
       });
     };
     const onUp = () => {
       const d = dragStateRef.current;
       if (d) {
-        didDragRef.current = Math.abs(d.currentDx - d.startDx) > 2 || Math.abs(d.currentDy - d.startDy) > 2;
+        didDragRef.current = Math.abs(d.currentDx - d.startDx) > 2 || Math.abs(d.currentDy - d.startDy) > 2
+          || Math.abs(d.currentAbsLeft - d.startAbsLeft) > 2 || Math.abs(d.currentAbsTop - d.startAbsTop) > 2;
         setOverlayOffsets(prev => {
           const k = stableOverlayVisibilityKey(d.id);
-          const next = { ...prev, [k]: { dx: d.currentDx, dy: d.currentDy } };
+          const nextOff: OverlayLabelOffset = {
+            dx: d.currentDx,
+            dy: d.currentDy,
+            pinAbsX: d.currentAbsLeft,
+            pinAbsY: d.currentAbsTop,
+          };
+          if (typeof d.pinWidth === 'number' && d.pinWidth > 0) nextOff.pinWidth = d.pinWidth;
+          const next = { ...prev, [k]: nextOff };
           if (k !== d.id) delete next[d.id];
           persistScopedOverlayOffsets(next);
           return next;
@@ -7212,10 +13711,22 @@ const ChartViewInner = ({
   }, [!!dragState]);
 
   const setOffset = (id: string, dxDelta: number, dyDelta: number) => {
+    if (overlayMoveLocked) return;
     const k = stableOverlayVisibilityKey(id);
     setOverlayOffsets(prev => {
       const cur = prev[k] ?? (k !== id ? prev[id] : undefined) ?? { dx: 0, dy: 0 };
-      const next = { ...prev, [k]: { dx: cur.dx + dxDelta, dy: cur.dy + dyDelta } };
+      const nextOff: OverlayLabelOffset = {
+        dx: cur.dx + dxDelta,
+        dy: cur.dy + dyDelta,
+      };
+      if (typeof cur.pinAbsX === 'number' && Number.isFinite(cur.pinAbsX)) {
+        nextOff.pinAbsX = cur.pinAbsX + dxDelta;
+      }
+      if (typeof cur.pinAbsY === 'number' && Number.isFinite(cur.pinAbsY)) {
+        nextOff.pinAbsY = cur.pinAbsY + dyDelta;
+      }
+      if (typeof cur.pinWidth === 'number' && cur.pinWidth > 0) nextOff.pinWidth = cur.pinWidth;
+      const next = { ...prev, [k]: nextOff };
       if (k !== id) delete next[id];
       persistScopedOverlayOffsets(next);
       return next;
@@ -7223,63 +13734,206 @@ const ChartViewInner = ({
     setOverlayTick(v => v + 1);
   };
 
-  const startLabelDrag = (id: string, baseLeft: number, xMaxRight: number, currentOff: { dx: number; dy: number }, e: React.MouseEvent) => {
+  const LONG_PRESS_DRAG_MS = 220;
+  const LONG_PRESS_DRAG_MOVE_CANCEL_PX = 8;
+  const longPressDragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressDragStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const clearLongPressDrag = useCallback(() => {
+    if (longPressDragTimerRef.current != null) {
+      clearTimeout(longPressDragTimerRef.current);
+      longPressDragTimerRef.current = null;
+    }
+    longPressDragStartRef.current = null;
+  }, []);
+
+  const beginLabelDrag = (
+    id: string,
+    baseLeft: number,
+    xMaxRight: number,
+    currentOff: OverlayLabelOffset,
+    clientX: number,
+    clientY: number,
+    forceWhenLocked = false,
+    absSeed?: OverlayDragAbsSeed
+  ) => {
+    if (overlayMoveLocked && !forceWhenLocked) return;
     if (isSmcEntryPlaybookOverlayId(id)) {
-      e.preventDefault();
-      e.stopPropagation();
       return;
     }
-    e.preventDefault();
-    e.stopPropagation();
+    const startAbsLeft =
+      typeof absSeed?.absLeft === 'number' && Number.isFinite(absSeed.absLeft)
+        ? absSeed.absLeft
+        : typeof currentOff.pinAbsX === 'number' && Number.isFinite(currentOff.pinAbsX)
+          ? currentOff.pinAbsX
+          : baseLeft;
+    const startAbsTop =
+      typeof absSeed?.absTop === 'number' && Number.isFinite(absSeed.absTop)
+        ? absSeed.absTop
+        : typeof currentOff.pinAbsY === 'number' && Number.isFinite(currentOff.pinAbsY)
+          ? currentOff.pinAbsY
+          : 0;
+    const pinWidth =
+      typeof absSeed?.width === 'number' && absSeed.width > 0
+        ? absSeed.width
+        : typeof currentOff.pinWidth === 'number' && currentOff.pinWidth > 0
+          ? currentOff.pinWidth
+          : undefined;
     setDragState({
       id,
-      startClientX: e.clientX,
-      startClientY: e.clientY,
+      startClientX: clientX,
+      startClientY: clientY,
       startDx: currentOff.dx,
       startDy: currentOff.dy,
       baseLeft,
       xMaxRight,
       currentDx: currentOff.dx,
       currentDy: currentOff.dy,
+      startAbsLeft,
+      startAbsTop,
+      currentAbsLeft: startAbsLeft,
+      currentAbsTop: startAbsTop,
+      pinWidth,
     });
+  };
+
+  const startLabelDrag = (
+    id: string,
+    baseLeft: number,
+    xMaxRight: number,
+    currentOff: OverlayLabelOffset,
+    e: React.MouseEvent,
+    absSeed?: OverlayDragAbsSeed
+  ) => {
+    if (isSmcEntryPlaybookOverlayId(id)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    // 기존 이동모드(또는 잠금 해제 상태)에서는 즉시 드래그
+    if (!overlayMoveLocked || overlayLabelEditMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      beginLabelDrag(id, baseLeft, xMaxRight, currentOff, e.clientX, e.clientY, false, absSeed);
+      return;
+    }
+
+    // 이동 잠금 상태에서는 "꾹 누름"일 때만 드래그 진입 허용
+    e.preventDefault();
+    e.stopPropagation();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    longPressDragStartRef.current = { x: sx, y: sy };
+    didDragRef.current = false;
+    clearLongPressDrag();
+    longPressDragStartRef.current = { x: sx, y: sy };
+    longPressDragTimerRef.current = setTimeout(() => {
+      beginLabelDrag(id, baseLeft, xMaxRight, currentOff, sx, sy, true, absSeed);
+      clearLongPressDrag();
+    }, LONG_PRESS_DRAG_MS);
+
+    const cancelOnMove = (ev: MouseEvent) => {
+      const st = longPressDragStartRef.current;
+      if (!st) return;
+      const moved = Math.hypot(ev.clientX - st.x, ev.clientY - st.y);
+      if (moved >= LONG_PRESS_DRAG_MOVE_CANCEL_PX) clearLongPressDrag();
+    };
+    const cancelOnUp = () => clearLongPressDrag();
+    window.addEventListener('mousemove', cancelOnMove, { passive: true });
+    window.addEventListener('mouseup', cancelOnUp, { once: true });
+    setTimeout(() => {
+      window.removeEventListener('mousemove', cancelOnMove);
+    }, LONG_PRESS_DRAG_MS + 240);
   };
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
 
-    const th = chartThemes[themeForChartRef.current];
+    const th = resolveChartThemePack(
+      themeForChartRef.current,
+      isMergedAnalysisDeskMode(uiMode) && isMergedDeskAiToneEnabled(loadSettings())
+    );
     const scaleFs =
       typeof window !== 'undefined'
         ? (loadSettings().chartScaleFontSize ?? defaultSettings.chartScaleFontSize)
         : defaultSettings.chartScaleFontSize;
+    const initVolLayout = getVolumePanelLayout(
+      false,
+      false,
+      isMergedAnalysisDeskMode(uiMode)
+    );
     const chart = createChart(host, {
       autoSize: true,
       layout: {
-        background: { color: th.bg },
+        background: lwcLayoutBackground(th.bg, isMergedAnalysisDeskMode(uiMode)),
         textColor: th.text,
         fontSize: Math.max(10, Math.min(18, scaleFs)),
         fontFamily: CHART_PRO_FONT,
       },
       grid: chartGridOptions(th),
       crosshair: chartCrosshairOptions(th),
+      /** 고래모드와 동일 — LWC 기본 drag (좌우·상하 pan) */
+      handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
+      handleScale: {
+        axisPressedMouseMove: { time: true, price: true },
+        axisDoubleClickReset: { time: true, price: true },
+        /** 휠은 커스텀 barSpacing 줌 — LWC 기본과 이중적용 시 화면축소에서 튐 */
+        mouseWheel: false,
+        pinch: true,
+      },
+      kineticScroll: {
+        mouse: true,
+        touch: true,
+      },
+      /** 모바일: 터치 종료 시 즉시 pan 복귀 — 거래소 차트처럼 손가락에 붙음 */
+      trackingMode: {
+        exitMode: TrackingModeExitMode.OnTouchEnd,
+      },
       rightPriceScale: {
         visible: true,
         borderColor: th.border,
-        scaleMargins: { top: 0.10, bottom: 0.22 },
+        scaleMargins: initVolLayout.candleScaleMargins,
+        minimumWidth: chartPriceScaleLayoutRef.current.minimumWidth,
+      },
+      overlayPriceScales: {
+        scaleMargins: initVolLayout.volumeScaleMargins,
+        borderVisible: false,
       },
       timeScale: {
         borderColor: th.border,
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: smartMoneyRightOffset,
+        rightOffset: isMergedAnalysisDeskMode(uiMode)
+          ? MERGED_DESK_RIGHT_FUTURE_BARS
+          : smartMoneyRightOffset,
         fixLeftEdge: false,
         fixRightEdge: false,
-        lockVisibleTimeRangeOnResize: true,
+        /** 휠 줌이 맨 우측 봉에 붙지 않게 — TradingView식 커서 앵커 */
+        rightBarStaysOnScroll: false,
+        lockVisibleTimeRangeOnResize: !isMergedAnalysisDeskMode(uiMode),
+        /** 통합모드: 새 봉/setData 시 가시구간이 우측으로 끌리지 않게 (분~월 공동) */
+        shiftVisibleRangeOnNewBar: false,
+        allowShiftVisibleRangeOnWhitespaceReplacement: false,
+        ...(isMergedAnalysisDeskMode(uiMode)
+          ? {
+              barSpacing: MERGED_DESK_DEFAULT_BAR_SPACING,
+              minBarSpacing: 5,
+            }
+          : {}),
       },
     });
 
-    const candleOpts = buildCandlestickApplyOptions(candleSettingsRef.current, th.bg);
+    const aiToneInit =
+      isMergedAnalysisDeskMode(uiMode) && isMergedDeskAiToneEnabled(candleSettingsRef.current);
+    const candleOpts = aiToneInit
+      ? mergedDeskAiToneCandleOptions()
+      : buildCandlestickApplyOptions(candleSettingsRef.current, th.bg);
     const series = chart.addSeries(CandlestickSeries, {
       ...candleOpts,
       priceLineVisible: true,
@@ -7292,10 +13946,19 @@ const ChartViewInner = ({
     const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: '',
-      color: volPal0.up
+      color: volPal0.up,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      base: 0,
     });
-    volume.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-
+    const volumeBuy = chart.addSeries(HistogramSeries, {
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      color: 'rgba(34,197,94,0.78)',
+      lastValueVisible: false,
+      priceLineVisible: false,
+      base: 0,
+    });
     const volMa = chart.addSeries(LineSeries, {
       priceScaleId: '',
       color: th.volumeHistogramMaLine,
@@ -7308,22 +13971,103 @@ const ChartViewInner = ({
 
     chartRef.current = chart;
     seriesRef.current = series;
+    const projectedSeries =
+      isMonthDeskChartMode(uiModeOverlayRef.current) ||
+      isMergedAnalysisDeskMode(uiModeOverlayRef.current)
+        ? chart.addSeries(CandlestickSeries, {
+            upColor: 'rgba(255,255,255,0.52)',
+            downColor: 'rgba(255,255,255,0.36)',
+            borderUpColor: 'rgba(255,255,255,0.92)',
+            borderDownColor: 'rgba(255,255,255,0.78)',
+            wickUpColor: 'rgba(255,255,255,0.88)',
+            wickDownColor: 'rgba(255,255,255,0.7)',
+            priceLineVisible: false,
+            lastValueVisible: false,
+          })
+        : null;
+    projectedSeriesRef.current = projectedSeries;
     volumeRef.current = volume;
+    volumeBuyRef.current = volumeBuy;
     volumeMaRef.current = volMa;
+    applyChartVolumePanelLayout(chart, initVolLayout, { volume, volumeBuy, volumeMa: volMa });
     rsiMarkersRef.current?.detach();
     rsiMarkersRef.current = createSeriesMarkers(series, []);
     volumeMarkersRef.current?.detach();
     volumeMarkersRef.current = createSeriesMarkers(volume, []);
 
-    const scheduleOverlayRefresh = () => {
+    const bumpOverlayTick = () => {
       if (overlayRafRef.current != null) return;
       overlayRafRef.current = requestAnimationFrame(() => {
         overlayRafRef.current = null;
-        setOverlayTick(v => v + 1);
+        setOverlayTick((v) => v + 1);
       });
     };
+
+    const scheduleOverlayRefresh = () => {
+      const ix = chartIxRef.current;
+      const defer = chartPerfRef.current.deferOverlayWhileInteracting !== false;
+      if (defer && ix.isBusy()) {
+        ix.scheduleOverlayRefresh(bumpOverlayTick);
+        return;
+      }
+      /** 마감·안착: 패닝·줌마다 overlayTick→screenOverlays 전부 재계산 — 스로틀 */
+      if (isMonthDeskChartMode(uiModeOverlayRef.current)) {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (now - lastMonthDeskPanOverlayTickAtRef.current < 240) return;
+        lastMonthDeskPanOverlayTickAtRef.current = now;
+      }
+      ix.scheduleOverlayRefresh(bumpOverlayTick);
+      const volNow = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      if (volNow - lastVolLayoutBumpAtRef.current > 420) {
+        lastVolLayoutBumpAtRef.current = volNow;
+        bumpVolumePanelLayoutRef.current();
+      }
+    };
+
     chart.timeScale().subscribeVisibleLogicalRangeChange(scheduleOverlayRefresh);
     chart.timeScale().subscribeVisibleTimeRangeChange(scheduleOverlayRefresh);
+    /**
+     * 분·시·일·주·월 공동 — 사용자 drag·휠줌 시 잠금 + 가시구간 저장.
+     * 휠 줌만 하고 잠금이 없으면 applyFocus가 barSpacing을 저장값으로 되돌려
+     * 「그림만 커지고 캔들은 무반응」이 된다.
+     */
+    const onUserPanLogicalRange = () => {
+      if (uiModeOverlayRef.current !== 'MERGED_ANALYSIS_DESK') return;
+      if (mergedDeskSuppressPanDetectRef.current) return;
+      /**
+       * 프로그램 가시구간 변경(rightOffset·setData)을 사용자 pan으로 오인하면
+       * 저장 범위가 우측으로 갱신되며 캔들·기능이 서서히 밀림.
+       * 실제 제스처(드래그·휠·직후)일 때만 잠금·저장.
+       */
+      const recentUser =
+        mergedDeskPanGestureRef.current ||
+        Date.now() - mergedDeskLastUserPanAtRef.current < 480;
+      if (!recentUser) return;
+      const ch = chartRef.current;
+      const ser = seriesRef.current;
+      if (!ch || !ser) return;
+      try {
+        const lr = ch.timeScale().getVisibleLogicalRange();
+        if (!lr || !Number.isFinite(lr.to)) return;
+        const sc = candlestickSeriesBarCount(ser);
+        if (sc < 2) return;
+        mergedDeskSavedLogicalRangeRef.current = { from: lr.from, to: lr.to };
+        mergedDeskLastUserPanAtRef.current = Date.now();
+        mergedDeskUserPanLockRef.current = true;
+        try {
+          const opts = ch.timeScale().options?.() as { barSpacing?: number } | undefined;
+          const spacing = Number(opts?.barSpacing);
+          if (spacing > 0 && Number.isFinite(spacing)) {
+            chartIxRef.current.setBarSpacing(spacing);
+          }
+        } catch {
+          /* ignore */
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onUserPanLogicalRange);
     /** 타임스케일 높이·폭 변화(하단 축 영역) — 좌표 기준점이 바뀔 때 */
     chart.timeScale().subscribeSizeChange(scheduleOverlayRefresh);
     /**
@@ -7334,7 +14078,19 @@ const ChartViewInner = ({
       const s = seriesRef.current;
       const ch = chartRef.current;
       if (!s || !ch) return;
+      if (
+        chartPerfRef.current.deferOverlayWhileInteracting !== false &&
+        chartIxRef.current.isBusy()
+      ) {
+        return;
+      }
       try {
+        const p = chartPerfRef.current;
+        /** 통합·분석도 stride 적용 — 매 폴링마다 HTML 재계산 폭주 방지(기능 숨김 없음) */
+        if (p.geometryPollStride > 1) {
+          chartGeomStrideCounterRef.current += 1;
+          if (chartGeomStrideCounterRef.current % p.geometryPollStride !== 0) return;
+        }
         const pr = s.priceScale().getVisibleRange();
         const ps =
           pr && typeof pr.from === 'number' && typeof pr.to === 'number' && Number.isFinite(pr.from) && Number.isFinite(pr.to)
@@ -7345,32 +14101,296 @@ const ChartViewInner = ({
           lr && typeof lr.from === 'number' && typeof lr.to === 'number' && Number.isFinite(lr.from) && Number.isFinite(lr.to)
             ? `${lr.from.toFixed(6)}:${lr.to.toFixed(6)}`
             : '';
-        const sig = `${ps}|${ts}`;
+        let spacingKey = '';
+        try {
+          const opts = ch.timeScale().options?.() as { barSpacing?: number } | undefined;
+          const sp = Number(opts?.barSpacing);
+          if (sp > 0 && Number.isFinite(sp)) spacingKey = sp.toFixed(3);
+        } catch {
+          /* ignore */
+        }
+        const sig = `${ps}|${ts}|${spacingKey}`;
         if (sig !== lastOverlayChartGeometrySigRef.current) {
           lastOverlayChartGeometrySigRef.current = sig;
+          chartIxRef.current.setGeomSig(sig);
           scheduleOverlayRefresh();
         }
       } catch {
         /* ignore */
       }
     };
-    const chartGeometryPollId = window.setInterval(syncHtmlOverlaysFromChartGeometry, 48);
+    syncHtmlOverlaysFromChartGeometryRef.current = syncHtmlOverlaysFromChartGeometry;
     const ro = new ResizeObserver(scheduleOverlayRefresh);
     ro.observe(host);
-    /** 가격축 줌·드래그·휠은 timeScale 콜백만으로는 안 잡히는 경우가 있어 HTML 오버레이 좌표를 갱신 */
-    const onHostWheel = () => scheduleOverlayRefresh();
+    /** pan 중 zone/라벨 pointer 가로채기 방지 + 전 TF 공동 gesture 잠금 */
+    const setChartPanningUi = (on: boolean) => {
+      frameRef.current?.classList.toggle('chart-wrap--panning', on);
+    };
+    const markMergedDeskUserPanNow = () => {
+      mergedDeskLastUserPanAtRef.current = Date.now();
+      mergedDeskUserPanLockRef.current = true;
+      try {
+        seriesRef.current?.priceScale().applyOptions({ autoScale: false });
+      } catch {
+        /* ignore */
+      }
+      const ch = chartRef.current;
+      if (ch) {
+        const cap = captureMergedDeskLogicalRange(ch);
+        if (cap) mergedDeskSavedLogicalRangeRef.current = cap;
+      }
+    };
+    const onHostPanPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      if (mergedTouchUiRef.current) featureExplainDismissRef.current();
+      setChartPanningUi(true);
+      if (uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK') {
+        mergedDeskPanGestureRef.current = true;
+        markMergedDeskUserPanNow();
+        try {
+          chartIxRef.current.begin('pan');
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+    const onHostPanPointerUp = () => {
+      setChartPanningUi(false);
+      if (uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK') {
+        mergedDeskPanGestureRef.current = false;
+        markMergedDeskUserPanNow();
+        const settleMs = chartPerfRef.current.interactionSettleMs ?? 140;
+        try {
+          chartIxRef.current.end(settleMs);
+        } catch {
+          /* ignore */
+        }
+        window.setTimeout(() => {
+          flushMergedDeskEngineWorkRef.current?.();
+        }, settleMs + 40);
+      }
+    };
+    host.addEventListener('pointerdown', onHostPanPointerDown);
+    host.addEventListener('pointerup', onHostPanPointerUp);
+    host.addEventListener('pointercancel', onHostPanPointerUp);
+    window.addEventListener('pointerup', onHostPanPointerUp);
+    window.addEventListener('pointercancel', onHostPanPointerUp);
+    /** 휠·핀치 줌 — 잠금 + 오버레이 좌표 동기. barSpacing을 공유뷰에 반영해 applyFocus가 되돌리지 않게 */
+    let mergedDeskZoomPersistTimer: ReturnType<typeof setTimeout> | null = null;
+    const persistMergedDeskZoomView = () => {
+      if (uiModeOverlayRef.current !== 'MERGED_ANALYSIS_DESK') return;
+      const ch = chartRef.current;
+      const ser = seriesRef.current;
+      if (!ch || !ser) return;
+      try {
+        const lr = ch.timeScale().getVisibleLogicalRange();
+        const opts = ch.timeScale().options?.() as { barSpacing?: number } | undefined;
+        const barSpacing = Number(opts?.barSpacing);
+        if (!lr || !(barSpacing > 0)) return;
+        const visibleBars = Math.max(8, Math.round(lr.to - lr.from));
+        writeMergedDeskSharedChartView(
+          {
+            visibleBars,
+            barSpacing,
+            sourceTf: timeframe,
+            capturedAt: Date.now(),
+          },
+          { silent: true }
+        );
+      } catch {
+        /* ignore */
+      }
+    };
+    const onHostWheel = () => {
+      if (uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK') {
+        markMergedDeskUserPanNow();
+        const settleMs = chartPerfRef.current.interactionSettleMs ?? 180;
+        try {
+          chartIxRef.current.begin('wheel');
+          chartIxRef.current.end(settleMs);
+        } catch {
+          /* ignore */
+        }
+        window.setTimeout(() => {
+          flushMergedDeskEngineWorkRef.current?.();
+        }, settleMs + 40);
+        if (mergedDeskZoomPersistTimer) clearTimeout(mergedDeskZoomPersistTimer);
+        mergedDeskZoomPersistTimer = setTimeout(() => {
+          mergedDeskZoomPersistTimer = null;
+          persistMergedDeskZoomView();
+        }, 280);
+      }
+      scheduleOverlayRefresh();
+    };
+
+    /** Shift+휠 = 좌우 스크롤, 일반 휠 = 캔들 간격 부드러운 줌(프레임당 1회) */
+    let wheelZoomRaf: number | null = null;
+    let wheelZoomAcc = {
+      dy: 0,
+      clientX: 0,
+      clientY: 0,
+      deltaMode: 0,
+      ctrlKey: false,
+      metaKey: false,
+    };
+    const flushSmoothWheelZoom = () => {
+      wheelZoomRaf = null;
+      const hostEl = hostRef.current;
+      const ch = chartRef.current;
+      const acc = wheelZoomAcc;
+      const dy = acc.dy;
+      wheelZoomAcc = { ...acc, dy: 0 };
+      if (!hostEl || !ch || Math.abs(dy) < 0.01) return;
+      const synth = {
+        deltaY: dy,
+        deltaX: 0,
+        deltaMode: acc.deltaMode,
+        clientX: acc.clientX,
+        clientY: acc.clientY,
+        ctrlKey: acc.ctrlKey,
+        metaKey: acc.metaKey,
+      } as WheelEvent;
+      const next = applySmoothCandleWheelZoom(ch, hostEl, synth, {
+        candleSeries: seriesRef.current,
+      });
+      if (next != null) {
+        try {
+          chartIxRef.current.setBarSpacing(next);
+        } catch {
+          /* ignore */
+        }
+        try {
+          seriesRef.current?.priceScale().applyOptions({ autoScale: false });
+        } catch {
+          /* ignore */
+        }
+        if (uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK') {
+          const cap = captureMergedDeskLogicalRange(ch);
+          if (cap) mergedDeskSavedLogicalRangeRef.current = cap;
+        }
+      }
+      onHostWheel();
+    };
+    const onSmoothHostWheel = (ev: WheelEvent) => {
+      const hostEl = hostRef.current;
+      const ch = chartRef.current;
+      if (!hostEl || !ch) return;
+      if (!(ev.target instanceof Node) || !hostEl.contains(ev.target)) return;
+
+      /** 트랙패드 Ctrl/Meta 핀치 → 페이지 줌 대신 캔들 줌 */
+      if (ev.ctrlKey || ev.metaKey) {
+        ev.preventDefault();
+      }
+
+      if (ev.shiftKey) {
+        ev.preventDefault();
+        try {
+          if (uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK') {
+            markMergedDeskUserPanNow();
+            mergedDeskUserPanLockRef.current = true;
+          }
+          const ts = ch.timeScale();
+          const lr = ts.getVisibleLogicalRange();
+          if (lr) {
+            const rect = hostEl.getBoundingClientRect();
+            let dx = Number(ev.deltaY) || Number(ev.deltaX) || 0;
+            if (ev.deltaMode === 1) dx *= 16;
+            const bars = Math.max(0.15, (Math.abs(dx) / Math.max(120, rect.width)) * (lr.to - lr.from));
+            const dir = dx > 0 ? 1 : -1;
+            ts.setVisibleLogicalRange({
+              from: lr.from + dir * bars,
+              to: lr.to + dir * bars,
+            });
+            if (uiModeOverlayRef.current === 'MERGED_ANALYSIS_DESK') {
+              const cap = captureMergedDeskLogicalRange(ch);
+              if (cap) mergedDeskSavedLogicalRangeRef.current = cap;
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+        onHostWheel();
+        return;
+      }
+
+      ev.preventDefault();
+      wheelZoomAcc.dy += Number(ev.deltaY) || 0;
+      wheelZoomAcc.clientX = ev.clientX;
+      wheelZoomAcc.clientY = ev.clientY;
+      wheelZoomAcc.deltaMode = ev.deltaMode;
+      wheelZoomAcc.ctrlKey = ev.ctrlKey;
+      wheelZoomAcc.metaKey = ev.metaKey;
+      if (wheelZoomRaf != null) return;
+      wheelZoomRaf = requestAnimationFrame(flushSmoothWheelZoom);
+    };
+
     const onHostPointerMove = (ev: PointerEvent) => {
       if (ev.buttons !== 0) scheduleOverlayRefresh();
     };
-    const onHostTouchMove = () => scheduleOverlayRefresh();
-    host.addEventListener('wheel', onHostWheel, { passive: true });
+    const touchGuard = chartTouchClickGuardRef.current;
+    const onHostTouchStart = (e: TouchEvent) => {
+      touchGuard?.onTouchStart(e);
+      if (e.touches.length >= 2) {
+        featureExplainDismissRef.current();
+        try {
+          chartIxRef.current.begin('pinch');
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+    const onHostTouchMove = (e: TouchEvent) => {
+      touchGuard?.onTouchMove(e);
+      if (e.touches.length >= 2) {
+        try {
+          chartIxRef.current.begin('pinch');
+        } catch {
+          /* ignore */
+        }
+      }
+      scheduleOverlayRefresh();
+    };
+    const onHostTouchEnd = () => {
+      touchGuard?.onTouchEnd();
+      const settleMs = chartPerfRef.current.interactionSettleMs ?? 200;
+      try {
+        chartIxRef.current.end(settleMs);
+      } catch {
+        /* ignore */
+      }
+      window.setTimeout(() => {
+        flushMergedDeskEngineWorkRef.current?.();
+      }, settleMs + 40);
+    };
+    const onHostTouchCancel = () => {
+      touchGuard?.onTouchCancel();
+      const settleMs = chartPerfRef.current.interactionSettleMs ?? 200;
+      try {
+        chartIxRef.current.end(settleMs);
+      } catch {
+        /* ignore */
+      }
+      window.setTimeout(() => {
+        flushMergedDeskEngineWorkRef.current?.();
+      }, settleMs + 40);
+    };
+    host.addEventListener('wheel', onSmoothHostWheel, { passive: false });
     host.addEventListener('pointermove', onHostPointerMove);
+    host.addEventListener('touchstart', onHostTouchStart, { passive: true });
     host.addEventListener('touchmove', onHostTouchMove, { passive: true });
-    /** 가격축 영역은 host 밖 캔버스에서 처리되는 경우가 많아, 캡처 단계로 패닝·줌·핀치 후 오버레이 좌표 동기화 */
+    host.addEventListener('touchend', onHostTouchEnd, { passive: true });
+    host.addEventListener('touchcancel', onHostTouchCancel, { passive: true });
     const onWinPointerMoveCap = (ev: PointerEvent) => {
       if (ev.buttons !== 0) scheduleOverlayRefresh();
     };
-    const onWinWheelCap = () => scheduleOverlayRefresh();
+    const onWinWheelCap = (ev: WheelEvent) => {
+      const hostEl = hostRef.current;
+      if (hostEl && ev.target instanceof Node && hostEl.contains(ev.target)) {
+        /** host 리스너가 preventDefault — 캡처에서는 중복 줌 금지 */
+        return;
+      }
+      scheduleOverlayRefresh();
+    };
     const onWinTouchMoveCap = () => scheduleOverlayRefresh();
     window.addEventListener('pointermove', onWinPointerMoveCap, { capture: true, passive: true });
     window.addEventListener('wheel', onWinWheelCap, { capture: true, passive: true });
@@ -7383,10 +14403,7 @@ const ChartViewInner = ({
     }
 
     const onCrosshairMove = (param: MouseEventParams<Time>) => {
-      if (!candleSettingsRef.current.chartCandleRuleDebug) {
-        setCandlePaintDebugLine('');
-        return;
-      }
+      if (!candleSettingsRef.current.chartCandleRuleDebug) return;
       const t = param.time;
       if (t === undefined || t === null) {
         setCandlePaintDebugLine('');
@@ -7414,10 +14431,21 @@ const ChartViewInner = ({
         return;
       }
       setCandlePaintDebugLine(
-        describeCandlePaintForTime(tnum, blend, ctx.merged, ctx.structure, ctx.prox, ctx.hot, c)
+        describeCandlePaintForTime(
+          tnum,
+          blend,
+          ctx.merged,
+          ctx.structure,
+          ctx.prox,
+          ctx.hot,
+          c,
+          ctx.obPreBeam,
+          ctx.settle
+        )
       );
     };
     chart.subscribeCrosshairMove(onCrosshairMove);
+    setChartInstanceId((n) => n + 1);
 
     return () => {
       chart.unsubscribeCrosshairMove(onCrosshairMove);
@@ -7425,9 +14453,25 @@ const ChartViewInner = ({
         cancelAnimationFrame(overlayRafRef.current);
         overlayRafRef.current = null;
       }
-      host.removeEventListener('wheel', onHostWheel);
+      if (mergedDeskZoomPersistTimer) {
+        clearTimeout(mergedDeskZoomPersistTimer);
+        mergedDeskZoomPersistTimer = null;
+      }
+      if (wheelZoomRaf != null) {
+        cancelAnimationFrame(wheelZoomRaf);
+        wheelZoomRaf = null;
+      }
+      host.removeEventListener('wheel', onSmoothHostWheel);
+      host.removeEventListener('pointerdown', onHostPanPointerDown);
+      host.removeEventListener('pointerup', onHostPanPointerUp);
+      host.removeEventListener('pointercancel', onHostPanPointerUp);
+      window.removeEventListener('pointerup', onHostPanPointerUp);
+      window.removeEventListener('pointercancel', onHostPanPointerUp);
       host.removeEventListener('pointermove', onHostPointerMove);
+      host.removeEventListener('touchstart', onHostTouchStart);
       host.removeEventListener('touchmove', onHostTouchMove);
+      host.removeEventListener('touchend', onHostTouchEnd);
+      host.removeEventListener('touchcancel', onHostTouchCancel);
       window.removeEventListener('pointermove', onWinPointerMoveCap, { capture: true } as AddEventListenerOptions);
       window.removeEventListener('wheel', onWinWheelCap, { capture: true } as AddEventListenerOptions);
       window.removeEventListener('touchmove', onWinTouchMoveCap, { capture: true } as AddEventListenerOptions);
@@ -7436,35 +14480,59 @@ const ChartViewInner = ({
         vv.removeEventListener('scroll', scheduleOverlayRefresh);
       }
       ro.disconnect();
-      window.clearInterval(chartGeometryPollId);
+      syncHtmlOverlaysFromChartGeometryRef.current = null;
       lastOverlayChartGeometrySigRef.current = '';
       chart.timeScale().unsubscribeSizeChange(scheduleOverlayRefresh);
       chart.timeScale().unsubscribeVisibleTimeRangeChange(scheduleOverlayRefresh);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(scheduleOverlayRefresh);
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onUserPanLogicalRange);
+      chartIxRef.current.dispose();
+      chartIxRef.current = createChartInteractionKernel();
       zoneRangeSeriesRef.current = null;
       closeRangeSeriesRef.current = null;
+      institutionalLongLineRef.current = null;
+      institutionalShortLineRef.current = null;
+      institutionalEnvelopeSegRefsRef.current = [];
+      monthDeskCompositeGuideRefsRef.current = [];
+      powerLawCenterRef.current = null;
+      powerLawSupportRef.current = null;
+      powerLawResistanceRef.current = null;
       rsiMarkersRef.current?.detach();
       rsiMarkersRef.current = null;
       volumeMarkersRef.current?.detach();
       volumeMarkersRef.current = null;
+      volumeBuyRef.current = null;
       volumeMaRef.current = null;
+      projectedSeriesRef.current = null;
       chart.remove();
     };
   }, [smartMoneyRightOffset]);
+
+  /** TF·모드별 geometry 폴링 — 마감·안착은 chartPerf(보수 예산) 반영 · 탭 숨김 시 중지 */
+  useEffect(() => {
+    const p = chartPerf;
+    chartGeomStrideCounterRef.current = 0;
+    const clear = setVisibleInterval(() => {
+      syncHtmlOverlaysFromChartGeometryRef.current?.();
+    }, p.geometryPollMs);
+    return () => clear();
+  }, [timeframe, chartPerf]);
 
   useEffect(() => {
     const series = seriesRef.current;
     const volume = volumeRef.current;
     if (!series) return;
-    const th = chartThemes[theme];
-    const o = buildCandlestickApplyOptions(settings, th.bg);
+    const aiTone = isMergedAnalysisDesk && isMergedDeskAiToneEnabled(settings);
+    const th = resolveChartThemePack(theme, aiTone);
+    const o = aiTone ? mergedDeskAiToneCandleOptions() : buildCandlestickApplyOptions(settings, th.bg);
     const tint = settings.chartVerdictTint ?? 'off';
-    const match = analysisMatchesSymbolAndTf(analysis, symbol, timeframe);
+    const match = analysisUsableOnChart(analysis, symbol, timeframe, uiMode);
     const vl = analysis?.verdict;
     const biasLong = Boolean(match && vl === 'LONG');
     const biasShort = Boolean(match && vl === 'SHORT');
-    const priceLineColor =
-      tint === 'priceLine' && biasLong
+    const priceLineColor = aiTone
+      ? th.lastPriceLine
+      : tint === 'priceLine' && biasLong
         ? '#22C55E'
         : tint === 'priceLine' && biasShort
           ? '#EF4444'
@@ -7476,10 +14544,31 @@ const ChartViewInner = ({
       priceLineStyle: LineStyle.Solid,
       priceLineColor,
     });
-    const v = volumeHistogramBarColors(settings, th.bg);
+    const v = aiTone ? mergedDeskAiToneVolumeColors(settings) : volumeHistogramBarColors(settings, th.bg);
     volume?.applyOptions({ color: v.up });
+    try {
+      chartRef.current?.applyOptions({
+        layout: {
+          background: lwcLayoutBackground(th.bg, isMergedAnalysisDeskMode(uiMode)),
+          textColor: th.text,
+          fontFamily: CHART_PRO_FONT,
+        },
+        grid: chartGridOptions(th),
+        crosshair: chartCrosshairOptions(th),
+        rightPriceScale: {
+          borderColor: th.border,
+          scaleMargins: volPanelLayout.candleScaleMargins,
+        },
+        timeScale: { borderColor: th.border },
+      });
+      bumpVolumePanelLayout();
+    } catch {
+      /* ignore */
+    }
   }, [
     theme,
+    isMergedAnalysisDesk,
+    settings.chartMergedDeskAiToneEnabled,
     settings.chartCandleStyle,
     settings.chartCandleClassicUpHex,
     settings.chartCandleClassicDownHex,
@@ -7490,6 +14579,9 @@ const ChartViewInner = ({
     analysis,
     symbol,
     timeframe,
+    uiMode,
+    volPanelLayout,
+    bumpVolumePanelLayout,
   ]);
 
   useEffect(() => {
@@ -7513,16 +14605,33 @@ const ChartViewInner = ({
     const volume = volumeRef.current;
     if (!series) return;
 
-    const safe = sanitizeChartCandlesForSeries(candles);
-    if (safe.length === 0) {
+    /** 마감·안착: pre3/근접/구조 펄스로 setData가 주기적으로 돌면 밴드·점선 LineSeries가 같이 깜빡임 */
+    const suppressCandleSparkle =
+      CHART_DISABLE_ALL_CANDLE_SPARKLE || isMonthStartDeskMode;
+
+    /**
+     * 1d/1w/1M: 차트 setData = 마켓 전량(2017~). 엔진 480 cap을 쓰면 일봉이 ~1.3년만 보임.
+     * 분·시·일·주·월 공동 — setData 축은 항상 sanitize(갭 메움)된 시리즈.
+     */
+    const chartCandles =
+      isMergedAnalysisDesk && candlesForMergedDeskChart.length >= 2
+        ? candlesForMergedDeskChart
+        : sanitizeChartCandlesForSeries(candles, timeframe);
+    if (chartCandles.length === 0) {
       candlePaintDebugContextRef.current = {
         blend: candleBlendInput,
         merged: new Map(),
         structure: null,
+        settle: null,
         prox: new Map(),
         hot: null,
+        obPreBeam: null,
         candles: [],
       };
+      /** 로딩·TF 전환 중 잠깐 빈 배열 → setData([]) 하면 우측 빈 화면. 기존 시리즈 유지 */
+      if ((chartSeriesCandlesRef.current?.length ?? 0) >= 2) {
+        return;
+      }
       try {
         series.setData([]);
       } catch {}
@@ -7530,86 +14639,460 @@ const ChartViewInner = ({
         volume?.setData([]);
       } catch {}
       try {
+        volumeBuyRef.current?.setData([]);
+      } catch {}
+      try {
         volumeMaRef.current?.setData([]);
       } catch {}
       return;
     }
 
-    mergePre3SparklePersistFromAnalysis(symbol, timeframe, analysis, safe);
-    const coarseTouch =
-      typeof window !== 'undefined' &&
-      (window.matchMedia?.('(pointer: coarse)').matches === true ||
-        (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
-    const prefersReduced =
-      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const rm = prefersReduced && !coarseTouch;
-    const persisted = loadPre3SparklePersistMap(symbol, timeframe);
-    const live = collectPre3SparkleDirections(analysis, symbol, timeframe, safe);
     const merged = new Map<number, Pre3SparkleCell>();
-    for (const [t, d] of persisted) merged.set(t, { direction: d, preview: false });
-    for (const [t, cell] of live) merged.set(t, cell);
+    let rm = false;
+    if (!suppressCandleSparkle) {
+      mergePre3SparklePersistFromAnalysis(symbol, timeframe, analysis, chartCandles);
+      const coarseTouch =
+        typeof window !== 'undefined' &&
+        (window.matchMedia?.('(pointer: coarse)').matches === true ||
+          (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
+      const prefersReduced =
+        typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      rm = prefersReduced && !coarseTouch;
+      const persisted = loadPre3SparklePersistMap(symbol, timeframe);
+      const live = collectPre3SparkleDirections(analysis, symbol, timeframe, chartCandles);
+      for (const [t, d] of persisted) merged.set(t, { direction: d, preview: false });
+      for (const [t, cell] of live) merged.set(t, cell);
+    }
+    const settleCandlePaint = isMonthStartDeskMode
+      ? monthDeskSettleCandlePaintByTime
+      : isMergedAnalysisDesk
+        ? mergedDeskSettleCandlePaintByTime
+        : null;
     candlePaintDebugContextRef.current = {
       blend: candleBlendInput,
-      merged,
-      structure: structurePhaseCandleByTime,
-      prox: lineZoneProximityByTime,
-      hot: hotZoneCandleHighlightTimes,
-      candles: safe,
+      merged: suppressCandleSparkle ? new Map() : merged,
+      structure: suppressCandleSparkle ? null : structurePhaseCandleByTime,
+      settle: settleCandlePaint,
+      prox: suppressCandleSparkle ? new Map() : lineZoneProximityByTime,
+      hot: suppressCandleSparkle ? null : hotZoneCandleHighlightTimes,
+      obPreBeam: obPreBeamCandlePaintByTime,
+      candles: chartCandles,
     };
-    const data = buildCandlestickDataWithPre3Sparkle(
-      safe,
-      merged,
-      sparklePulse,
-      rm,
-      lineZoneProximityByTime,
-      structurePhaseCandleByTime,
-      hotZoneCandleHighlightTimes,
-      candleBlendInput
+    const settlePulseActive = settleCandlePaint != null && settleCandlePaint.size > 0;
+    const tipBar = chartCandles[chartCandles.length - 1]!;
+    const tipMeta = {
+      len: chartCandles.length,
+      firstT: Number(chartCandles[0]!.time),
+      lastT: Number(tipBar.time),
+    };
+    const tipOhlc = `${tipBar.open}|${tipBar.high}|${tipBar.low}|${tipBar.close}|${tipBar.volume ?? 0}`;
+    const prevTip = chartSeriesTipSigRef.current;
+    /** TF 전환 직후: tip/liveTail 단축 금지 — 거래소처럼 전량 교체 */
+    const forceFullSeriesPaint =
+      isMergedAnalysisDesk &&
+      (mergedDeskPendingTfFitRef.current || mergedDeskTfOnlyLoadRef.current);
+    const tipOnly = forceFullSeriesPaint
+      ? false
+      : chartIxRef.current.isTipOnlyChange(prevTip, tipMeta);
+    const liveTail = forceFullSeriesPaint
+      ? false
+      : chartIxRef.current.isLiveTailChange(prevTip, tipMeta);
+    const interacting = forceFullSeriesPaint ? false : chartIxRef.current.isBusy();
+    const sparkleActive = !suppressCandleSparkle && (settlePulseActive || sparklePulse > 0);
+    /** OHLC·길이 동일 — settle/스파클 펄스만 바뀌면 setData 금지(우측 왓다리·빈축) */
+    if (tipOnly && prevTip && prevTip.tipOhlc === tipOhlc) {
+      chartSeriesTipSigRef.current = { ...tipMeta, tipOhlc };
+      chartSeriesCandlesRef.current = isMergedAnalysisDesk ? chartCandles : chartSeriesCandlesRef.current;
+      return;
+    }
+    if (
+      canTipUpdateWithoutFullSetData({ interacting, tipOnly: tipOnly || liveTail, sparkleActive: false }) &&
+      (tipOnly || liveTail) &&
+      prevTip &&
+      (prevTip.tipOhlc !== tipOhlc || liveTail)
+    ) {
+      try {
+        series.update({
+          time: tipBar.time as never,
+          open: tipBar.open,
+          high: tipBar.high,
+          low: tipBar.low,
+          close: tipBar.close,
+        });
+      } catch {
+        /* fall through to setData */
+      }
+      try {
+        if (volume && Number.isFinite(tipBar.volume)) {
+          volume.update({
+            time: tipBar.time as never,
+            value: Math.max(0, Number(tipBar.volume)),
+            color: tipBar.close >= tipBar.open ? '#26a69a' : '#ef5350',
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+      chartSeriesTipSigRef.current = { ...tipMeta, tipOhlc };
+      chartSeriesCandlesRef.current = isMergedAnalysisDesk ? chartCandles : [];
+      return;
+    }
+    if (interacting && (tipOnly || liveTail)) {
+      chartSeriesTipSigRef.current = { ...tipMeta, tipOhlc };
+      chartSeriesCandlesRef.current = isMergedAnalysisDesk ? chartCandles : [];
+      return;
+    }
+    chartSeriesTipSigRef.current = { ...tipMeta, tipOhlc };
+
+    const dataRaw = buildCandlestickDataWithPre3Sparkle(
+      chartCandles,
+      suppressCandleSparkle ? new Map() : merged,
+      suppressCandleSparkle && !settlePulseActive ? 0 : sparklePulse,
+      suppressCandleSparkle && !settlePulseActive ? true : rm,
+      suppressCandleSparkle ? undefined : lineZoneProximityByTime,
+      suppressCandleSparkle ? undefined : structurePhaseCandleByTime,
+      suppressCandleSparkle ? undefined : hotZoneCandleHighlightTimes,
+      candleBlendInput,
+      obPreBeamCandlePaintByTime,
+      settleCandlePaint
     );
+    const volBorderByTime =
+      bitgetVolumePackOn && volumeAiZonePack
+        ? buildVolumeVerdictCandleBorderByTime(chartCandles, volumeAiZonePack, timeframe)
+        : null;
+    const data =
+      volBorderByTime && volBorderByTime.size
+        ? applyVolumeVerdictCandleBorders(dataRaw, volBorderByTime)
+        : dataRaw;
+    /** setData가 가시구간을 우측으로 끌어당기지 않게 — 저장/직전 논리범위 고정.
+     *  단 TF·심볼 전환 직후만 최신봉 fit. recent→full 길이 점프는 범위만 이어붙임(재fit 금지). */
+    const prevSeriesLen = chartSeriesCandlesRef.current?.length ?? 0;
+    const lengthJump =
+      isMergedAnalysisDesk &&
+      prevSeriesLen >= 12 &&
+      chartCandles.length > prevSeriesLen + 50;
+    if (lengthJump && mergedDeskSavedLogicalRangeRef.current) {
+      const delta = chartCandles.length - prevSeriesLen;
+      const prev = mergedDeskSavedLogicalRangeRef.current;
+      mergedDeskSavedLogicalRangeRef.current = {
+        from: prev.from + delta,
+        to: prev.to + delta,
+      };
+    } else if (lengthJump) {
+      /** 저장 범위 없으면 TF fit 1회만 — 이후 setData 반복 fit 금지 */
+      mergedDeskPendingTfFitRef.current = true;
+    }
+    const tfFitPending =
+      isMergedAnalysisDesk &&
+      (mergedDeskPendingTfFitRef.current || mergedDeskTfOnlyLoadRef.current);
+    let preserveLr: { from: number; to: number } | null = null;
+    let didTfFitThisPass = false;
+    if (
+      isMergedAnalysisDesk &&
+      chartRef.current &&
+      !mergedDeskPanGestureRef.current &&
+      !tfFitPending
+    ) {
+      preserveLr =
+        mergedDeskSavedLogicalRangeRef.current ?? captureMergedDeskLogicalRange(chartRef.current);
+    }
     try {
       series.setData(data);
-    } catch {}
+    } catch {
+      /* ignore */
+    }
+    if (tfFitPending && chartRef.current && chartCandles.length >= 2 && !mergedDeskPanGestureRef.current) {
+      try {
+        mergedDeskSuppressPanDetectRef.current = true;
+        applyFocusLatestBars(chartRef.current, series, chartCandles.length, timeframe, {
+          scrollToLatest: true,
+        });
+        const cap = captureMergedDeskLogicalRange(chartRef.current);
+        if (cap) mergedDeskSavedLogicalRangeRef.current = cap;
+        mergedDeskPendingTfFitRef.current = false;
+        mergedDeskTfOnlyLoadRef.current = false;
+        didTfFitThisPass = true;
+        mergedDeskUserPanLockRef.current = true;
+        requestAnimationFrame(() => {
+          mergedDeskSuppressPanDetectRef.current = false;
+        });
+      } catch {
+        mergedDeskSuppressPanDetectRef.current = false;
+      }
+    } else if (preserveLr && chartRef.current && !mergedDeskPanGestureRef.current) {
+      try {
+        mergedDeskSuppressPanDetectRef.current = true;
+        restoreMergedDeskLogicalRange(chartRef.current, preserveLr);
+        requestAnimationFrame(() => {
+          mergedDeskSuppressPanDetectRef.current = false;
+        });
+      } catch {
+        mergedDeskSuppressPanDetectRef.current = false;
+      }
+    }
+    chartSeriesCandlesRef.current = isMergedAnalysisDesk ? chartCandles : [];
 
+    /**
+     * 잠금·저장 범위가 있으면 setData 이후에도 동일 가시구간 유지(폰·PC 공동).
+     * TF fit 직후에는 복원 금지 — 이전 TF 논리범위와 싸워 빈 화면이 됨.
+     */
+    if (
+      !didTfFitThisPass &&
+      isMergedAnalysisDesk &&
+      chartRef.current &&
+      !mergedDeskPanGestureRef.current &&
+      !mergedDeskPendingTfFitRef.current &&
+      !mergedDeskTfOnlyLoadRef.current &&
+      mergedDeskSavedLogicalRangeRef.current
+    ) {
+      const ch = chartRef.current;
+      const saved = mergedDeskSavedLogicalRangeRef.current;
+      let drifted = true;
+      try {
+        const cur = ch.timeScale().getVisibleLogicalRange();
+        if (
+          cur &&
+          Math.abs(cur.from - saved.from) < 0.35 &&
+          Math.abs(cur.to - saved.to) < 0.35
+        ) {
+          drifted = false;
+        }
+      } catch {
+        /* ignore */
+      }
+      if (drifted) {
+        requestAnimationFrame(() => {
+          try {
+            if (mergedDeskPanGestureRef.current) return;
+            if (mergedDeskPendingTfFitRef.current || mergedDeskTfOnlyLoadRef.current) return;
+            mergedDeskSuppressPanDetectRef.current = true;
+            restoreMergedDeskLogicalRange(ch, mergedDeskSavedLogicalRangeRef.current);
+            requestAnimationFrame(() => {
+              mergedDeskSuppressPanDetectRef.current = false;
+            });
+          } catch {
+            mergedDeskSuppressPanDetectRef.current = false;
+          }
+        });
+      }
+    }
+
+    /** 가격축 자동맞춤은 applyFocusLatestBars(TF 전환·뷰복원)에서만 — setData마다 하면 세로줌이 TF마다 깨짐 */
+
+    const projSeries = projectedSeriesRef.current;
+    if (projSeries) {
+      try {
+        const matchProj = analysisUsableOnChart(analysis, symbol, timeframe, uiMode);
+        /** 통합·분석(통합구름)은 미래 고스트 미사용 — 타임스케일 밀림으로 SMC 좌측 이동 방지 */
+        if (isMergedAnalysisDesk) {
+          projSeries.setData([]);
+        } else if (
+          isMonthStartDeskMode &&
+          settings.chartMonthDeskAdvancedPathEnabled !== false &&
+          matchProj &&
+          analysis
+        ) {
+          const ghost = buildMonthDeskProjectedCandles(chartCandles, analysis);
+          projSeries.setData(ghost.length ? monthDeskProjectedToLwc(ghost) : []);
+        } else {
+          projSeries.setData([]);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (isMonthStartDeskMode && chartCandles.length >= 2) {
+      const tailT = Number(chartCandles[chartCandles.length - 1]?.time);
+      if (Number.isFinite(tailT) && tailT > 0) {
+        monthDeskCandleTailScrollRef.current = tailT;
+      }
+      /** 새 봉마다 applyFocusLatestBars 금지 — 캔들·오버레이가 우측으로 서서히 밀림 */
+    }
+
+    /**
+     * 통합·분석: 새 봉이 와도 가시구간 유지.
+     * (예전: scrollToLatest로 매 봉 최신 정렬 → 캔들·기능 전체가 우측으로 이동)
+     * TF 전환·「뷰복원」만 applyFocusLatestBars 사용.
+     */
+    if (isMergedAnalysisDesk && chartCandles.length >= 2) {
+      const tailT = Number(chartCandles[chartCandles.length - 1]?.time);
+      if (Number.isFinite(tailT) && tailT > 0) {
+        monthDeskCandleTailScrollRef.current = tailT;
+      }
+    }
+
+    const volumeCandles = chartCandles;
     if (volume) {
       try {
         const th = chartThemes[theme];
         const maPeriodSetting = Math.max(0, Math.min(120, Math.floor(settings.chartVolumeMaPeriod ?? 0)));
         const rvolDenom = maPeriodSetting >= 8 ? maPeriodSetting : 20;
-        volume.setData(
-          candlesToVolumeHistogramData(safe, settings, th.bg, {
-            enabled: settings.chartVolumeIntelligence,
-            rvolTiers: settings.chartVolumeRvolTiers !== false,
-            rvolSmaPeriod: Math.max(8, Math.min(60, rvolDenom)),
-          })
-        );
-        const pal = volumeHistogramBarColors(settings, th.bg);
-        volume.applyOptions({ color: pal.up });
+        const volOpts = {
+          enabled: volumeHistogramIntelOn,
+          rvolTiers: settings.chartVolumeRvolTiers !== false,
+          rvolSmaPeriod: Math.max(8, Math.min(60, rvolDenom)),
+          directional: bitgetVolumePackOn,
+        };
+        const volBase = bitgetVolumePackOn
+          ? candlesToVolumeHistogramWithShock(
+              volumeCandles,
+              settings,
+              th.bg,
+              volumeShockResult,
+              volOpts,
+              timeframe
+            )
+          : candlesToVolumeHistogramData(volumeCandles, settings, th.bg, volOpts, timeframe);
+        const regimeVol =
+          bitgetVolumePackOn && volumeAiZonePack
+            ? applyVolumeRegimeBarColors(volBase, volumeAiZonePack, volumeCandles, timeframe)
+            : volBase;
+        const beamVolIntel =
+          bitgetVolumePackOn && isMergedAnalysisDesk && whaleBeamIntel
+            ? { ...whaleBeamIntel, history: [] }
+            : whaleBeamIntel;
+        const volData =
+          bitgetVolumePackOn && beamVolIntel && !isMergedAnalysisDesk
+            ? applyBeamIntelVolumeColors(regimeVol, volumeCandles, beamVolIntel)
+            : regimeVol;
+        const advVolOn =
+          isMergedAnalysisDesk && settings.chartMergedDeskAdvVolumeEnabled !== false;
+        const advVolLastClose =
+          volumeCandles.length > 0 && Number(volumeCandles[volumeCandles.length - 1]?.close) > 0
+            ? Number(volumeCandles[volumeCandles.length - 1]!.close)
+            : null;
+        const advVolAnalysisSpot = Number((analysis as AnalyzeResponse | null | undefined)?.currentPrice);
+        const advVolSpot =
+          Number.isFinite(advVolAnalysisSpot) && advVolAnalysisSpot > 0
+            ? advVolAnalysisSpot
+            : advVolLastClose;
+        const advVolPack =
+          advVolOn && volumeCandles.length >= 4
+            ? buildMergedDeskAdvVolumePack(volumeCandles, {
+                timeframe,
+                rvolPeriod: rvolDenom,
+                swingAnchorOn: settings.chartMergedDeskSwingAnchorVolumeEnabled !== false,
+                whaleBeamIntel: bitgetVolumePackOn ? whaleBeamIntel : null,
+                spotPx: advVolSpot,
+              })
+            : null;
+        const rbVolOn =
+          !advVolOn &&
+          isMergedAnalysisDesk &&
+          settings.chartMergedDeskBlueRedChannelsEnabled !== false &&
+          settings.chartMergedDeskRbVolumeSyncEnabled !== false;
+        const rbVolSync = rbVolOn
+          ? computeMergedDeskRbVolumeSync({
+              candles: volumeCandles,
+              timeframe,
+              whaleBeamSide:
+                whaleBeamIntel?.live?.beamKo === '롱빔'
+                  ? 'LONG'
+                  : whaleBeamIntel?.live?.beamKo === '숏빔'
+                    ? 'SHORT'
+                    : null,
+              whaleRangeNetPct: whaleCandleRange?.netPct ?? null,
+            })
+          : null;
+        if (advVolPack && advVolPack.sellHist.length > 0) {
+          /**
+           * 아래=총량(적/황) · 위=매수량(녹) — 초록 높이=매수 비중.
+           * 양봉 전체를 초록으로 칠하지 않음 (고점 매수 후 하락 괴리 방지).
+           */
+          volume.setData(advVolPack.sellHist);
+          try {
+            const buy = volumeBuyRef.current;
+            if (buy) {
+              buy.applyOptions({
+                visible: true,
+                base: 0,
+                lastValueVisible: false,
+                priceLineVisible: false,
+                color: 'rgba(34,197,94,0.88)',
+              });
+              buy.setData(advVolPack.buyHist);
+            }
+          } catch {
+            /* ignore */
+          }
+          volume.applyOptions({ visible: true, base: 0, lastValueVisible: false, priceLineVisible: false });
+        } else {
+          try {
+            volumeBuyRef.current?.applyOptions({ visible: true });
+          } catch {
+            /* ignore */
+          }
+          volumeBuyRef.current?.setData([]);
+          volume.setData(
+            rbVolSync
+              ? applyMergedDeskRbVolumeBarColors(volData, volumeCandles, rbVolSync, timeframe)
+              : volData
+          );
+          volume.applyOptions({ visible: true, base: 0, lastValueVisible: false, priceLineVisible: false });
+          const pal = volumeHistogramBarColors(settings, th.bg);
+          volume.applyOptions({ color: pal.up });
+        }
         const ma = volumeMaRef.current;
         if (ma) {
-          if (settings.chartVolumeIntelligence && maPeriodSetting >= 2 && safe.length >= maPeriodSetting) {
-            ma.setData(buildVolumeMaLineData(safe, maPeriodSetting));
+          if (volumeHistogramIntelOn && maPeriodSetting >= 2 && volumeCandles.length >= maPeriodSetting) {
+            ma.setData(
+              alignSeriesPointsToCandleTimes(
+                buildVolumeMaLineData(volumeCandles, maPeriodSetting, timeframe),
+                volumeCandles
+              )
+            );
           } else {
             ma.setData([]);
           }
         }
-      } catch {
+      } catch (volErr) {
+        /** 실패 시 비우지 말고 기본 히스토그램으로 복구 */
         try {
-          volume.setData([]);
-        } catch {}
-        try {
-          volumeMaRef.current?.setData([]);
-        } catch {}
+          const th = chartThemes[theme];
+          const fallback = candlesToVolumeHistogramData(
+            volumeCandles,
+            settings,
+            th.bg,
+            { enabled: volumeHistogramIntelOn },
+            timeframe
+          );
+          volume.setData(fallback);
+          volume.applyOptions({ visible: true, base: 0 });
+        } catch {
+          /* ignore */
+        }
+        if (typeof console !== 'undefined') {
+          console.warn('[ChartView] volume setData failed', volErr);
+        }
       }
+    }
+    const chartForVol = chartRef.current;
+    if (chartForVol && volume) {
+      applyChartVolumePanelLayout(chartForVol, volPanelLayout, {
+        volume,
+        volumeBuy: volumeBuyRef.current,
+        volumeMa: volumeMaRef.current,
+      });
+      requestAnimationFrame(() => {
+        bumpVolumePanelLayoutRef.current();
+      });
     }
   }, [
     candles,
     analysis,
     symbol,
     timeframe,
+    uiMode,
     sparklePulse,
     sparkleRedrawTick,
     theme,
-    settings.chartVolumeIntelligence,
+    volumeHistogramIntelOn,
+    bitgetVolumePackOn,
+    volumeShockResult,
+    whaleBeamIntel,
+    whaleCandleRange,
+    volumeAiZonePack,
     settings.chartVolumeRvolTiers,
     settings.chartVolumeMaPeriod,
     settings.chartCandleStyle,
@@ -7621,11 +15104,49 @@ const ChartViewInner = ({
     lineZoneProximityByTime,
     structurePhaseCandleByTime,
     hotZoneCandleHighlightTimes,
+    obPreBeamCandlePaintByTime,
+    monthDeskSettleCandlePaintByTime,
+    mergedDeskSettleCandlePaintByTime,
     candleBlendInput,
+    isMergedAnalysisDesk,
+    settings.chartMergedDeskBlueRedChannelsEnabled,
+    settings.chartMergedDeskRbVolumeSyncEnabled,
+    settings.chartMergedDeskAdvVolumeEnabled,
+    mergedAnalysisDeskPack?.activeTradePlan?.status,
+    mergedAnalysisDeskPack?.activeTradePlan?.direction,
+    mergedAnalysisDeskPack?.mtfDumpPack?.zones,
+    mergedAnalysisDeskPack?.mtfDumpPack?.summaryKo,
+    isMonthStartDeskMode,
+    candlesForMergedDeskChart,
+    candlesForMergedDeskEngine,
+    volPanelLayout,
   ]);
+
+  /** 마감·안착 / 통합 — 확정 봉 캔들 색 펄스 */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const paint = isMonthStartDeskMode
+      ? monthDeskSettleCandlePaintByTime
+      : isMergedAnalysisDesk
+        ? mergedDeskSettleCandlePaintByTime
+        : null;
+    if (!paint?.size) return;
+    let hasConfirmed = false;
+    for (const cell of paint.values()) {
+      if (cell.phase === 'confirmed') {
+        hasConfirmed = true;
+        break;
+      }
+    }
+    if (!hasConfirmed) return;
+    const clear = setVisibleInterval(() => setSparklePulse((p) => (p + 1) % 2), 2000);
+    return () => clear();
+  }, [uiMode, isMonthStartDeskMode, isMergedAnalysisDesk, monthDeskSettleCandlePaintByTime, mergedDeskSettleCandlePaintByTime]);
 
   /** pre3 반짝 + 줄선·존 근접 펄스 — 터치 기기는 “움직임 줄이기”여도 펄스 허용 */
   useEffect(() => {
+    if (CHART_DISABLE_ALL_CANDLE_SPARKLE) return;
+    if (isMonthStartDeskMode) return;
     if (typeof window === 'undefined') return;
     const hasLz = hasLineZoneProximitySparkle(lineZoneProximityByTime);
     const hasStructPulse =
@@ -7644,9 +15165,10 @@ const ChartViewInner = ({
       window.matchMedia?.('(pointer: coarse)').matches === true || navigator.maxTouchPoints > 0;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReduced && !coarseTouch) return;
-    const id = window.setInterval(() => setSparklePulse((p) => (p + 1) % 2), 650);
-    return () => clearInterval(id);
+    const clear = setVisibleInterval(() => setSparklePulse((p) => (p + 1) % 2), 2000);
+    return () => clear();
   }, [
+    uiMode,
     symbol,
     timeframe,
     candles,
@@ -7657,19 +15179,48 @@ const ChartViewInner = ({
     hotZoneCandleHighlightTimes,
   ]);
 
-  /** WAD 고래 라벨 — 거래량 패널에만 표시. 호가·체결 존이 있으면 존과 겹친 급증 봉만 라벨 */
+  /** Bitget: 거래량 2k/5k/10k — 과거·현재·미래 USD 라벨 */
   useEffect(() => {
     const api = volumeMarkersRef.current;
     if (!api) return;
+    const advVolOn =
+      isMergedAnalysisDesk && settings.chartMergedDeskAdvVolumeEnabled !== false;
+    if (advVolOn) {
+      /** 통합·분석: 돌파V·수급동의 = 거래량 위 HTML 가로 라벨 (LWC 텍스트 세로스택 금지) */
+      api.setMarkers([]);
+      return;
+    }
+    if (bitgetVolumePackOn) {
+      if (candles.length === 0) {
+        api.setMarkers([]);
+        return;
+      }
+      const volCandles = volumeAiCanonicalCandles.length >= 2 ? volumeAiCanonicalCandles : candles;
+      const segMk = volumeAiZonePack
+        ? buildVolumeSegmentMarkers(volCandles, volumeAiZonePack, timeframe)
+        : [];
+      api.setMarkers(
+        sanitizeSeriesMarkersForLwc(
+          layoutVolumeMarkersHorizontal(
+            segMk as any,
+            volCandles.map((c) => ({ time: Number(c.time) })),
+            Math.max(4, Math.min(12, Math.floor(settings.chartVolumeMarkerMinBarGap ?? 6))),
+            10
+          ) as any,
+          volCandles.map((c) => Number(c.time))
+        ) as any
+      );
+      return;
+    }
     if (CHART_DEV_ZONES_MSBOB_ONLY) {
       api.setMarkers([]);
       return;
     }
-    if (!settings.chartVolumeIntelligence || candles.length === 0) {
+    if (!volumeHistogramIntelOn || candles.length === 0) {
       api.setMarkers([]);
       return;
     }
-    const symTfOk = analysisMatchesSymbolAndTf(analysis, symbol, timeframe);
+    const symTfOk = analysisUsableOnChart(analysis, symbol, timeframe, uiMode);
     const buyZ = symTfOk ? ((analysis as AnalyzeResponse).buyZones ?? []) : [];
     const sellZ = symTfOk ? ((analysis as AnalyzeResponse).sellZones ?? []) : [];
     const zoneFilter =
@@ -7722,12 +15273,26 @@ const ChartViewInner = ({
       { markers: wadMk, priority: P.WAD_WHALE },
       { markers: brkMk, priority: P.ZONE_BREAKOUT },
     ]);
-    const barGap = Math.max(0, Math.min(8, Math.floor(settings.chartVolumeMarkerMinBarGap ?? defaultSettings.chartVolumeMarkerMinBarGap)));
+    const barGap = isMergedAnalysisDesk
+      ? 0
+      : Math.max(0, Math.min(8, Math.floor(settings.chartVolumeMarkerMinBarGap ?? defaultSettings.chartVolumeMarkerMinBarGap)));
     const merged = thinVolumeMarkersByBarGap(mergedTagged, candles, barGap);
-    api.setMarkers(merged);
+    const candleTimes = candles.map((c) => Number(c.time));
+    const safeMerged = sanitizeSeriesMarkersForLwc(merged, candleTimes);
+    safeSeriesSetMarkers(
+      api,
+      isMergedAnalysisDesk
+        ? safeMerged
+        : layoutVolumeMarkersHorizontal(
+            safeMerged,
+            candles.map((c) => ({ time: Number(c.time) })),
+            Math.max(4, barGap || 6),
+            10
+          )
+    );
   }, [
     candles,
-    settings.chartVolumeIntelligence,
+    volumeHistogramIntelOn,
     settings.chartVolumeZoneBreakMarkers,
     settings.chartVolumeRvolSpikeMarkers,
     settings.chartVolumeAbsorptionMarkers,
@@ -7741,13 +15306,337 @@ const ChartViewInner = ({
     wadMarkerBuyUi,
     wadMarkerSellUi,
     translateLabelsToKo,
+    bitgetVolumePackOn,
+    isMergedAnalysisDesk,
+    volumeAiZonePack,
+    volumeAiCanonicalCandles,
+    candlesForMergedDeskChart,
+    settings.chartMergedDeskAdvVolumeEnabled,
   ]);
+
+  /** Bitget: 과거 거래량 쇼크 통계 → 현재 봉 USD 가이드 */
+  useEffect(() => {
+    if (!bitgetVolumePackOn) {
+      setVolumeShockGuide(null);
+      setVolumeShockResult(null);
+      setVolumePhaseCurrent(null);
+      setWhaleVolumeMatch(null);
+      setWhaleVolumeMtf(null);
+      setWhaleVolumeListingKo(null);
+      setWhaleCatalogSpanKo(null);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const q = new URLSearchParams({
+          symbol: String(symbol || 'BTCUSDT').toUpperCase(),
+          timeframe: String(timeframe || '15m'),
+          lookbackDays: '90',
+        });
+        const pq = new URLSearchParams({
+          symbol: String(symbol || 'BTCUSDT').toUpperCase(),
+          timeframe: String(timeframe || '15m'),
+        });
+        const [res, phaseRes] = await Promise.all([
+          fetch(`/api/volume-shock-forecast?${q}`, { cache: 'no-store' }),
+          fetch(`/api/volume-phase-stats?${pq}`, { cache: 'no-store' }),
+        ]);
+        const j = (await res.json()) as { ok?: boolean; result?: VolumeShockForecastResult };
+        const pj = (await phaseRes.json()) as {
+          ok?: boolean;
+          current?: import('@/lib/volumePhaseStats').VolumePhaseCurrentMatch | null;
+        };
+        if (cancelled) return;
+        if (!j.ok || !j.result) {
+          setVolumeShockGuide(null);
+          setVolumeShockResult(null);
+        } else {
+          setVolumeShockResult(j.result);
+          setVolumeShockGuide(buildVolumeShockChartGuide(j.result));
+        }
+        setVolumePhaseCurrent(pj.ok && pj.current ? pj.current : null);
+      } catch {
+        if (!cancelled) {
+          setVolumeShockGuide(null);
+          setVolumeShockResult(null);
+          setVolumePhaseCurrent(null);
+        }
+      }
+    };
+    void load();
+    const id = window.setInterval(() => void load(), 45_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [bitgetVolumePackOn, symbol, timeframe]);
+
+  const loadWhaleCompare = useCallback(async () => {
+    if (!bitgetVolumePackOn) return;
+    setWhaleCompareLoading(true);
+    try {
+      const q = new URLSearchParams({
+        symbol: String(symbol || 'BTCUSDT').toUpperCase(),
+        timeframe: String(timeframe || '15m'),
+        mtf: '1',
+      });
+      const res = await fetch(`/api/bitget-whale-volume-compare?${q}`, { cache: 'no-store' });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        compare?: BitgetWhaleVolumeComparePack | null;
+        mtfPack?: WhaleVolumeMtfPack | null;
+      };
+      if (data?.ok && data.compare) {
+        setWhaleComparePack(data.compare);
+        setWhaleCompareMtf(data.mtfPack ?? null);
+        setWhaleCompareOpen(true);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setWhaleCompareLoading(false);
+    }
+  }, [bitgetVolumePackOn, symbol, timeframe]);
+
+  /** Bitget: 고래 BTC 티어 + 캔들 지문 — 상장~ 카탈로그 MTF 매칭 */
+  useEffect(() => {
+    if (!bitgetVolumePackOn) {
+      setWhaleVolumeMatch(null);
+      setWhaleVolumeMtf(null);
+      setWhaleVolumeListingKo(null);
+      setWhaleCatalogSpanKo(null);
+      setWhaleCandleSingle(null);
+      setWhaleCandleRange(null);
+      setWhaleBeamIntel(null);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      setWhaleVolumeLoading(true);
+      try {
+        const q = new URLSearchParams({
+          symbol: String(symbol || 'BTCUSDT').toUpperCase(),
+          timeframe: String(timeframe || '15m'),
+          mtf: '1',
+        });
+        const [matchRes, beamRes] = await Promise.all([
+          fetch(`/api/bitget-whale-volume-match?${q}`, { cache: 'no-store' }),
+          fetch(
+            `/api/bitget-whale-volume-beam-intel?${new URLSearchParams({
+              symbol: String(symbol || 'BTCUSDT').toUpperCase(),
+              timeframe: String(timeframe || '15m'),
+            })}`,
+            { cache: 'no-store' }
+          ),
+        ]);
+        const data = (await matchRes.json()) as {
+          ok?: boolean;
+          match?: WhaleVolumeLiveMatch | null;
+          mtfPack?: WhaleVolumeMtfPack | null;
+          catalogMeta?: { listingFromKo?: string; dataSpanKo?: string } | null;
+          candleCompare?: {
+            singleCandle?: SingleCandleCompare | null;
+            rangeSegment?: RangeSegmentCompare | null;
+          } | null;
+        };
+        const beamData = (await beamRes.json()) as {
+          ok?: boolean;
+          intel?: WhaleBeamIntelPack | null;
+          catalogMeta?: { dataSpanKo?: string; listingFromKo?: string } | null;
+        };
+        if (cancelled) return;
+        if (data?.ok) {
+          setWhaleVolumeMatch(data.match ?? null);
+          setWhaleVolumeMtf(data.mtfPack ?? null);
+          setWhaleVolumeListingKo(data.catalogMeta?.listingFromKo ?? null);
+          setWhaleCatalogSpanKo(
+            data.catalogMeta?.dataSpanKo ??
+              (data.catalogMeta?.listingFromKo ? `${data.catalogMeta.listingFromKo}~` : null)
+          );
+          setWhaleCandleSingle(data.candleCompare?.singleCandle ?? null);
+          setWhaleCandleRange(data.candleCompare?.rangeSegment ?? null);
+        } else {
+          setWhaleVolumeMatch(null);
+          setWhaleVolumeMtf(null);
+          setWhaleVolumeListingKo(null);
+          setWhaleCatalogSpanKo(null);
+          setWhaleCandleSingle(null);
+          setWhaleCandleRange(null);
+        }
+        setWhaleBeamIntel(beamData?.ok && beamData.intel ? beamData.intel : null);
+        if (beamData?.catalogMeta?.dataSpanKo) {
+          setWhaleCatalogSpanKo(beamData.catalogMeta.dataSpanKo);
+        }
+      } catch {
+        if (!cancelled) {
+          setWhaleVolumeMatch(null);
+          setWhaleVolumeMtf(null);
+          setWhaleVolumeListingKo(null);
+          setWhaleCatalogSpanKo(null);
+          setWhaleCandleSingle(null);
+          setWhaleCandleRange(null);
+          setWhaleBeamIntel(null);
+        }
+      } finally {
+        if (!cancelled) setWhaleVolumeLoading(false);
+      }
+    };
+    void load();
+    const id = window.setInterval(() => void load(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [bitgetVolumePackOn, symbol, timeframe]);
+
+  /** 가격축 숫자(USD) 가이드선 — 거래량 패널 글자 없음 */
+  useEffect(() => {
+    const series = seriesRef.current;
+    const lines = monthDeskVolumeShockPriceLinesRef.current;
+    const prev = [...lines];
+    lines.length = 0;
+    prev.forEach((line) => {
+      try {
+        (series as any)?.removePriceLine?.(line);
+      } catch {}
+    });
+
+    if (!bitgetVolumePackOn || !volumeShockGuide || !series || whaleBeamIntel?.live) {
+      return () => {
+        lines.forEach((line) => {
+          try {
+            (series as any)?.removePriceLine?.(line);
+          } catch {}
+        });
+        lines.length = 0;
+      };
+    }
+
+    const levels = volumeShockPriceLineTitles(volumeShockGuide);
+    const axisBg = 'rgba(15,23,42,0.92)';
+    const showAxisPrices =
+      !isMergedAnalysisDesk || settings.chartMergedDeskRightAxisPricesEnabled !== false;
+    for (const lv of levels) {
+      try {
+        const line = (series as any).createPriceLine({
+          price: lv.price,
+          color: lv.color,
+          title: showAxisPrices ? lv.title : '',
+          lineWidth: lv.kind === 'median' ? 2 : 1,
+          lineStyle: lv.kind === 'median' ? LineStyle.Solid : LineStyle.Dotted,
+          lineVisible: true,
+          lastValueVisible: false,
+          axisLabelVisible: showAxisPrices,
+          axisLabelColor: axisBg,
+          axisLabelTextColor: lv.color,
+        });
+        lines.push(line);
+      } catch {}
+    }
+
+    return () => {
+      lines.forEach((line) => {
+        try {
+          (series as any)?.removePriceLine?.(line);
+        } catch {}
+      });
+      lines.length = 0;
+    };
+  }, [
+    bitgetVolumePackOn,
+    volumeShockGuide,
+    whaleBeamIntel,
+    candles.length,
+    symbol,
+    timeframe,
+    overlayTick,
+    isMergedAnalysisDesk,
+    settings.chartMergedDeskRightAxisPricesEnabled,
+  ]);
+
+  /** Bitget 카탈로그 빔 — 진입·목표 가격축 (현물 % 통계) */
+  useEffect(() => {
+    const series = seriesRef.current;
+    const lines = whaleBeamPriceLinesRef.current;
+    const prev = [...lines];
+    lines.length = 0;
+    prev.forEach((line) => {
+      try {
+        (series as any)?.removePriceLine?.(line);
+      } catch {}
+    });
+
+    const live = whaleBeamIntel?.live;
+    if (
+      !bitgetVolumePackOn ||
+      !series ||
+      !live ||
+      (live.beamKo === '관망' && live.verdictKo === '횡보') ||
+      isMergedAnalysisDesk
+    ) {
+      return () => {
+        lines.forEach((line) => {
+          try {
+            (series as any)?.removePriceLine?.(line);
+          } catch {}
+        });
+        lines.length = 0;
+      };
+    }
+
+    const fmtP = (p: number) =>
+      p >= 1000 ? p.toLocaleString('en-US', { maximumFractionDigits: 0 }) : p.toFixed(2);
+    const axisBg = 'rgba(15,23,42,0.92)';
+    const levels: Array<{ price: number; color: string; title: string; solid?: boolean }> = [
+      {
+        price: live.entryPrice,
+        color: live.move.color,
+        title: `${live.move.entryKo} ${fmtP(live.entryPrice)}`,
+      },
+      {
+        price: live.targetPrice,
+        color: live.move.color,
+        title: `목표 ${fmtP(live.targetPrice)} ${live.move.pctLabel}`,
+        solid: true,
+      },
+    ];
+    for (const lv of levels) {
+      if (!Number.isFinite(lv.price) || lv.price <= 0) continue;
+      try {
+        const line = (series as any).createPriceLine({
+          price: lv.price,
+          color: lv.color,
+          title: `${live.verdictKo === '하락' ? '▼' : live.verdictKo === '상승' ? '▲' : ''} ${lv.title}`.trim(),
+          lineWidth: lv.solid ? 2 : 1,
+          lineStyle: lv.solid ? LineStyle.Solid : LineStyle.Dotted,
+          lineVisible: true,
+          lastValueVisible: false,
+          axisLabelVisible: true,
+          axisLabelColor: axisBg,
+          axisLabelTextColor: lv.color,
+        });
+        lines.push(line);
+      } catch {}
+    }
+
+    return () => {
+      lines.forEach((line) => {
+        try {
+          (series as any)?.removePriceLine?.(line);
+        } catch {}
+      });
+      lines.length = 0;
+    };
+  }, [bitgetVolumePackOn, whaleBeamIntel, candles.length, symbol, timeframe, overlayTick, isMergedAnalysisDesk]);
 
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
     const th = chartThemes[theme];
     const isDayOrWeek = timeframe === '1d' || timeframe === '1w';
+    const monthDeskMode = isMonthStartDeskMode;
+    const monthDeskDayWeek = monthDeskMode && isDayOrWeek;
     const formatUtcDate = (t: number) => {
       const d = new Date(t * 1000);
       const y = d.getUTCFullYear();
@@ -7770,20 +15659,36 @@ const ChartViewInner = ({
       : undefined;
     const opts: Parameters<typeof chart.applyOptions>[0] = {
       layout: {
-        background: { color: th.bg },
+        background: lwcLayoutBackground(th.bg, isMergedAnalysisDesk),
         textColor: th.text,
-        fontSize: Math.max(10, Math.min(18, chartScaleFontSize)),
+        fontSize: Math.max(1, Math.min(20, chartScaleFontSize)),
         fontFamily: CHART_PRO_FONT,
       },
       grid: chartGridOptions(th),
       crosshair: chartCrosshairOptions(th),
-      rightPriceScale: { borderColor: th.border, visible: chartSectionVis.s3 },
+      rightPriceScale: { borderColor: th.border, visible: chartSectionVis.s3, minimumWidth: chartPriceScaleLayout.minimumWidth, scaleMargins: volPanelLayout.candleScaleMargins },
       timeScale: {
         borderColor: th.border,
         tickMarkFormatter: tickMarkFormatter ?? undefined,
-        rightOffset: smartMoneyRightOffset,
+        rightOffset: monthDeskMode
+          ? Math.max(smartMoneyRightOffset, monthDeskDayWeek ? 6 : 4)
+          : isMergedAnalysisDesk
+            ? MERGED_DESK_RIGHT_FUTURE_BARS
+            : smartMoneyRightOffset,
       },
     };
+    if (chartPriceScaleLayout.layoutFontSize != null) {
+      opts.layout = {
+        ...opts.layout,
+        /** 사용자 가격축 크기 우선 — 1~20 */
+        fontSize: Math.max(1, Math.min(20, chartPriceScaleLayout.layoutFontSize)),
+      };
+    } else {
+      opts.layout = {
+        ...opts.layout,
+        fontSize: Math.max(1, Math.min(20, chartScaleFontSize)),
+      };
+    }
     if (isDayOrWeek) {
       (opts as any).localization = {
         timeFormatter: (time: unknown) => {
@@ -7794,9 +15699,46 @@ const ChartViewInner = ({
         dateFormat: 'yyyy-MM-dd',
       };
     }
-    chart.applyOptions(opts);
-    volumeMaRef.current?.applyOptions({ color: th.volumeHistogramMaLine });
-  }, [theme, timeframe, chartScaleFontSize, chartSectionVis.s3, smartMoneyRightOffset]);
+    applyMergedDeskTimeScalePreserveRange(
+      chart,
+      () => {
+        chart.applyOptions(opts);
+        volumeMaRef.current?.applyOptions({ color: th.volumeHistogramMaLine });
+        bumpVolumePanelLayout();
+      },
+      isMergedAnalysisDesk ? mergedDeskSuppressPanDetectRef : undefined
+    );
+  }, [theme, timeframe, uiMode, chartScaleFontSize, chartSectionVis.s3, smartMoneyRightOffset, isMergedAnalysisDesk, bitgetVolumePackOn, chartPriceScaleLayout, volPanelLayout, bumpVolumePanelLayout]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    try {
+      applyMergedDeskTimeScalePreserveRange(
+        chart,
+        () => {
+          chart.applyOptions({
+            rightPriceScale: {
+              minimumWidth: chartPriceScaleLayout.minimumWidth,
+              scaleMargins: volPanelLayout.candleScaleMargins,
+            },
+            timeScale: {
+              rightOffset: isMergedAnalysisDesk
+                ? MERGED_DESK_RIGHT_FUTURE_BARS
+                : smartMoneyRightOffset,
+            },
+            ...(chartPriceScaleLayout.layoutFontSize != null
+              ? { layout: { fontSize: Math.max(1, Math.min(20, chartPriceScaleLayout.layoutFontSize)) } }
+              : {}),
+          });
+          bumpVolumePanelLayout();
+        },
+        isMergedAnalysisDesk ? mergedDeskSuppressPanDetectRef : undefined
+      );
+    } catch {
+      /* chart not ready */
+    }
+  }, [chartPriceScaleLayout, isMergedAnalysisDesk, bitgetVolumePackOn, smartMoneyRightOffset, volPanelLayout, bumpVolumePanelLayout]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -7814,9 +15756,13 @@ const ChartViewInner = ({
       }
       const zoneLine = zoneRangeSeriesRef.current;
       if (!zoneLine) return;
+      const axisCandles =
+        isMergedAnalysisDesk && chartSeriesCandlesRef.current.length >= 2
+          ? chartSeriesCandlesRef.current
+          : sanitizeChartCandlesForSeries(candles, timeframe);
       const rangeData: LineData<UTCTimestamp>[] = [
-        { time: candles[0].time as UTCTimestamp, value: ZONE_PRICE_CEIL },
-        { time: candles[candles.length - 1].time as UTCTimestamp, value: ZONE_PRICE_FLOOR },
+        { time: axisCandles[0]!.time as UTCTimestamp, value: ZONE_PRICE_CEIL },
+        { time: axisCandles[axisCandles.length - 1]!.time as UTCTimestamp, value: ZONE_PRICE_FLOOR },
       ];
       zoneLine.setData(rangeData);
     } else {
@@ -7833,8 +15779,12 @@ const ChartViewInner = ({
     if (!chart || candles.length < 2) return;
     const minR = Number(closeOverlayRange?.min);
     const maxR = Number(closeOverlayRange?.max);
-    const t0 = Number(candles[0]?.time);
-    const t1 = Number(candles[candles.length - 1]?.time);
+    const axisForClose =
+      isMergedAnalysisDesk && chartSeriesCandlesRef.current.length >= 2
+        ? chartSeriesCandlesRef.current
+        : sanitizeChartCandlesForSeries(candles, timeframe);
+    const t0 = Number(axisForClose[0]?.time);
+    const t1 = Number(axisForClose[axisForClose.length - 1]?.time);
     const rangeOk =
       Number.isFinite(minR) &&
       Number.isFinite(maxR) &&
@@ -7887,21 +15837,143 @@ const ChartViewInner = ({
     }
   }, [uiMode, closeOverlayRange?.min, closeOverlayRange?.max, candles]);
 
-  /** 기관·세력 흐름: SuperTrend 스텝 밴드 (롱=아래 초록 / 숏=위 빨강) — 모든 모드 공통 */
+  /** SuperTrend 스텝: 모든 모드 활성 추세선 — 마감·안착은 구간별 존상·존하(활성 변 굵게·우측 라벨은 마지막 구간 활성 변만) */
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    const longBandColor =
-      typeof settings.institutionalBandLongHex === 'string' && /^#[0-9a-fA-F]{6}$/.test(settings.institutionalBandLongHex)
+    const aiToneBand = isMergedAnalysisDesk && isMergedDeskAiToneEnabled(settings);
+    const lowerBandColor = aiToneBand
+      ? MERGED_DESK_AI_TONE_BAND.long
+      : typeof settings.institutionalBandLongHex === 'string' && /^#[0-9a-fA-F]{6}$/.test(settings.institutionalBandLongHex)
         ? settings.institutionalBandLongHex.toUpperCase()
         : '#22C55E';
-    const shortBandColor =
-      typeof settings.institutionalBandShortHex === 'string' && /^#[0-9a-fA-F]{6}$/.test(settings.institutionalBandShortHex)
+    const upperBandColor = aiToneBand
+      ? MERGED_DESK_AI_TONE_BAND.short
+      : typeof settings.institutionalBandShortHex === 'string' && /^#[0-9a-fA-F]{6}$/.test(settings.institutionalBandShortHex)
         ? settings.institutionalBandShortHex.toUpperCase()
         : '#EF4444';
+    const deskInstitutionalEnvelopeBands = mergedInstitutionalBandsOn;
+    const monthDeskEnvLongHex = deskInstitutionalEnvelopeBands
+      ? aiToneBand
+        ? MERGED_DESK_AI_TONE_BAND.long
+        : '#22C55E'
+      : lowerBandColor;
+    const monthDeskEnvShortHex = deskInstitutionalEnvelopeBands
+      ? aiToneBand
+        ? MERGED_DESK_AI_TONE_BAND.short
+        : '#EF4444'
+      : upperBandColor;
     const enabled = CHART_BAND_LINE_AND_TOUCH_ALWAYS_ON;
-    const safe = sanitizeChartCandlesForSeries(candles);
-    const removeBoth = () => {
+    /**
+     * 기관밴드 LineSeries time ⊆ 차트 캔들 time (전 TF 공동).
+     * 부시리즈만 갭 메우면 LWC가 캔들 사이 빈 칸을 만듦.
+     */
+    /** setData에 실제로 올린 캔들 축 — 부시리즈가 다른 sanitize 시각을 넣으면 뛰엄뛰엄 */
+    const chartTimeBase =
+      isMergedAnalysisDesk && chartSeriesCandlesRef.current.length >= 2
+        ? chartSeriesCandlesRef.current
+        : isMergedAnalysisDesk && candlesForMergedDeskChart.length >= 2
+          ? candlesForMergedDeskChart
+          : sanitizeChartCandlesForSeries(candles, timeframe);
+    const bandSrc = deskInstitutionalEnvelopeBands
+      ? monthDeskFusionInputRef.current
+      : candlesForOverlay.length
+        ? candlesForOverlay
+        : candles;
+    const safeBand = sanitizeChartCandlesForSeries(bandSrc, timeframe);
+    /** 밴드 계산도 차트 축 시각만 사용(캔들 필터 ≠ 새 time 삽입) */
+    const chartTimeSet = new Set(
+      chartTimeBase.map((c) => Number(c.time)).filter((t) => Number.isFinite(t) && t > 0)
+    );
+    const safeAligned = safeBand.filter((c) => chartTimeSet.has(Number(c.time)));
+    const safe =
+      safeAligned.length >= 8
+        ? safeAligned
+        : chartTimeBase.length >= 2
+          ? chartTimeBase
+          : safeBand;
+    const removeMonthDeskGuideLines = () => {
+      for (const s of monthDeskCompositeGuideRefsRef.current) {
+        try {
+          chart.removeSeries(s);
+        } catch {
+          /* ignore */
+        }
+      }
+      monthDeskCompositeGuideRefsRef.current = [];
+    };
+    const removeEnvelopeSegmentPairs = () => {
+      for (const pair of institutionalEnvelopeSegRefsRef.current) {
+        try {
+          chart.removeSeries(pair.upper);
+        } catch {
+          /* ignore */
+        }
+        try {
+          chart.removeSeries(pair.lower);
+        } catch {
+          /* ignore */
+        }
+      }
+      institutionalEnvelopeSegRefsRef.current = [];
+    };
+    const removeMonthDeskMidLines = () => {
+      for (const s of monthDeskMidLineRefsRef.current) {
+        try {
+          chart.removeSeries(s);
+        } catch {
+          /* ignore */
+        }
+      }
+      monthDeskMidLineRefsRef.current = [];
+    };
+    const removeFusionDeskBandLines = () => {
+      for (const pair of fusionDeskBandSegRefsRef.current) {
+        try {
+          chart.removeSeries(pair.upper);
+        } catch {
+          /* ignore */
+        }
+        try {
+          chart.removeSeries(pair.lower);
+        } catch {
+          /* ignore */
+        }
+      }
+      fusionDeskBandSegRefsRef.current = [];
+      for (const s of fusionDeskBandMidRefsRef.current) {
+        try {
+          chart.removeSeries(s);
+        } catch {
+          /* ignore */
+        }
+      }
+      fusionDeskBandMidRefsRef.current = [];
+      for (const s of tripleTrendBandLineRefsRef.current) {
+        try {
+          chart.removeSeries(s);
+        } catch {
+          /* ignore */
+        }
+      }
+      tripleTrendBandLineRefsRef.current = [];
+    };
+    const removeAtlasPulsePriceLines = () => {
+      for (const s of atlasPulsePriceLineRefsRef.current) {
+        try {
+          chart.removeSeries(s);
+        } catch {
+          /* ignore */
+        }
+      }
+      atlasPulsePriceLineRefsRef.current = [];
+    };
+    const removeClosingZonePack = () => {
+      removeEnvelopeSegmentPairs();
+      removeMonthDeskGuideLines();
+      removeMonthDeskMidLines();
+      removeFusionDeskBandLines();
+      removeAtlasPulsePriceLines();
       if (institutionalLongLineRef.current) {
         try {
           chart.removeSeries(institutionalLongLineRef.current);
@@ -7916,49 +15988,583 @@ const ChartViewInner = ({
       }
     };
     if (!enabled || safe.length < 2) {
-      removeBoth();
+      if (monthDeskInstitutionalFxTimerRef.current) {
+        clearTimeout(monthDeskInstitutionalFxTimerRef.current);
+        monthDeskInstitutionalFxTimerRef.current = null;
+      }
+      monthDeskInstitutionalLastFxSigRef.current = '';
+      removeClosingZonePack();
       return;
     }
-    const { long, short } = computeInstitutionalSuperBandData(safe, 10, 3);
-    if (!institutionalLongLineRef.current) {
-      institutionalLongLineRef.current = chart.addSeries(LineSeries, {
-        color: longBandColor,
-        lineWidth: 3,
-        lineType: LineType.WithSteps,
-        lastValueVisible: false,
-        priceLineVisible: false,
-        crosshairMarkerVisible: false,
-        priceScaleId: 'right',
-      });
-    }
-    if (!institutionalShortLineRef.current) {
-      institutionalShortLineRef.current = chart.addSeries(LineSeries, {
-        color: shortBandColor,
-        lineWidth: 3,
-        lineType: LineType.WithSteps,
-        lastValueVisible: false,
-        priceLineVisible: false,
-        crosshairMarkerVisible: false,
-        priceScaleId: 'right',
-      });
-    }
-    try {
-      institutionalLongLineRef.current?.applyOptions({
-        color: longBandColor,
-      });
-      institutionalShortLineRef.current?.applyOptions({
-        color: shortBandColor,
-      });
-      institutionalLongLineRef.current?.setData(long);
-      institutionalShortLineRef.current?.setData(short);
-    } catch {
-      removeBoth();
-    }
-  }, [candles, settings.institutionalBandLongHex, settings.institutionalBandShortHex]);
+    const axisHint = settings.showInstitutionalTrendBadge !== false;
 
-  /** SuperTrend 요약 배지 (줄선과 동일 계산) */
+    const applyMonthDeskInstitutional = () => {
+      removeMonthDeskGuideLines();
+      removeEnvelopeSegmentPairs();
+      try {
+        if (institutionalLongLineRef.current) {
+          try {
+            chart.removeSeries(institutionalLongLineRef.current);
+          } catch {}
+          institutionalLongLineRef.current = null;
+        }
+        if (institutionalShortLineRef.current) {
+          try {
+            chart.removeSeries(institutionalShortLineRef.current);
+          } catch {}
+          institutionalShortLineRef.current = null;
+        }
+        const guideBase = {
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+          priceScaleId: 'right' as const,
+          lastValueVisible: false,
+        };
+        const lastBarTime = Number(safe[safe.length - 1]?.time);
+        const gu = monthDeskGuideLinePayload;
+        const bandFusionCtx = mergedInstitutionalBandFusionContext ?? monthDeskBandFusionContext;
+        /** 통합·분석: 가이드도 최근 4개만 쓰던 제한을 완화(존선과 동일 예산) */
+        const guideCap = mergedInstitutionalBandsOn ? MERGED_DESK_ENVELOPE_LINE_MAX_SEGMENTS : 10;
+        gu?.fusionSegments?.slice(-guideCap).forEach((seg) => {
+          const longSeg = seg.bias === 'long';
+          const lineCol = hexToRgba(longSeg ? monthDeskEnvLongHex : monthDeskEnvShortHex, 0.9);
+          const guideData =
+            Number.isFinite(lastBarTime) && lastBarTime > 0
+              ? clipLineDataToLastBarTime(seg.data, lastBarTime)
+              : seg.data;
+          /** 우측 가격축 lastValue 라벨(융합중심·롱 등)은 갱신마다 깜빡임 — 마감 모드선 제목·라벨 끔 */
+          const s = chart.addSeries(LineSeries, {
+            ...guideBase,
+            color: lineCol,
+            lineWidth: 2,
+            lineStyle: LineStyle.Solid,
+            lineType: LineType.Simple,
+            lastValueVisible: false,
+            title: '',
+          });
+          s.setData(alignSeriesPointsToCandleTimes(guideData, chartTimeBase));
+          monthDeskCompositeGuideRefsRef.current.push(s);
+        });
+        /** 기관밴드 강화: CP=파랑점선, LinReg=빨강점선 (ST 초록/빨강 계단선과 별도) */
+        const addInstitutionalDashGuide = (data: LineData<UTCTimestamp>[] | undefined, color: string) => {
+          if (!data || data.length < 2) return;
+          const guideData =
+            Number.isFinite(lastBarTime) && lastBarTime > 0
+              ? clipLineDataToLastBarTime(data, lastBarTime)
+              : data;
+          if (guideData.length < 2) return;
+          const s = chart.addSeries(LineSeries, {
+            ...guideBase,
+            color,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            lineType: LineType.Simple,
+            lastValueVisible: false,
+            title: '',
+          });
+          s.setData(alignSeriesPointsToCandleTimes(guideData, chartTimeBase));
+          monthDeskCompositeGuideRefsRef.current.push(s);
+        };
+        addInstitutionalDashGuide(gu?.cpMid, hexToRgba('#38BDF8', 0.92));
+        addInstitutionalDashGuide(gu?.lrMid, hexToRgba('#EF4444', 0.88));
+        const envP = institutionalEnvelopeParamsForTf(timeframe);
+        const rawSegs = computeInstitutionalSuperTrendEnvelopeSegmentsFused(
+          safe,
+          envP.period,
+          envP.mult,
+          bandFusionCtx,
+          monthDeskFusionSuperTrendCore
+        );
+        /** 최근 N개만 slice 하면 왼쪽 과거 존선이 통째로 사라짐 → 통합·분석은 coalesce */
+        const capped = mergedInstitutionalBandsOn
+          ? coalesceMonthDeskEnvelopeSegmentsForDisplay(
+              rawSegs,
+              MERGED_DESK_ENVELOPE_LINE_MAX_SEGMENTS
+            )
+          : sliceMonthDeskEnvelopeSegmentsForDisplay(rawSegs);
+        const segs =
+          Number.isFinite(lastBarTime) && lastBarTime > 0
+            ? capped.map((seg) => clipEnvelopeSegmentToLastBar(seg, lastBarTime))
+            : capped;
+        const passiveAlpha = 0.52;
+        const baseLineOpts = {
+          lineType: LineType.WithSteps,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+          priceScaleId: 'right' as const,
+        };
+        const midLineDataRaw = computeInstitutionalSuperTrendMidLineData(
+          safe,
+          envP.period,
+          envP.mult,
+          monthDeskFusionSuperTrendCore
+        );
+        const midLineData =
+          Number.isFinite(lastBarTime) && lastBarTime > 0
+            ? clipLineDataToLastBarTime(midLineDataRaw, lastBarTime)
+            : midLineDataRaw;
+        segs.forEach((seg, segIdx) => {
+          const isActiveSeg = segIdx === segs.length - 1;
+          const longSeg = seg.dir === 'long';
+          const activeHex = longSeg ? monthDeskEnvLongHex : monthDeskEnvShortHex;
+          /** 존상=빨강점선, 존하=파랑점선 (추세색 동일 점선이 아님) */
+          const passiveCol = longSeg
+            ? hexToRgba('#EF4444', passiveAlpha + 0.2)
+            : hexToRgba('#38BDF8', passiveAlpha + 0.28);
+          /** lightweight-charts LineWidth 허용 범위 내에서 활성·비활성 두께 차이 */
+          const activeW = isActiveSeg ? 4 : 3;
+          const passiveW = 2;
+          /** 마감존상/마감존하 우측 축 라벨은 lastValue 갱신 시 반짝임 — 제목 없이 선만 */
+          const passiveOpts = { ...baseLineOpts, lastValueVisible: false as const, title: '' };
+          const activeOpts = { ...baseLineOpts, lastValueVisible: false as const, title: '' };
+
+          /** 통합·분석: 기관밴드는 계단선+이름 핀만. lastValue 숫자 알약 금지 */
+          const labelInst = false;
+          if (longSeg) {
+            /** 롱: 존하 초록 실선 + 존상 빨강 점선 */
+            const upperApi = chart.addSeries(LineSeries, {
+              ...passiveOpts,
+              color: passiveCol,
+              lineWidth: passiveW,
+              lineStyle: LineStyle.LargeDashed,
+              lastValueVisible: labelInst,
+              title: '',
+            });
+            const lowerApi = chart.addSeries(LineSeries, {
+              ...activeOpts,
+              color: activeHex,
+              lineWidth: activeW,
+              lineStyle: LineStyle.Solid,
+              lastValueVisible: labelInst,
+              title: '',
+            });
+            upperApi.setData(alignSeriesPointsToCandleTimes(seg.upper, chartTimeBase));
+            lowerApi.setData(alignSeriesPointsToCandleTimes(seg.lower, chartTimeBase));
+            institutionalEnvelopeSegRefsRef.current.push({ upper: upperApi, lower: lowerApi });
+          } else {
+            /** 숏: 존상 빨강 실선 + 존하 파랑 점선 */
+            const lowerApi = chart.addSeries(LineSeries, {
+              ...passiveOpts,
+              color: passiveCol,
+              lineWidth: passiveW,
+              lineStyle: LineStyle.LargeDashed,
+              lastValueVisible: labelInst,
+              title: '',
+            });
+            const upperApi = chart.addSeries(LineSeries, {
+              ...activeOpts,
+              color: activeHex,
+              lineWidth: activeW,
+              lineStyle: LineStyle.Solid,
+              lastValueVisible: labelInst,
+              title: '',
+            });
+            lowerApi.setData(alignSeriesPointsToCandleTimes(seg.lower, chartTimeBase));
+            upperApi.setData(alignSeriesPointsToCandleTimes(seg.upper, chartTimeBase));
+            institutionalEnvelopeSegRefsRef.current.push({ upper: upperApi, lower: lowerApi });
+          }
+
+          if (isActiveSeg && midLineData.length >= 2) {
+            const t0 = Number(seg.upper[0]?.time);
+            const t1 = Number(seg.upper[seg.upper.length - 1]?.time);
+            const midSlice = midLineData.filter((p) => {
+              const t = Number(p.time);
+              return Number.isFinite(t0) && Number.isFinite(t1) && t >= t0 && t <= t1;
+            });
+            if (midSlice.length >= 2) {
+              const midApi = chart.addSeries(LineSeries, {
+                ...baseLineOpts,
+                color: hexToRgba('#94A3B8', 0.72),
+                lineWidth: 1,
+                lineStyle: LineStyle.Dashed,
+                lineType: LineType.WithSteps,
+                lastValueVisible: false,
+                title: '',
+              });
+              midApi.setData(alignSeriesPointsToCandleTimes(midSlice, chartTimeBase));
+              monthDeskMidLineRefsRef.current.push(midApi);
+            }
+          }
+        });
+
+        /** 연합 Triple Trend — SVG 단일 레이어 (LineSeries 제거 · 성능) */
+        removeFusionDeskBandLines();
+
+        /** 아틀라스 E/SL/TP — 우측 가격축 라벨만 (카드 없음) */
+        removeAtlasPulsePriceLines();
+        if (monthDeskAtlasPulseOn && monthDeskAtlasPulsePack?.priceLines.length) {
+          const t0 = safe[0]!.time as UTCTimestamp;
+          const tN = safe[safe.length - 1]!.time as UTCTimestamp;
+          for (const pl of monthDeskAtlasPulsePack.priceLines) {
+            if (!Number.isFinite(pl.price)) continue;
+            const lineStyle =
+              pl.lineStyle === 'dashed'
+                ? LineStyle.Dashed
+                : pl.lineStyle === 'dotted'
+                  ? LineStyle.Dotted
+                  : LineStyle.Solid;
+            const plApi = chart.addSeries(LineSeries, {
+              ...baseLineOpts,
+              color: pl.color,
+              lineWidth: pl.lineWidth,
+              lineStyle,
+              lineType: LineType.Simple,
+              lastValueVisible: false,
+              title: '',
+            });
+            if (!safeHorizLineSeriesSetData(plApi, t0, tN, pl.price)) {
+              try {
+                chart.removeSeries(plApi);
+              } catch {
+                /* ignore */
+              }
+              continue;
+            }
+            atlasPulsePriceLineRefsRef.current.push(plApi);
+          }
+        }
+        if (isMergedAnalysisDesk) raiseCandleSeriesDrawOrder(seriesRef.current);
+      } catch {
+        removeClosingZonePack();
+      }
+    };
+
+    const applyStandardInstitutional = () => {
+      removeMonthDeskGuideLines();
+      removeEnvelopeSegmentPairs();
+      try {
+        const stLastVal = isMergedAnalysisDesk ? false : axisHint;
+        if (!institutionalLongLineRef.current) {
+          institutionalLongLineRef.current = chart.addSeries(LineSeries, {
+            color: lowerBandColor,
+            lineWidth: 3,
+            lineType: LineType.WithSteps,
+            lastValueVisible: stLastVal,
+            priceLineVisible: false,
+            crosshairMarkerVisible: false,
+            priceScaleId: 'right',
+            title: '',
+          });
+        }
+        if (!institutionalShortLineRef.current) {
+          institutionalShortLineRef.current = chart.addSeries(LineSeries, {
+            color: upperBandColor,
+            lineWidth: 3,
+            lineType: LineType.WithSteps,
+            lastValueVisible: stLastVal,
+            priceLineVisible: false,
+            crosshairMarkerVisible: false,
+            priceScaleId: 'right',
+            title: '',
+          });
+        }
+        const { long, short } = computeInstitutionalSuperBandData(safe, 10, 3);
+        institutionalLongLineRef.current?.applyOptions({
+          color: lowerBandColor,
+          lastValueVisible: stLastVal,
+          title: '',
+        });
+        institutionalShortLineRef.current?.applyOptions({
+          color: upperBandColor,
+          lastValueVisible: stLastVal,
+          title: '',
+        });
+        institutionalLongLineRef.current?.setData(alignSeriesPointsToCandleTimes(long, chartTimeBase));
+        institutionalShortLineRef.current?.setData(alignSeriesPointsToCandleTimes(short, chartTimeBase));
+        if (isMergedAnalysisDesk) raiseCandleSeriesDrawOrder(seriesRef.current);
+      } catch {
+        removeClosingZonePack();
+      }
+    };
+
+    if (deskInstitutionalEnvelopeBands) {
+      if (institutionalLongLineRef.current) {
+        try {
+          chart.removeSeries(institutionalLongLineRef.current);
+        } catch {}
+        institutionalLongLineRef.current = null;
+      }
+      if (institutionalShortLineRef.current) {
+        try {
+          chart.removeSeries(institutionalShortLineRef.current);
+        } catch {}
+        institutionalShortLineRef.current = null;
+      }
+      const fxSig = monthDeskInstitutionalFxSig;
+      if (
+        fxSig &&
+        fxSig === monthDeskInstitutionalLastFxSigRef.current &&
+        institutionalEnvelopeSegRefsRef.current.length > 0
+      ) {
+        return () => {
+          if (monthDeskInstitutionalFxTimerRef.current) {
+            clearTimeout(monthDeskInstitutionalFxTimerRef.current);
+            monthDeskInstitutionalFxTimerRef.current = null;
+          }
+        };
+      }
+      const runApply = () => {
+        monthDeskInstitutionalFxTimerRef.current = null;
+        monthDeskInstitutionalLastFxSigRef.current = fxSig;
+        applyMonthDeskInstitutional();
+      };
+      const clearBandSchedulers = () => {
+        if (monthDeskInstitutionalFxTimerRef.current) {
+          clearTimeout(monthDeskInstitutionalFxTimerRef.current);
+          monthDeskInstitutionalFxTimerRef.current = null;
+        }
+        if (
+          monthDeskInstitutionalIdleRef.current != null &&
+          typeof cancelIdleCallback !== 'undefined'
+        ) {
+          cancelIdleCallback(monthDeskInstitutionalIdleRef.current);
+          monthDeskInstitutionalIdleRef.current = null;
+        }
+      };
+      clearBandSchedulers();
+      const bandDebounceMs = mergedInstitutionalBandsOn
+        ? institutionalEnvelopeSegRefsRef.current.length
+          ? 140
+          : 36
+        : institutionalEnvelopeSegRefsRef.current.length
+          ? 48
+          : 0;
+      monthDeskInstitutionalFxTimerRef.current = setTimeout(() => {
+        monthDeskInstitutionalFxTimerRef.current = null;
+        if (mergedInstitutionalBandsOn && typeof requestIdleCallback !== 'undefined') {
+          monthDeskInstitutionalIdleRef.current = requestIdleCallback(runApply, { timeout: 1800 });
+        } else {
+          runApply();
+        }
+      }, bandDebounceMs);
+      return () => {
+        clearBandSchedulers();
+      };
+    }
+
+    if (monthDeskInstitutionalFxTimerRef.current) {
+      clearTimeout(monthDeskInstitutionalFxTimerRef.current);
+      monthDeskInstitutionalFxTimerRef.current = null;
+    }
+    applyStandardInstitutional();
+  }, [
+    institutionalSuperTrendCandleKey,
+    institutionalSuperTrendOverlayKey,
+    settings.institutionalBandLongHex,
+    settings.institutionalBandShortHex,
+    settings.chartMergedDeskAiToneEnabled,
+    settings.showInstitutionalTrendBadge,
+    chartInstanceId,
+    uiMode,
+    mergedInstitutionalBandsOn,
+    monthDeskInstitutionalFxSig,
+    monthDeskFusionSuperTrendCore,
+    monthDeskFusionDeskBandPack,
+    mergedInstitutionalBandFusionContext,
+    settings.chartMonthDeskFusionDeskBandEnabled,
+    settings.chartMergedInstitutionalBandEnabled,
+    monthDeskAtlasPulseOn,
+    monthDeskAtlasPulsePack,
+    isMergedAnalysisDesk,
+    candlesForMergedDeskChart,
+    candles,
+    timeframe,
+    candlesForOverlay,
+  ]);
+
+  /** 통합·분석 — E/SL/TP 점선 + 우측 가격축 라벨 (LineSeries + createPriceLine) */
+  useLayoutEffect(() => {
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series) return;
+
+    const tradeAxisLines = mergedDeskTradeAxisPriceLinesRef.current;
+
+    const removeMergedDeskPriceLines = () => {
+      for (const s of mergedDeskPriceLineRefsRef.current) {
+        try {
+          chart.removeSeries(s);
+        } catch {
+          /* ignore */
+        }
+      }
+      mergedDeskPriceLineRefsRef.current = [];
+      tradeAxisLines.forEach((line) => {
+        try {
+          (series as any)?.removePriceLine?.(line);
+        } catch {}
+      });
+      tradeAxisLines.length = 0;
+    };
+
+    /** 핵심지지·저항은 tradeRail OFF여도 전폭선 유지 */
+    const CORE_SR_LINE = /핵심지지|핵심저항/;
+    const allDeskLines = [
+      ...((isMergedAnalysisDesk
+        ? mergedAnalysisDeskPack?.priceLines
+        : null) ??
+        (candleCardTradeRailPack?.linked ? candleCardTradeRailPack.priceLines : null) ??
+        monthDeskAtlasPulsePack?.priceLines ??
+        []),
+      ...(isMergedAnalysisDesk && mergedDeskAdvVolumeSidecar?.burstPriceLines?.length
+        ? mergedDeskAdvVolumeSidecar.burstPriceLines
+        : []),
+    ];
+    const priceLines = tradeRailLinesOn
+      ? allDeskLines
+      : allDeskLines.filter((pl) => CORE_SR_LINE.test(String(pl.title || '')));
+    if (!priceLines.length) {
+      removeMergedDeskPriceLines();
+      return;
+    }
+
+    const spanCandles =
+      chartSeriesCandlesRef.current.length >= 2
+        ? chartSeriesCandlesRef.current
+        : sanitizeChartCandlesForSeries(candles, timeframe);
+    if (spanCandles.length < 2) {
+      removeMergedDeskPriceLines();
+      return;
+    }
+
+    removeMergedDeskPriceLines();
+    const hClean = isMergedAnalysisDesk
+      ? normalizeMergedDeskHLineCleanMode(settings.chartMergedDeskHLineClean)
+      : 'classic';
+    const atrHint = (() => {
+      const n = spanCandles.length;
+      if (n < 16) return Math.abs(Number(spanCandles[n - 1]?.close) || 1) * 0.008;
+      let s = 0;
+      let c = 0;
+      for (let i = n - 14; i < n; i++) {
+        const cur = spanCandles[i]!;
+        const prev = spanCandles[i - 1]!;
+        s += Math.max(
+          cur.high - cur.low,
+          Math.abs(cur.high - prev.close),
+          Math.abs(cur.low - prev.close)
+        );
+        c += 1;
+      }
+      return c > 0 ? s / c : Math.abs(Number(spanCandles[n - 1]?.close) || 1) * 0.008;
+    })();
+    const polishedLines = dedupeMergedDeskHLinesByPrice(priceLines, atrHint);
+    const axisBg = 'rgba(12,16,22,0.9)';
+    const baseLineOpts = {
+      lineType: LineType.Simple,
+      priceLineVisible: false,
+      crosshairMarkerVisible: false,
+      priceScaleId: 'right' as const,
+      lastValueVisible: true,
+    };
+
+    for (const pl of polishedLines) {
+      if (!Number.isFinite(pl.price)) continue;
+      const title = String(pl.title || '').trim();
+      const isGate = /채널게이트|게이트손절|게이트TP|게이트무효|◆/.test(title);
+      const isCoreSr = /핵심지지|핵심저항/.test(title);
+      const role = isCoreSr ? 'primary' : classifyMergedDeskHLineRole(title);
+      const axisTitle = title.slice(0, 24) || '선';
+      const lineColor = polishMergedDeskHLineColor(pl.color, role, hClean);
+      const lineStyle =
+        hClean === 'classic'
+          ? pl.lineStyle === 'dashed'
+            ? LineStyle.Dashed
+            : pl.lineStyle === 'dotted'
+              ? LineStyle.Dotted
+              : LineStyle.Solid
+          : role === 'primary'
+            ? pl.lineStyle === 'solid'
+              ? LineStyle.Solid
+              : LineStyle.Dashed
+            : LineStyle.Dotted;
+      const lineWidth = isCoreSr
+        ? 2
+        : polishMergedDeskHLineWidth(pl.lineWidth || 1, role, hClean, isGate);
+      const span = resolveMergedDeskHLineSpan(spanCandles, role, hClean);
+      if (!span) continue;
+      const plApi = chart.addSeries(LineSeries, {
+        ...baseLineOpts,
+        color: lineColor,
+        lineWidth,
+        lineStyle,
+        /** 축 라벨은 createPriceLine — 시리즈 title 중복 스택 방지 */
+        title: '',
+        lastValueVisible: false,
+      });
+      if (!safeHorizLineSeriesSetData(plApi, span.t0, span.tN, pl.price)) {
+        try {
+          chart.removeSeries(plApi);
+        } catch {
+          /* ignore */
+        }
+        continue;
+      }
+      mergedDeskPriceLineRefsRef.current.push(plApi);
+
+      /** 축 알약: E/SL/TP만. MSB·Break·BB·숫자가격·AVWAP 핀 스타일은 zone/선만 */
+      try {
+        const wantAxisRaw = pl.axisLabel === true;
+        if (!wantAxisRaw) continue;
+        const titleBare = axisTitle.replace(/[,\s]/g, '');
+        const blockAxisPill =
+          !isCoreSr &&
+          (/MSB|Break|BREAK|BB·|OB·|MB\/|BE-BB|구조돌파|고·고|고·시|저·고|저·시|AVWAP|시가앵커|고가앵커|#\d|WAIT·|목표선·|목표·/i.test(
+            axisTitle
+          ) ||
+            /^\d+(\.\d+)?$/.test(titleBare) ||
+            /\d{4,}/.test(axisTitle));
+        if (blockAxisPill) continue;
+        const axisOn = isCoreSr
+          ? true
+          : mergedDeskRightAxisPricesOn &&
+            !isMergedDeskRbCoreAttachedPriceOff(
+              pl.price,
+              mergedAnalysisDeskPack?.overlays ?? [],
+              settings,
+              hiddenOverlayChartTextIds
+            ) &&
+            isOverlayChartTextVisible(mergedDeskPriceLineLabelId(axisTitle), axisTitle);
+        const axisLine = (series as any).createPriceLine({
+          price: pl.price,
+          color: lineColor,
+          title: axisTitle,
+          lineWidth,
+          lineStyle,
+          lineVisible: false,
+          lastValueVisible: false,
+          axisLabelVisible: axisOn,
+          axisLabelColor: axisBg,
+          axisLabelTextColor: lineColor,
+        });
+        tradeAxisLines.push(axisLine);
+      } catch {}
+    }
+
+    raiseCandleSeriesDrawOrder(series);
+    return () => removeMergedDeskPriceLines();
+  }, [
+    tradeRailLinesOn,
+    isMergedAnalysisDesk,
+    mergedDeskPriceLinesSig,
+    mergedDeskChartSeriesSpanSig,
+    mergedAnalysisDeskPack?.priceLines,
+    mergedAnalysisDeskPack?.overlays,
+    monthDeskAtlasPulsePack?.priceLines,
+    candleCardTradeRailPack,
+    chartInstanceId,
+    candles,
+    timeframe,
+    mergedDeskOverlayLabelsOn,
+    mergedDeskRightAxisPricesOn,
+    hiddenOverlayChartTextIds,
+    settings.chartMergedDeskEuromap,
+    settings.chartMergedDeskHLineClean,
+  ]);
+
+  /** 기관밴드 요약 배지 — 마감·안착 포함(밴드 추세·기준선 한눈에) */
   useEffect(() => {
-    if (settings.showInstitutionalTrendBadge === false) {
+    if (!CHART_BAND_LINE_AND_TOUCH_ALWAYS_ON || settings.showInstitutionalTrendBadge === false) {
       setInstitutionalBadge(null);
       return;
     }
@@ -7974,7 +16580,7 @@ const ChartViewInner = ({
       barsInCurrentTrend: meta.barsInCurrentTrend,
       currentTrendStartTime: meta.currentTrendStartTime,
     });
-  }, [candles, settings.showInstitutionalTrendBadge]);
+  }, [candles, settings.showInstitutionalTrendBadge, uiMode]);
 
   /** Bitcoin Power Law Bands — Pine 스크립트와 동일 계수, BTC 기축 심볼만 */
   useEffect(() => {
@@ -8001,7 +16607,14 @@ const ChartViewInner = ({
       }
     };
     const enabled = settings.showBitcoinPowerLawBands === true;
-    const safe = sanitizeChartCandlesForSeries(candles);
+    const chartBase =
+      isMergedAnalysisDesk && candlesForMergedDeskChart.length >= 2
+        ? candlesForMergedDeskChart
+        : sanitizeChartCandlesForSeries(candles, timeframe);
+    const safe = alignSeriesPointsToCandleTimes(
+      sanitizeChartCandlesForSeries(candles, timeframe),
+      chartBase
+    );
     if (!enabled || !isBitcoinPowerLawChartSymbol(symbol) || safe.length < 2) {
       removePl();
       return;
@@ -8045,13 +16658,937 @@ const ChartViewInner = ({
       powerLawResistanceRef.current?.applyOptions({
         color: theme === 'light' ? '#dc2626' : '#ef4444',
       });
-      powerLawCenterRef.current?.setData(center);
-      powerLawSupportRef.current?.setData(support);
-      powerLawResistanceRef.current?.setData(resistance);
+      powerLawCenterRef.current?.setData(alignSeriesPointsToCandleTimes(center, chartBase));
+      powerLawSupportRef.current?.setData(alignSeriesPointsToCandleTimes(support, chartBase));
+      powerLawResistanceRef.current?.setData(alignSeriesPointsToCandleTimes(resistance, chartBase));
+      if (isMergedAnalysisDesk) raiseCandleSeriesDrawOrder(seriesRef.current);
     } catch {
       removePl();
     }
-  }, [candles, settings.showBitcoinPowerLawBands, symbol, theme]);
+  }, [
+    candles,
+    settings.showBitcoinPowerLawBands,
+    symbol,
+    theme,
+    chartInstanceId,
+    timeframe,
+    isMergedAnalysisDesk,
+    candlesForMergedDeskChart,
+  ]);
+
+  /** 기관밴드 포락 — 상위 TF 캔들 로드 (LTF↔HTF 연동) */
+  useEffect(() => {
+    if (!mergedInstitutionalBandsOn) {
+      setEnvelopeHtfCandles([]);
+      setEnvelopeHtfTf(null);
+      return;
+    }
+    const parent = resolveEnvelopeParentTf(timeframe);
+    const chartTf = normalizeChartTimeframe(timeframe) || timeframe;
+    if (!parent || parent === chartTf) {
+      setEnvelopeHtfCandles([]);
+      setEnvelopeHtfTf(null);
+      return;
+    }
+    setEnvelopeHtfTf(parent);
+    const source = bitgetVolumePackOn ? 'bitget' : 'binance';
+    let cancelled = false;
+    const cached = peekClientMarketCandles(symbol, parent, source, true);
+    if (cached && cached.length >= 8) {
+      setEnvelopeHtfCandles(sanitizeChartCandlesForSeries(cached, parent));
+    }
+    void fetchClientMarketCandles({ symbol, timeframe: parent, source })
+      .then((raw) => {
+        if (cancelled) return;
+        const safe = sanitizeChartCandlesForSeries(raw, parent);
+        setEnvelopeHtfCandles(safe.length >= 8 ? safe : []);
+      })
+      .catch(() => {
+        if (!cancelled) setEnvelopeHtfCandles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mergedInstitutionalBandsOn, symbol, timeframe, bitgetVolumePackOn]);
+
+  /** AVWAP용 일/주봉 로드 — 전 모드(설정 ON 시) */
+  useEffect(() => {
+    if (!shouldLoadAvwapSupportingCandles(settings)) {
+      setAvwapHtfCandles([]);
+      return;
+    }
+    const htfTf = resolveAvwapHtfTf(timeframe, settings.chartMergedDeskAnchoredVwapHtf);
+    const chartTf = normalizeChartTimeframe(timeframe) || timeframe;
+    if (htfTf === chartTf) {
+      setAvwapHtfCandles([]);
+      return;
+    }
+    const source = bitgetVolumePackOn ? 'bitget' : 'binance';
+    let cancelled = false;
+    const cached = peekClientMarketCandles(symbol, htfTf, source, true);
+    if (cached && cached.length >= 3) setAvwapHtfCandles(cached);
+    void fetchClientMarketCandles({ symbol, timeframe: htfTf, source })
+      .then((raw) => {
+        if (cancelled) return;
+        const safe = sanitizeChartCandlesForSeries(raw, htfTf);
+        setAvwapHtfCandles(safe.length >= 3 ? safe : []);
+      })
+      .catch(() => {
+        if (!cancelled) setAvwapHtfCandles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    settings.chartMergedDeskAnchoredVwapEnabled,
+    settings.chartMergedDeskAnchoredVwapHtf,
+    symbol,
+    timeframe,
+    bitgetVolumePackOn,
+  ]);
+
+  /** 사용자 AVWAP 핀 — 찍은 TF(1w/1d…) 캔들 로드 (전 모드) */
+  useEffect(() => {
+    if (!shouldLoadAvwapSupportingCandles(settings)) {
+      setAvwapPinAnchorByTf({});
+      return;
+    }
+    if (settings.chartMergedDeskAnchoredVwapEnabled === false) {
+      setAvwapPinAnchorByTf({});
+      return;
+    }
+    const chartTf = normalizeChartTimeframe(timeframe) || timeframe;
+    const pins = normalizeAvwapUserPins(settings.chartMergedDeskAvwapUserPins);
+    const need = uniqueAvwapAnchorTfs(pins).filter((tf) => tf && tf !== chartTf);
+    if (need.length === 0) {
+      setAvwapPinAnchorByTf({});
+      return;
+    }
+    const source = bitgetVolumePackOn ? 'bitget' : 'binance';
+    let cancelled = false;
+    const next: Record<string, Candle[]> = {};
+    for (const tf of need) {
+      const cached = peekClientMarketCandles(symbol, tf, source, true);
+      if (cached && cached.length >= 2) {
+        next[tf] = sanitizeChartCandlesForSeries(cached, tf);
+      }
+    }
+    if (Object.keys(next).length) setAvwapPinAnchorByTf({ ...next });
+
+    void Promise.all(
+      need.map(async (tf) => {
+        try {
+          const raw = await fetchClientMarketCandles({ symbol, timeframe: tf, source });
+          if (cancelled) return;
+          const safe = sanitizeChartCandlesForSeries(raw, tf);
+          if (safe.length >= 2) next[tf] = safe;
+        } catch {
+          /* keep cache if any */
+        }
+      })
+    ).then(() => {
+      if (!cancelled) setAvwapPinAnchorByTf({ ...next });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    settings.chartMergedDeskAnchoredVwapEnabled,
+    settings.chartMergedDeskAvwapUserPins,
+    symbol,
+    timeframe,
+    bitgetVolumePackOn,
+  ]);
+
+  /**
+   * 통합·분석 — Anchored VWAP.
+   * 주/일 절대고·저 앵커 · 둘 다 고가+시가 · 분·시봉 공용 LineSeries + 축 라벨.
+   */
+  useLayoutEffect(() => {
+    const chart = chartRef.current;
+    const candleSeries = seriesRef.current;
+
+    const clearAxisLines = () => {
+      const axis = mergedDeskAvwapAxisPriceLinesRef.current;
+      if (candleSeries && axis.length) {
+        for (const pl of axis) {
+          try {
+            (candleSeries as any).removePriceLine?.(pl);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      mergedDeskAvwapAxisPriceLinesRef.current = [];
+    };
+
+    const removeOne = (ref: { current: ISeriesApi<'Line'> | null }) => {
+      if (!ref.current) return;
+      try {
+        chartRef.current?.removeSeries(ref.current);
+      } catch {
+        /* ignore */
+      }
+      ref.current = null;
+    };
+
+    const removeUserSeries = () => {
+      const c = chartRef.current;
+      for (const row of mergedDeskAvwapUserSeriesRef.current) {
+        try {
+          c?.removeSeries(row.ext);
+        } catch {
+          /* ignore */
+        }
+        try {
+          c?.removeSeries(row.open);
+        } catch {
+          /* ignore */
+        }
+      }
+      mergedDeskAvwapUserSeriesRef.current = [];
+    };
+
+    const clearAvwapLineMarkers = () => {
+      const m = mergedDeskAvwapLineMarkersRef.current;
+      for (const key of ['highExt', 'highOpen', 'lowExt', 'lowOpen'] as const) {
+        try {
+          m[key]?.setMarkers([]);
+        } catch {
+          /* ignore */
+        }
+        m[key] = null;
+      }
+    };
+
+    const removeAvwap = () => {
+      clearAxisLines();
+      clearAvwapLineMarkers();
+      avwapExplainSnapsRef.current = [];
+      removeOne(mergedDeskAvwapHighExtRef);
+      removeOne(mergedDeskAvwapHighOpenRef);
+      removeOne(mergedDeskAvwapLowExtRef);
+      removeOne(mergedDeskAvwapLowOpenRef);
+      removeOne(mergedDeskSessionVwapRef);
+      for (const row of mergedDeskAvwapPoiBandRefs.current) {
+        try {
+          chartRef.current?.removeSeries(row.upper);
+        } catch {
+          /* ignore */
+        }
+        try {
+          chartRef.current?.removeSeries(row.lower);
+        } catch {
+          /* ignore */
+        }
+      }
+      mergedDeskAvwapPoiBandRefs.current = [];
+      removeUserSeries();
+    };
+
+    if (!chart || !shouldPaintAvwapOnChart(settings)) {
+      removeAvwap();
+      return removeAvwap;
+    }
+
+    const avwapMaster = vwapMasterEnabled(settings);
+    const sessionOn = vwapSessionEnabled(settings);
+    const poiBandOn = vwapPoiBandEnabled(settings);
+    const modeRaw = settings.chartMergedDeskAnchoredVwapMode;
+    const mode: AnchoredVwapAnchorMode =
+      modeRaw === 'chart_high' ||
+      modeRaw === 'chart_low' ||
+      modeRaw === 'chart_both' ||
+      modeRaw === 'swing_high' ||
+      modeRaw === 'swing_low' ||
+      modeRaw === 'range_start' ||
+      modeRaw === 'manual'
+        ? modeRaw
+        : 'chart_both';
+    const manualTime =
+      settings.chartMergedDeskAnchoredVwapManualTime != null &&
+      Number.isFinite(Number(settings.chartMergedDeskAnchoredVwapManualTime))
+        ? Number(settings.chartMergedDeskAnchoredVwapManualTime)
+        : null;
+
+    const chartBase =
+      candlesForMergedDeskChart.length >= 2
+        ? candlesForMergedDeskChart
+        : chartSeriesCandlesRef.current.length >= 2
+          ? chartSeriesCandlesRef.current
+          : sanitizeChartCandlesForSeries(candles, timeframe);
+
+    if ((!avwapMaster && !sessionOn) || chartBase.length < 2) {
+      removeAvwap();
+      return removeAvwap;
+    }
+
+    const htfTf = resolveAvwapHtfTf(timeframe, settings.chartMergedDeskAnchoredVwapHtf);
+    const chartTf = normalizeChartTimeframe(timeframe) || timeframe;
+    const useHtf = htfTf !== chartTf && avwapHtfCandles.length >= 3;
+
+    const dual =
+      avwapMaster && vwapAutoExtremeEnabled(settings)
+        ? buildMergedDeskAnchoredVwapDualPack(chartBase, {
+            mode,
+            manualAnchorTime: manualTime,
+            htfCandles: useHtf ? avwapHtfCandles : null,
+            htfTf: useHtf ? htfTf : null,
+          })
+        : null;
+
+    const userPinsHidden = settings.chartMergedDeskAvwapUserPinsHidden === true;
+    const userPins =
+      !avwapMaster || userPinsHidden
+        ? []
+        : normalizeAvwapUserPins(settings.chartMergedDeskAvwapUserPins);
+    const userPacks = buildUserAnchoredVwapPacks(
+      chartBase,
+      userPins,
+      chartTf,
+      avwapPinAnchorByTf
+    );
+
+    if (
+      (!dual || (!dual.high && !dual.low)) &&
+      userPacks.length === 0 &&
+      !sessionOn
+    ) {
+      removeAvwap();
+      return removeAvwap;
+    }
+
+    const lineOpts = {
+      lineWidth: 2 as LineWidth,
+      lineType: LineType.Simple,
+      /** 분홍 숫자만 뜨는 lastValue 알약 제거 — 축 createPriceLine 한글 제목만 */
+      lastValueVisible: false,
+      priceLineVisible: false,
+      crosshairMarkerVisible: false,
+      priceScaleId: 'right' as const,
+    };
+
+    const ensureLine = (
+      ref: { current: ISeriesApi<'Line'> | null },
+      color: string,
+      title: string
+    ) => {
+      if (!ref.current) {
+        ref.current = chart.addSeries(LineSeries, { ...lineOpts, color, title: '' });
+      } else {
+        ref.current.applyOptions({
+          color,
+          title: '',
+          lastValueVisible: false,
+          lineWidth: 2 as LineWidth,
+        });
+      }
+      return ref.current;
+    };
+
+    const avwapSnaps: AvwapExplainSnap[] = [];
+    const pushAvwapSnap = (
+      slot: AvwapExplainSnap['slot'],
+      price: number,
+      color: string,
+      baseTagKo: string,
+      liveTitleKo: string,
+      reasonsKo: string[],
+      entryAllowed?: boolean
+    ) => {
+      if (!(price > 0) || !Number.isFinite(price)) return;
+      const axisTitleKo = formatAvwapAxisTitleKo({ baseTagKo, liveTitleKo });
+      let roleKo = 'Anchored VWAP 줄선 현재값';
+      if (slot === 'highExt') roleKo = '절대 고점 봉 앵커 · 고가 가중 VWAP (초록 줄)';
+      else if (slot === 'highOpen') roleKo = '절대 고점 봉 앵커 · 시가 가중 VWAP (빨강·분홍 축 라벨)';
+      else if (slot === 'lowExt') roleKo = '절대 저점 봉 앵커 · 고가 가중 VWAP (하늘색)';
+      else if (slot === 'lowOpen') roleKo = '절대 저점 봉 앵커 · 시가 가중 VWAP (보라)';
+      let biasKo: string | undefined;
+      if (/숏후보/.test(liveTitleKo)) biasKo = '숏 진입 후보(합류)';
+      else if (/롱후보/.test(liveTitleKo)) biasKo = '롱 진입 후보(합류)';
+      else if (/숏관찰/.test(liveTitleKo)) biasKo = '숏 관찰(합류 부족)';
+      else if (/롱관찰/.test(liveTitleKo)) biasKo = '롱 관찰(합류 부족)';
+      else if (/대기/.test(liveTitleKo)) biasKo = '대기(WAIT)';
+      avwapSnaps.push({
+        slot,
+        price,
+        color,
+        axisTitleKo,
+        roleKo,
+        biasKo,
+        reasonsKo,
+        entryAllowed,
+      });
+    };
+
+    const attachAvwapLineMarkers = (
+      series: ISeriesApi<'Line'> | null,
+      slot: 'highExt' | 'highOpen' | 'lowExt' | 'lowOpen',
+      packLine: Array<{ time: number; value: number }>,
+      tagKo: string,
+      tone: 'green' | 'red' | 'cyan' | 'violet'
+    ): string => {
+      if (!series) {
+        try {
+          mergedDeskAvwapLineMarkersRef.current[slot]?.setMarkers([]);
+        } catch {
+          /* ignore */
+        }
+        mergedDeskAvwapLineMarkersRef.current[slot] = null;
+        return tagKo;
+      }
+
+      /** 초록/빨강(고 앵커)만 앱 전체 합류 후보 — 카드 없이 줄선 원 */
+      const useEntry =
+        (tone === 'green' || tone === 'red') &&
+        (slot === 'highExt' || slot === 'highOpen');
+
+      const liveTitleKo = (() => {
+        if (useEntry) {
+          const entry = buildAvwapEntryCandidatePack({
+            candles: chartBase,
+            vwapLine: packLine,
+            lineTagKo: tagKo,
+            tone,
+            analysis: analysisMatchesTf ? (analysis as AnalyzeResponse | null) : null,
+            hotZone: mergedAnalysisDeskPack?.hotZoneEntry ?? null,
+          });
+          try {
+            series.applyOptions({ title: '', lastValueVisible: false });
+          } catch {
+            /* ignore */
+          }
+          let api = mergedDeskAvwapLineMarkersRef.current[slot];
+          if (!api) {
+            try {
+              api = createSeriesMarkers(series, []);
+              mergedDeskAvwapLineMarkersRef.current[slot] = api;
+            } catch {
+              api = null;
+            }
+          }
+          if (api) {
+            try {
+              const candleTimes = (candlesForMergedDeskChart?.length ? candlesForMergedDeskChart : candles).map(
+                (c) => Number(c.time)
+              );
+              safeSeriesSetMarkers(
+                api,
+                sanitizeSeriesMarkersForLwc(
+                  entry.markers.map((mk) => ({
+                    time: mk.time as UTCTimestamp,
+                    position: mk.position,
+                    shape: mk.shape,
+                    color: mk.color,
+                    text: mk.text,
+                    size: mk.size,
+                  })) as any,
+                  candleTimes
+                )
+              );
+            } catch {
+              try {
+                safeSeriesSetMarkers(api, []);
+              } catch {
+                /* ignore */
+              }
+            }
+          }
+          /** 클릭 카드용 메타를 시리즈에 붙이지 않고 title 문자열에 인코딩 → paintPack에서 재계산 */
+          (series as unknown as { __avwapExplain?: { reasonsKo: string[]; entryAllowed: boolean } }).__avwapExplain =
+            {
+              reasonsKo: entry.reasonsKo,
+              entryAllowed: entry.entryAllowed,
+            };
+          return entry.titleKo;
+        }
+
+        const sig = buildAvwapLineSignalPack({
+          candles: chartBase,
+          vwapLine: packLine,
+          lineTagKo: tagKo,
+          tone,
+        });
+        try {
+          series.applyOptions({ title: '', lastValueVisible: false });
+        } catch {
+          /* ignore */
+        }
+        (series as unknown as { __avwapExplain?: { reasonsKo: string[]; entryAllowed: boolean } }).__avwapExplain =
+          {
+            reasonsKo: [
+              sig.bias === 'long'
+                ? '줄선 기준 롱 편향(리클레임·상단)'
+                : sig.bias === 'short'
+                  ? '줄선 기준 숏 편향(거부·하단)'
+                  : '줄선 기준 대기(WAIT)',
+            ],
+            entryAllowed: false,
+          };
+        let api = mergedDeskAvwapLineMarkersRef.current[slot];
+        if (!api) {
+          try {
+            api = createSeriesMarkers(series, []);
+            mergedDeskAvwapLineMarkersRef.current[slot] = api;
+          } catch {
+            api = null;
+          }
+        }
+        if (api) {
+          try {
+            const candleTimes = (candlesForMergedDeskChart?.length ? candlesForMergedDeskChart : candles).map(
+              (c) => Number(c.time)
+            );
+            safeSeriesSetMarkers(
+              api,
+              sanitizeSeriesMarkersForLwc(
+                sig.markers.map((mk) => ({
+                  time: mk.time as UTCTimestamp,
+                  position: mk.position,
+                  shape: mk.shape,
+                  color: mk.color,
+                  text: mk.text,
+                  size: mk.size,
+                })) as any,
+                candleTimes
+              )
+            );
+          } catch {
+            try {
+              safeSeriesSetMarkers(api, []);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+        return sig.liveTitleKo;
+      })();
+
+      return liveTitleKo;
+    };
+
+    const paintPack = (
+      pack: MergedDeskAnchoredVwapPack | null,
+      extRef: { current: ISeriesApi<'Line'> | null },
+      openRef: { current: ISeriesApi<'Line'> | null },
+      extColor: string,
+      openColor: string,
+      extTitle: string,
+      openTitle: string,
+      markerSlots: { ext: 'highExt' | 'lowExt'; open: 'highOpen' | 'lowOpen' },
+      tones: { ext: 'green' | 'red' | 'cyan' | 'violet'; open: 'green' | 'red' | 'cyan' | 'violet' }
+    ) => {
+      if (!pack || pack.extremeLine.length < 2 || pack.openLine.length < 2) {
+        removeOne(extRef);
+        removeOne(openRef);
+        attachAvwapLineMarkers(null, markerSlots.ext, [], extTitle, tones.ext);
+        attachAvwapLineMarkers(null, markerSlots.open, [], openTitle, tones.open);
+        return;
+      }
+      const extApi = ensureLine(extRef, extColor, extTitle);
+      const openApi = ensureLine(openRef, openColor, openTitle);
+      const extremeData = alignSeriesPointsToCandleTimes(
+        pack.extremeLine.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+        chartBase
+      );
+      const openData = alignSeriesPointsToCandleTimes(
+        pack.openLine.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+        chartBase
+      );
+      extApi.setData(extremeData);
+      openApi.setData(openData);
+
+      const extLiveTitle = attachAvwapLineMarkers(
+        extApi,
+        markerSlots.ext,
+        pack.extremeLine,
+        extTitle,
+        tones.ext
+      );
+      const openLiveTitle = attachAvwapLineMarkers(
+        openApi,
+        markerSlots.open,
+        pack.openLine,
+        openTitle,
+        tones.open
+      );
+
+      if (candleSeries) {
+        const lastExt = pack.extremeLine[pack.extremeLine.length - 1];
+        const lastOpen = pack.openLine[pack.openLine.length - 1];
+        if (lastExt && Number.isFinite(lastExt.value)) {
+          const axisTitle = formatAvwapAxisTitleKo({
+            baseTagKo: extTitle,
+            liveTitleKo: extLiveTitle,
+          });
+          const meta = (
+            extApi as unknown as { __avwapExplain?: { reasonsKo: string[]; entryAllowed: boolean } }
+          ).__avwapExplain;
+          pushAvwapSnap(
+            markerSlots.ext,
+            lastExt.value,
+            extColor,
+            extTitle,
+            extLiveTitle,
+            meta?.reasonsKo ?? [],
+            meta?.entryAllowed
+          );
+          /** 분홍·초록 축 숫자 알약 금지 — zone 면으로만 표시 */
+        }
+        if (lastOpen && Number.isFinite(lastOpen.value)) {
+          const meta = (
+            openApi as unknown as { __avwapExplain?: { reasonsKo: string[]; entryAllowed: boolean } }
+          ).__avwapExplain;
+          pushAvwapSnap(
+            markerSlots.open,
+            lastOpen.value,
+            openColor,
+            openTitle,
+            openLiveTitle,
+            meta?.reasonsKo ?? [],
+            meta?.entryAllowed
+          );
+          /** 축 createPriceLine 숫자 라벨 생성 안 함 */
+        }
+      }
+    };
+
+    try {
+      clearAxisLines();
+      if (dual?.high || dual?.low) {
+        paintPack(
+          dual.high ?? null,
+          mergedDeskAvwapHighExtRef,
+          mergedDeskAvwapHighOpenRef,
+          '#4ade80',
+          '#f87171',
+          'AVWAP 고·고가',
+          'AVWAP 고·시가',
+          { ext: 'highExt', open: 'highOpen' },
+          { ext: 'green', open: 'red' }
+        );
+        paintPack(
+          dual.low ?? null,
+          mergedDeskAvwapLowExtRef,
+          mergedDeskAvwapLowOpenRef,
+          '#38bdf8',
+          '#a78bfa',
+          'AVWAP 저·고가',
+          'AVWAP 저·시가',
+          { ext: 'lowExt', open: 'lowOpen' },
+          { ext: 'cyan', open: 'violet' }
+        );
+      } else {
+        removeOne(mergedDeskAvwapHighExtRef);
+        removeOne(mergedDeskAvwapHighOpenRef);
+        removeOne(mergedDeskAvwapLowExtRef);
+        removeOne(mergedDeskAvwapLowOpenRef);
+        attachAvwapLineMarkers(null, 'highExt', [], 'AVWAP 고·고가', 'green');
+        attachAvwapLineMarkers(null, 'highOpen', [], 'AVWAP 고·시가', 'red');
+        attachAvwapLineMarkers(null, 'lowExt', [], 'AVWAP 저·고가', 'cyan');
+        attachAvwapLineMarkers(null, 'lowOpen', [], 'AVWAP 저·시가', 'violet');
+      }
+
+      /** 사용자 핀 — 기존 유지·추가 */
+      const keepIds = new Set(userPacks.map((u) => u.pin.id));
+      mergedDeskAvwapUserSeriesRef.current = mergedDeskAvwapUserSeriesRef.current.filter((row) => {
+        if (keepIds.has(row.id)) return true;
+        try {
+          chart.removeSeries(row.ext);
+        } catch {
+          /* ignore */
+        }
+        try {
+          chart.removeSeries(row.open);
+        } catch {
+          /* ignore */
+        }
+        return false;
+      });
+
+      for (const { pin, pack } of userPacks) {
+        if (pack.extremeLine.length < 2 || pack.openLine.length < 2) continue;
+        const isHigh = pin.role === 'high';
+        const extColor = isHigh ? '#86efac' : '#7dd3fc';
+        const openColor = isHigh ? '#fb7185' : '#c4b5fd';
+        const n = Number(pin.n) > 0 ? Math.floor(Number(pin.n)) : 0;
+        const tag = n > 0 ? `#${n}` : '찍기';
+        const extTitle = isHigh ? `${tag} 고·고가` : `${tag} 저·고가`;
+        const openTitle = isHigh ? `${tag} 고·시가` : `${tag} 저·시가`;
+        let row = mergedDeskAvwapUserSeriesRef.current.find((r) => r.id === pin.id);
+        if (!row) {
+          const ext = chart.addSeries(LineSeries, { ...lineOpts, color: extColor, title: '' });
+          const open = chart.addSeries(LineSeries, { ...lineOpts, color: openColor, title: '' });
+          row = { id: pin.id, ext, open };
+          mergedDeskAvwapUserSeriesRef.current.push(row);
+        } else {
+          row.ext.applyOptions({ color: extColor, title: '', lastValueVisible: false });
+          row.open.applyOptions({ color: openColor, title: '', lastValueVisible: false });
+        }
+        row.ext.setData(
+          alignSeriesPointsToCandleTimes(
+            pack.extremeLine.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+            chartBase
+          )
+        );
+        row.open.setData(
+          alignSeriesPointsToCandleTimes(
+            pack.openLine.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+            chartBase
+          )
+        );
+        if (candleSeries) {
+          const lastExt = pack.extremeLine[pack.extremeLine.length - 1];
+          const lastOpen = pack.openLine[pack.openLine.length - 1];
+          if (lastExt && Number.isFinite(lastExt.value)) {
+            pushAvwapSnap(
+              `pin-${pin.id}-ext`,
+              lastExt.value,
+              extColor,
+              extTitle,
+              extTitle,
+              [`사용자 핀 #${n || '?'} · ${isHigh ? '고점' : '저점'} 앵커 고가 VWAP`],
+              false
+            );
+          }
+          if (lastOpen && Number.isFinite(lastOpen.value)) {
+            pushAvwapSnap(
+              `pin-${pin.id}-open`,
+              lastOpen.value,
+              openColor,
+              openTitle,
+              openTitle,
+              [`사용자 핀 #${n || '?'} · ${isHigh ? '고점' : '저점'} 앵커 시가 VWAP`],
+              false
+            );
+          }
+        }
+      }
+
+      raiseCandleSeriesDrawOrder(seriesRef.current);
+
+      /** 세션 VWAP — Anchored와 병행 */
+      if (sessionOn) {
+        const sess = computeSessionVwapSeries(chartBase);
+        if (sess.length >= 2) {
+          const api = ensureLine(mergedDeskSessionVwapRef, '#facc15', '세션VWAP');
+          api.setData(
+            alignSeriesPointsToCandleTimes(
+              sess.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+              chartBase
+            )
+          );
+          const last = sess[sess.length - 1];
+          if (candleSeries && last && Number.isFinite(last.value)) {
+            pushAvwapSnap(
+              'session',
+              last.value,
+              '#facc15',
+              '세션VWAP',
+              '세션VWAP',
+              ['UTC 일 리셋 세션 VWAP · Anchored와 병행'],
+              false
+            );
+            /** 축 숫자 알약 없이 노란 줄선만 */
+          }
+        } else {
+          removeOne(mergedDeskSessionVwapRef);
+        }
+      } else {
+        removeOne(mergedDeskSessionVwapRef);
+      }
+
+      /** POI 밴드 — dual 고/저 pack의 bandUpper/bandLower (기존 선 유지) */
+      for (const row of mergedDeskAvwapPoiBandRefs.current) {
+        try {
+          chart.removeSeries(row.upper);
+        } catch {
+          /* ignore */
+        }
+        try {
+          chart.removeSeries(row.lower);
+        } catch {
+          /* ignore */
+        }
+      }
+      mergedDeskAvwapPoiBandRefs.current = [];
+      if (poiBandOn && dual) {
+        const paintBand = (pack: MergedDeskAnchoredVwapPack | null, color: string, title: string) => {
+          if (!pack || pack.bandUpper.length < 2 || pack.bandLower.length < 2) return;
+          const upper = chart.addSeries(LineSeries, {
+            ...lineOpts,
+            color,
+            title: `${title}상`,
+            lineWidth: 1 as LineWidth,
+            lastValueVisible: false,
+          });
+          const lower = chart.addSeries(LineSeries, {
+            ...lineOpts,
+            color,
+            title: `${title}하`,
+            lineWidth: 1 as LineWidth,
+            lastValueVisible: false,
+          });
+          upper.setData(
+            alignSeriesPointsToCandleTimes(
+              pack.bandUpper.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+              chartBase
+            )
+          );
+          lower.setData(
+            alignSeriesPointsToCandleTimes(
+              pack.bandLower.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+              chartBase
+            )
+          );
+          mergedDeskAvwapPoiBandRefs.current.push({ upper, lower });
+        };
+        paintBand(dual.high ?? null, 'rgba(74,222,128,0.55)', 'POI고');
+        paintBand(dual.low ?? null, 'rgba(56,189,248,0.55)', 'POI저');
+      }
+      avwapExplainSnapsRef.current = avwapSnaps;
+    } catch {
+      removeAvwap();
+    }
+
+    return removeAvwap;
+  }, [
+    settings.chartMergedDeskAnchoredVwapEnabled,
+    settings.chartMergedDeskAnchoredVwapMode,
+    settings.chartMergedDeskAnchoredVwapManualTime,
+    settings.chartMergedDeskAnchoredVwapHtf,
+    settings.chartMergedDeskAvwapAutoExtremeEnabled,
+    settings.chartMergedDeskAvwapUserPins,
+    settings.chartMergedDeskAvwapUserPinsHidden,
+    settings.chartMergedDeskVwapPoiBandEnabled,
+    settings.chartMergedDeskSessionVwapEnabled,
+    avwapHtfCandles,
+    avwapPinAnchorByTf,
+    candles,
+    candlesForMergedDeskChart,
+    timeframe,
+    chartInstanceId,
+    settingsChangeTick,
+    analysis,
+    analysisMatchesTf,
+    mergedAnalysisDeskPack?.hotZoneEntry,
+  ]);
+
+  /**
+   * AVWAP 찍기 — 「AVWAP찍기」칩 ON일 때만 차트 클릭으로 핀 추가 (TradingView 앵커식).
+   * 전 UI 모드 공통. 칩 OFF면 클릭해도 안 찍힘.
+   */
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!vwapPlaceArmed(settings)) {
+      if (host) host.style.cursor = '';
+      return;
+    }
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series) return;
+    if (host) host.style.cursor = 'crosshair';
+
+    const onChartClick = (param: {
+      time?: number | { timestamp?: number };
+      point?: { x: number; y: number };
+      seriesData?: Map<unknown, { time?: number }>;
+    }) => {
+      if (loadSettings().chartMergedDeskAvwapPlaceArmed !== true) return;
+      const rawT =
+        param?.time ?? (series && param?.seriesData?.get?.(series as unknown)?.time);
+      if (rawT == null) return;
+      const clickTime =
+        typeof rawT === 'number'
+          ? rawT
+          : Number((rawT as { timestamp?: number }).timestamp ?? NaN);
+      if (!Number.isFinite(clickTime)) return;
+
+      const chartBase =
+        candlesForMergedDeskChart.length >= 2
+          ? candlesForMergedDeskChart
+          : chartSeriesCandlesRef.current.length >= 2
+            ? chartSeriesCandlesRef.current
+            : sanitizeChartCandlesForSeries(candles, timeframe);
+      if (chartBase.length < 2) return;
+
+      let bestIdx = -1;
+      for (let i = 0; i < chartBase.length; i++) {
+        const t = Number(chartBase[i]?.time);
+        if (Number.isFinite(t) && t >= clickTime) {
+          bestIdx = i;
+          break;
+        }
+      }
+      if (bestIdx < 0) {
+        let bestDiff = Infinity;
+        for (let i = 0; i < chartBase.length; i++) {
+          const c = chartBase[i]!;
+          const d = Math.abs(Number(c.time) - clickTime);
+          if (d < bestDiff) {
+            bestDiff = d;
+            bestIdx = i;
+          }
+        }
+      }
+      const best = bestIdx >= 0 ? chartBase[bestIdx]! : null;
+      if (!best) return;
+      const barTime = Number(best.time);
+      if (!Number.isFinite(barTime)) return;
+
+      let price = Number.NaN;
+      if (param?.point && Number.isFinite(param.point.y)) {
+        try {
+          price = Number(series.coordinateToPrice(param.point.y));
+        } catch {
+          price = Number.NaN;
+        }
+      }
+      if (!Number.isFinite(price)) {
+        price = (Number(best.high) + Number(best.low)) / 2;
+      }
+      const role = resolveAvwapClickRole(best, price);
+      const placeTf = normalizeChartTimeframe(timeframe) || timeframe;
+      const pins = appendAvwapUserPin(
+        normalizeAvwapUserPins(loadSettings().chartMergedDeskAvwapUserPins),
+        barTime,
+        role,
+        placeTf
+      );
+      saveSettings({
+        chartMergedDeskAnchoredVwapEnabled: true,
+        chartMergedDeskAvwapAutoExtremeEnabled: false,
+        chartMergedDeskAvwapPlaceArmed: true,
+        chartMergedDeskAvwapUserPins: pins,
+        chartMergedDeskAvwapUserPinsHidden: false,
+      });
+    };
+
+    chart.subscribeClick(onChartClick as never);
+    return () => {
+      chart.unsubscribeClick(onChartClick as never);
+      if (host) host.style.cursor = '';
+    };
+  }, [
+    settings.chartMergedDeskAvwapPlaceArmed,
+    candles,
+    candlesForMergedDeskChart,
+    timeframe,
+    chartInstanceId,
+    settingsChangeTick,
+  ]);
+
+  useEffect(() => {
+    if (!isMergedAnalysisDesk) return;
+    raiseCandleSeriesDrawOrder(seriesRef.current);
+  }, [
+    isMergedAnalysisDesk,
+    chartInstanceId,
+    mergedDeskPriceLinesSig,
+    institutionalSuperTrendCandleKey,
+    settings.showBitcoinPowerLawBands,
+  ]);
 
   /** L/S 캔들 마커: 4요소 확정 시 표시. 한번 뜬 신호는 스크롤·TF 전환해도 해당 캔들에 유지 */
   const lockedSignalsStoreRef = useRef<Map<string, Map<number, 'LONG' | 'SHORT'>>>(new Map());
@@ -8097,8 +17634,43 @@ const ChartViewInner = ({
   }>(null);
   /** B: 마커가 있는 봉 클릭 시 요약 줄 */
   const [signalBarTip, setSignalBarTip] = useState<{ time: number; lines: string[] } | null>(null);
+  /** AVWAP·기관ST 등 기능 설명 카드 (숫자만 라벨 대체) */
+  const [featureExplainCard, setFeatureExplainCard] = useState<ChartFeatureExplainCard | null>(null);
+  featureExplainDismissRef.current = () => {
+    setFeatureExplainCard(null);
+    setSignalBarTip(null);
+  };
   /** 바이블 패턴 핀: 이모지만 표시, 클릭 시 상세 */
   const [biblePatternTip, setBiblePatternTip] = useState<{ text: string; left: number; top: number } | null>(null);
+  /** 파란·빨간 채널/중착/게이트 라벨 클릭 설명 + 전 라벨 지지·거래량 */
+  const [rbLabelTip, setRbLabelTip] = useState<{ text: string; left: number; top: number; title?: string } | null>(null);
+  const openLabelClickIntel = useCallback(
+    (item: OverlayItem, clientX: number, clientY: number, extraText?: string) => {
+      const series = chartSeriesCandlesRef.current;
+      const rows = series.length >= 8 ? series : candles;
+      const lastClose = rows.length ? Number(rows[rows.length - 1]!.close) : NaN;
+      const lastPx =
+        Number.isFinite(lastClose) && lastClose > 0
+          ? lastClose
+          : Number((analysis as AnalyzeResponse | null | undefined)?.currentPrice) || null;
+      const intel = buildMergedDeskLabelClickIntel({ overlay: item, candles: rows, lastPrice: lastPx });
+      const bits = [intel.lineKo];
+      const tip = String(item.labelTooltip || '').trim();
+      const extra = String(extraText || '').trim();
+      if (tip && tip.length < 420 && !(extra && extra.includes(tip.slice(0, Math.min(36, tip.length))))) {
+        bits.push('', tip);
+      }
+      if (extra) bits.push('', extra);
+      setBiblePatternTip(null);
+      setRbLabelTip({
+        title: `${intel.holdKo} · ${intel.volKo}`,
+        text: bits.join('\n'),
+        left: clientX,
+        top: clientY,
+      });
+    },
+    [candles, analysis],
+  );
   const [confirmedHistorySignals, setConfirmedHistorySignals] = useState<Array<{
     symbol: string;
     timeframe: string;
@@ -8209,7 +17781,7 @@ const ChartViewInner = ({
   useEffect(() => {
     const markersApi = rsiMarkersRef.current;
     if (!markersApi || candles.length === 0) {
-      if (markersApi) markersApi.setMarkers([]);
+      safeSeriesSetMarkers(markersApi, []);
       setLsRocketHud([]);
       return;
     }
@@ -8244,13 +17816,230 @@ const ChartViewInner = ({
     const frTriggered = frontRunTriggeredStoreRef.current.get(storeKey)!;
     const frTriggeredDetail = frontRunTriggeredDetailStoreRef.current.get(storeKey)!;
 
-    const analysisMatches = analysisMatchesSymbolAndTf(analysis, symbol, timeframe);
-    const ud = unifiedDeskMode;
-    const smcDeskMode = isSmcDeskMode;
+    const analysisMatches = analysisUsableOnChart(analysis, symbol, timeframe, uiMode);
     const slFailSet = chartSlFailureKeySet(
       analysisMatches ? (analysis as AnalyzeResponse).signalLearning?.slFailures : undefined,
       candles
     );
+
+    /** 통합엔진 — 2000줄+ 마커·텔레그램 파이프라인 생략, 펄스+로켓만 (팩 준비 전에도 풀 파이프라인 금지) */
+    if (
+      isDeskPulseFamily &&
+      (isMergedAnalysisDesk || settings.chartMonthDeskUnifiedPulseEngineEnabled !== false)
+    ) {
+      const srRaw = analysisMatches ? (analysis as AnalyzeResponse).structureRocketSignals ?? [] : [];
+      /** 통합·분석: 구조 로켓은 whale 코어 SR OFF여도 유지 */
+      const sr =
+        isMergedAnalysisDesk || isMonthStartDeskMode
+          ? srRaw
+          : isAiMode && !whaleCoreSrZoneEnabled
+            ? []
+            : srRaw;
+      const srVis = filterLsRocketsBySlFailures(sr, slFailSet, candles);
+      const chartWindowCandles =
+        isMergedAnalysisDesk && candlesForMergedDeskChart.length >= 2
+          ? candlesForMergedDeskChart
+          : isMergedAnalysisDesk && candlesForMergedDeskEngine.length >= 2
+            ? candlesForMergedDeskEngine
+            : candles;
+      const analyzeCandlesForRemap =
+        isMergedAnalysisDesk && analysisMatches && (analysis as AnalyzeResponse).candles?.length
+          ? sanitizeChartCandlesForSeries((analysis as AnalyzeResponse).candles as Candle[], timeframe)
+          : undefined;
+      const mergedChartBiasEarly: 'LONG' | 'SHORT' | null =
+        analysisMatches &&
+        ((analysis as { verdict?: string }).verdict === 'LONG' ||
+          (analysis as { verdict?: string }).verdict === 'SHORT')
+          ? ((analysis as { verdict: 'LONG' | 'SHORT' }).verdict as 'LONG' | 'SHORT')
+          : null;
+      const persistRockets = filterLsRocketsBySlFailures(
+        mergePersistedRocketRows(
+          mergeRocketPersistence(storeKey, srVis, timeframe, slFailSet, chartWindowCandles),
+          collectCrossTfMappedRockets(symbol, chartWindowCandles, storeKey, timeframe)
+        ),
+        slFailSet,
+        chartWindowCandles
+      );
+      /** 통합·분석도 AI모드와 같은 persist·교차TF 로켓을 쓰고, 차트 봉에만 스냅 */
+      const hudBase = isMergedAnalysisDesk
+        ? buildMergedDeskStructureRocketsForChart({
+            structureRockets: persistRockets,
+            chartCandles: chartWindowCandles,
+            sourceCandles: analyzeCandlesForRemap,
+            chartBias: mergedChartBiasEarly,
+            timeframe,
+          })
+        : persistRockets;
+      const hud = isMergedAnalysisDesk
+        ? dedupeMergedDeskRocketsOnePerBar(
+            filterMergedDeskSignalsToChartWindow(hudBase, chartWindowCandles),
+            mergedChartBiasEarly,
+            chartWindowCandles
+          )
+        : hudBase;
+      setLsRocketHud(
+        isMergedAnalysisDesk && settings.chartMarkerLayerRocket === false
+          ? []
+          : buildLsRocketHud(hud)
+      );
+      const bandMarkerCandles =
+        mergedInstitutionalBandCandles.length >= 8
+          ? mergedInstitutionalBandCandles
+          : candlesForMergedDeskEngine.length >= 8
+            ? candlesForMergedDeskEngine
+            : candles;
+      const bandMarkersRaw =
+        isMergedAnalysisDesk && CHART_BAND_LINE_AND_TOUCH_ALWAYS_ON
+          ? buildMergedDeskInstitutionalBandMarkers({
+              candles: bandMarkerCandles,
+              timeframe,
+              analysis: analysisMatches ? (analysis as AnalyzeResponse) : null,
+              touchTierMask:
+                settings.institutionalBandTouchTierMask ??
+                tierMaskFromMinTier(
+                  settings.institutionalBandTouchMinTier === 'A' ||
+                    settings.institutionalBandTouchMinTier === 'B' ||
+                    settings.institutionalBandTouchMinTier === 'C'
+                    ? settings.institutionalBandTouchMinTier
+                    : 'B'
+                ),
+            })
+          : [];
+      const move7 = isMergedAnalysisDesk
+        ? buildBandMove7Overlay(bandMarkerCandles as Candle[], timeframe)
+        : { markers: [] as ReturnType<typeof buildBandMove7Overlay>['markers'] };
+      const bandMarkers = [
+        ...bandMarkersRaw,
+        ...move7.markers.map((m) => ({
+          time: m.time as UTCTimestamp,
+          position: m.position,
+          shape: m.shape,
+          color: m.color,
+          text: m.label,
+          size: 2 as const,
+          id: `merged-desk-m7-${m.label}-${m.time}`,
+        })),
+      ];
+      const mergedChartBias: 'LONG' | 'SHORT' | null =
+        analysisMatches &&
+        ((analysis as { verdict?: string }).verdict === 'LONG' ||
+          (analysis as { verdict?: string }).verdict === 'SHORT')
+          ? ((analysis as { verdict: 'LONG' | 'SHORT' }).verdict as 'LONG' | 'SHORT')
+          : null;
+      const mergedFrontRun: MergedDeskFrontRunSnap | null =
+        isMergedAnalysisDesk && analysisMatches
+          ? (((analysis as AnalyzeResponse).frontRunSignal as MergedDeskFrontRunSnap | undefined) ?? null)
+          : null;
+      const mergedLastBarT = Number(
+        (chartWindowCandles[chartWindowCandles.length - 1]?.time ??
+          candles[candles.length - 1]?.time) as number
+      );
+      const mergedBandEvents =
+        isMergedAnalysisDesk && CHART_BAND_LINE_AND_TOUCH_ALWAYS_ON
+          ? computeMergedDeskBandInteractionEvents(
+              bandMarkerCandles,
+              timeframe,
+              analysisMatches ? (analysis as AnalyzeResponse) : null,
+              settings.institutionalBandTouchTierMask ??
+                tierMaskFromMinTier(
+                  settings.institutionalBandTouchMinTier === 'A' ||
+                    settings.institutionalBandTouchMinTier === 'B' ||
+                    settings.institutionalBandTouchMinTier === 'C'
+                    ? settings.institutionalBandTouchMinTier
+                    : 'B'
+                )
+            )
+          : [];
+      const mergedFastMarkers =
+        deskPulsePack && isMergedAnalysisDesk
+          ? consolidateMergedDeskPulseMarkers({
+              packMarkers: (() => {
+                const base = (deskPulsePack.markers as UnifiedPulseChartMarker[]) || [];
+                const withoutTv = base.filter((m) => !String(m.id || '').startsWith('merged-desk-tv-ls-'));
+                const tvMk =
+                  settings.showTvStructureLs === true
+                    ? ((tvStructureLsPackClient?.markers as UnifiedPulseChartMarker[]) ?? [])
+                    : [];
+                return [...withoutTv, ...tvMk] as UnifiedPulseChartMarker[];
+              })(),
+              rockets: hud,
+              bandMarkers,
+              chartCandles: chartWindowCandles,
+              sourceCandles: analyzeCandlesForRemap,
+              frontRun: mergedFrontRun,
+              lastBarTime: Number.isFinite(mergedLastBarT) ? mergedLastBarT : null,
+              chartBias: mergedChartBias,
+              rocketSize: (lsRocketMarkerSize === 1 || lsRocketMarkerSize === 3
+                ? lsRocketMarkerSize
+                : 2) as 1 | 2 | 3,
+            })
+          : isMergedAnalysisDesk && settings.showTvStructureLs === true && tvStructureLsPackClient?.markers?.length
+            ? consolidateMergedDeskPulseMarkers({
+                packMarkers: tvStructureLsPackClient.markers as UnifiedPulseChartMarker[],
+                rockets: hud,
+                bandMarkers,
+                chartCandles: chartWindowCandles,
+                sourceCandles: analyzeCandlesForRemap,
+                frontRun: mergedFrontRun,
+                lastBarTime: Number.isFinite(mergedLastBarT) ? mergedLastBarT : null,
+                chartBias: mergedChartBias,
+                rocketSize: (lsRocketMarkerSize === 1 || lsRocketMarkerSize === 3
+                  ? lsRocketMarkerSize
+                  : 2) as 1 | 2 | 3,
+              })
+          : deskPulsePack
+            ? (buildUnifiedPulseFastChartMarkers({
+                pack: deskPulsePack,
+                rockets: hud,
+                bandMarkers,
+                rocketSize: (lsRocketMarkerSize === 1 || lsRocketMarkerSize === 3
+                  ? lsRocketMarkerSize
+                  : 2) as 1 | 2 | 3,
+              }) as ChartMarkerRow[])
+            : [];
+      const tripleTrendFastMarkers =
+        settings.chartMonthDeskFusionDeskBandEnabled !== false && monthDeskFusionDeskBandPack
+          ? buildTripleTrendFusionChartMarkers(
+              monthDeskFusionDeskBandPack as TripleTrendFusionPack,
+              chartWindowCandles
+            )
+          : [];
+      const mergedWithTripleTrend =
+        tripleTrendFastMarkers.length > 0
+          ? ([
+              ...tripleTrendFastMarkers.map((m) => ({
+                time: m.time,
+                position: m.position,
+                shape: m.shape,
+                color: m.color,
+                text: m.text,
+                size: m.size,
+                id: m.id,
+              })),
+              ...mergedFastMarkers,
+            ] as ChartMarkerRow[])
+          : mergedFastMarkers;
+      {
+        const fastMk = stabilizeSignalMarkers(
+          mergedWithTripleTrend as ChartMarkerRow[],
+          chartWindowCandles.map((c) => Number(c.time))
+        );
+        safeSeriesSetMarkers(markersApi, fastMk as any);
+      }
+      markerBarDetailRef.current =
+        isMergedAnalysisDesk && mergedFastMarkers.length
+          ? buildMergedDeskMarkerBarDetailMap({
+              markers: mergedFastMarkers as UnifiedPulseChartMarker[],
+              bandEvents: mergedBandEvents,
+              frontRun: mergedFrontRun,
+              analysis: analysisMatches ? (analysis as AnalyzeResponse) : null,
+            })
+          : new Map();
+      return;
+    }
+
+    const ud = unifiedDeskMode;
+    const smcDeskMode = isSmcDeskMode;
     const ac = (analysis as { candles?: Candle[] })?.candles;
     const signalCandles = analysisMatches && ac?.length ? ac : candles;
     const signalLastTime = signalCandles[signalCandles.length - 1]?.time as number | undefined;
@@ -8258,7 +18047,12 @@ const ChartViewInner = ({
     if (effSignalLast == null) {
       markersApi.setMarkers([]);
       const srEarlyRaw = analysisMatches ? (analysis as AnalyzeResponse).structureRocketSignals ?? [] : [];
-      const srEarly = isAiMode && !whaleCoreSrZoneEnabled ? [] : srEarlyRaw;
+      const srEarly =
+        isMergedAnalysisDesk || isMonthStartDeskMode
+          ? srEarlyRaw
+          : isAiMode && !whaleCoreSrZoneEnabled
+            ? []
+            : srEarlyRaw;
       const persistedOnly = mergeRocketPersistence(
         storeKey,
         analysisMatches ? filterLsRocketsBySlFailures(srEarly, slFailSet, candles) : undefined,
@@ -8270,7 +18064,11 @@ const ChartViewInner = ({
         persistedOnly,
         collectCrossTfMappedRockets(symbol, candles, storeKey, timeframe)
       );
-      setLsRocketHud(buildLsRocketHud(filterLsRocketsBySlFailures(mergedEarly, slFailSet, candles)));
+      setLsRocketHud(
+        isMergedAnalysisDesk && settings.chartMarkerLayerRocket === false
+          ? []
+          : buildLsRocketHud(filterLsRocketsBySlFailures(mergedEarly, slFailSet, candles))
+      );
       return;
     }
 
@@ -8429,6 +18227,8 @@ const ChartViewInner = ({
       color: string;
       text: string;
       size?: number;
+      /** lightweight-charts 기본 타입엔 없음 — 런타임 식별용(선택) */
+      id?: string;
     }> = [];
     /** 기관밴드 접촉: 캔들 텍스트는 짧게 쓰고, 클릭 패널은 상세 문자열로 복원 */
     const ibTouchByBarTime = new Map<number, InstitutionalBandInteractionMarker[]>();
@@ -8475,8 +18275,13 @@ const ChartViewInner = ({
       }
     }
     const structureRocketsRaw = analysisMatches ? (analysis as AnalyzeResponse).structureRocketSignals ?? [] : [];
+    /** 통합·분석·정밀: 구조 로켓은 whale 코어 SR 토글과 무관하게 유지(기능 비가시 방지) */
     const structureRockets =
-      isAiMode && !whaleCoreSrZoneEnabled ? [] : structureRocketsRaw;
+      isMergedAnalysisDesk || isMonthStartDeskMode
+        ? structureRocketsRaw
+        : isAiMode && !whaleCoreSrZoneEnabled
+          ? []
+          : structureRocketsRaw;
     const structureRocketsVisible = filterLsRocketsBySlFailures(structureRockets, slFailSet, candles);
     /** 자동 텔레그램: 차트에 실제로 보이는 구조로켓만 알림 */
     const structureRocketsForTelegram = structureRocketsVisible;
@@ -8663,7 +18468,9 @@ const ChartViewInner = ({
     }
     const afFusion = analysisMatches ? (analysis as AnalyzeResponse).aiFusionSignal : undefined;
     const smcAiFusionHudOn = uiMode === 'SMC_DESK' && settings.chartSmcDeskAiFusionPanel !== false;
+    /** 마감·안착: 차트 캔들의 AI 롱·숏 유력/확정 배지는 시나리오·존 마커와 겹쳐 혼선 — 표시 안 함 */
     const afShowOnChart =
+      !isMonthStartDeskMode &&
       afFusion &&
       candles.length > 0 &&
       (afFusion.verdict === 'LONG' ||
@@ -8694,18 +18501,116 @@ const ChartViewInner = ({
         });
       }
     }
+    if (analysisMatches && analysis) {
+      const so = (analysis as AnalyzeResponse).smartOverlay ?? buildSmartOverlayPayload(analysis as AnalyzeResponse, candles);
+      const lastBarTime = Number(candles[candles.length - 1]?.time ?? 0);
+      if (so && Number.isFinite(lastBarTime) && lastBarTime > 0) {
+        const conf = so.confirmation;
+        if (conf?.headline === 'BULL_CONFIRM') {
+          markers.push({
+            time: lastBarTime as UTCTimestamp,
+            position: 'belowBar',
+            shape: 'circle',
+            color: '#22c55e',
+            text: '✅🟢',
+            size: 1,
+          });
+        } else if (conf?.headline === 'BEAR_CONFIRM') {
+          markers.push({
+            time: lastBarTime as UTCTimestamp,
+            position: 'aboveBar',
+            shape: 'circle',
+            color: '#ef4444',
+            text: '✅🔴',
+            size: 1,
+          });
+        }
+      }
+      const zsig = (analysis as any)?.zoneSignal;
+      if (Number.isFinite(lastBarTime) && lastBarTime > 0 && zsig) {
+        if (zsig.zone === 'long_confirm') {
+          markers.push({
+            time: lastBarTime as UTCTimestamp,
+            position: 'belowBar',
+            shape: 'square',
+            color: '#16a34a',
+            text: '🟩L확정',
+            size: 1,
+          });
+        } else if (zsig.zone === 'short_confirm') {
+          markers.push({
+            time: lastBarTime as UTCTimestamp,
+            position: 'aboveBar',
+            shape: 'square',
+            color: '#dc2626',
+            text: '🟥S확정',
+            size: 1,
+          });
+        }
+      }
+      const settle = (analysis as any)?.settlementZone?.state;
+      if (Number.isFinite(lastBarTime) && lastBarTime > 0 && settle === 'confirmed') {
+        markers.push({
+          time: lastBarTime as UTCTimestamp,
+          position: 'inBar',
+          shape: 'square',
+          color: '#38bdf8',
+          text: '🧱안착',
+          size: 1,
+        });
+      }
+      const settleInfo = (analysis as any)?.settlementZone as
+        | { breakIndex?: number; retestIndex?: number; state?: string }
+        | undefined;
+      if (settleInfo && analysisMatches) {
+        const bIdx = Number(settleInfo.breakIndex);
+        const rIdx = Number(settleInfo.retestIndex);
+        const safeCandleAt = (idx: number) =>
+          Number.isFinite(idx) && idx >= 0 && idx < candles.length ? candles[idx] : null;
+        const bc = safeCandleAt(bIdx);
+        const rc = safeCandleAt(rIdx);
+        if (bc?.time != null) {
+          markers.push({
+            time: Number(bc.time) as UTCTimestamp,
+            position: 'inBar',
+            shape: 'square',
+            color: '#60a5fa',
+            text: '🚀돌파',
+            size: 1,
+          });
+        }
+        if (rc?.time != null) {
+          markers.push({
+            time: Number(rc.time) as UTCTimestamp,
+            position: 'inBar',
+            shape: 'square',
+            color: settleInfo.state === 'confirmed' ? '#34d399' : '#f59e0b',
+            text: settleInfo.state === 'confirmed' ? '🧱안착' : '⚠재시험',
+            size: 1,
+          });
+        }
+      }
+      const st = (analysis as any)?.structureState?.state;
+      if (Number.isFinite(lastBarTime) && lastBarTime > 0 && st === 'reversal') {
+        markers.push({
+          time: lastBarTime as UTCTimestamp,
+          position: 'inBar',
+          shape: 'square',
+          color: '#f59e0b',
+          text: '↩ 구조밀림',
+          size: 1,
+        });
+      }
+    }
     const lastBar = candles[candles.length - 1];
-    if (SHOW_FRONT_RUN_ON_CHART && layerFr && lastBar && frontRun && frontRun.state !== 'NO_SIGNAL') {
-      const frStateKo =
-        frontRun.state === 'TRIGGERED'
-          ? '확정'
-          : frontRun.state === 'READY'
-            ? '준비'
-            : frontRun.state === 'WATCH'
-              ? '관찰'
-              : frontRun.state === 'INVALID'
-                ? '무효'
-                : '신호없음';
+    /** WATCH(관찰 롱/숏) 파랑 원은 차트 가림 — 표시 안 함. TRIGGERED만 플래그 ON일 때 */
+    if (
+      SHOW_FRONT_RUN_ON_CHART &&
+      layerFr &&
+      lastBar &&
+      frontRun &&
+      frontRun.state === 'TRIGGERED'
+    ) {
       const frDirKo =
         frontRun.direction === 'LONG'
           ? '롱'
@@ -8713,18 +18618,10 @@ const ChartViewInner = ({
             ? '숏'
             : '';
       const frColor =
-        frontRun.state === 'TRIGGERED'
-          ? (frontRun.direction === 'LONG' ? '#16A34A' : '#DC2626')
-          : frontRun.state === 'READY'
-            ? '#F59E0B'
-            : frontRun.state === 'WATCH'
-              ? '#38BDF8'
-              : '#94A3B8';
-      const frText = `선반영 ${frStateKo}${frDirKo ? ` ${frDirKo}` : ''}`;
-      const frShape: 'arrowUp' | 'arrowDown' | 'circle' =
-        frontRun.state === 'TRIGGERED'
-          ? (frontRun.direction === 'SHORT' ? 'arrowDown' : 'arrowUp')
-          : 'circle';
+        frontRun.direction === 'LONG' ? '#16A34A' : '#DC2626';
+      const frText = `선반영 확정${frDirKo ? ` ${frDirKo}` : ''}`;
+      const frShape: 'arrowUp' | 'arrowDown' =
+        frontRun.direction === 'SHORT' ? 'arrowDown' : 'arrowUp';
       const frDirOk =
         frontRun.direction === 'LONG' || frontRun.direction === 'SHORT'
           ? !chartBias || frontRun.direction === chartBias
@@ -8777,7 +18674,11 @@ const ChartViewInner = ({
     );
     const crossTfRockets = collectCrossTfMappedRockets(symbol, candles, storeKey, timeframe);
     const mergedRocketHud = mergePersistedRocketRows(persistedRocket, crossTfRockets);
-    setLsRocketHud(buildLsRocketHud(filterLsRocketsBySlFailures(mergedRocketHud, slFailSet, candles)));
+    setLsRocketHud(
+        isMergedAnalysisDesk && settings.chartMarkerLayerRocket === false
+          ? []
+          : buildLsRocketHud(filterLsRocketsBySlFailures(mergedRocketHud, slFailSet, candles))
+      );
     /**
      * 마커 레이어: 구조 로켓·L/S, 통합작도에서도 RSI 극단(🔥·💧) + 캔들분석 보조·하모닉·기관밴드(ST) 등 **다른 TF/모드와 동일하게** 켜짐(예전 `!ud` 차단 제거).
      * 통합 ⋈ 는 전역 시간 겹침으로 막지 않음.
@@ -8830,6 +18731,29 @@ const ChartViewInner = ({
         });
       }
     }
+    /** OB·빔 — HTF 마감·안착은 HTML 핀·존만(시리즈 마커 중복 방지) */
+    const obPreBeamSeriesMarkers =
+      obPreBeamScan?.markers.length &&
+      !(isMonthStartDeskMode && isMonthDeskChartHtf(timeframe));
+    if (
+      (isMonthStartDeskMode || (layerAux && unifiedMarkersOn && settings.showCandle !== false)) &&
+      obPreBeamSeriesMarkers
+    ) {
+      const obBeamOcc = new Set<number>();
+      for (const m of obPreBeamScan!.markers) {
+        const tm = Number(m.time);
+        if (!Number.isFinite(tm) || obBeamOcc.has(tm)) continue;
+        obBeamOcc.add(tm);
+        markers.push({
+          time: tm as UTCTimestamp,
+          position: m.position,
+          shape: m.shape,
+          color: m.color,
+          text: m.text,
+          size: m.size,
+        });
+      }
+    }
     if (analysisMatches && showHarmonic) {
       const ns = (analysis as AnalyzeResponse)?.engine?.nenStarChartMarkers as
         | Array<{ time: number; bias: 'bullish' | 'bearish'; candleConfirm: boolean }>
@@ -8867,11 +18791,7 @@ const ChartViewInner = ({
           analysisMatches && (analysis as AnalyzeResponse)?.overlays
             ? (analysis as AnalyzeResponse).overlays
             : [];
-        const ibMarks = computeInstitutionalBandInteractionMarkersUnion(
-          safe,
-          INSTITUTIONAL_BAND_DEFAULT_PERIOD,
-          INSTITUTIONAL_BAND_DEFAULT_MULT,
-          {
+        const ibOpts = {
             minBarsBetween: institutionalBandTouchMinGapBars(timeframe),
             tierEnabled: {
               A: touchTierMask.A === true,
@@ -8879,14 +18799,35 @@ const ChartViewInner = ({
               C: touchTierMask.C === true,
             },
             overlays: overlayList,
-          },
-        );
+        };
+        const ibMarks =
+          isMergedAnalysisDesk || settings.institutionalBandTouchReinforced === true
+            ? computeInstitutionalBandInteractionMarkers(
+                safe,
+                INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+                INSTITUTIONAL_BAND_DEFAULT_MULT,
+                {
+                  minBarsBetween: ibOpts.minBarsBetween,
+                  tierEnabled: ibOpts.tierEnabled,
+                  reinforcedFusion: true,
+                  confluence: { enabled: true, overlays: overlayList },
+                  precision: { enabled: true, overlays: overlayList },
+                }
+              )
+            : computeInstitutionalBandInteractionMarkersUnion(
+                safe,
+                INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+                INSTITUTIONAL_BAND_DEFAULT_MULT,
+                ibOpts
+              );
         for (const ev of ibMarks) {
           const tm = Number(ev.time);
           if (!Number.isFinite(tm)) continue;
           const list = ibTouchByBarTime.get(tm) ?? [];
           list.push(ev);
           ibTouchByBarTime.set(tm, list);
+          /** 통합·분석: ↓화살·숏ST 글자 대신 zone 면 — 마커 생략 */
+          if (isMergedAnalysisDesk && MERGED_DESK_ST_TOUCH_AS_ZONES) continue;
           const isLong = ev.verdict === 'LONG';
           const st = institutionalBandTouchMarkerStyle(ev);
           markers.push({
@@ -8897,6 +18838,183 @@ const ChartViewInner = ({
             text: formatInstitutionalBandTouchMarkerChartText(ev),
             size: st.size,
           });
+        }
+        /** 마지막 봉: 위·아래 동시 로켓이면 참고 밴드 마커도 생략(겹침 방지) */
+        if (
+          isMonthStartDeskMode &&
+          !(isMergedAnalysisDesk && MERGED_DESK_ST_TOUCH_AS_ZONES) &&
+          safe.length >= 7
+        ) {          const lastT = Number(safe[safe.length - 1]!.time);
+          const lastRockets = markers.filter(
+            (m) => Number(m.time) === lastT && (m.text === '🚀' || m.text === '📉'),
+          );
+          const lastClash =
+            lastRockets.some((m) => m.text === '🚀') && lastRockets.some((m) => m.text === '📉');
+          const hasBandOnLast = markers.some(
+            (m) => Number(m.time) === lastT && isMonthDeskBandMarker(m),
+          );
+          if (!hasBandOnLast && !lastClash) {
+            const meta = computeInstitutionalSuperTrendMeta(
+              safe,
+              INSTITUTIONAL_BAND_DEFAULT_PERIOD,
+              INSTITUTIONAL_BAND_DEFAULT_MULT,
+            );
+            const isLong = meta.lastDir === 'long';
+            markers.push({
+              time: lastT as UTCTimestamp,
+              position: isLong ? 'belowBar' : 'aboveBar',
+              shape: isLong ? 'arrowUp' : 'arrowDown',
+              color: isLong ? '#2dd4bf' : '#f87171',
+              text: isLong ? '롱ST' : '숏ST',
+              size: 2,
+              id: 'month-desk-band-trend-last',
+            });
+          }
+        }
+      }
+    }
+    /** 마감·안착: 존 상태 마커(연속 동일 라벨 생략) + 마지막 봉 선물 참고 시나리오 ⟡ */
+    if (isMonthStartDeskMode) {
+      const safe = sanitizeChartCandlesForSeries(candles);
+      if (safe.length >= 7) {
+        const scen = monthDeskClosingScenario;
+        const envelopeCap =
+          monthDeskOverlayClear ? 1 : 10;
+        const rows = computeClosingEnvelopeVerdictMarkers(safe).slice(-envelopeCap);
+        const lastT = Number(safe[safe.length - 1]!.time);
+        let prevVerdict: '안착' | '실패' | '불안' | undefined;
+        for (const row of rows) {
+          const tm = Number(row.time);
+          if (!Number.isFinite(tm)) continue;
+          const isLast = tm === lastT;
+          if (!isLast && prevVerdict !== undefined && row.verdict === prevVerdict) continue;
+          prevVerdict = row.verdict;
+          const color =
+            row.verdict === '실패'
+              ? isLast
+                ? '#ff4d6d'
+                : '#ef4444'
+              : row.verdict === '안착'
+                ? isLast
+                  ? '#00f5c4'
+                  : '#34d399'
+                : isLast
+                  ? '#ffe066'
+                  : '#fbbf24';
+          const text = isLast
+            ? row.verdict === '안착'
+              ? '★타점·안착'
+              : row.verdict === '실패'
+                ? '★무효·실패'
+                : '△마감·불안'
+            : row.verdict;
+          markers.push({
+            time: row.time,
+            position: 'belowBar',
+            shape: 'circle',
+            color,
+            text,
+            size: isLast ? 3 : 1,
+            id: isLast ? 'month-desk-envelope-last' : undefined,
+          });
+        }
+        if (scen && Number.isFinite(lastT)) {
+          const isLong = scen.bias === 'LONG';
+          const isShort = scen.bias === 'SHORT';
+          markers.push({
+            time: lastT as UTCTimestamp,
+            position: isLong ? 'belowBar' : isShort ? 'aboveBar' : 'belowBar',
+            shape: isLong ? 'arrowUp' : isShort ? 'arrowDown' : 'square',
+            color: isLong ? '#39ffb6' : isShort ? '#ff6b9d' : '#e9ddff',
+            text: isLong ? '★⟡L' : isShort ? '★⟡S' : '⟡↔참고',
+            size: 3,
+            id: 'month-desk-scenario-last',
+          });
+        }
+        const csZone =
+          analysisMatchesTf && analysis
+            ? (analysis as AnalyzeResponse).confirmedSignal
+            : undefined;
+        if (csZone?.confirmed && csZone.direction && Number.isFinite(lastT)) {
+          const isL = csZone.direction === 'LONG';
+          markers.push({
+            time: lastT as UTCTimestamp,
+            position: isL ? 'belowBar' : 'aboveBar',
+            shape: isL ? 'arrowUp' : 'arrowDown',
+            color: isL ? '#22c55e' : '#ef4444',
+            text: isL ? '★L확정' : '★S확정',
+            size: 4,
+            id: 'month-desk-confirmed-5gate',
+          });
+        } else if (
+          csZone &&
+          typeof csZone.gatesPassCount === 'number' &&
+          csZone.gatesPassCount >= 4 &&
+          Number.isFinite(lastT)
+        ) {
+          const v = (analysis as AnalyzeResponse | null)?.verdict;
+          const isL = v === 'LONG';
+          const isS = v === 'SHORT';
+          if (isL || isS) {
+            markers.push({
+              time: lastT as UTCTimestamp,
+              position: isL ? 'belowBar' : 'aboveBar',
+              shape: isL ? 'arrowUp' : 'arrowDown',
+              color: '#eab308',
+              text: isL ? `후보L${csZone.gatesPassCount}/5` : `후보S${csZone.gatesPassCount}/5`,
+              size: 2,
+              id: 'month-desk-candidate-gate',
+            });
+          }
+        }
+        const spick = monthDeskStructurePick;
+        if (spick && safe.length >= 8) {
+          const st = Number(spick.barTime);
+          if (Number.isFinite(st)) {
+            const h = spick.highlight;
+            const bull = h.bias === 'bullish';
+            let pos: 'aboveBar' | 'belowBar' = bull ? 'belowBar' : 'aboveBar';
+            if (spick.pickedOnLastBar && scen && Number(st) === lastT) {
+              if (scen.bias === 'LONG' && bull) pos = 'aboveBar';
+              else if (scen.bias === 'SHORT' && !bull) pos = 'belowBar';
+            }
+            const isStrLast = Number(st) === lastT;
+            const emph =
+              isStrLast &&
+              (h.phase === 'confirmed' ||
+                h.phase === 'breakout' ||
+                h.phase === 'settling' ||
+                h.phase === 'failed');
+            const col =
+              h.phase === 'failed'
+                ? emph
+                  ? '#ff6b8a'
+                  : '#ef4444'
+                : h.phase === 'confirmed'
+                  ? emph
+                    ? '#5dffc4'
+                    : '#34d399'
+                  : h.phase === 'breakout'
+                    ? emph
+                      ? '#ffd54a'
+                      : '#fbbf24'
+                    : h.phase === 'settling'
+                      ? emph
+                        ? '#7ce8ff'
+                        : '#38bdf8'
+                      : '#94a3b8';
+            const baseLabel = monthDeskStructureMarkerLabel(h);
+            const text = emph ? `★${baseLabel}` : baseLabel;
+            markers.push({
+              time: st as UTCTimestamp,
+              position: pos,
+              shape: emph && h.phase !== 'failed' ? 'square' : 'circle',
+              color: col,
+              text,
+              size: emph ? 3 : h.phase === 'confirmed' || h.phase === 'failed' ? 2 : 1,
+              id: emph ? 'month-desk-structure-emph' : undefined,
+            });
+          }
         }
       }
     }
@@ -8977,7 +19095,7 @@ const ChartViewInner = ({
         : chartMarkerDetailLine(m as { text: string; position: string });
       detailMap.get(tm)!.push(line);
     }
-    if (analysisMatches && afFusion && candles.length > 0) {
+    if (analysisMatches && afFusion && candles.length > 0 && !isMonthStartDeskMode) {
       const narr = (afFusion.narrativeLlm && afFusion.narrativeLlm.trim()) || afFusion.narrative;
       if (narr) {
         const tm = Number(candles[candles.length - 1].time);
@@ -9027,13 +19145,338 @@ const ChartViewInner = ({
         if (!arr.includes(line)) arr.push(line);
       }
     }
+    if (analysisMatches && analysis && candles.length > 0) {
+      const tm = Number(candles[candles.length - 1]?.time ?? 0);
+      if (Number.isFinite(tm) && tm > 0) {
+        if (!detailMap.has(tm)) detailMap.set(tm, []);
+        const arr = detailMap.get(tm)!;
+        const so = (analysis as AnalyzeResponse).smartOverlay ?? buildSmartOverlayPayload(analysis as AnalyzeResponse, candles);
+        const conf = so?.confirmation?.headline;
+        if (conf === 'BULL_CONFIRM') arr.push('롱 확정: 구조 + 돌파 종가 + 유지 봉 조건 충족');
+        else if (conf === 'BEAR_CONFIRM') arr.push('숏 확정: 구조 + 이탈 종가 + 유지 봉 조건 충족');
+        const settle = (analysis as any)?.settlementZone?.state;
+        if (settle === 'confirmed') arr.push('돌파 후 안착 확정: 되돌림에도 핵심 레벨 유지');
+        const zone = (analysis as any)?.zoneSignal?.zone;
+        if (zone === 'long_confirm') arr.push('롱 확정 구간 활성: 눌림 구간 중심으로 분할 대응');
+        else if (zone === 'short_confirm') arr.push('숏 확정 구간 활성: 반등 구간 중심으로 분할 대응');
+        const st = (analysis as any)?.structureState?.state;
+        if (st === 'reversal') arr.push('구조 밀림 감지: 눌림/반등 재측정 구간 우선 확인');
+      }
+    }
+    if (isMonthStartDeskMode && monthDeskClosingScenario && candles.length > 0) {
+      const tm = Number(candles[candles.length - 1]?.time ?? 0);
+      if (Number.isFinite(tm) && tm > 0) {
+        if (!detailMap.has(tm)) detailMap.set(tm, []);
+        const arr = detailMap.get(tm)!;
+        for (const ln of monthDeskClosingScenario.bulletsKo) {
+          if (!arr.includes(ln)) arr.push(ln);
+        }
+        const align = monthDeskEnvelopeStructureAlignKo;
+        if (align && !arr.includes(align)) arr.push(align);
+        const aug = monthDeskClosingHudAugmentation;
+        if (aug) {
+          for (const ln of aug.extraBullets) {
+            if (!arr.includes(ln)) arr.push(ln);
+          }
+          if (aug.referenceStrengthLineKo && !arr.includes(aug.referenceStrengthLineKo)) {
+            arr.push(aug.referenceStrengthLineKo);
+          }
+        }
+        const zoneTier = resolveMonthDeskZoneSignal(
+          monthDeskClosingScenario,
+          monthDeskConfirmedForZone,
+          monthDeskAnalyzeVerdictForZone
+        );
+        const zoneLine = `타점존: ${monthDeskZonePalette(zoneTier.signal).pocketLabel} · 게이트 ${zoneTier.gatesPassCount}/5`;
+        if (!arr.includes(zoneLine)) arr.push(zoneLine);
+        if (zoneTier.confirmedTooltipKo && !arr.includes(zoneTier.confirmedTooltipKo)) {
+          arr.push(zoneTier.confirmedTooltipKo);
+        }
+      }
+    }
+    if (isMonthStartDeskMode && monthDeskStructurePick && candles.length > 0) {
+      const stm = Number(monthDeskStructurePick.barTime);
+      if (Number.isFinite(stm) && stm > 0) {
+        if (!detailMap.has(stm)) detailMap.set(stm, []);
+        const arr = detailMap.get(stm)!;
+        for (const ln of describeMonthDeskStructureKo(monthDeskStructurePick)) {
+          if (!arr.includes(ln)) arr.push(ln);
+        }
+      }
+    }
+    if ((isMonthStartDeskMode || (layerAux && settings.showCandle !== false)) && obPreBeamScan) {
+      for (const [tm, lines] of obPreBeamScan.detailByTime) {
+        if (!Number.isFinite(tm) || lines.length === 0) continue;
+        if (!detailMap.has(tm)) detailMap.set(tm, []);
+        const arr = detailMap.get(tm)!;
+        for (const ln of lines) {
+          if (!arr.includes(ln)) arr.push(ln);
+        }
+      }
+    }
     for (const [tm, arr] of detailMap.entries()) {
       if (arr.length > 0) detailMap.set(tm, sortBarSignalDetailLines(arr));
     }
     /** 통합작도: ZL 요약은 상단 칩만 — 캔들 네모 마커는 생략(로켓 🚀/📉만 캔들에 표시) */
     markerBarDetailRef.current = detailMap;
-    const stableMarkers = CHART_DEV_ZONES_MSBOB_ONLY ? [] : stabilizeSignalMarkers(markers as ChartMarkerRow[]);
-    markersApi.setMarkers(stableMarkers as any);
+    ibTouchEventsRef.current = ibTouchByBarTime;
+    let markersForUi: ChartMarkerRow[] =
+      uiMode === 'FUSION_MODE'
+        ? (markers as ChartMarkerRow[]).filter((m) => {
+            const tx = String(m.text || '');
+            if (!tx) return false;
+            // 기관밴드 터치 마커(LH/LP/SH/SP + tier): 융합모드에서도 기존처럼 항상 표시
+            if (/^[⚡]?[LS][HP]?[★◆·]$/.test(tx.trim())) return true;
+            if (tx.includes('✅') || tx.includes('🧱') || tx.includes('🚀돌파') || tx.includes('⚠재시험')) return true;
+            if (tx.includes('🟩L확정') || tx.includes('🟥S확정')) return true;
+            if (tx === '🚀' || tx === '📉') return true;
+            if (/^⟡/.test(tx.trim())) return true;
+            if (/^⌖/.test(tx.trim())) return true;
+            if (/^[◎○]OB/.test(tx.trim()) || /^[▲▼]/.test(tx.trim()) && /빔/.test(tx)) return true;
+            return false;
+          })
+        : (markers as ChartMarkerRow[]);
+    /** 통합·분석 — 채널 핵심 이모티콘 (설정 ON일 때만) */
+    if (isMergedAnalysisDesk && settings.chartMergedDeskRbCoreMarkersEnabled === true) {
+      let rbCoreMk = (mergedAnalysisDeskPack?.markers ?? []).filter((m) =>
+        String(m.id || '').startsWith('merged-desk-rb-core-mk-')
+      );
+      if (!rbCoreMk.length && candles.length >= 8) {
+        rbCoreMk = collectMergedDeskRbCoreMarkers(candles, timeframe);
+      }
+      if (rbCoreMk.length) {
+        markersForUi = [
+          ...rbCoreMk.map((m) => ({
+            time: m.time as UTCTimestamp,
+            position: m.position,
+            shape: m.shape as ChartMarkerRow['shape'],
+            color: m.color,
+            text: m.text,
+            size: m.size as ChartMarkerRow['size'],
+            id: m.id,
+          })),
+          ...markersForUi,
+        ];
+      }
+    }
+    /** 마감·안착: 깔끔 ▲/▼ 아이콘 또는 마지막 2봉 ◈L/◈S 연합 */
+    if (isMonthStartDeskMode && candles.length > 0) {
+      if (monthDeskAtlasPulseOn && monthDeskAtlasPulsePack?.markers.length) {
+        const preserve = monthDeskUnifiedPulseEngineOn
+          ? isUnifiedPulsePreservedChartMarker
+          : isAtlasPulsePreservedChartMarker;
+        markersForUi = markersForUi.filter((m) => preserve(m));
+        markersForUi = [
+          ...monthDeskAtlasPulsePack.markers.map((m) => ({
+            time: m.time as UTCTimestamp,
+            position: m.position,
+            shape: m.shape,
+            color: m.color,
+            text: m.text,
+            size: m.size,
+            id: m.id,
+          })),
+          ...markersForUi,
+        ];
+      } else if (monthDeskCleanIconOn) {
+        const bandTouchMap = new Map<
+          number,
+          Array<{ verdict: 'LONG' | 'SHORT'; tier?: 'A' | 'B' | 'C' }>
+        >();
+        for (const [tm, evs] of ibTouchByBarTime) {
+          const list = evs
+            .filter((ev) => ev.verdict === 'LONG' || ev.verdict === 'SHORT')
+            .map((ev) => ({
+              verdict: ev.verdict as 'LONG' | 'SHORT',
+              tier: ev.tier,
+            }));
+          if (list.length) bandTouchMap.set(tm, list);
+        }
+        const cleanIcons = buildMonthDeskCleanIconMarkers({
+          candles,
+          timeframe,
+          strikeBundle: monthDeskStrikeDeskBundle,
+          ctx: {
+            fusion: monthDeskBandFusionContext,
+            bandTouchByTime: bandTouchMap,
+          },
+        });
+        markersForUi = markersForUi.filter((m) => isMonthDeskCleanIconPreservedChartMarker(m));
+        if (cleanIcons.length) {
+          markersForUi = [
+            ...cleanIcons.map((m) => ({
+              time: m.time as UTCTimestamp,
+              position: m.position,
+              shape: m.shape,
+              color: m.color,
+              text: m.text,
+              size: m.size,
+              id: m.id,
+            })),
+            ...markersForUi,
+          ];
+        }
+      } else {
+      const bandTouchesForFusion: Array<{ time: number; verdict: 'LONG' | 'SHORT'; tier?: 'A' | 'B' | 'C' }> =
+        [];
+      for (const [tm, evs] of ibTouchByBarTime) {
+        for (const ev of evs) {
+          if (ev.verdict === 'LONG' || ev.verdict === 'SHORT') {
+            bandTouchesForFusion.push({ time: tm, verdict: ev.verdict, tier: ev.tier });
+          }
+        }
+      }
+      const voteMap = buildMonthDeskTailVoteMap({
+        candles,
+        fuseBarTimes: monthDeskFuseBarTimes(candles, 2),
+        analysis: analysisMatches ? (analysis as AnalyzeResponse) : null,
+        analysisMatches,
+        locked,
+        rsiOnly,
+        structureRockets: structureRocketsVisible,
+        chartBias,
+        monthDeskClosingScenario,
+        monthDeskStructurePick,
+        monthDeskConfirmed: monthDeskConfirmedForZone,
+        bandTouches: bandTouchesForFusion,
+        showRsi,
+        showMacdPanel,
+        showBbPanel,
+      });
+      markersForUi = consolidateMonthDeskTailMarkers({
+        markers: markersForUi,
+        candles,
+        fuseBarCount: 2,
+        voteMap,
+      });
+      markersForUi = stripMonthDeskLastBarClashMarkers(markersForUi, candles);
+      if (monthDeskSettleChartGuidePack?.markers.length) {
+        const settleStepMarkers = monthDeskSettleChartGuidePack.markers;
+        for (const m of settleStepMarkers) {
+          const tm = Number(m.time);
+          if (!Number.isFinite(tm)) continue;
+          if (!detailMap.has(tm)) detailMap.set(tm, []);
+          const arr = detailMap.get(tm)!;
+          const ln = settleMarkerDetailLine(m);
+          if (!arr.includes(ln)) arr.unshift(ln);
+        }
+        markerBarDetailRef.current = detailMap;
+    ibTouchEventsRef.current = ibTouchByBarTime;
+        markersForUi = [
+          ...settleStepMarkers.map((m) => ({
+            time: m.time as UTCTimestamp,
+            position: m.position,
+            shape: m.shape,
+            color: m.color,
+            text: m.text,
+            size: m.size,
+          })),
+          ...markersForUi,
+        ];
+      }
+      if (
+        settings.chartMonthDeskStrikeDeskEnabled !== false &&
+        monthDeskStrikeDeskBundle?.ai &&
+        monthDeskStrikeDeskBundle.ai.phase !== 'scan'
+      ) {
+        const strikeMarkers = buildStrikeAiChartMarkers(monthDeskStrikeDeskBundle, candles);
+        if (strikeMarkers.length) {
+          markersForUi = [
+            ...strikeMarkers.map((m) => ({
+              time: m.time as UTCTimestamp,
+              position: m.position,
+              shape: m.shape,
+              color: m.color,
+              text: m.text,
+              size: m.size,
+            })),
+            ...markersForUi,
+          ];
+        }
+      }
+      const lastT = Number(candles[candles.length - 1]!.time);
+      const tailVotes = voteMap.get(lastT) ?? [];
+      if (tailVotes.length > 0) {
+        const fused = fuseMonthDeskCandleVotes(tailVotes);
+        if (!detailMap.has(lastT)) detailMap.set(lastT, []);
+        const arr = detailMap.get(lastT)!;
+        for (const ln of monthDeskUnifiedCandleDetailLines(fused)) {
+          if (!arr.includes(ln)) arr.unshift(ln);
+        }
+      }
+      }
+    }
+    if (settings.chartMonthDeskFusionDeskBandEnabled !== false && monthDeskFusionDeskBandPack) {
+      const tripleTrendMarkers = buildTripleTrendFusionChartMarkers(
+        monthDeskFusionDeskBandPack as TripleTrendFusionPack,
+        candles
+      );
+      if (tripleTrendMarkers.length) {
+        const occ = new Set(markersForUi.map((m) => Number(m.time)));
+        markersForUi = [
+          ...tripleTrendMarkers
+            .filter((m) => !occ.has(Number(m.time)))
+            .map((m) => ({
+              time: m.time,
+              position: m.position,
+              shape: m.shape,
+              color: m.color,
+              text: m.text,
+              size: m.size,
+              id: m.id,
+            })),
+          ...markersForUi,
+        ];
+      }
+    }
+    if (bitgetVolumePackOn && isMergedAnalysisDesk) {
+      /* 통합·분석 — BEAM는 우측 여백 오라클만 */
+    } else if (bitgetVolumePackOn && whaleSegmentSignals.length > 0 && !whaleRightOracle) {
+      const whaleMk = buildWhaleBeamCandleMarkers(whaleSegmentSignals, candles);
+      if (whaleMk.length) {
+        markersForUi = [
+          ...whaleMk.map((m) => ({
+            time: m.time,
+            position: m.position,
+            shape: m.shape,
+            color: m.color,
+            text: m.text,
+            size: m.size,
+          })),
+          ...markersForUi,
+        ];
+      }
+    }
+    /**
+     * 통합·분석도 AI모드와 같이 캔들 LWC 로켓(초록 원+🚀 / 빨간 원+📉)을 표시.
+     * 마지막 봉 「현재」 화살만 유지.
+     */
+    if (isMergedAnalysisDesk) {
+      const last = candles[candles.length - 1];
+      const lastT = last ? Number(last.time) : 0;
+      if (lastT > 0) {
+        const bull = Number(last!.close) >= Number(last!.open);
+        markersForUi = [
+          {
+            time: lastT as any,
+            position: bull ? 'belowBar' : 'aboveBar',
+            shape: bull ? 'arrowUp' : 'arrowDown',
+            color: bull ? '#22d3ee' : '#fb923c',
+            text: '현재',
+            size: 2,
+            id: `merged-desk-last-candle-${lastT}`,
+          } as any,
+          ...markersForUi.filter((m) => String((m as any).id || '') !== `merged-desk-last-candle-${lastT}`),
+        ];
+      }
+    }
+    const stableMarkers = CHART_DEV_ZONES_MSBOB_ONLY
+      ? []
+      : stabilizeSignalMarkers(
+          markersForUi,
+          candles.map((c) => Number(c.time))
+        );
+    safeSeriesSetMarkers(markersApi, stableMarkers as any);
     {
       const tfNorm = normalizeChartTimeframe(String(timeframe || ''));
       const is1mTf = tfNorm === '1m';
@@ -9041,7 +19484,21 @@ const ChartViewInner = ({
         tfNorm === '1h' || tfNorm === '4h' || tfNorm === '1d' || tfNorm === '1w' || tfNorm === '1M';
       const s = String(symbol || '').toUpperCase();
       const symbolAllowed = s.startsWith('BTC') || s.startsWith('ETH');
-      if (!symbolAllowed) {
+      /** 서버 통합텔레/진입존 텔레 ON이면 클라이언트 자동 텔레(1m/HTF) 전부 중지 */
+      if (
+        settings.telegramMergedDeskAutoEnabled !== false ||
+        settings.telegramHqZoneTouchEnabled !== false
+      ) {
+        telegramAutoStatusRef.current = {
+          updatedAt: Date.now(),
+          marketOk: true,
+          symbol,
+          timeframe,
+          candidateCount: 0,
+          skip: 'disabled',
+        };
+        telegramAutoLastIntendedPayloadRef.current = null;
+      } else if (!symbolAllowed) {
         console.info('[telegram-auto] skipped by market filter', {
           symbol,
           timeframe,
@@ -9099,6 +19556,19 @@ const ChartViewInner = ({
         };
         telegramAutoLastIntendedPayloadRef.current = null;
       } else if (is1mTf && settings.telegramAuto1mEnabled) {
+        const lsFlagsM1 = getTelegramLsConfirmFlags(analysis as AnalyzeResponse | null);
+        if (!lsFlagsM1.long && !lsFlagsM1.short) {
+          telegramAutoStatusRef.current = {
+            updatedAt: Date.now(),
+            marketOk: true,
+            symbol,
+            timeframe,
+            candidateCount: 0,
+            skip: 'no_candidate',
+          };
+          telegramAutoLastIntendedPayloadRef.current = null;
+          console.info('[telegram-auto] 1m skipped — 롱/숏 확정 신호 없음', { symbol, curBarTime });
+        } else {
         const m1Lines: string[] = [];
         const m1Tags: string[] = [];
         const rkM1 = [...structureRocketsVisible]
@@ -9160,6 +19630,19 @@ const ChartViewInner = ({
           m1Lines.push(`📌 구조 확정(종가 유지): ${String(sphM1.tag || '').toUpperCase()}`);
           m1Tags.push('STRUCT_HOLD');
         }
+        if (uiMode === 'FUSION_MODE') {
+          const fused: { line: string; tag: string }[] = [];
+          for (let i = 0; i < m1Tags.length; i++) {
+            const tag = m1Tags[i]!;
+            if (tag === 'ROCKET' || tag === 'BAND') fused.push({ line: m1Lines[i]!, tag });
+          }
+          m1Lines.length = 0;
+          m1Tags.length = 0;
+          for (const x of fused) {
+            m1Lines.push(x.line);
+            m1Tags.push(x.tag);
+          }
+        }
         if (m1Lines.length === 0) {
           telegramAutoStatusRef.current = {
             updatedAt: Date.now(),
@@ -9173,7 +19656,14 @@ const ChartViewInner = ({
           console.info('[telegram-auto] 1m no targeted signals', { symbol, curBarTime });
         } else {
           m1Tags.sort();
-          const m1EventKey = `M1_PACK|${symbol}|${tfNorm}|${curBarTime}|${m1Tags.join('+')}`;
+          const m1EventKey =
+            uiMode === 'FUSION_MODE'
+              ? `M1_FUSION_CAP|${symbol}|${tfNorm}|RK:${
+                  rkM1 && (rkM1.direction === 'LONG' || rkM1.direction === 'SHORT')
+                    ? `${Number(rkM1.time)}|${rkM1.direction}`
+                    : '-'
+                }|BD:${(ibTouchByBarTime.get(curBarTime) ?? []).length ? curBarTime : '-'}`
+              : `M1_PACK|${symbol}|${tfNorm}|${curBarTime}|${m1Tags.join('+')}`;
           const m1EventText = `${tfTag} [1분 신호] ${m1Tags.join('·')}`;
           const { cpLine: cpM1, hotzoneLine: hzM1 } = extractTelegramCpHotLinesFromOverlays(briefOverlayPool);
           const lastCloseM1 = Number(lastBar?.close ?? 0);
@@ -9181,7 +19671,7 @@ const ChartViewInner = ({
           const builtBriefM1 = [
             m1EventText,
             ...m1Lines,
-            ...zoneBandExtra,
+            ...(uiMode === 'FUSION_MODE' ? [] : zoneBandExtra),
             `가격: ${Number(lastBar?.close ?? 0).toLocaleString()}`,
             cpM1,
             hzM1,
@@ -9218,7 +19708,7 @@ const ChartViewInner = ({
                 /** 1m 자동 알림: 감지 후 **항상** 풀프레임·캔버스 캡처 시도 → 텔레(이미지 실패 시 본문만) */
                 let imageDataUrl: string | undefined;
                 try {
-                  chartRef.current?.timeScale?.().scrollToRealTime?.();
+                  /** scrollToRealTime 금지 — 알림 캡처가 라이브 차트를 우측으로 끌어당김 */
                 } catch {}
                 await new Promise<void>((r) => requestAnimationFrame(() => r()));
                 const hostPng = await captureTelegramChartFramePngDataUrl(frameRef.current);
@@ -9264,6 +19754,7 @@ const ChartViewInner = ({
             });
           }
         }
+        }
       } else if (!tfAllowedHtf) {
         console.info('[telegram-auto] skipped non-HTF timeframe', { symbol, timeframe, tfNorm });
         telegramAutoStatusRef.current = {
@@ -9275,6 +19766,19 @@ const ChartViewInner = ({
           skip: 'market',
         };
         telegramAutoLastIntendedPayloadRef.current = null;
+      } else {
+      const lsFlags = getTelegramLsConfirmFlags(analysis as AnalyzeResponse | null);
+      if (!lsFlags.long && !lsFlags.short) {
+        telegramAutoStatusRef.current = {
+          updatedAt: Date.now(),
+          marketOk: true,
+          symbol,
+          timeframe,
+          candidateCount: 0,
+          skip: 'no_candidate',
+        };
+        telegramAutoLastIntendedPayloadRef.current = null;
+        console.info('[telegram-auto] HTF skipped — 롱/숏 확정 신호 없음', { symbol, timeframe });
       } else {
       const confidenceNum =
         typeof (analysis as AnalyzeResponse | null)?.confidence === 'number'
@@ -9292,7 +19796,7 @@ const ChartViewInner = ({
         .sort((a, b) => Number(b.time) - Number(a.time))[0];
       let eventKey = '';
       let eventText = '';
-      let eventType: 'ROCKET' | 'FR_READY' | 'FR_TRIGGERED' | 'WHALE_LOCKED_BU' | 'HTF_ZPACK' | '' = '';
+      let eventType: 'ROCKET' | 'FR_TRIGGERED' | 'WHALE_LOCKED_BU' | 'FUSION_BAND' | '' = '';
       let rocketRowForPlan: (typeof latestRocketForAlert) | undefined;
       // 자동 정밀선별: 후보별 점수(합의/충돌/TF가중치)로 최상위 1건만 발송
       const frontRunSignalTime = Number(frontRun?.signalTime ?? 0);
@@ -9300,26 +19804,6 @@ const ChartViewInner = ({
         frontRun?.state === 'TRIGGERED' &&
         (frontRun?.direction === 'LONG' || frontRun?.direction === 'SHORT') &&
         isRecentSignal(frontRunSignalTime);
-      const latestPx = Number(lastBar?.close ?? 0);
-      const entryPxRaw = Number((lsPlan as any)?.entry ?? (analysis as AnalyzeResponse | null)?.frontRunSignal?.entry ?? NaN);
-      const prepNearPctByTf =
-        tfNorm === '1h' ? 0.0028 :
-        tfNorm === '4h' ? 0.0036 :
-        tfNorm === '1d' ? 0.0046 :
-        tfNorm === '1w' ? 0.0048 :
-        tfNorm === '1M' ? 0.0052 :
-        0.0052;
-      const isNearEntryReady =
-        Number.isFinite(entryPxRaw) &&
-        entryPxRaw > 0 &&
-        Number.isFinite(latestPx) &&
-        latestPx > 0 &&
-        Math.abs(latestPx - entryPxRaw) / entryPxRaw <= prepNearPctByTf;
-      const isFrontRunReadyNear =
-        frontRun?.state === 'READY' &&
-        (frontRun?.direction === 'LONG' || frontRun?.direction === 'SHORT') &&
-        isRecentSignal(Number(frontRunSignalTime || curBarTime)) &&
-        isNearEntryReady;
       const latestWhaleLockedBu = [...briefOverlayPool]
         .filter((o) => {
           const id = String(o?.id || '');
@@ -9357,7 +19841,7 @@ const ChartViewInner = ({
         return v;
       };
       type AlertCandidate = {
-        type: 'ROCKET' | 'FR_READY' | 'FR_TRIGGERED' | 'WHALE_LOCKED_BU';
+        type: 'ROCKET' | 'FR_TRIGGERED' | 'WHALE_LOCKED_BU';
         key: string;
         text: string;
         score: number;
@@ -9365,42 +19849,35 @@ const ChartViewInner = ({
         rocket?: typeof latestRocketForAlert;
       };
       const candidates: AlertCandidate[] = [];
-      if (isFrontRunReadyNear && frDirection) {
-        const score = 70 + Math.min(12, frConfidence * 0.16) + sideBiasBonus(frDirection);
-        candidates.push({
-          type: 'FR_READY',
-          key: `FR_READY_NEAR|${symbol}|${timeframe}|${frDirection}|${curBarTime}`,
-          text: `${tfTag} [준비알림] ${frDirection === 'LONG' ? '🟡 LONG READY(진입 근접)' : '🟡 SHORT READY(진입 근접)'}`,
-          score,
-          direction: frDirection,
-        });
-      }
-      if (isFrontRunTriggered && frDirection) {
-        const score = 78 + Math.min(16, frConfidence * 0.2) + sideBiasBonus(frDirection);
-        candidates.push({
-          type: 'FR_TRIGGERED',
-          key: `FR_TRIGGERED|${symbol}|${timeframe}|${frDirection}|${frontRunSignalTime}`,
-          text: `${tfTag} [선행트리거] ${frDirection === 'LONG' ? '🚀 LONG' : '📉 SHORT'}`,
-          score,
-          direction: frDirection,
-        });
-      }
-      if (latestWhaleLockedBu && isWhaleLockedBuRecent) {
-        const id = String(latestWhaleLockedBu.id || '');
-        const isCoreOb = id.startsWith('whale-auto-bu-ob');
-        const score = (isCoreOb ? 76 : 72) + sideBiasBonus('LONG');
-        candidates.push({
-          type: 'WHALE_LOCKED_BU',
-          key: `WHALE_LOCKED_BU|${symbol}|${timeframe}|${id}|${whaleLockedBuTime}`,
-          text: `${tfTag} ${isCoreOb ? '[매집핵심 고정]' : '[매집준비 고정]'} 🟢 LONG DEFENSE`,
-          score,
-          direction: 'LONG',
-        });
+      if (uiMode !== 'FUSION_MODE') {
+        if (isFrontRunTriggered && frDirection && telegramLsConfirmedForDirection(frDirection, lsFlags)) {
+          const score = 78 + Math.min(16, frConfidence * 0.2) + sideBiasBonus(frDirection);
+          candidates.push({
+            type: 'FR_TRIGGERED',
+            key: `FR_TRIGGERED|${symbol}|${timeframe}|${frDirection}|${frontRunSignalTime}`,
+            text: `${tfTag} [선행트리거] ${frDirection === 'LONG' ? '🚀 LONG' : '📉 SHORT'}`,
+            score,
+            direction: frDirection,
+          });
+        }
+        if (latestWhaleLockedBu && isWhaleLockedBuRecent && telegramLsConfirmedForDirection('LONG', lsFlags)) {
+          const id = String(latestWhaleLockedBu.id || '');
+          const isCoreOb = id.startsWith('whale-auto-bu-ob');
+          const score = (isCoreOb ? 76 : 72) + sideBiasBonus('LONG');
+          candidates.push({
+            type: 'WHALE_LOCKED_BU',
+            key: `WHALE_LOCKED_BU|${symbol}|${timeframe}|${id}|${whaleLockedBuTime}`,
+            text: `${tfTag} ${isCoreOb ? '[매집핵심 고정]' : '[매집준비 고정]'} 🟢 LONG DEFENSE`,
+            score,
+            direction: 'LONG',
+          });
+        }
       }
       if (
         latestRocketForAlert &&
         (latestRocketForAlert.direction === 'LONG' || latestRocketForAlert.direction === 'SHORT') &&
-        isRecentSignalRocket(Number(latestRocketForAlert.time))
+        isRecentSignalRocket(Number(latestRocketForAlert.time)) &&
+        telegramLsConfirmedForDirection(latestRocketForAlert.direction, lsFlags)
       ) {
         const dir = latestRocketForAlert.direction;
         const source = String((latestRocketForAlert as any)?.source || '');
@@ -9422,7 +19899,8 @@ const ChartViewInner = ({
       if (
         latestHtfForAlert &&
         (latestHtfForAlert.direction === 'LONG' || latestHtfForAlert.direction === 'SHORT') &&
-        isRecentSignalRocket(Number(latestHtfForAlert.time))
+        isRecentSignalRocket(Number(latestHtfForAlert.time)) &&
+        telegramLsConfirmedForDirection(latestHtfForAlert.direction, lsFlags)
       ) {
         const dir = latestHtfForAlert.direction;
         const tfBoost =
@@ -9456,7 +19934,7 @@ const ChartViewInner = ({
       }
       const htfZOnlyCdMs = tfNorm === '1h' || tfNorm === '4h' ? 300_000 : 600_000;
       let htfZoneExtraLines: string[] = [];
-      if (settings.telegramHtfZonePackEnabled !== false) {
+      if (uiMode !== 'FUSION_MODE' && settings.telegramHtfZonePackEnabled !== false) {
         const htfSealedOn = settings.telegramHtfSealedBarOnly !== false;
         const sealedTime = htfSealedOn && prevBarTime > 0 ? prevBarTime : curBarTime;
         const sealedC = candles.find((c) => Number(c.time) === sealedTime);
@@ -9498,11 +19976,89 @@ const ChartViewInner = ({
             htfZoneExtraLines = zLines;
             if (eventKey) {
               eventKey = `${eventKey}|Z:${[...htfZTags].sort().join('+')}|t:${sealedTime}`;
-            } else {
-              eventKey = `HTF_ZPACK|${symbol}|${timeframe}|${sealedTime}|${[...htfZTags].sort().join('+')}`;
-              eventText = `${tfTag} [HTF·존/밴드] ${htfZTags.join('·')}`;
-              eventType = 'HTF_ZPACK';
             }
+          }
+        }
+      }
+      if (uiMode === 'FUSION_MODE') {
+        htfZoneExtraLines = [];
+        const sealedTForBand =
+          settings.telegramHtfSealedBarOnly !== false && prevBarTime > 0 ? prevBarTime : curBarTime;
+        let bandBar: number | null = null;
+        if ((ibTouchByBarTime.get(curBarTime)?.length ?? 0) > 0) bandBar = curBarTime;
+        else if ((ibTouchByBarTime.get(sealedTForBand)?.length ?? 0) > 0) bandBar = sealedTForBand;
+
+        const rocketStructural =
+          latestRocketForAlert &&
+          (latestRocketForAlert.direction === 'LONG' || latestRocketForAlert.direction === 'SHORT') &&
+          strongRocketSource.has(String((latestRocketForAlert as any)?.source || '')) &&
+          isRecentSignalRocket(Number(latestRocketForAlert.time))
+            ? latestRocketForAlert
+            : null;
+        const rocketHtfBoost =
+          latestHtfForAlert &&
+          (latestHtfForAlert.direction === 'LONG' || latestHtfForAlert.direction === 'SHORT') &&
+          isRecentSignalRocket(Number(latestHtfForAlert.time))
+            ? latestHtfForAlert
+            : null;
+
+        const hasRocket = !!(rocketStructural || rocketHtfBoost);
+        const hasBand = bandBar != null;
+
+        if (!hasRocket && !hasBand) {
+          eventKey = '';
+          eventText = '';
+          eventType = '';
+          rocketRowForPlan = undefined;
+        } else {
+          const rkKeyPart = rocketStructural
+            ? `S:${Number(rocketStructural.time)}|${rocketStructural.direction}|${String((rocketStructural as any)?.source || '')}`
+            : rocketHtfBoost
+              ? `H:${Number(rocketHtfBoost.time)}|${rocketHtfBoost.direction}|${rocketHtfBoost.sourceTf}`
+              : 'none';
+          eventKey = `FUSION_CAP|${symbol}|${tfNorm}|${rkKeyPart}|BD:${hasBand ? String(bandBar) : 'none'}`;
+          const lines: string[] = [];
+          if (rocketStructural) {
+            const dir = rocketStructural.direction;
+            const src = String((rocketStructural as any)?.source || '');
+            lines.push(`${tfTag} [융합·구조로켓] ${dir === 'LONG' ? '🚀 LONG' : '📉 SHORT'} (${src || 'struct'})`);
+            eventType = 'ROCKET';
+            rocketRowForPlan = rocketStructural;
+          } else if (rocketHtfBoost) {
+            lines.push(
+              `${tfTag} [융합·상위TF로켓] ${String(rocketHtfBoost.sourceTf).toUpperCase()} ${
+                rocketHtfBoost.direction === 'LONG' ? '🚀' : '📉'
+              } ${rocketHtfBoost.direction}`
+            );
+            eventType = 'ROCKET';
+            rocketRowForPlan = undefined;
+          }
+          if (hasBand && bandBar != null) {
+            const ibL = ibTouchByBarTime.get(bandBar) ?? [];
+            const head0 = ibL[0] ? formatInstitutionalBandTouchMarkerDetailText(ibL[0]) : '';
+            const head = head0.length > 200 ? `${head0.slice(0, 197)}…` : head0;
+            lines.push(`${tfTag} [융합·기관밴드] ${head}`);
+            if (!hasRocket) {
+              eventType = 'FUSION_BAND';
+              rocketRowForPlan = undefined;
+            }
+          }
+          eventText = lines.join('\n');
+          let fusionDirOk = true;
+          if (rocketStructural && !telegramLsConfirmedForDirection(rocketStructural.direction, lsFlags)) {
+            fusionDirOk = false;
+          }
+          if (fusionDirOk && rocketHtfBoost && !telegramLsConfirmedForDirection(rocketHtfBoost.direction, lsFlags)) {
+            fusionDirOk = false;
+          }
+          if (fusionDirOk && !hasRocket && hasBand && !telegramLsConfirmedForDirection('LONG', lsFlags)) {
+            fusionDirOk = false;
+          }
+          if (!fusionDirOk) {
+            eventKey = '';
+            eventText = '';
+            eventType = '';
+            rocketRowForPlan = undefined;
           }
         }
       }
@@ -9515,12 +20071,7 @@ const ChartViewInner = ({
             !!top && !precisionAlertOn
               ? true
               : !!(top && floor != null && top.score >= floor);
-          const cdMs2 =
-            eventType === 'FR_READY'
-              ? 900_000
-              : eventType === 'HTF_ZPACK'
-                ? htfZOnlyCdMs
-                : 180_000;
+          const cdMs2 = eventType === 'FUSION_BAND' ? htfZOnlyCdMs : 180_000;
           const nowSnap = Date.now();
           const pr2 = telegramLastSignalRef.current;
           const isCooldown2 =
@@ -9559,8 +20110,7 @@ const ChartViewInner = ({
       if (eventKey) {
         const nowMs = Date.now();
         const prev = telegramLastSignalRef.current;
-        const cooldownMs =
-          eventType === 'FR_READY' ? 900_000 : eventType === 'HTF_ZPACK' ? htfZOnlyCdMs : 180_000;
+        const cooldownMs = eventType === 'FUSION_BAND' ? htfZOnlyCdMs : 180_000;
         let builtBrief: string | null = null;
         try {
           const planFromLs = lsPlan
@@ -9583,7 +20133,7 @@ const ChartViewInner = ({
                 }
               : null;
           const planFromFrontRun =
-            (eventType === 'FR_TRIGGERED' || eventType === 'FR_READY') && frontRun
+            eventType === 'FR_TRIGGERED' && frontRun
               ? {
                   entry: Number(((analysis as AnalyzeResponse | null)?.frontRunSignal as any)?.entry),
                   stop: Number(((analysis as AnalyzeResponse | null)?.frontRunSignal as any)?.stop),
@@ -9648,7 +20198,7 @@ const ChartViewInner = ({
             try {
               // 알림 캡처: 1m과 동일 — tv-frame 풀 래스터 + LW 캔버스 폴백(오버레이·HTML 누락 방지)
               try {
-                chartRef.current?.timeScale?.().scrollToRealTime?.();
+                /** scrollToRealTime 금지 — 알림 캡처가 라이브 차트를 우측으로 끌어당김 */
               } catch {}
               await new Promise<void>((r) => requestAnimationFrame(() => r()));
               const hostPngHtf = await captureTelegramChartFramePngDataUrl(frameRef.current);
@@ -9709,10 +20259,11 @@ const ChartViewInner = ({
       }
       }
       }
+      }
     }
   }, [
     analysis,
-    candles,
+    chartMarkersEffectCandleDep,
     symbol,
     timeframe,
     confirmedHistorySignals,
@@ -9730,6 +20281,7 @@ const ChartViewInner = ({
     showHarmonic,
     unifiedDeskMode,
     uiMode,
+    isDeskPulseFamily,
     isAiMode,
     whaleCoreSrZoneEnabled,
     whalePrecisionEntryEnabled,
@@ -9743,30 +20295,71 @@ const ChartViewInner = ({
     higherTfRocketBoost,
     settings.telegramAuto1mEnabled,
     settings.telegramAuto1mImageMode,
+    settings.telegramMergedDeskAutoEnabled,
+    settings.telegramHqZoneTouchEnabled,
     settings.telegramHtfZonePackEnabled,
     settings.telegramHtfSealedBarOnly,
     lineZoneProximityByTime,
     structurePhaseCandleByTime,
     overlayLabelProximityIds,
     hotZoneCandleHighlightTimes,
+    obPreBeamScan,
+    settings.showCandle,
     overlayDevEnhanced,
     screenOverlays,
     getTelegramSignalAuthHeaders,
+    monthDeskClosingScenario,
+    monthDeskStructurePick,
+    monthDeskEnvelopeStructureAlignKo,
+    monthDeskClosingHudAugmentation,
+    monthDeskConfirmedForZone,
+    monthDeskAnalyzeVerdictForZone,
+    monthDeskSettleOverlayPack,
+    monthDeskSettleChartGuidePack,
+    settings.chartMonthDeskSettleCandlePaint,
+    monthDeskStrikeDeskBundle,
+    monthDeskBandFusionContext,
+    settings.chartMonthDeskCleanIconSignalsEnabled,
+    settings.chartMonthDeskAtlasPulseDeskEnabled,
+    monthDeskAtlasPulsePack,
+    settings.chartMonthDeskUnifiedPulseEngineEnabled,
+    mergedAnalysisDeskPack,
+    deskPulsePack,
+    monthDeskFusionDeskBandPack,
+    settings.chartMonthDeskFusionDeskBandEnabled,
+    settings.chartTripleTrendSignalBand,
+    settings.chartTripleTrendChangeLinesEnabled,
+    bitgetVolumePackOn,
+    isMergedAnalysisDesk,
+    whaleSegmentSignals,
+    whaleRightOracle,
   ]);
 
   useEffect(() => {
-    if (!chartMarkerClickDetailB) {
+    if (!chartMarkerClickDetailB && !isMergedAnalysisDesk) {
       setSignalBarTip(null);
       setFrontRunTip(null);
       return;
     }
     const chart = chartRef.current;
+    const series = seriesRef.current;
     if (!chart) return;
     const storeKey = `${symbol}|${timeframe}`;
-    const handler = (param: { time?: number }) => {
+    const bandCandles =
+      mergedInstitutionalBandCandles.length >= 8
+        ? mergedInstitutionalBandCandles
+        : candlesForMergedDeskEngine.length >= 8
+          ? candlesForMergedDeskEngine
+          : candles;
+    const handler = (param: {
+      time?: number | { timestamp?: number };
+      seriesData?: Map<unknown, { close?: number; value?: number }>;
+      point?: { x: number; y: number };
+    }) => {
       const t = param?.time;
       if (t == null) {
         setSignalBarTip(null);
+        setFeatureExplainCard(null);
         setFrontRunTip(null);
         return;
       }
@@ -9776,21 +20369,215 @@ const ChartViewInner = ({
         if (d) {
           setFrontRunTip({ time: barTime, ...d });
           setSignalBarTip(null);
+          setFeatureExplainCard(null);
           return;
         }
       }
       setFrontRunTip(null);
-      const lines = matchMarkerDetailLinesByBarTime(barTime, markerBarDetailRef.current, candles);
-      if (lines?.length) setSignalBarTip({ time: barTime, lines });
-      else setSignalBarTip(null);
+
+      /** 폰 pinch/pan·줌 직후 — AVWAP·기관밴드 설명카드 오작동 억제 */
+      if (
+        chartTouchClickGuardRef.current?.shouldSuppressChartClick() ||
+        chartIxRef.current.isBusy() ||
+        mergedDeskPanGestureRef.current ||
+        (mergedTouchUi && Date.now() - mergedDeskLastUserPanAtRef.current < 520)
+      ) {
+        return;
+      }
+
+      const bar = param.seriesData?.get(series as unknown);
+      let clickPrice = Number(bar?.close ?? bar?.value);
+      if (!Number.isFinite(clickPrice) && param.point && series) {
+        try {
+          const yp = series.coordinateToPrice(param.point.y);
+          const n = typeof yp === 'number' ? yp : Number(yp);
+          if (Number.isFinite(n)) clickPrice = n;
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const avwapTol = avwapExplainSnapTolerance(mergedTouchUi);
+      const avwapSnap =
+        Number.isFinite(clickPrice)
+          ? pickNearestAvwapSnap(avwapExplainSnapsRef.current, clickPrice, avwapTol.pickTolRatio)
+          : null;
+
+      /** 분홍·빨강 축 숫자(AVWAP) 가격에 더 가깝게 클릭하면 VWAP 카드 우선 */
+      if (
+        avwapSnap &&
+        Math.abs(avwapSnap.price - clickPrice) / Math.max(clickPrice, 1) <= avwapTol.strictHitRatio
+      ) {
+        const tapKey = `avwap:${avwapSnap.slot}:${Math.round(avwapSnap.price * 100)}`;
+        if (
+          !shouldOpenFeatureExplainCardOnTouch(
+            mergedTouchUi,
+            chartTouchClickGuardRef.current,
+            tapKey
+          )
+        ) {
+          return;
+        }
+        setFeatureExplainCard(buildAvwapExplainCard(avwapSnap));
+        setSignalBarTip(null);
+        return;
+      }
+
+      /** 1) 기관밴드 ↓/↑ 터치 마커 → 상세 카드 */
+      const ibMap = ibTouchEventsRef.current;
+      let ibEv: InstitutionalBandInteractionMarker | undefined;
+      const exactIb = ibMap.get(barTime);
+      if (exactIb?.length) ibEv = exactIb[0];
+      else {
+        for (const [k, evs] of ibMap) {
+          if (Math.abs(Number(k) - barTime) <= 1 && evs.length) {
+            ibEv = evs[0];
+            break;
+          }
+        }
+      }
+      if (ibEv) {
+        const tapKey = `ib:${barTime}:${ibEv.verdict}:${ibEv.tier}:${ibEv.unionSource ?? 'base'}`;
+        if (
+          !shouldOpenFeatureExplainCardOnTouch(
+            mergedTouchUi,
+            chartTouchClickGuardRef.current,
+            tapKey
+          )
+        ) {
+          return;
+        }
+        setFeatureExplainCard(buildStBandExplainCard(ibEv));
+        setSignalBarTip(null);
+        return;
+      }
+
+      /** 2) AVWAP 축 가격 근처 클릭 → VWAP 설명 카드 (터치 UI는 strict + 더블탭) */
+      if (avwapSnap) {
+        const distRatio = Math.abs(avwapSnap.price - clickPrice) / Math.max(clickPrice, 1);
+        if (!mergedTouchUi || distRatio <= avwapTol.strictHitRatio) {
+          const tapKey = `avwap:${avwapSnap.slot}:${Math.round(avwapSnap.price * 100)}`;
+          if (
+            !shouldOpenFeatureExplainCardOnTouch(
+              mergedTouchUi,
+              chartTouchClickGuardRef.current,
+              tapKey
+            )
+          ) {
+            return;
+          }
+          setFeatureExplainCard(buildAvwapExplainCard(avwapSnap));
+          setSignalBarTip(null);
+          return;
+        }
+      }
+
+      let lines = matchMarkerDetailLinesByBarTime(barTime, markerBarDetailRef.current, candles) ?? [];
+      if (isMergedAnalysisDesk && series) {
+        if (Number.isFinite(clickPrice)) {
+          const bandLines = evaluateMergedDeskBandLineAtPrice(bandCandles, clickPrice, barTime);
+          lines = [...bandLines, ...lines.filter((ln) => !bandLines.includes(ln))];
+        }
+      }
+      if (lines.length) {
+        const sorted = sortBarSignalDetailLines(lines);
+        const tapKey = `bar:${barTime}:${sorted[0]?.slice(0, 24) ?? 'sig'}`;
+        if (
+          !shouldOpenFeatureExplainCardOnTouch(
+            mergedTouchUi,
+            chartTouchClickGuardRef.current,
+            tapKey
+          )
+        ) {
+          return;
+        }
+        setFeatureExplainCard(buildBarSignalsExplainCard(sorted));
+        setSignalBarTip({ time: barTime, lines: sorted });
+      } else {
+        setFeatureExplainCard(null);
+        setSignalBarTip(null);
+      }
     };
     chart.subscribeClick(handler as any);
     return () => {
       chart.unsubscribeClick(handler as any);
       setSignalBarTip(null);
+      setFeatureExplainCard(null);
       setFrontRunTip(null);
     };
-  }, [symbol, timeframe, candles, chartMarkerClickDetailB]);
+  }, [
+    symbol,
+    timeframe,
+    candles,
+    candlesForMergedDeskEngine,
+    mergedInstitutionalBandCandles,
+    chartMarkerClickDetailB,
+    isMergedAnalysisDesk,
+    mergedTouchUi,
+  ]);
+
+  useEffect(() => {
+    setMonthDeskClickPrecision(null);
+  }, [symbol, timeframe, uiMode]);
+
+  useEffect(() => {
+    if (
+      (!isMonthStartDeskMode && !isMergedAnalysisDesk) ||
+      settings.chartMonthDeskClickPrecisionEnabled === false
+    ) {
+      setMonthDeskClickPrecision(null);
+      return;
+    }
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series) return;
+
+    const handler = (param: {
+      time?: number | { timestamp?: number };
+      seriesData?: Map<unknown, { close?: number; value?: number }>;
+    }) => {
+      const rawT = param?.time;
+      if (rawT == null) return;
+      const clickTime =
+        typeof rawT === 'number'
+          ? rawT
+          : Number((rawT as { timestamp?: number }).timestamp ?? NaN);
+      if (!Number.isFinite(clickTime)) return;
+
+      const bar = param.seriesData?.get(series as unknown);
+      const clickPrice = Number(bar?.close ?? bar?.value);
+      if (!Number.isFinite(clickPrice)) return;
+
+      const candleSrc = isMergedAnalysisDesk ? candlesForMergedDeskEngine : candlesForMonthDeskWork;
+      const safe = sanitizeChartCandlesForSeries(candleSrc, timeframe);
+      const out = buildMonthDeskClickPrecision({
+        candles: safe,
+        clickTime,
+        clickPrice,
+        chartTf: timeframe,
+        swingPivot: settings.smcDeskSwingPivot,
+        strike: monthDeskStrikeDeskBundle,
+        mtfSignals,
+        analysis: analysisMatchesTf ? (analysis as AnalyzeResponse) : null,
+      });
+      setMonthDeskClickPrecision(out);
+    };
+
+    chart.subscribeClick(handler as never);
+    return () => chart.unsubscribeClick(handler as never);
+  }, [
+    isMonthStartDeskMode,
+    isMergedAnalysisDesk,
+    settings.chartMonthDeskClickPrecisionEnabled,
+    settings.smcDeskSwingPivot,
+    candlesForMonthDeskWork,
+    candlesForMergedDeskEngine,
+    timeframe,
+    monthDeskStrikeDeskBundle,
+    mtfSignals,
+    analysisMatchesTf,
+    analysis,
+  ]);
 
   useEffect(() => {
     if (uiMode !== 'BIBLE_MODE') setBiblePatternTip(null);
@@ -9806,6 +20593,15 @@ const ChartViewInner = ({
   }, [biblePatternTip]);
 
   useEffect(() => {
+    if (!rbLabelTip) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRbLabelTip(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [rbLabelTip]);
+
+  useEffect(() => {
     if (!unifiedDeskGuideOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setUnifiedDeskGuideOpen(false);
@@ -9816,95 +20612,418 @@ const ChartViewInner = ({
 
   useEffect(() => {
     let cancelled = false;
+    let fullIdleId: number | null = null;
+    let fullIdleIsRic = false;
     marketFetchAbortRef.current?.abort();
     const ac = new AbortController();
     marketFetchAbortRef.current = ac;
+    const prevMarketCtx = lastMarketFitContextRef.current;
+    const tfOnlyMarketLoad =
+      prevMarketCtx?.symbol === symbol &&
+      prevMarketCtx.timeframe !== timeframe &&
+      prevMarketCtx.timeframe !== '';
+    mergedDeskTfOnlyLoadRef.current = tfOnlyMarketLoad;
+    lastMarketFitContextRef.current = { symbol, timeframe };
+    if (!tfOnlyMarketLoad) {
+      monthDeskCandleTailScrollRef.current = 0;
+    }
+    mergedDeskUserPanLockRef.current = false;
+    mergedDeskPanGestureRef.current = false;
+    mergedDeskSavedLogicalRangeRef.current = null;
+    /** TF 전환: tip 단축 오판 방지 — 새 TF는 전량 setData */
+    if (tfOnlyMarketLoad) {
+      chartSeriesTipSigRef.current = null;
+    }
 
-    async function loadCandles() {
-      const url = `/api/market?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}`;
-      const doFetch = () =>
-        fetch(url, { cache: 'no-store', credentials: 'same-origin', signal: ac.signal });
+    const source = bitgetVolumePackOn ? 'bitget' : 'binance';
+    /** TF 전환: 해당 TF 캐시만 즉시 표시 — 다른 TF 잔상(일=주=월) 금지 */
+    const cachedRaw = peekClientMarketCandles(symbol, timeframe, source, true);
+    const cached =
+      cachedRaw && cachedRaw.length >= 2
+        ? cachedRaw.length < 8 || candlesMatchChartTimeframe(cachedRaw, timeframe)
+          ? cachedRaw
+          : null
+        : null;
+    const startedWithCacheLen = cached?.length ?? 0;
+    const sanitizeMemo = new Map<string, Candle[]>();
+    const sanitizeFast = (raw: Candle[]) => {
+      if (!raw.length) return raw;
+      const sk = `${raw.length}|${raw[0]!.time}|${raw[raw.length - 1]!.time}|${raw[raw.length - 1]!.close}`;
+      const hit = sanitizeMemo.get(sk);
+      if (hit) return hit;
+      const out = sanitizeChartCandlesForSeries(raw, timeframe);
+      sanitizeMemo.set(sk, out);
+      if (sanitizeMemo.size > 6) {
+        const first = sanitizeMemo.keys().next().value;
+        if (first) sanitizeMemo.delete(first);
+      }
+      return out;
+    };
+    if (cached?.length) {
+      setCandles(sanitizeFast(cached));
+      setMarketError('');
+      if (tfOnlyMarketLoad) {
+        mergedDeskPendingTfFitRef.current = true;
+      }
+    } else if (tfOnlyMarketLoad) {
+      /**
+       * TV형: TF 전환·캐시 없음 → setCandles([])로 비우지 않음.
+       * 시리즈 setData([]) 스킵 경로가 이전 봉을 유지하고, recent 도착 즉시 교체.
+       * (빈 화면·비정상 캔들 깜빡임 방지 · 기능 삭제 아님)
+       */
+      mergedDeskPendingTfFitRef.current = true;
+    } else {
+      setCandles([]);
+    }
 
+    async function loadCandles(live = false) {
       try {
-        let res = await doFetch();
-        /** 재시도는 1회만·짧게 — TF 전환 시 캔들이 빨리 붙도록 */
-        if (!res.ok && !ac.signal.aborted) {
-          await new Promise((r) => setTimeout(r, 160));
-          if (!cancelled && !ac.signal.aborted) res = await doFetch();
-        }
-        if (cancelled || ac.signal.aborted) return;
-        const payload = await res.json();
-        if (!payload.ok) throw new Error(payload.error || 'market fetch failed');
-        const nextCandles = payload.candles as Candle[];
-        setMarketError('');
-        setCandles(nextCandles);
+        const applySeries = (raw: Candle[], fitIfNeeded: boolean, bumpOverlay = true) => {
+          if (cancelled || ac.signal.aborted) return;
+          if (
+            raw.length >= 8 &&
+            !candlesMatchChartTimeframe(raw, timeframe)
+          ) {
+            /** 잘못된 TF 시리즈(일봉→주봉 잔상 등) 적용 금지 */
+            return;
+          }
+          const nextCandles = sanitizeFast(raw);
+          setMarketError('');
+          setCandles(nextCandles);
+          const key = `${symbol}|${timeframe}`;
+          if (mergedDeskTfOnlyLoadRef.current || tfOnlyMarketLoad) {
+            /** TF 전환: 캔들 도착 시 setData 레이아웃에서 pending fit 처리 */
+            lastFittedRef.current = key;
+            mergedDeskPendingTfFitRef.current = true;
+          } else if (isMergedAnalysisDesk) {
+            lastFittedRef.current = key;
+          } else if (fitIfNeeded && !mergedDeskUserPanLockRef.current) {
+            if (lastFittedRef.current !== key) {
+              lastFittedRef.current = key;
+              const c = chartRef.current;
+              const ser = seriesRef.current;
+              if (c && ser) {
+                applyFocusLatestBars(c, ser, nextCandles.length, timeframe);
+              }
+            }
+          }
+          setLastUpdate(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
+          if (bumpOverlay) setOverlayTick((v) => v + 1);
+        };
 
-        const key = `${symbol}|${timeframe}`;
-        if (lastFittedRef.current !== key) {
-          lastFittedRef.current = key;
-          const c = chartRef.current;
-          const ser = seriesRef.current;
-          if (c && ser) applyFocusLatestBars(c, ser, nextCandles.length, timeframe);
+        const scheduleUpgrade = (full: Candle[]) => {
+          if (cancelled || ac.signal.aborted) return;
+          if (full.length <= startedWithCacheLen && startedWithCacheLen > 0) return;
+            const applyFull = () => {
+            if (cancelled || ac.signal.aborted) return;
+            const prevLen = chartSeriesCandlesRef.current?.length ?? 0;
+            /** recent→full: 가시구간만 길이만큼 밀기 — pending fit으로 우측 공백/점프 금지 */
+            if (
+              isMergedAnalysisDesk &&
+              prevLen >= 12 &&
+              full.length > prevLen + 40 &&
+              mergedDeskSavedLogicalRangeRef.current
+            ) {
+              const delta = full.length - prevLen;
+              const prev = mergedDeskSavedLogicalRangeRef.current;
+              mergedDeskSavedLogicalRangeRef.current = {
+                from: prev.from + delta,
+                to: prev.to + delta,
+              };
+            }
+            applySeries(full, false, false);
+          };
+          if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+            fullIdleIsRic = true;
+            fullIdleId = window.requestIdleCallback(applyFull, { timeout: 600 });
+          } else {
+            fullIdleIsRic = false;
+            fullIdleId = globalThis.setTimeout(applyFull, 64) as unknown as number;
+          }
+        };
+
+        let partialLen = 0;
+        const raw = await fetchClientMarketCandles({
+          symbol,
+          timeframe,
+          source,
+          signal: ac.signal,
+          /** Bitget 등 WS 없는 모드 — 폴링이 5분 캐시에 막히지 않게 */
+          maxAgeMs: live ? 2_000 : undefined,
+          onPartial: (partial) => {
+            partialLen = partial.length;
+            applySeries(partial, true, startedWithCacheLen === 0);
+          },
+          onUpgrade: scheduleUpgrade,
+        });
+        if (cancelled || ac.signal.aborted) return;
+        /** 초기 캐시 히트 최적화만 — 실시간 폴링은 마지막 봉 OHLC 갱신 필수 */
+        if (
+          !live &&
+          startedWithCacheLen > 0 &&
+          raw.length === startedWithCacheLen &&
+          partialLen === 0
+        ) {
+          return;
         }
-        setLastUpdate(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
-        setOverlayTick(v => v + 1);
+        if (partialLen > 0 && raw.length <= partialLen) {
+          /* recent만 반환됨 · full은 onUpgrade */
+          return;
+        }
+        if (partialLen > 0 && raw.length > partialLen) {
+          scheduleUpgrade(raw);
+          return;
+        }
+        applySeries(raw, !live, startedWithCacheLen === 0 || live || tfOnlyMarketLoad);
       } catch (e: any) {
         if (e?.name === 'AbortError') return;
         if (!cancelled) setMarketError(e?.message || 'market error');
       }
     }
 
-    loadCandles();
-    const timer = window.setInterval(loadCandles, 15_000);
+    void loadCandles(false);
 
-    const canWs = !['1M', '1Y'].includes(timeframe);
-    const unsub = canWs ? subscribeWs(symbol, timeframe, ({ candle }) => {
+    /**
+     * 실시간: 거래소와 동일 OHLC.
+     * - Bitget 모드: Bitget candle WS (1m~1M) + REST tip 병합 백업
+     * - Binance 모드: Binance WS (1w/1M 제외) + REST tip
+     * live 폴링은 전량 재다운로드 대신 tip merge — HTF 히스토리 유지.
+     */
+    const htfHistory =
+      timeframe === '1d' || timeframe === '1w' || timeframe === '1M' || timeframe === '1Y';
+    const ltfFast =
+      timeframe === '1m' || timeframe === '3m' || timeframe === '5m' || timeframe === '15m';
+    const tipPollMs = bitgetVolumePackOn
+      ? htfHistory
+        ? 18_000
+        : timeframe === '3m'
+          ? 5_000 /** WS 없음 — REST tip만 · 메인스레드 완화 */
+          : ltfFast
+            ? 6_500
+            : 9_000
+      : htfHistory
+        ? 28_000
+        : ltfFast
+          ? 8_000
+          : 16_000;
+
+    let lastLiveAtMs = Date.now();
+    let lastTipTimeSec = 0;
+
+    const applyLiveTipSeries = (raw: Candle[]) => {
+      if (cancelled || ac.signal.aborted || !raw.length) return;
+      const nextCandles = sanitizeFast(raw);
+      setMarketError('');
+      const tip = nextCandles[nextCandles.length - 1];
+      lastLiveAtMs = Date.now();
+      if (tip?.time != null) lastTipTimeSec = Number(tip.time);
+      const ser = seriesRef.current;
+      if (tip && ser) {
+        try {
+          ser.update({
+            time: tip.time as never,
+            open: tip.open,
+            high: tip.high,
+            low: tip.low,
+            close: tip.close,
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+      setLastUpdate(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
+      /** pan/zoom 중 React setCandles → 전체 setData 금지 — idle에 반영 */
+      if (chartIxRef.current.isBusy()) {
+        if (overlayTickDebounceRef.current) clearTimeout(overlayTickDebounceRef.current);
+        overlayTickDebounceRef.current = setTimeout(() => {
+          overlayTickDebounceRef.current = null;
+          if (chartIxRef.current.isBusy()) return;
+          setCandles(nextCandles);
+        }, Math.max(160, chartPerfRef.current.wsOverlayDebounceMs));
+        return;
+      }
+      setCandles(nextCandles);
+    };
+
+    async function pollTip() {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        const merged = await refreshClientMarketCandleTip({
+          symbol,
+          timeframe,
+          source,
+          signal: ac.signal,
+        });
+        if (cancelled || ac.signal.aborted || !merged?.length) return;
+        applyLiveTipSeries(merged);
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+      }
+    }
+
+    const clearTip = setVisibleInterval(() => void pollTip(), tipPollMs);
+
+    const paintWsCandle = (candle: Candle) => {
       if (cancelled) return;
-      setCandles(prev => {
-        if (prev.length === 0) return prev;
-        const last = prev[prev.length - 1];
-        if (last.time === candle.time) {
-          const next = [...prev];
-          next[next.length - 1] = candle;
+      const norm = sanitizeChartCandlesForSeries([candle], timeframe)[0];
+      if (!norm) return;
+      lastLiveAtMs = Date.now();
+      lastTipTimeSec = Number(norm.time) || lastTipTimeSec;
+      const ser = seriesRef.current;
+      if (ser) {
+        try {
+          ser.update({
+            time: norm.time as never,
+            open: norm.open,
+            high: norm.high,
+            low: norm.low,
+            close: norm.close,
+          });
+        } catch {
+          /* setData 경로가 곧 맞춤 */
+        }
+      }
+      const volSer = volumeRef.current;
+      if (volSer && Number.isFinite(norm.volume)) {
+        try {
+          volSer.update({
+            time: norm.time as never,
+            value: Math.max(0, norm.volume),
+            color: norm.close >= norm.open ? '#26a69a' : '#ef5350',
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+      /** React setData 폭주 방지 — 차트는 update로 즉시, 상태/캐시는 스로틀 */
+      const mergeInto = (prev: Candle[]): Candle[] | null => {
+        if (prev.length === 0) return null;
+        /** 다른 TF 시리즈에 tip/WS 붙이지 않음 (일봉+주봉 혼입 방지) */
+        if (prev.length >= 3 && !candlesMatchChartTimeframe(prev, timeframe)) return null;
+        const last = prev[prev.length - 1]!;
+        if (last.time === norm.time) {
+          const next = prev.slice();
+          next[next.length - 1] = norm;
           return next;
         }
-        if (candle.time > last.time) {
-          return [...prev, candle];
-        }
-        return prev;
-      });
+        if (norm.time > last.time) return prev.concat(norm);
+        return null;
+      };
+      const pending = mergeInto(peekClientMarketCandles(symbol, timeframe, source, true) ?? []);
+      if (pending?.length) {
+        putClientMarketCandles(symbol, timeframe, pending, source, 'full');
+      }
+      setLastUpdate(new Date().toLocaleTimeString('ko-KR', { hour12: false }));
       if (overlayTickDebounceRef.current) clearTimeout(overlayTickDebounceRef.current);
       overlayTickDebounceRef.current = setTimeout(() => {
         overlayTickDebounceRef.current = null;
-        setOverlayTick(v => v + 1);
-      }, 400);
-    }) : () => {};
+        if (chartIxRef.current.isBusy()) return;
+        setCandles((prev) => {
+          const next = mergeInto(prev);
+          return next ?? prev;
+        });
+        setOverlayTick((v) => v + 1);
+      }, Math.max(120, chartPerfRef.current.wsOverlayDebounceMs));
+    };
+
+    const tfWs = normalizeChartTimeframe(timeframe);
+    let unsub = () => {};
+    const bindWs = () => {
+      unsub();
+      unsub = () => {};
+      if (isForexSymbol(symbol)) return;
+      if (bitgetVolumePackOn) {
+        /** Bitget 공식 캔들 채널 — 분·시·일·주·월 거래소 동일 */
+        unsub = subscribeBitgetCandleWs(symbol, timeframe, ({ candle }) => {
+          paintWsCandle(candle);
+        });
+      } else if (tfWs !== '1w' && tfWs !== '1M' && tfWs !== '1Y') {
+        unsub = subscribeWs(symbol, timeframe, ({ candle }) => {
+          paintWsCandle(candle);
+        });
+      }
+    };
+    bindWs();
+
+    const staleMs = chartLiveStaleMs(timeframe);
+    const clearStale = setVisibleInterval(() => {
+      if (cancelled || ac.signal.aborted) return;
+      const quiet = Date.now() - lastLiveAtMs > staleMs;
+      const tipOld = isChartCandleTipStale(lastTipTimeSec || null, timeframe);
+      if (!quiet && !tipOld) return;
+      void pollTip();
+      if (quiet) bindWs();
+    }, 8_000);
+
+    const onVisLive = () => {
+      if (document.visibilityState !== 'visible' || cancelled) return;
+      void pollTip();
+      bindWs();
+    };
+    document.addEventListener('visibilitychange', onVisLive);
 
     return () => {
-        cancelled = true;
-        ac.abort();
-        window.clearInterval(timer);
-        unsub();
-        if (overlayTickDebounceRef.current) {
-          clearTimeout(overlayTickDebounceRef.current);
-          overlayTickDebounceRef.current = null;
+      cancelled = true;
+      ac.abort();
+      clearTip();
+      clearStale();
+      document.removeEventListener('visibilitychange', onVisLive);
+      unsub();
+      if (fullIdleId != null) {
+        if (fullIdleIsRic && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+          window.cancelIdleCallback(fullIdleId);
+        } else {
+          window.clearTimeout(fullIdleId);
         }
-      };
-  }, [symbol, timeframe]);
-
-  useImperativeHandle(snapshotRef, () => ({
-    getSnapshot: () => {
-      const host = hostRef.current;
-      if (!host) return null;
-      const canvas = host.querySelector('canvas');
-      if (!canvas) return null;
-      try {
-        return canvas.toDataURL('image/png');
-      } catch {
-        return null;
       }
-    },
-  }), []);
+      if (overlayTickDebounceRef.current) {
+        clearTimeout(overlayTickDebounceRef.current);
+        overlayTickDebounceRef.current = null;
+      }
+    };
+  }, [symbol, timeframe, bitgetVolumePackOn]);
+
+  useImperativeHandle(
+    snapshotRef,
+    () => ({
+      getSnapshot: () => {
+        const host = hostRef.current;
+        if (!host) return null;
+        const canvas = host.querySelector('canvas');
+        if (!canvas) return null;
+        try {
+          return canvas.toDataURL('image/png');
+        } catch {
+          return null;
+        }
+      },
+      openSettings: () => {
+        if (isMergedAnalysisDesk) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event(OPEN_MERGED_DESK_CHART_SETTINGS_EVENT));
+          }
+          setLabelMenuOpen(false);
+          return;
+        }
+        setLabelMenuOpen(true);
+      },
+      closeSettings: () => setLabelMenuOpen(false),
+      toggleSettings: () => {
+        if (isMergedAnalysisDesk) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event(OPEN_MERGED_DESK_CHART_SETTINGS_EVENT));
+          }
+          setLabelMenuOpen(false);
+          return;
+        }
+        setLabelMenuOpen((v) => !v);
+      },
+      restoreDefaultChartView,
+      saveChartView,
+      sendTelegramTest: () => sendTelegramTestCapture({ notify: false }),
+    }),
+    [restoreDefaultChartView, saveChartView, isMergedAnalysisDesk, sendTelegramTestCapture]
+  );
 
   useEffect(() => {
     const series = seriesRef.current;
@@ -9959,10 +21078,42 @@ const ChartViewInner = ({
   }, [symbol, timeframe, candles, analysis?.engine, onChartPointClick]);
 
   useEffect(() => {
-    const onChange = () => setIsFullscreen(document.fullscreenElement === frameRef.current);
+    const onChange = () => {
+      const frame = frameRef.current;
+      setIsFullscreen(document.fullscreenElement === frame);
+      if (frame) {
+        const inMergedFs =
+          !!frame.closest('.mergedChartColFullscreen') ||
+          !!frame.closest('.mergedChartColMobileFs') ||
+          document.fullscreenElement?.classList.contains('mergedChartCol') === true;
+        const inMobileFs =
+          !!frame.closest('.mergedChartColMobileFs') ||
+          document.body.classList.contains('merged-desk-mobile-fs');
+        setMergedParentFs(inMergedFs);
+        setMergedMobileFs(inMobileFs);
+      }
+    };
+    onChange();
     document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
+    const mo = new MutationObserver(onChange);
+    if (frameRef.current) {
+      mo.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    }
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      mo.disconnect();
+    };
   }, []);
+
+  /** 거래량·선진거래량 스택(매수/매도) — 폰/FS에서도 패널 높이 유지 (Bitget ON 여부와 무관) */
+  useEffect(() => {
+    const chart = chartRef.current;
+    const volume = volumeRef.current;
+    const volumeBuy = volumeBuyRef.current;
+    const volumeMa = volumeMaRef.current;
+    if (!chart || !volume) return;
+    applyChartVolumePanelLayout(chart, volPanelLayout, { volume, volumeBuy, volumeMa });
+  }, [volPanelLayout, volumeLayoutFullscreen, mergedMobileFs, isMergedAnalysisDesk]);
 
   useEffect(() => {
     const r = () => window.dispatchEvent(new Event('resize'));
@@ -9975,6 +21126,67 @@ const ChartViewInner = ({
       window.clearTimeout(t2);
     };
   }, [isFullscreen]);
+
+  /** 통합분석 부모 전체화면(특히 모바일 CSS FS) — 호스트 높이 복구 후 LWC 리사이즈 + zone 좌표 재계산 */
+  useEffect(() => {
+    if (!mergedParentFs && !mergedMobileFs) return;
+    const host = hostRef.current;
+    const chart = chartRef.current;
+    const kick = () => {
+      window.dispatchEvent(new Event('resize'));
+      const hEl = hostRef.current;
+      const c = chartRef.current;
+      if (hEl && c) {
+        const w = Math.max(1, Math.floor(hEl.clientWidth));
+        const h = Math.max(1, Math.floor(hEl.clientHeight));
+        if (w > 1 && h > 1) {
+          try {
+            c.resize(w, h);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      setOverlayTick((v) => v + 1);
+    };
+    kick();
+    const t0 = window.setTimeout(kick, 50);
+    const t1 = window.setTimeout(kick, 200);
+    const t2 = window.setTimeout(kick, 480);
+    const t3 = window.setTimeout(kick, 900);
+    let ro: ResizeObserver | null = null;
+    try {
+      if (host && typeof ResizeObserver !== 'undefined') {
+        ro = new ResizeObserver(() => kick());
+        ro.observe(host);
+      }
+    } catch {
+      /* ignore */
+    }
+    return () => {
+      window.clearTimeout(t0);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      try {
+        ro?.disconnect();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [mergedParentFs, mergedMobileFs]);
+
+  /** 폰·PC 공동 — 첫 페인트 후 zone overlay 좌표가 비면 재계산 (전체화면 포함) */
+  useEffect(() => {
+    if (!isMergedAnalysisDesk) return;
+    const kick = () => {
+      window.dispatchEvent(new Event('resize'));
+      setOverlayTick((v) => v + 1);
+    };
+    kick();
+    const timers = [120, 350, 700, 1400].map((ms) => window.setTimeout(kick, ms));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [isMergedAnalysisDesk, mergedTouchUi, mergedParentFs, mergedMobileFs, timeframe]);
 
   const toggleFullscreen = async () => {
     const el = frameRef.current;
@@ -10080,7 +21292,7 @@ const ChartViewInner = ({
   const hzDualLeftChrome = hotZoneEmbed === 'left' && uiMode === 'HOT_ZONE';
 
   const verdictVisualBias: 'long' | 'short' | null =
-    analysisMatchesSymbolAndTf(analysis, symbol, timeframe) &&
+    analysisUsableOnChart(analysis, symbol, timeframe, uiMode) &&
     (analysis?.verdict === 'LONG' || analysis?.verdict === 'SHORT')
       ? analysis!.verdict === 'LONG'
         ? 'long'
@@ -10096,8 +21308,72 @@ const ChartViewInner = ({
       ref={frameRef}
       className={`tv-frame ${isFullscreen ? 'is-fullscreen' : ''}${maxCleanChartLayout ? ' tv-frame--max-clean' : ''}${
         unifiedDeskMode && unifiedDeskPack === 1 ? ' tv-frame--ud-pack-zone' : ''
-      }${hotZoneEmbed === 'right' ? ' tv-frame--hz-embed-sec' : ''}${isSmcDeskMode ? ' tv-frame--smc-desk' : ''}`}
+      }${hotZoneEmbed === 'right' ? ' tv-frame--hz-embed-sec' : ''}${isSmcDeskMode ? ' tv-frame--smc-desk' : ''}${
+        uiMode === 'FUSION_MODE' ? ' tv-frame--fusion-pro' : ''
+      }${isMonthStartDeskMode ? ' tv-frame--month-start-desk' : ''}${
+        isMonthStartDeskMode && monthDeskOverlayClear
+          ? ' tv-frame--month-start-desk--overlay-clear'
+          : ''
+      }${isMonthStartDeskMode && monthDeskClearSummaryOn ? ' tv-frame--month-start-desk--settle-summary' : ''}${
+        isReferenceDeskMode ? ' tv-frame--reference-desk-lwc' : ''
+      }${isMergedAnalysisDesk ? ' tv-frame--merged-embed chart-wrap--merged-analysis' : ''}${
+        isMergedAnalysisDesk && mergedTouchUi ? ' chart-wrap--merged-touch' : ''}${
+        isMergedAnalysisDesk && isMergedDeskAiToneEnabled(settings) ? ' chart-wrap--merged-tone-ai' : ''
+      }${isMergedAnalysisDesk && !mergedDeskOverlayLabelsOn ? ' chart-wrap--merged-labels-off' : ''}${
+        isMergedAnalysisDesk && mirageZoneFaceReveal === 'progressive' ? ' mirage-zone-face-progressive' : ''
+      }${isMergedAnalysisDesk && mirageZoneFaceLang === 'en' ? ' mirage-zone-face-en' : ''}
+      }`}
+      style={
+        isMergedAnalysisDesk
+          ? ({
+              ['--md-zoom']: String(mergedDeskLabelZoomScale(mergedDeskZoomScale)),
+              ['--md-dump-face-fs']: `${Math.max(
+                7,
+                Math.min(18, Math.round(Number(settings.chartMergedDeskDumpFaceLabelFontSize) || 9))
+              )}px`,
+              ['--md-dump-edge-fs']: `${Math.max(
+                7,
+                Math.min(18, Math.round(Number(settings.chartMergedDeskDumpEdgePriceFontSize) || 8))
+              )}px`,
+              ['--md-dump-edge-color']:
+                typeof settings.chartMergedDeskDumpEdgePriceColor === 'string' &&
+                /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpEdgePriceColor)
+                  ? settings.chartMergedDeskDumpEdgePriceColor
+                  : '#fef08a',
+              ...(settings.chartMergedDeskDumpZoneColorMode !== 'auto'
+                ? {
+                    ['--md-dump-fill']: (() => {
+                      const hex =
+                        typeof settings.chartMergedDeskDumpZoneFillColor === 'string' &&
+                        /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpZoneFillColor)
+                          ? settings.chartMergedDeskDumpZoneFillColor
+                          : '#38bdf8';
+                      const n = parseInt(hex.slice(1), 16);
+                      const r = (n >> 16) & 255;
+                      const g = (n >> 8) & 255;
+                      const b = n & 255;
+                      return `rgba(${r},${g},${b},0.14)`;
+                    })(),
+                    ['--md-dump-border']:
+                      typeof settings.chartMergedDeskDumpZoneBorderColor === 'string' &&
+                      /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpZoneBorderColor)
+                        ? settings.chartMergedDeskDumpZoneBorderColor
+                        : typeof settings.chartMergedDeskDumpZoneFillColor === 'string' &&
+                            /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpZoneFillColor)
+                          ? settings.chartMergedDeskDumpZoneFillColor
+                          : '#38bdf8',
+                  }
+                : null),
+            } as React.CSSProperties)
+          : undefined
+      }
+      data-dump-color={
+        isMergedAnalysisDesk && settings.chartMergedDeskDumpZoneColorMode !== 'auto'
+          ? 'custom'
+          : undefined
+      }
       data-ud-pack={unifiedDeskMode ? unifiedDeskPack : undefined}
+      data-candle-source={bitgetVolumePackOn ? 'bitget-btcusdt-p' : undefined}
     >
       {whaleStructureBounceLegendOn && (
         <div
@@ -10136,8 +21412,53 @@ const ChartViewInner = ({
           ))}
         </div>
       )}
+      {isMergedAnalysisDesk &&
+        mergedDeskPatternSilhouettePack &&
+        mergedDeskPatternSilhouetteScreen &&
+        !(OVERLAY_ZONE_FILL_BEHIND_CHART || settings.showExhaustionZoneRukich) && (
+          <div
+            className="overlay-layer overlay-layer--under-chart"
+            aria-hidden
+            style={{ pointerEvents: 'none', zIndex: 1 }}
+          >
+            <MergedDeskPatternSilhouetteLayer
+              pack={mergedDeskPatternSilhouettePack}
+              box={mergedDeskPatternSilhouetteScreen.box}
+              stamps={mergedDeskPatternSilhouetteScreen.stamps}
+            />
+          </div>
+        )}
       {(OVERLAY_ZONE_FILL_BEHIND_CHART || settings.showExhaustionZoneRukich) && (
-        <div className="overlay-layer overlay-layer--under-chart" aria-hidden>
+        <div
+          ref={overlayUnderLayerRef}
+          className="overlay-layer overlay-layer--under-chart overlay-layer--static"
+          aria-hidden
+          style={{ willChange: 'transform', pointerEvents: 'none' }}
+        >
+          {OVERLAY_ZONE_FILL_BEHIND_CHART && tripleTrendBandDrawModel && (
+            <div className="chart-triple-trend-layer" aria-hidden>
+              <svg
+                width={tripleTrendBandDrawModel.width}
+                height={tripleTrendBandDrawModel.height}
+                className="chart-triple-trend-layer__svg"
+              >
+                {tripleTrendBandDrawModel.segments.map((seg, i) => (
+                  <g key={`tt-seg-${i}`} className={`chart-triple-trend-seg chart-triple-trend-seg--${seg.dir}`}>
+                    {seg.fillPath ? (
+                      <path
+                        d={seg.fillPath}
+                        fill={seg.dir === 'long' ? 'rgba(31,160,117,0.08)' : 'rgba(173,119,37,0.08)'}
+                        stroke="none"
+                      />
+                    ) : null}
+                    <path d={seg.line3} fill="none" stroke={seg.color} strokeWidth={seg.active ? 1 : 0.75} opacity={0.45} />
+                    <path d={seg.line2} fill="none" stroke={seg.color} strokeWidth={seg.active ? 1.5 : 1} opacity={0.68} />
+                    <path d={seg.line1} fill="none" stroke={seg.color} strokeWidth={seg.active ? 2.5 : 1.75} opacity={0.95} />
+                  </g>
+                ))}
+              </svg>
+            </div>
+          )}
           {OVERLAY_ZONE_FILL_BEHIND_CHART && unifiedDeskMode && unifiedTvBands && (
             <div className="chart-unified-tv-bands">
               {unifiedTvBands.resist && (
@@ -10173,16 +21494,41 @@ const ChartViewInner = ({
             const smcPlaybookLock = isSmcEntryPlaybookOverlayId(item.id);
             const offKey = stableOverlayVisibilityKey(item.id);
             const off =
-              isWhaleAutoOverlay || smcPlaybookLock
+              isWhaleAutoOverlay || smcPlaybookLock || overlayMoveLocked
                 ? { dx: 0, dy: 0 }
                 : overlayOffsets[offKey] ?? overlayOffsets[item.id] ?? { dx: 0, dy: 0 };
-            const isDragging = !isWhaleAutoOverlay && !smcPlaybookLock && dragState?.id === item.id;
-            const liveOff = isDragging ? { dx: dragState.currentDx, dy: dragState.currentDy } : off;
+            const isDragging = !overlayMoveLocked && !isWhaleAutoOverlay && !smcPlaybookLock && dragState?.id === item.id;
+            const liveOff: OverlayLabelOffset = isDragging
+              ? {
+                  dx: dragState.currentDx,
+                  dy: dragState.currentDy,
+                  pinAbsX: dragState.currentAbsLeft,
+                  pinAbsY: dragState.currentAbsTop,
+                  pinWidth: dragState.pinWidth ?? off.pinWidth,
+                }
+              : off;
+            /** 존 면은 그대로 두고 캡션 글자만 사용자가 지정한 만큼 옮긴다 */
+            const capNudge = getLabelNudge(String(item.id));
+            const underNudge = labelNudgeAttrs(String(item.id));
+            if (
+              isMergedAnalysisDesk &&
+              item.kind === 'zone' &&
+              isMergedDeskRbCompactFaceOverlay(item as OverlayItem)
+            ) {
+              return null;
+            }
             if (
               item.kind === 'channelBand' &&
               Array.isArray(item.channelBandScreen) &&
               item.channelBandScreen.length >= 3
             ) {
+              if (
+                isMergedAnalysisDesk &&
+                typeof item.id === 'string' &&
+                String(item.id).startsWith('merged-ares-mlsp-tv-')
+              ) {
+                return null;
+              }
               const poly = item.channelBandScreen as { x: number; y: number }[];
               let minX = Infinity;
               let minY = Infinity;
@@ -10197,15 +21543,75 @@ const ChartViewInner = ({
               const w = Math.max(1, maxX - minX);
               const h = Math.max(1, maxY - minY);
               const pts = poly.map((p) => `${p.x - minX + liveOff.dx},${p.y - minY + liveOff.dy}`).join(' ');
-              const fillC = softenZoneFill(
-                typeof item.color === 'string' && item.color.length ? item.color : 'rgba(80,80,80,0.2)',
-                zoneFillSoftenMult * UNDER_CHART_FILL_EXTRA_SOFT
-              );
+              const rawFill =
+                typeof item.color === 'string' && item.color.length ? item.color : 'rgba(80,80,80,0.2)';
+              const idStr = typeof item.id === 'string' ? item.id : '';
+              const cloudExtra = String((item as OverlayItem).overlayZoneExtraClass || '');
+              if (isMergedAnalysisDesk && !isMergedDeskRequestedVisibleZone(item as OverlayItem)) {
+                return null;
+              }
+              /** 통합·분석: 숨긴 채널·구름면 under 스킵 — 타점 가독성 */
+              if (
+                isMergedAnalysisDesk &&
+                (cloudExtra.includes('merged-desk-zone-face-hidden') ||
+                  cloudExtra.includes('merged-desk-zone-face-minimal'))
+              ) {
+                return null;
+              }
+              if (
+                isMergedAnalysisDesk &&
+                (idStr.startsWith('merged-cp-cloud') ||
+                  idStr.startsWith('merged-unified-cloud') ||
+                  idStr.startsWith('merged-ares-st-cloud') ||
+                  cloudExtra.includes('merged-cp-cloud') ||
+                  cloudExtra.includes('merged-unified-cloud') ||
+                  cloudExtra.includes('merged-ares-st-cloud'))
+              ) {
+                return null;
+              }
+              const keepCloudFill =
+                idStr.startsWith('merged-ares-mlsp-tv-') ||
+                idStr.startsWith('merged-cp-cloud') ||
+                idStr.startsWith('merged-unified-cloud') ||
+                idStr.startsWith('merged-ares-st-cloud') ||
+                idStr.startsWith('merged-desk-rb-') ||
+                cloudExtra.includes('merged-cp-cloud') ||
+                cloudExtra.includes('merged-unified-cloud') ||
+                cloudExtra.includes('merged-ares-st-cloud') ||
+                cloudExtra.includes('merged-desk-rb-channel') ||
+                cloudExtra.includes('merged-desk-blue-red-channel');
+              const fillBase = keepCloudFill
+                ? idStr.startsWith('merged-ares-mlsp-tv-')
+                  ? rawFill || 'rgba(80,80,80,0.28)'
+                  : rawFill
+                : softenZoneFill(
+                    rawFill,
+                    zoneFillSoftenMult * UNDER_CHART_FILL_EXTRA_SOFT * fusionUnderChartZoneAlphaMult
+                  );
+              const fillC = isMergedAnalysisDesk
+                ? tintMergedDeskEuromapFill(fillBase, settings, idStr)
+                : fillBase;
+              /** 파랑빨강띠 면은 해치만 — 테두리 선은 주 채널 상·하 실선 1쌍만 */
+              const strokeC = 'none';
               return (
-                <div key={`under-ch-${item.id}`} style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
+                <div
+                  key={`under-ch-${item.id}`}
+                  className={
+                    keepCloudFill
+                      ? cloudExtra
+                      : undefined
+                  }
+                  style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 2 }}
+                >
                   <div style={{ position: 'absolute', left: minX, top: minY, width: w, height: h, pointerEvents: 'none' }}>
                     <svg width={w} height={h} style={{ display: 'block', overflow: 'visible' }}>
-                      <polygon points={pts} fill={fillC} stroke="none" />
+                      <polygon
+                        className={keepCloudFill ? 'merged-unified-cloud-poly' : undefined}
+                        points={pts}
+                        fill={fillC}
+                        stroke={strokeC === 'none' ? 'none' : strokeC}
+                        strokeWidth={strokeC === 'none' ? 0 : 1.5}
+                      />
                     </svg>
                   </div>
                 </div>
@@ -10215,6 +21621,32 @@ const ChartViewInner = ({
               !['zone', 'fvg', 'ob', 'supplyZone', 'demandZone', 'bprZone', 'reactionZone'].includes(item.kind) ||
               typeof item.x2 !== 'number' ||
               typeof item.y2 !== 'number'
+            ) {
+              return null;
+            }
+            const underExtraCls = String((item as OverlayItem).overlayZoneExtraClass || '');
+            if (isMergedAnalysisDesk && !isMergedDeskRequestedVisibleZone(item as OverlayItem)) {
+              return null;
+            }
+            /** 사용자가 끈 면만 under 생략 — HQ/HotZone/핵심존 유지 */
+            if (isMergedAnalysisDesk && underExtraCls.includes('merged-desk-zone-face-hidden')) {
+              return null;
+            }
+            /** 통합·분석 Mirage·HotZone·AI ZONE 면 — 앞 레이어(캔들 위)에만 그림 */
+            if (
+              isMergedAnalysisDesk &&
+              typeof item.id === 'string' &&
+              (String(item.id).startsWith('merged-ares-mlsp-tv-') ||
+                String(item.id).startsWith('merged-desk-btccion-') ||
+                String(item.id).startsWith('eagle1-ai-zone--') ||
+                String(item.id).startsWith('eagle1-entry-zone') ||
+                String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                  'eagle1-ai-analysis-zone'
+                ) ||
+                isMergedDeskHotZoneNamedFaceOverlay(item as OverlayItem) ||
+                isMergedDeskAdvVolSeatNamedFaceOverlay(item as OverlayItem) ||
+                isMergedDeskRocketRangeNamedFaceOverlay(item as OverlayItem) ||
+                isMergedDeskProjectedSupportNamedFaceOverlay(item as OverlayItem))
             ) {
               return null;
             }
@@ -10240,25 +21672,64 @@ const ChartViewInner = ({
                   item.id.startsWith('smart-overlay-zone')));
             const baseLeft = Math.min(item.x1, item.x2);
             const baseWidth = Math.abs(item.x2 - item.x1);
-            const xMaxRight = item.xMaxRight ?? (baseLeft + baseWidth);
+            let xMaxRight = item.xMaxRight ?? (baseLeft + baseWidth);
             const isCoreMagnetZoneStrictW = isCoreAnalysisMagnetZoneStrictWidthId(item.id);
+            /** 차트 뒤 zone 면 — 우측 = 마지막 봉 +20 여백 (라벨 안착) */
+            if (
+              isMergedAnalysisDesk &&
+              !isCoreMagnetZoneStrictW &&
+              !isMergedDeskRbCompactFaceOverlay(item as OverlayItem)
+            ) {
+              const liveSeries = seriesRef.current;
+              const liveChart = chartRef.current;
+              if (liveSeries && liveChart) {
+                const dumpPad = isMergedDeskDumpLabelPadOverlay(item as OverlayItem);
+                const isRb = isMergedDeskRbDrawOverlay(item as OverlayItem);
+                const padBars =
+                  dumpPad || !isRb ? MERGED_DESK_RIGHT_FUTURE_BARS : 0;
+                const padX = mergedDeskSeriesFuturePadScreenX(
+                  liveSeries,
+                  liveChart.timeScale(),
+                  padBars,
+                  chartSeriesCandlesRef.current.length >= 2
+                    ? chartSeriesCandlesRef.current
+                    : undefined
+                );
+                if (isRb && !dumpPad) {
+                  const lastX = mergedDeskSeriesLastBarScreenX(
+                    liveSeries,
+                    liveChart.timeScale(),
+                    chartSeriesCandlesRef.current.length >= 2
+                      ? chartSeriesCandlesRef.current
+                      : undefined
+                  );
+                  if (Number.isFinite(lastX) && lastX > baseLeft) {
+                    xMaxRight = lastX;
+                  }
+                } else if (Number.isFinite(padX) && padX > baseLeft) {
+                  xMaxRight = padX;
+                }
+              }
+            }
             /** 핵심 존: time2 픽셀 폭 + screenOverlays에서 마지막 봉까지 확장된 x2/xMaxRight 반영 */
             const width = isCoreMagnetZoneStrictW
               ? Math.max(1, baseWidth)
-              : Math.max(baseWidth, xMaxRight - baseLeft);
+              : isOverlayAbsPinned(liveOff) && typeof liveOff.pinWidth === 'number' && liveOff.pinWidth > 0
+                ? liveOff.pinWidth
+                : isOverlayAbsPinned(liveOff)
+                  ? Math.max(1, baseWidth)
+                  : Math.max(baseWidth, xMaxRight - baseLeft);
             const left = baseLeft + liveOff.dx;
             const top = Math.min(item.y1, item.y2) + liveOff.dy;
             const height = Math.abs(item.y2 - item.y1);
             const isSmartMoneyMvpLine = String(item.id || '').startsWith('smartmoney-mvp-');
-            const align = isCaCoreSd || isMajorEngineSrZone || isSmartMoneyMvpLine ? 'right' : getLabelAlign(item.id);
-            const justifyContent = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
             const lineLblRaw = (item as OverlayItem).lineLabelColor;
             const useAutoLineTint =
               typeof lineLblRaw === 'string' &&
               lineLblRaw.length > 0 &&
               typeof item.id === 'string' &&
               item.id.startsWith('candle-analysis-auto-');
-            const zDirTint = resolveZoneDirectionalColors(item as OverlayItem);
+            const zDirTint = resolveZoneDirectionalColorsDistinct(item as OverlayItem);
             const zoneLabelColor = useAutoLineTint
               ? toSolidOverlayColor(lineLblRaw)
               : zDirTint
@@ -10266,6 +21737,20 @@ const ChartViewInner = ({
                 : toSolidOverlayColor(item.color);
             const ovZUnder = item as OverlayItem;
             const zoneFillPreserveUnder = ovZUnder.zoneFillPreserve === true;
+            const isMergedAresUnderZone = isMergedAnalysisDeskLabeledZone(item as OverlayItem, isMergedAnalysisDesk);
+            /** 통합·분석: under 캡션 끄고 앞 레이어(우측)만 — 이중·좌측 스택 방지. 면은 유지 */
+            const mergedAresUnderLabel =
+              isMergedAresUnderZone && !isMergedAnalysisDesk ? String(item.label || '').trim() : '';
+            const isMirageTvUnderZone =
+              isMergedAnalysisDesk &&
+              typeof item.id === 'string' &&
+              item.id.startsWith('merged-ares-mlsp-tv-') &&
+              (item.kind === 'zone' || item.kind === 'channelBand');
+            const align =
+              isCaCoreSd || isMajorEngineSrZone || isSmartMoneyMvpLine || isMergedAresUnderZone
+                ? 'right'
+                : getLabelAlign(item.id);
+            const justifyContent = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
             const overlayZoneExtraUnder = String(ovZUnder.overlayZoneExtraClass || '')
               .trim()
               .split(/\s+/)
@@ -10278,7 +21763,11 @@ const ChartViewInner = ({
                 })
               : null;
             return (
-              <div key={`under-z-${item.id}`} style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
+              <div
+                key={`under-z-${item.id}`}
+                className={underNudge.className || undefined}
+                style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', ...underNudge.style }}
+              >
                 <div
                   className={[
                     'overlay-zone',
@@ -10295,24 +21784,37 @@ const ChartViewInner = ({
                     width,
                     height,
                     position: 'relative',
-                    background: udZone
+                    background: isMirageTvUnderZone
+                      ? typeof item.color === 'string' && item.color.length
+                        ? item.color
+                        : 'rgba(148,163,184,0.14)'
+                      : udZone
                       ? udZone.background
                       : zDirTint
                         ? zDirTint.fillSoft
                         : softenZoneFill(
                           item.color,
                           zoneFillPreserveUnder
-                            ? zoneFillPreserveLayoutMult(maxCleanChartLayout, executionCalmLayout)
+                            ? zoneFillPreserveLayoutMult(
+                                maxCleanChartLayout,
+                                executionCalmLayout,
+                                isMergedAnalysisDesk
+                              )
                             : (isCaCoreSd ? 0.88 : isCandleAnalysisZone ? caZoneFillSoftMult : zoneFillSoftenMult) *
-                              UNDER_CHART_FILL_EXTRA_SOFT,
-                          zoneFillPreserveUnder ? { minAlpha: 0.055 } : undefined
+                              UNDER_CHART_FILL_EXTRA_SOFT *
+                              fusionUnderChartZoneAlphaMult,
+                          zoneFillPreserveUnder
+                            ? { minAlpha: isMirageTvUnderZone ? 0.16 : isMergedAnalysisDesk ? 0.028 : 0.055 }
+                            : undefined
                         ),
-                    border: udZone?.border ?? (zDirTint ? `1px solid ${zDirTint.strokeSoft}` : zoneBorder),
+                    border: isMirageTvUnderZone
+                      ? `1px solid ${zoneLabelColor}55`
+                      : udZone?.border ?? (zDirTint ? `1px solid ${zDirTint.strokeSoft}` : zoneBorder),
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent,
-                    paddingLeft: 6,
-                    paddingRight: 6,
+                    justifyContent: isMirageTvUnderZone ? 'flex-end' : justifyContent,
+                    paddingLeft: isMirageTvUnderZone ? 4 : 6,
+                    paddingRight: isMirageTvUnderZone ? 6 : 6,
                   }}
                 >
                   {udZone && !shouldHideWhaleAutoZoneChartCaption(item) && (
@@ -10320,10 +21822,11 @@ const ChartViewInner = ({
                       className={`chart-unified-zone-caption${overlayLabelProximityIds.has(String(item.id)) ? ' overlay-label-near-candle' : ''}`}
                       style={{
                         position: 'absolute',
-                        right: 4,
+                        left: 'auto',
+                        right: 4 + capNudge.rightDx,
                         top: '50%',
-                        transform: 'translateY(-50%)',
-                        fontSize: 10,
+                        transform: `translateY(calc(-50% + ${capNudge.dy}px))`,
+                        fontSize: capNudge.fontSize ?? 10,
                         fontWeight: 700,
                         letterSpacing: 0.02,
                         color: udZone.captionColor,
@@ -10337,6 +21840,52 @@ const ChartViewInner = ({
                       }}
                     >
                       {udZone.caption}
+                    </span>
+                  )}
+                  {isMergedAresUnderZone && mergedAresUnderLabel && !isMirageTvUnderZone && (
+                    <span
+                      className={`merged-ares-zone-caption overlay-zone-label${overlayLabelProximityIds.has(String(item.id)) ? ' overlay-label-near-candle' : ''}`}
+                      style={{
+                        position: 'absolute',
+                        left: 'auto',
+                        right: 4 + capNudge.rightDx,
+                        top: 4 + capNudge.dy,
+                        fontSize: capNudge.fontSize ?? 9,
+                        fontWeight: 800,
+                        color: '#f8fafc',
+                        textShadow: '0 1px 3px rgba(0,0,0,.95)',
+                        pointerEvents: 'none',
+                        maxWidth: Math.min(160, Math.max(72, width * 0.55)),
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        lineHeight: 1.2,
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        background: String(item.id || '').includes('critical-decline') || String(item.id || '').includes('smc-ob--supply') || String(item.id || '').includes('bounce-path--down')
+                          ? 'rgba(127,29,29,0.88)'
+                          : String(item.id || '').includes('critical-rally') || String(item.id || '').includes('bounce-path--up')
+                            ? 'rgba(120,53,15,0.88)'
+                            : String(item.id || '').includes('smc-choch')
+                              ? 'rgba(76,29,149,0.9)'
+                              : String(item.id || '').includes('projected-support') || String(item.id || '').includes('hq-')
+                                ? String((item as OverlayItem).labelBackgroundColor || 'rgba(6,78,59,0.92)')
+                                : 'rgba(15,23,42,0.82)',
+                      }}
+                      title={String((item as OverlayItem).labelTooltip || mergedAresUnderLabel)}
+                    >
+                      {mergedAresUnderLabel}
+                    </span>
+                  )}
+                  {isMirageTvUnderZone && item.kind === 'zone' && mergedAresUnderLabel && (
+                    <span
+                      className="merged-ares-mlsp-tv-zone-text"
+                      style={{
+                        transform: `translate(${capNudge.dx}px, ${capNudge.dy}px)`,
+                        ...(capNudge.fontSize ? { fontSize: capNudge.fontSize } : {}),
+                      }}
+                    >
+                      {mergedAresUnderLabel}
                     </span>
                   )}
                 </div>
@@ -10379,7 +21928,260 @@ const ChartViewInner = ({
             data-bias={verdictVisualBias}
           />
         )}
-      <div ref={hostRef} className="tv-host" onContextMenu={handleContextMenu} />
+      <div className={`tv-chart-vol-wrap${volumeLayoutFullscreen ? ' tv-chart-vol-wrap--fs' : ''}`}>
+        <div
+          ref={hostRef}
+          className="tv-host"
+          style={{ touchAction: 'none' }}
+          onContextMenu={handleContextMenu}
+        />
+        <ChartCandleCloseTimer
+          timeframe={timeframe}
+          nowMs={tfCloseNowMs}
+          lastPrice={
+            candles.length > 0 && Number.isFinite(candles[candles.length - 1]!.close)
+              ? candles[candles.length - 1]!.close
+              : null
+          }
+          hostRef={hostRef}
+          chartRef={chartRef}
+          seriesRef={seriesRef}
+          exchange={bitgetVolumePackOn ? 'bitget' : 'binance'}
+        />
+        {bitgetVolumePackOn && volumeAiZoneScreen && volumeAiZoneScreen.zones.length > 0 && (
+          <VolumeAiZoneDrawLayer
+            zones={volumeAiZoneScreen.zones}
+            volPanelTop={volumeAiZoneScreen.volPanelTop}
+            volPanelBot={volumeAiZoneScreen.volPanelBot}
+            selectedZoneId={volumeAiExplain?.kind === 'zone' ? volumeAiExplain.zoneId : null}
+            onZoneClick={(zoneId) =>
+              setVolumeAiExplain((prev) =>
+                prev?.kind === 'zone' && prev.zoneId === zoneId ? null : { kind: 'zone', zoneId }
+              )
+            }
+          />
+        )}
+        {chartVolBarLabelScreen && (
+          <ChartVolBarLabels top={chartVolBarLabelScreen.top} items={chartVolBarLabelScreen.items} />
+        )}
+        {bitgetVolumePackOn && volumeAiExplainCard && (
+          <VolumeAiZoneExplainCard
+            title={volumeAiExplainCard.title}
+            summary={volumeAiExplainCard.summary}
+            subtitle={volumeAiExplainCard.subtitle}
+            verdictSide={volumeAiExplainCard.verdictSide}
+            verdictKo={volumeAiExplainCard.verdictKo}
+            verdictReasonKo={volumeAiExplainCard.verdictReasonKo}
+            verdictStrength={volumeAiExplainCard.verdictStrength}
+            invalidationKo={volumeAiExplainCard.invalidationKo}
+            verdictColor={volumeAiExplainCard.verdictColor}
+            metrics={volumeAiExplainCard.metrics}
+            footnote={volumeAiExplainCard.footnote}
+            accent={volumeAiExplainCard.accent}
+            onClose={() => setVolumeAiExplain(null)}
+          />
+        )}
+      </div>
+      {mergedVrvpScreen && (
+        <div
+          className={`merged-vrvp-strip${
+            mergedVrvpScreen.pocExtend === 'extend20' ? ' merged-vrvp-strip--extend20' : ''
+          }${
+            mergedVrvpScreen.pocTone.side === 'buy'
+              ? ' merged-vrvp-strip--buy'
+              : mergedVrvpScreen.pocTone.side === 'sell'
+                ? ' merged-vrvp-strip--sell'
+                : ''
+          }`}
+          aria-label="VRVP 거래량 프로파일"
+          style={
+            mergedVrvpScreen.pocExtend === 'extend20' && mergedVrvpScreen.pocRail
+              ? {
+                  width: Math.max(52, mergedVrvpScreen.pocRail.left + mergedVrvpScreen.pocRail.width),
+                  background: 'transparent',
+                  borderRight: 'none',
+                }
+              : undefined
+          }
+        >
+          <div className="merged-vrvp-strip__head">
+            <span>VRVP</span>
+            <span className="merged-vrvp-strip__tf">
+              {mergedVrvpScreen.timeframe} · {mergedVrvpScreen.candleCount}봉
+              {mergedVrvpScreen.pocExtend === 'extend20' ? ' · +20' : ''}
+            </span>
+          </div>
+          <div className="merged-vrvp-strip__canvas">
+            {mergedVrvpScreen.pocExtend === 'extend20' &&
+            mergedVrvpScreen.pocRail &&
+            mergedVrvpScreen.pocY != null ? (
+              <div
+                className="merged-vrvp-strip__bin merged-vrvp-strip__bin--poc merged-vrvp-strip__bin--poc-extend"
+                style={{
+                  top: mergedVrvpScreen.pocY,
+                  left: mergedVrvpScreen.pocRail.left,
+                  width: mergedVrvpScreen.pocRail.width,
+                  background: mergedVrvpScreen.pocTone.railCss,
+                  boxShadow: `0 0 8px ${mergedVrvpScreen.pocTone.binCss}`,
+                }}
+                title={`${
+                  mergedVrvpScreen.poc != null
+                    ? mergedVrvpScreen.poc >= 1000
+                      ? mergedVrvpScreen.poc.toFixed(0)
+                      : mergedVrvpScreen.poc.toFixed(2)
+                    : ''
+                } · ${MERGED_VRVP_KO.pocShort}${
+                  mergedVrvpScreen.pocBiasKo ? ` · ${mergedVrvpScreen.pocBiasKo}` : ''
+                } · 마지막+20봉`}
+              />
+            ) : (
+              mergedVrvpScreen.bars.map((b, i) => (
+                <div
+                  key={`${b.price}-${i}`}
+                  className={`merged-vrvp-strip__bin${b.isPoc ? ' merged-vrvp-strip__bin--poc' : ''}`}
+                  style={{
+                    top: b.y,
+                    width: `${b.widthPct}%`,
+                    ...(b.isPoc
+                      ? {
+                          background: mergedVrvpScreen.pocTone.binCss,
+                          boxShadow: `0 0 6px ${mergedVrvpScreen.pocTone.binCss}`,
+                        }
+                      : null),
+                  }}
+                  title={`${b.price >= 1000 ? b.price.toFixed(0) : b.price.toFixed(2)} · ${Math.round(b.ratio * 100)}%${b.isPoc ? ` · ${MERGED_VRVP_KO.pocShort}` : ''}`}
+                />
+              ))
+            )}
+            {mergedVrvpScreen.pocY != null && mergedVrvpScreen.poc != null && (
+              <div
+                className="merged-vrvp-strip__poc"
+                style={{
+                  top: mergedVrvpScreen.pocY,
+                  borderTopColor: mergedVrvpScreen.pocTone.dashCss,
+                }}
+              >
+                <span style={{ color: mergedVrvpScreen.pocTone.labelHex }}>
+                  {MERGED_VRVP_KO.pocShort}{' '}
+                  {mergedVrvpScreen.poc >= 1000 ? mergedVrvpScreen.poc.toFixed(0) : mergedVrvpScreen.poc.toFixed(2)}
+                  {mergedVrvpScreen.pocStateKo ? ` · ${mergedVrvpScreen.pocStateKo}` : ''}
+                </span>
+              </div>
+            )}
+            {mergedVrvpScreen.developingPocY != null &&
+              mergedVrvpScreen.developingPoc != null && (
+                <div
+                  className="merged-vrvp-strip__poc merged-vrvp-strip__poc--developing"
+                  style={{
+                    top: mergedVrvpScreen.developingPocY,
+                    borderTopColor: 'rgba(45,212,191,0.75)',
+                  }}
+                >
+                  <span style={{ color: '#5eead4' }}>
+                    {MERGED_VRVP_KO.developingPocShort}{' '}
+                    {mergedVrvpScreen.developingPoc >= 1000
+                      ? mergedVrvpScreen.developingPoc.toFixed(0)
+                      : mergedVrvpScreen.developingPoc.toFixed(2)}
+                  </span>
+                </div>
+              )}
+            {mergedVrvpScreen.nearHvnAboveY != null &&
+              mergedVrvpScreen.nearHvnAbove != null && (
+                <div
+                  className="merged-vrvp-strip__poc"
+                  style={{
+                    top: mergedVrvpScreen.nearHvnAboveY,
+                    borderTopColor: 'rgba(45,212,191,0.45)',
+                  }}
+                >
+                  <span style={{ color: '#99f6e4', fontSize: 10 }}>
+                    {MERGED_VRVP_KO.nearHvnAbove}{' '}
+                    {mergedVrvpScreen.nearHvnAbove >= 1000
+                      ? mergedVrvpScreen.nearHvnAbove.toFixed(0)
+                      : mergedVrvpScreen.nearHvnAbove.toFixed(2)}
+                  </span>
+                </div>
+              )}
+            {mergedVrvpScreen.nearHvnBelowY != null &&
+              mergedVrvpScreen.nearHvnBelow != null && (
+                <div
+                  className="merged-vrvp-strip__poc"
+                  style={{
+                    top: mergedVrvpScreen.nearHvnBelowY,
+                    borderTopColor: 'rgba(192,132,252,0.45)',
+                  }}
+                >
+                  <span style={{ color: '#d8b4fe', fontSize: 10 }}>
+                    {MERGED_VRVP_KO.nearHvnBelow}{' '}
+                    {mergedVrvpScreen.nearHvnBelow >= 1000
+                      ? mergedVrvpScreen.nearHvnBelow.toFixed(0)
+                      : mergedVrvpScreen.nearHvnBelow.toFixed(2)}
+                  </span>
+                </div>
+              )}
+          </div>
+          <div className="merged-vrvp-strip__foot">
+            {mergedVrvpScreen.poc != null && (
+              <span style={{ color: mergedVrvpScreen.pocTone.labelHex }}>
+                {MERGED_VRVP_KO.pocShort}{' '}
+                {mergedVrvpScreen.poc >= 1000
+                  ? mergedVrvpScreen.poc.toFixed(0)
+                  : mergedVrvpScreen.poc.toFixed(2)}
+                {mergedVrvpScreen.pocTone.side === 'buy'
+                  ? ' · 매수'
+                  : mergedVrvpScreen.pocTone.side === 'sell'
+                    ? ' · 매도'
+                    : ''}
+                {mergedVrvpScreen.pocStateKo ? ` · ${mergedVrvpScreen.pocStateKo}` : ''}
+                {mergedVrvpScreen.developingPoc != null
+                  ? ` · ${MERGED_VRVP_KO.developingPocShort} ${
+                      mergedVrvpScreen.developingPoc >= 1000
+                        ? mergedVrvpScreen.developingPoc.toFixed(0)
+                        : mergedVrvpScreen.developingPoc.toFixed(2)
+                    }`
+                  : ''}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      {unifiedPulseStrategyStrip && !bitgetVolumePackOn && (() => {
+        const st = unifiedPulseStrategyStrip;
+        const fmt = (p: number | null | undefined) => {
+          if (p == null || !Number.isFinite(p)) return '—';
+          return p >= 1000 ? p.toFixed(1) : p >= 1 ? p.toFixed(2) : p.toPrecision(4);
+        };
+        const dirCls =
+          st.direction === 'LONG'
+            ? 'unified-pulse-strategy-strip__dir--long'
+            : st.direction === 'SHORT'
+              ? 'unified-pulse-strategy-strip__dir--short'
+              : '';
+        return (
+          <div className="unified-pulse-strategy-strip" aria-hidden>
+            <span className={`unified-pulse-strategy-strip__dir ${dirCls}`}>
+              {st.direction === 'LONG' ? '▲ 롱' : st.direction === 'SHORT' ? '▼ 숏' : '관망'}
+            </span>
+            <span className="unified-pulse-strategy-strip__codes">⚡◆★ ↩◈⟡</span>
+            <span className="unified-pulse-strategy-strip__levels">
+              E {fmt(st.entry)} · SL {fmt(st.stopLoss)} · TP {fmt(st.tp1)}
+            </span>
+            <span className="unified-pulse-strategy-strip__whale">
+              고래 {st.whaleBuyPct}%/{st.whaleSellPct}%
+            </span>
+            {st.pocPrice != null ? (
+              <span className="unified-pulse-strategy-strip__poc">POC {fmt(st.pocPrice)}</span>
+            ) : null}
+            {(st.aiSupport != null || st.aiResistance != null) && (
+              <span className="unified-pulse-strategy-strip__ai">
+                AI S {fmt(st.aiSupport)} · R {fmt(st.aiResistance)}
+              </span>
+            )}
+            <span className="unified-pulse-strategy-strip__timeline">{st.timelineKo}</span>
+            <span className="unified-pulse-strategy-strip__anchor">◎ 마지막봉</span>
+          </div>
+        );
+      })()}
       {settings.chartCandleRuleDebug && candlePaintDebugLine ? (
         <div
           className="chart-candle-rule-debug-banner"
@@ -10500,6 +22302,9 @@ const ChartViewInner = ({
       />
       {CHART_BAND_LINE_AND_TOUCH_ALWAYS_ON &&
         settings.showInstitutionalTrendBadge !== false &&
+        !monthDeskAtlasPulseOn &&
+        !monthDeskUnifiedPulseEngineOn &&
+        !monthDeskCleanIconOn &&
         institutionalBadge &&
         (() => {
           const bandLs: 'LONG' | 'SHORT' =
@@ -10555,6 +22360,38 @@ const ChartViewInner = ({
               )}
               <div className="chart-institutional-badge__hint">
                 SuperTrend 단일 규칙 · 무효는 종가 기준 밴드 전환 · 청산·비중은 직접 관리
+              </div>
+            </div>
+          );
+        })()}
+      {isMonthStartDeskMode &&
+        !isZoneLineProDesk &&
+        !monthDeskAtlasPulseOn &&
+        !monthDeskUnifiedPulseEngineOn &&
+        !monthDeskCleanIconOn &&
+        settings.chartMonthDeskFusionDeskBandEnabled !== false &&
+        monthDeskFusionDeskBandPack?.meta &&
+        (() => {
+          const fm = monthDeskFusionDeskBandPack.meta;
+          const fDir = fm.direction;
+          const fCode = fDir === 'long' ? 'LONG' : fDir === 'short' ? 'SHORT' : 'WAIT';
+          return (
+            <div className="chart-fusion-desk-badge" aria-live="polite">
+              <div className="chart-fusion-desk-badge__title">Triple·연합밴드 · BigBeluga + CP·LinReg·Strike</div>
+              <div
+                className={`chart-fusion-desk-badge__dir chart-fusion-desk-badge__dir--${fDir}`}
+              >
+                {fDir === 'long' ? '📈 롱 융합' : fDir === 'short' ? '📉 숏 융합' : '↔ 중립'}
+                <span className="chart-fusion-desk-badge__code">{fCode}</span>
+              </div>
+              <div className="chart-fusion-desk-badge__px">{fm.headlineKo}</div>
+              <div className="chart-fusion-desk-badge__meta">
+                합류 {fm.confluence}% · {fm.sublineKo}
+              </div>
+              <div className="chart-fusion-desk-badge__hint">
+                롱=초록 3밴드(아래) · 숏=주황 3밴드(위) · 시그널{' '}
+                {settings.chartTripleTrendSignalBand ?? '3'} · 전환선{' '}
+                {settings.chartTripleTrendChangeLinesEnabled !== false ? 'ON' : 'OFF'} · 참고용
               </div>
             </div>
           );
@@ -10801,33 +22638,454 @@ const ChartViewInner = ({
           />
         </>
       )}
-      {uiMode === 'HOT_ZONE' && hotZonePullbackPack && !suppressHotZoneHud && (
-        <PullbackHotZoneHud pack={hotZonePullbackPack} compact={isNarrowUi} />
+      {(uiMode === 'HOT_ZONE' ||
+        (isMonthStartDeskMode &&
+          settings.chartMonthDeskPullbackHotZoneEnabled !== false &&
+          settings.chartMonthDeskFloatingHudEnabled === true &&
+          !monthDeskAtlasPulseOn)) &&
+        hotZonePullbackPack &&
+        !suppressHotZoneHud && (
+        <PullbackHotZoneHud
+          pack={hotZonePullbackPack}
+          compact={isNarrowUi}
+          eliteDeskTitle={monthDeskEliteHudTitle}
+          eliteDeskActive={monthDeskEliteDeskActive}
+          coreLongHud={monthDeskCoreLongHud}
+        />
       )}
-      <div className="ls-rocket-layer" aria-hidden style={{ display: candleAnalysisLikeUi ? 'none' : undefined }}>
-        {lsRocketHudPositions.map(({ key, left, top, item }) => (
-          <div
-            key={key}
-            className={[
-              'ls-rocket-node',
-              'ls-rocket-node--structure',
-              item.direction === 'LONG' ? 'ls-rocket-node--long' : 'ls-rocket-node--short',
-            ].join(' ')}
+      {candleTradeAtlas &&
+        settings.chartTradeAtlasEnabled !== false &&
+        settings.chartTradeAtlasShowHud !== false &&
+        !(isMonthStartDeskMode && settings.chartMonthDeskFloatingHudEnabled !== true) &&
+        !(isMergedAnalysisDesk && settings.chartMonthDeskFloatingHudEnabled === true) &&
+        analysis && (
+          <CandleTradeAtlasHud
+            atlas={candleTradeAtlas}
+            symbol={symbol}
+            containerRef={frameRef}
+            narrowUi={isNarrowUi}
+            defaultAnchor={isMergedAnalysisDesk ? 'right' : 'left'}
+            defaultHidden={isMergedAnalysisDesk || isNarrowUi}
+            onHideHud={() => apply({ chartTradeAtlasShowHud: false })}
+          />
+        )}
+      {isMergedAnalysisDesk &&
+        !mergedMobileFs &&
+        !mergedDeskHideFloatingTextHud() &&
+        settings.chartMonthDeskFloatingHudEnabled === true &&
+        (monthDeskMergedSignalPack?.signal ||
+          mergedAnalysisDeskPack?.swingMidEntry ||
+          mergedAnalysisDeskPack?.masterFutures ||
+          mergedAnalysisDeskPack?.tradeJudgment ||
+          mergedDeskApproachCaption) && (
+          <MergedDeskFloatingSignalHud
+            signal={monthDeskMergedSignalPack?.signal ?? null}
+            judgment={mergedAnalysisDeskPack?.tradeJudgment ?? null}
+            master={mergedAnalysisDeskPack?.masterFutures ?? null}
+            swingMid={mergedAnalysisDeskPack?.swingMidEntry ?? null}
+            approachZoneCaption={mergedDeskApproachCaption}
+            compact={isNarrowUi}
+          />
+        )}
+      {uiMode === 'FUSION_MODE' && fusionStructureHud && (
+        <div
+          style={{
+            position: 'absolute',
+            right: 10,
+            top: 10,
+            zIndex: 12,
+            minWidth: 220,
+            maxWidth: 320,
+            padding: '8px 10px',
+            borderRadius: 10,
+            border: '1px solid rgba(56,189,248,0.45)',
+            background: 'rgba(2,6,23,0.84)',
+            backdropFilter: 'blur(4px)',
+            boxShadow: '0 8px 24px rgba(2,6,23,0.35)',
+            color: '#e2e8f0',
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#7dd3fc', marginBottom: 4 }}>융합 구조칩</div>
+          <button
+            type="button"
+            onClick={() => setFusionHudCollapsed((v) => !v)}
             style={{
-              left,
-              top,
-              transform: `translate(-50%, -50%) scale(${lsRocketScaleFactor})`,
+              pointerEvents: 'auto',
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              border: '1px solid rgba(125,211,252,0.45)',
+              borderRadius: 6,
+              background: 'rgba(8,47,73,0.35)',
+              color: '#bae6fd',
+              fontSize: 10,
+              fontWeight: 700,
+              padding: '2px 6px',
+              cursor: 'pointer',
             }}
+            title={fusionHudCollapsed ? '융합 구조칩 펼치기' : '융합 구조칩 접기'}
           >
-            <span className="ls-rocket-sparkle" aria-hidden>
-              ✨
+            {fusionHudCollapsed ? '펼치기' : '접기'}
+          </button>
+          {fusionHudCollapsed ? (
+            <div style={{ fontSize: 11, color: '#93c5fd' }}>
+              {fusionStructureHud.direction} · {fusionStructureHud.strength} {fusionStructureHud.score}
+            </div>
+          ) : (
+            <>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                padding: '2px 6px',
+                borderRadius: 999,
+                background:
+                  fusionStructureHud.direction === 'LONG'
+                    ? 'rgba(34,197,94,0.22)'
+                    : fusionStructureHud.direction === 'SHORT'
+                      ? 'rgba(239,68,68,0.22)'
+                      : 'rgba(148,163,184,0.22)',
+                color:
+                  fusionStructureHud.direction === 'LONG'
+                    ? '#86efac'
+                    : fusionStructureHud.direction === 'SHORT'
+                      ? '#fca5a5'
+                      : '#cbd5e1',
+              }}
+            >
+              {fusionStructureHud.direction}
             </span>
-            <span className="ls-rocket-icon" aria-hidden>
-              {item.direction === 'LONG' ? '🚀' : '📉'}
+            <span style={{ fontSize: 12 }}>
+              강도: <strong>{fusionStructureHud.strength} {fusionStructureHud.score}</strong>
             </span>
           </div>
-        ))}
+          <div style={{ fontSize: 12, marginBottom: 2, color: '#cbd5e1' }}>
+            상태: {fusionStructureHud.status}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 2, color: '#bae6fd' }}>
+            구조: {fusionStructureHud.structureState}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 2, color: '#bfdbfe' }}>
+            후보존: {fusionStructureHud.zoneText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 2, color: '#fef08a' }}>
+            트리거: {fusionStructureHud.triggerText} · 무효: {fusionStructureHud.invalidText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#c4b5fd' }}>
+            {fusionStructureHud.rrText} · {fusionStructureHud.note}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#93c5fd' }}>
+            {fusionStructureHud.probabilityText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#a5b4fc' }}>
+            {fusionStructureHud.mtfAgreementText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#67e8f9' }}>
+            {fusionStructureHud.cptcText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#5eead4' }}>
+            {fusionStructureHud.cptcConfluenceText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#93c5fd' }}>
+            {fusionStructureHud.marketFlowText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#fda4af' }}>
+            {fusionStructureHud.newsRiskText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#f9a8d4', fontWeight: 700 }}>
+            {fusionStructureHud.modeText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#fcd34d' }}>
+            {fusionStructureHud.actionText}
+          </div>
+          <div style={{ fontSize: 11, marginBottom: 4, color: '#fda4af' }}>
+            {fusionStructureHud.riskText}
+          </div>
+          <div style={{ fontSize: 10, marginBottom: 4, color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {fusionStructureHud.checklist.map((row) => (
+              <span key={row}>- {row}</span>
+            ))}
+          </div>
+          <div style={{ fontSize: 10, marginBottom: 4, color: '#e2e8f0', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {fusionStructureHud.scenarioTracks.map((row) => (
+              <span key={row}>• {row}</span>
+            ))}
+          </div>
+          {fusionStructureHud.entriesText.length > 0 && (
+            <div style={{ fontSize: 11, color: '#a7f3d0', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {fusionStructureHud.entriesText.map((row) => (
+                <span key={row}>{row}</span>
+              ))}
+            </div>
+          )}
+            </>
+          )}
+        </div>
+      )}
+      {uiMode === 'FUSION_MODE' && (
+        <div
+          style={{
+            position: 'absolute',
+            left: isNarrowUi ? 6 : 10,
+            right: isNarrowUi ? 6 : undefined,
+            top: isNarrowUi ? 6 : 10,
+            zIndex: 12,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 6,
+            alignItems: 'center',
+            padding: isNarrowUi ? '5px 6px' : '6px 8px',
+            borderRadius: 10,
+            background: 'rgba(2,6,23,0.78)',
+            border: '1px solid rgba(148,163,184,0.28)',
+            backdropFilter: 'blur(4px)',
+            maxWidth: isNarrowUi ? 'calc(100vw - 12px)' : undefined,
+            overflowX: isNarrowUi ? 'auto' : undefined,
+            whiteSpace: isNarrowUi ? 'nowrap' : undefined,
+          }}
+        >
+          <span style={{ fontSize: 10, color: '#93c5fd', fontWeight: 800 }}>융합 표시</span>
+          {isNarrowUi && (
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button${fusionTopToolsOpen ? ' tool-chip-active' : ''}`}
+              onClick={() => setFusionTopToolsOpen((v) => !v)}
+              style={{ pointerEvents: 'auto', fontSize: 10, padding: '3px 8px' }}
+              title="모바일 상단 기능 접기/펼치기"
+            >
+              {fusionTopToolsOpen ? '상단 접기' : '상단 펼치기'}
+            </button>
+          )}
+          {(!isNarrowUi || fusionTopToolsOpen) && (
+            <>
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button${fusionShowLegacy ? ' tool-chip-active' : ''}`}
+            onClick={() => setFusionShowLegacy((v) => !v)}
+            style={{ pointerEvents: 'auto', fontSize: 10, padding: '3px 8px' }}
+            title="기존 사용하던 오버레이 표시 ON/OFF"
+          >
+            기존 기능 {fusionShowLegacy ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button${fusionShowNew ? ' tool-chip-active' : ''}`}
+            onClick={() => setFusionShowNew((v) => !v)}
+            style={{ pointerEvents: 'auto', fontSize: 10, padding: '3px 8px' }}
+            title="융합모드 신규 구조 기능 표시 ON/OFF"
+          >
+            융합 신규 {fusionShowNew ? 'ON' : 'OFF'}
+          </button>
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              color: '#e2e8f0',
+              fontSize: 10,
+              fontWeight: 700,
+              pointerEvents: 'auto',
+            }}
+            title="존(Zone) 우측 연장 길이"
+          >
+            Zone
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={fusionZoneExtendPct}
+              onChange={(e) => setFusionZoneExtendPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+              style={{ width: 82, verticalAlign: 'middle', accentColor: '#f472b6' }}
+            />
+            <span style={{ minWidth: 32, textAlign: 'right', color: '#fbcfe8' }}>{fusionZoneExtendPct}%</span>
+          </label>
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              color: '#e2e8f0',
+              fontSize: 10,
+              fontWeight: 700,
+              pointerEvents: 'auto',
+            }}
+            title="가로줄/추세선 우측 연장 길이"
+          >
+            Line
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={fusionLineExtendPct}
+              onChange={(e) => setFusionLineExtendPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+              style={{ width: 82, verticalAlign: 'middle', accentColor: '#f472b6' }}
+            />
+            <span style={{ minWidth: 32, textAlign: 'right', color: '#fbcfe8' }}>{fusionLineExtendPct}%</span>
+          </label>
+          <span
+            className="tool-chip"
+            style={{
+              pointerEvents: 'none',
+              fontSize: 10,
+              borderColor: 'rgba(56,189,248,0.45)',
+              color: '#93c5fd',
+            }}
+            title={fusionNewsAutoStatus}
+          >
+            뉴스 자동ON · {fusionNewsAutoCount}개
+          </span>
+          <button
+            type="button"
+            className="tool-chip tool-chip-button"
+            onClick={() => void syncFusionNewsEvents()}
+            style={{ pointerEvents: 'auto', fontSize: 10, padding: '3px 8px' }}
+            title="뉴스 일정 즉시 동기화"
+          >
+            뉴스 동기화
+          </button>
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button${fusionNewsListOpen ? ' tool-chip-active' : ''}`}
+            onClick={() => {
+              setFusionNewsListOpen((v) => !v);
+            }}
+            style={{ pointerEvents: 'auto', fontSize: 10, padding: '3px 8px' }}
+            title="자동 동기화된 뉴스 일정 보기"
+          >
+            뉴스 보기
+          </button>
+            </>
+          )}
+          {fusionNewsListOpen && (
+            <div
+              style={{
+                minWidth: isNarrowUi ? 260 : 320,
+                maxWidth: isNarrowUi ? 'calc(100vw - 24px)' : 420,
+                marginLeft: 4,
+                padding: '6px 8px',
+                borderRadius: 8,
+                border: '1px solid rgba(148,163,184,0.35)',
+                background: 'rgba(2,6,23,0.92)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+                pointerEvents: 'auto',
+                whiteSpace: 'normal',
+              }}
+            >
+              <div style={{ fontSize: 10, color: '#93c5fd', fontWeight: 700 }}>자동 뉴스 일정</div>
+              {(() => {
+                let rows: Array<{ title?: string; timeMs?: number; source?: string }> = [];
+                if (typeof window !== 'undefined') {
+                  try {
+                    const raw = window.localStorage.getItem('ailongshort-news-events-v1');
+                    const parsed = raw ? JSON.parse(raw) : [];
+                    if (Array.isArray(parsed)) rows = parsed;
+                  } catch {
+                    rows = [];
+                  }
+                }
+                const list = rows
+                  .map((r) => ({
+                    title: String(r?.title || '이벤트'),
+                    timeMs: Number(r?.timeMs ?? NaN),
+                    source: String(r?.source || 'auto'),
+                  }))
+                  .filter((r) => Number.isFinite(r.timeMs))
+                  .sort((a, b) => a.timeMs - b.timeMs)
+                  .slice(0, 8);
+                if (!list.length) {
+                  return <div style={{ fontSize: 10, color: '#94a3b8' }}>동기화된 뉴스 일정이 없습니다.</div>;
+                }
+                return list.map((r) => (
+                  <div key={`${r.title}-${r.timeMs}`} style={{ fontSize: 10, color: '#e2e8f0' }}>
+                    • {r.title} · {new Date(r.timeMs).toLocaleString('ko-KR')} · {r.source}
+                  </div>
+                ));
+              })()}
+              <div style={{ fontSize: 10, color: '#94a3b8' }}>
+                위치: 융합 구조칩의 `뉴스 리스크` 줄에서 실시간 확인
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      <div
+        className="ls-rocket-layer"
+        aria-hidden
+        style={{
+          /** 구조 로켓 HUD — 통합·캔들분석·참조 모드에서도 항상 표시(글자숨김만 존중) */
+          display: !isOverlayChartTextVisible(LS_ROCKET_HUD_LABEL_ID) ? 'none' : undefined,
+        }}
+      >
+        {lsRocketHudPositions.map(({ key, left, top, item }) => {
+          const tierClass = item.tier === 'monthDesk' ? 'ls-rocket-node--monthdesk' : 'ls-rocket-node--structure';
+          const rocketIcon =
+            item.tier === 'monthDesk'
+              ? item.direction === 'LONG'
+                ? '🐂'
+                : '🐻'
+              : item.direction === 'LONG'
+                ? '🚀'
+                : '📉';
+          return (
+            <div
+              key={key}
+              className={[
+                'ls-rocket-node',
+                tierClass,
+                item.direction === 'LONG' ? 'ls-rocket-node--long' : 'ls-rocket-node--short',
+              ].join(' ')}
+              style={{
+                /** 로켓 = 분석봉 고정. 라벨 좌우/위아래/nudges 미적용 */
+                left,
+                top,
+                transform: `translate(-50%, -50%) scale(${
+                  isMergedAnalysisDesk
+                    ? mergedDeskRocketZoomScale(mergedDeskZoomScale)
+                    : lsRocketScaleFactor
+                })`,
+                transformOrigin: '50% 50%',
+              }}
+            >
+              <span className="ls-rocket-sparkle" aria-hidden>
+                ✨
+              </span>
+              <span className="ls-rocket-icon" aria-hidden>
+                {rocketIcon}
+              </span>
+            </div>
+          );
+        })}
       </div>
+      {isMergedAnalysisDesk && wyckoffBlinkPins.length > 0 && (
+        <div className="ls-wyckoff-blink-layer" aria-hidden>
+          {wyckoffBlinkPins.map((pin) => (
+            <div
+              key={pin.key}
+              className={[
+                'ls-wyckoff-blink',
+                pin.side === 'low' ? 'ls-wyckoff-blink--green' : 'ls-wyckoff-blink--red',
+                pin.primary ? 'ls-wyckoff-blink--primary' : '',
+              ].join(' ')}
+              style={{ left: pin.left, top: pin.top }}
+            >
+              <span className="ls-wyckoff-blink__ring" />
+              <span className="ls-wyckoff-blink__arrow">{pin.side === 'low' ? '▲' : '▼'}</span>
+              {pin.primary && pin.label ? (
+                <span className="ls-wyckoff-blink__lab">{pin.label}</span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+      {bitgetVolumePackOn && whaleRightOracle && !isMergedAnalysisDesk && (
+        <WhaleVolumeSegmentDrawLayer oracle={whaleRightOracle} />
+      )}
       <div
         ref={isNarrowUi ? narrowChartChromeRef : undefined}
         style={
@@ -10851,8 +23109,152 @@ const ChartViewInner = ({
         className="chart-quick-menu"
         style={{ ...quickMenuStyle, pointerEvents: 'auto' }}
       >
-        {narrowCaQuickToolsCollapsed ? (
+        <button
+          type="button"
+          className={`tool-chip tool-chip-button ${settings.chartTfCloseSettlementLines !== false ? 'tool-chip-active' : ''}`}
+          onClick={() => apply({ chartTfCloseSettlementLines: settings.chartTfCloseSettlementLines === false })}
+          title={
+            tfCloseSettleBoardError
+              ? tfCloseSettleBoardError
+              : '15m·1h·4h·일·주·월 종가 마감·안착·실패 가로선 ON/OFF'
+          }
+          style={{
+            ...qChip,
+            fontWeight: 800,
+            minHeight: isNarrowUi ? 40 : undefined,
+            borderColor: tfCloseSettleBoardError
+              ? 'rgba(248,113,113,0.85)'
+              : 'rgba(34,197,94,0.8)',
+            color: '#bbf7d0',
+            background: settings.chartTfCloseSettlementLines !== false ? 'rgba(34,197,94,0.18)' : 'rgba(15,23,42,0.55)',
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation',
+            flexShrink: 0,
+          }}
+        >
+          {tfCloseSettleBoardLoading
+            ? '종가…'
+            : tfCloseSettleBoardError
+              ? '종가!'
+              : '종가마감'}
+        </button>
+        {!isMergedAnalysisDesk && (
           <>
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button${vwapMasterEnabled(settings) ? ' tool-chip-active' : ''}`}
+              onClick={() =>
+                apply({
+                  chartMergedDeskAnchoredVwapEnabled: settings.chartMergedDeskAnchoredVwapEnabled === false,
+                })
+              }
+              title="Anchored VWAP 전모드 공유 (핀·자동극값 데이터 유지)"
+              style={{
+                ...qChip,
+                fontWeight: 800,
+                borderColor: 'rgba(74,222,128,0.75)',
+                color: '#bbf7d0',
+                background: vwapMasterEnabled(settings) ? 'rgba(74,222,128,0.16)' : 'rgba(15,23,42,0.55)',
+              }}
+            >
+              AVWAP
+            </button>
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button${vwapAutoExtremeEnabled(settings) ? ' tool-chip-active' : ''}`}
+              onClick={() =>
+                apply({
+                  chartMergedDeskAvwapAutoExtremeEnabled:
+                    settings.chartMergedDeskAvwapAutoExtremeEnabled !== true,
+                  ...(settings.chartMergedDeskAvwapAutoExtremeEnabled !== true
+                    ? { chartMergedDeskAnchoredVwapEnabled: true }
+                    : {}),
+                })
+              }
+              title="절대 고/저 자동 앵커 VWAP"
+              style={{
+                ...qChip,
+                fontWeight: 700,
+                borderColor: 'rgba(56,189,248,0.7)',
+                color: '#bae6fd',
+              }}
+            >
+              {vwapAutoExtremeEnabled(settings) ? '극값ON' : '자동극값'}
+            </button>
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button${vwapSessionEnabled(settings) ? ' tool-chip-active' : ''}`}
+              onClick={() =>
+                apply({
+                  chartMergedDeskSessionVwapEnabled: settings.chartMergedDeskSessionVwapEnabled !== true,
+                })
+              }
+              title="UTC 세션 VWAP"
+              style={{
+                ...qChip,
+                fontWeight: 700,
+                borderColor: 'rgba(250,204,21,0.7)',
+                color: '#fef08a',
+              }}
+            >
+              {vwapSessionEnabled(settings) ? '세션ON' : '세션VWAP'}
+            </button>
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button${vwapPlaceArmed(settings) ? ' tool-chip-active' : ''}`}
+              onClick={() =>
+                apply({
+                  chartMergedDeskAvwapPlaceArmed: settings.chartMergedDeskAvwapPlaceArmed !== true,
+                  ...(settings.chartMergedDeskAvwapPlaceArmed !== true
+                    ? {
+                        chartMergedDeskAnchoredVwapEnabled: true,
+                        chartMergedDeskAvwapUserPinsHidden: false,
+                      }
+                    : {}),
+                })
+              }
+              title="ON일 때 캔들 클릭 → AVWAP 핀 (기존 핀 유지)"
+              style={{
+                ...qChip,
+                fontWeight: 700,
+                borderColor: 'rgba(251,113,133,0.75)',
+                color: '#fecdd3',
+              }}
+            >
+              {vwapPlaceArmed(settings) ? '찍기중' : 'AVWAP찍기'}
+            </button>
+          </>
+        )}
+        {chartToolsStripCollapsed ? (
+          <button
+            type="button"
+            className="tool-chip tool-chip-button"
+            onClick={() => setChartToolsStripCollapsed(false)}
+            title="차트 상단 도구(프리셋·분석·텔레 등) 펼치기 — PC·안드로이드·아이폰 동일"
+            style={{
+              ...qChip,
+              fontWeight: 800,
+              minHeight: 44,
+              minWidth: 88,
+              padding: '10px 14px',
+              fontSize: 13,
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+            }}
+          >
+            도구 ▼
+          </button>
+        ) : narrowCaQuickToolsCollapsed ? (
+          <>
+            <button
+              type="button"
+              className="tool-chip tool-chip-button"
+              onClick={() => setChartToolsStripCollapsed(true)}
+              title="상단 도구줄 전부 숨김"
+              style={{ ...qChip, fontWeight: 700, borderColor: 'rgba(148,163,184,0.45)' }}
+            >
+              도구 접기 ▲
+            </button>
             <button
               type="button"
               className="tool-chip tool-chip-button"
@@ -10874,8 +23276,17 @@ const ChartViewInner = ({
             <button
               type="button"
               className="tool-chip tool-chip-button"
+              onClick={() => void saveChartView()}
+              title="지금 보이는 줌을 저장 — 분·시·일·주·월에 공동 적용"
+              style={{ ...qChip, borderColor: 'rgba(56,189,248,0.55)', fontWeight: 800 }}
+            >
+              뷰저장
+            </button>
+            <button
+              type="button"
+              className="tool-chip tool-chip-button"
               onClick={restoreDefaultChartView}
-              title="줌·스크롤 후 복구 — 최신 캔들 기준으로 보이는 구간·가격축 자동 맞춤"
+              title="저장한 화면 비율로 복원(없으면 기본 96봉). 현재 화면을 다시 저장하지 않음"
               style={qChip}
             >
               뷰복원
@@ -10883,7 +23294,7 @@ const ChartViewInner = ({
           </>
         ) : (
           <>
-            {aiZoneQuickToolsCollapsed ? (
+            {chartToolbarPresetRow ? (
               <div
                 className="ai-zone-quick-compact"
                 style={{
@@ -10896,7 +23307,18 @@ const ChartViewInner = ({
                   padding: '2px 0',
                 }}
               >
-                <span style={{ fontSize: 10, color: '#7dd3fc', fontWeight: 800, marginRight: 2 }}>AI 통합 L/S</span>
+                <button
+                  type="button"
+                  className="tool-chip tool-chip-button"
+                  onClick={() => setChartToolsStripCollapsed(true)}
+                  title="상단 도구줄 전부 숨김"
+                  style={{ ...qChip, fontWeight: 800, borderColor: 'rgba(148,163,184,0.45)' }}
+                >
+                  도구 접기 ▲
+                </button>
+                <span style={{ fontSize: 10, color: '#7dd3fc', fontWeight: 800, marginRight: 2 }}>
+                  {isAiZoneDesk ? 'AI 통합 L/S' : candleAnalysisLikeUi ? '차트 도구' : '고래 도구'}
+                </span>
                 <button
                   type="button"
                   className="tool-chip tool-chip-button"
@@ -10936,8 +23358,17 @@ const ChartViewInner = ({
                 <button
                   type="button"
                   className="tool-chip tool-chip-button"
+                  onClick={() => void saveChartView()}
+                  title="지금 보이는 줌을 저장 — 분·시·일·주·월에 공동 적용"
+                  style={{ ...qChip, borderColor: 'rgba(56,189,248,0.55)', fontWeight: 800 }}
+                >
+                  뷰저장
+                </button>
+                <button
+                  type="button"
+                  className="tool-chip tool-chip-button"
                   onClick={restoreDefaultChartView}
-                  title="줌·가격축 맞춤"
+                  title="저장한 화면 비율로 복원(없으면 기본 96봉)"
                   style={qChip}
                 >
                   뷰복원
@@ -10973,14 +23404,23 @@ const ChartViewInner = ({
                   type="button"
                   className="tool-chip tool-chip-button"
                   style={{ ...qChip, fontWeight: 700, color: '#e2e8f0' }}
-                  onClick={() => setAiZoneChartToolsExpanded(true)}
-                  title="기존 상세 토글(라벨X·Hot·ST·SAS·SMC·텔레그램 등) 전부 표시"
+                  onClick={() => setChartToolbarExpanded(true)}
+                  title="라벨·존·텔레·SAS 등 상단 칩 전체 표시"
                 >
-                  전체 도구 ▼
+                  상세 도구 ▼
                 </button>
               </div>
             ) : (
               <>
+            <button
+              type="button"
+              className="tool-chip tool-chip-button"
+              onClick={() => setChartToolsStripCollapsed(true)}
+              title="상단 도구줄 전부 숨김 (프리셋·분석·텔레 칩 등)"
+              style={{ ...qChip, fontWeight: 800, borderColor: 'rgba(148,163,184,0.45)' }}
+            >
+              도구 접기 ▲
+            </button>
             {isNarrowUi && uiMode === 'CANDLE_ANALYSIS' && caNarrowToolsOpen && (
               <button
                 type="button"
@@ -10992,15 +23432,15 @@ const ChartViewInner = ({
                 접기 ▲
               </button>
             )}
-            {uiMode === 'AI_ZONE' && !isNarrowUi && (
+            {(isAiZoneDesk || candleAnalysisLikeUi || isWhaleOnlyMode) && !isNarrowUi && chartToolbarExpanded && (
               <button
                 type="button"
                 className="tool-chip tool-chip-button"
-                onClick={() => setAiZoneChartToolsExpanded(false)}
-                title="한 줄(통합 프리셋)로 되돌리기"
+                onClick={() => setChartToolbarExpanded(false)}
+                title="한 줄(프리셋)로 접기"
                 style={{ ...qChip, fontWeight: 700, borderColor: 'rgba(56,189,248,0.4)' }}
               >
-                도구 접기 ▲
+                한줄로 ▲
               </button>
             )}
         {!isNarrowUi && (
@@ -11091,21 +23531,27 @@ const ChartViewInner = ({
         </button>
         <button
           type="button"
+          className={`tool-chip tool-chip-button ${settings.chartTfCloseSettlementLines !== false ? 'tool-chip-active' : ''}`}
+          onClick={() => apply({ chartTfCloseSettlementLines: settings.chartTfCloseSettlementLines === false })}
+          title="15m·1h·4h·일·주·월 종가 마감·안착·실패 가로선 표시/숨김"
+          style={{
+            ...qChip,
+            borderColor: 'rgba(34,197,94,0.55)',
+            fontWeight: 700,
+          }}
+        >
+          종가마감
+        </button>
+        {!(isMonthStartDeskMode && monthDeskUnifiedPulseEngineOn) && (
+          <>
+        <button
+          type="button"
           className={`tool-chip tool-chip-button ${settings.chartBulkHideHLines ? 'tool-chip-active' : ''}`}
           onClick={() => apply({ chartBulkHideHLines: !settings.chartBulkHideHLines })}
           title="가격 가로선·구조선·피보 등 선 일괄 숨김"
           style={qChip}
         >
           가로선X
-        </button>
-        <button
-          type="button"
-          className={`tool-chip tool-chip-button ${settings.chartTfCloseSettlementLines !== false ? 'tool-chip-active' : ''}`}
-          onClick={() => apply({ chartTfCloseSettlementLines: settings.chartTfCloseSettlementLines === false })}
-          title="TF별 종가 마감 가로선(1m~월봉 close) 표시/숨김 — 구조 토글과 별개"
-          style={qChip}
-        >
-          종가TF
         </button>
         <button
           type="button"
@@ -11125,6 +23571,272 @@ const ChartViewInner = ({
         >
           존X
         </button>
+          </>
+        )}
+        {isMonthStartDeskMode && (
+          <>
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button ${
+                monthDeskUnifiedPulseEngineOn ? 'tool-chip-active' : ''
+              }`}
+              onClick={() =>
+                apply(monthDeskUnifiedPulseEnginePatch(!monthDeskUnifiedPulseEngineOn))
+              }
+              title="통합 펄스 엔진 — Strike·밴드·안착·존·AI·HotZone·가로선을 하나로 병합. ⚡돌파 ◆안착 ★확인 ▲▼타점 + E/SL/TP"
+              style={{
+                ...qChip,
+                borderColor: 'rgba(250,204,21,0.65)',
+                fontWeight: 800,
+              }}
+            >
+              통합엔진{monthDeskUnifiedPulseEngineOn ? 'ON' : 'OFF'}
+            </button>
+            {!monthDeskUnifiedPulseEngineOn && (
+              <>
+            {!isZoneLineProDesk && (
+              <>
+                <button
+                  type="button"
+                  className={`tool-chip tool-chip-button ${
+                    settings.chartMonthDeskPullbackHotZoneEnabled !== false ? 'tool-chip-active' : ''
+                  }`}
+                  onClick={() =>
+                    apply({
+                      chartMonthDeskPullbackHotZoneEnabled:
+                        settings.chartMonthDeskPullbackHotZoneEnabled === false,
+                    })
+                  }
+                  title="피보·눌림 핫존"
+                  style={{ ...qChip, borderColor: 'rgba(250,204,21,0.38)' }}
+                >
+                  눌림핫존
+                </button>
+                <button
+                  type="button"
+                  className={`tool-chip tool-chip-button ${
+                    monthDeskClearSummaryOn ? 'tool-chip-active' : ''
+                  }`}
+                  onClick={toggleMonthDeskClearSummary}
+                  title="라인요약 ON/OFF"
+                  style={{ ...qChip, borderColor: 'rgba(94,234,212,0.35)' }}
+                >
+                  간결+요약
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button ${
+                settings.chartMonthDeskSettleCandlePaint === true ? 'tool-chip-active' : ''
+              }`}
+              onClick={() =>
+                apply({
+                  chartMonthDeskSettleCandlePaint: settings.chartMonthDeskSettleCandlePaint !== true,
+                })
+              }
+              title="캔들 색 + 1·돌파 2·안착 3·확인 마커 + 하단 3단계 가이드"
+              style={{ ...qChip, borderColor: 'rgba(74,222,128,0.45)' }}
+            >
+              안착캔들{settings.chartMonthDeskSettleCandlePaint === true ? 'ON' : 'OFF'}
+            </button>
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button ${
+                settings.chartMonthDeskStrikeDeskEnabled !== false ? 'tool-chip-active' : ''
+              }`}
+              onClick={() =>
+                apply({
+                  chartMonthDeskStrikeDeskEnabled: settings.chartMonthDeskStrikeDeskEnabled === false,
+                })
+              }
+              title="Strike Desk — 핵심 롱·숏 타점·손절·수익 TP1~3 차트·HUD"
+              style={{ ...qChip, borderColor: 'rgba(250,204,21,0.5)' }}
+            >
+              Strike{settings.chartMonthDeskStrikeDeskEnabled !== false ? 'ON' : 'OFF'}
+            </button>
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button ${
+                settings.chartMonthDeskFusionDeskBandEnabled !== false ? 'tool-chip-active' : ''
+              }`}
+              onClick={() =>
+                apply({
+                  chartMonthDeskFusionDeskBandEnabled: settings.chartMonthDeskFusionDeskBandEnabled === false,
+                })
+              }
+              title="연합 Triple Trend — BigBeluga + CP·LinReg·Strike 융합 3밴드"
+              style={{ ...qChip, borderColor: 'rgba(31,160,117,0.55)' }}
+            >
+              연합밴드{settings.chartMonthDeskFusionDeskBandEnabled !== false ? 'ON' : 'OFF'}
+            </button>
+            {settings.chartMonthDeskFusionDeskBandEnabled !== false && (
+              <>
+                <button
+                  type="button"
+                  className="tool-chip tool-chip-button tool-chip-active"
+                  onClick={() => {
+                    const order = ['1', '2', '3', 'all'] as const;
+                    const cur = String(settings.chartTripleTrendSignalBand ?? '3');
+                    const idx = order.indexOf(cur as (typeof order)[number]);
+                    const next = order[(idx + 1) % order.length];
+                    apply({ chartTripleTrendSignalBand: next });
+                  }}
+                  title="BigBeluga 시그널 밴드 — 1(안쪽)·2·3(바깥)·all(전부)"
+                  style={{ ...qChip, borderColor: 'rgba(173,119,37,0.5)', fontSize: 10 }}
+                >
+                  TT시그널·{settings.chartTripleTrendSignalBand ?? '3'}
+                </button>
+                <button
+                  type="button"
+                  className={`tool-chip tool-chip-button ${
+                    settings.chartTripleTrendChangeLinesEnabled !== false ? 'tool-chip-active' : ''
+                  }`}
+                  onClick={() =>
+                    apply({
+                      chartTripleTrendChangeLinesEnabled: settings.chartTripleTrendChangeLinesEnabled === false,
+                    })
+                  }
+                  title="Triple Trend 추세 전환 세로 점선 (BigBeluga trend_change)"
+                  style={{ ...qChip, borderColor: 'rgba(148,163,184,0.45)', fontSize: 10 }}
+                >
+                  TT전환{settings.chartTripleTrendChangeLinesEnabled !== false ? 'ON' : 'OFF'}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button ${
+                settings.chartMonthDeskCleanIconSignalsEnabled !== false ? 'tool-chip-active' : ''
+              }`}
+              onClick={() =>
+                apply({
+                  chartMonthDeskCleanIconSignalsEnabled: settings.chartMonthDeskCleanIconSignalsEnabled === false,
+                })
+              }
+              title="카드·글자 없이 zone 터치 고합류 롱/숏만 캔들 ▲/▼ — 로켓·밴드·존 면 유지"
+              style={{ ...qChip, borderColor: 'rgba(34,197,94,0.55)' }}
+            >
+              ▲▼L/S{settings.chartMonthDeskCleanIconSignalsEnabled !== false ? 'ON' : 'OFF'}
+            </button>
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button ${
+                settings.chartMonthDeskAtlasPulseDeskEnabled !== false ? 'tool-chip-active' : ''
+              }`}
+              onClick={() =>
+                apply({
+                  chartMonthDeskAtlasPulseDeskEnabled: settings.chartMonthDeskAtlasPulseDeskEnabled === false,
+                })
+              }
+              title="아틀라스 펄스 — ⚡돌파 ◆안착 ★확인 ▲▼타점 + 코어·실드·TP존 + E/SL/TP (카드 없음)"
+              style={{ ...qChip, borderColor: 'rgba(167,139,250,0.55)' }}
+            >
+              아틀라스{settings.chartMonthDeskAtlasPulseDeskEnabled !== false ? 'ON' : 'OFF'}
+            </button>
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button ${
+                settings.chartMonthDeskMergedSignalEnabled === true ? 'tool-chip-active' : ''
+              }`}
+              onClick={() =>
+                apply({
+                  chartMonthDeskMergedSignalEnabled: settings.chartMonthDeskMergedSignalEnabled !== true,
+                })
+              }
+              title="HTML zone·line 병합 오버레이 (연합밴드와 별개)"
+              style={{ ...qChip, borderColor: 'rgba(56,189,248,0.55)' }}
+            >
+              병합오버레이{settings.chartMonthDeskMergedSignalEnabled === true ? 'ON' : 'OFF'}
+            </button>
+            {isZoneLineProDesk ? (
+              <span
+                className="tool-chip"
+                title="존·라인 모드: LinReg + CP + HotZone + Strike 고정"
+                style={{ ...qChip, borderColor: 'rgba(45,212,191,0.55)', color: '#5eead4' }}
+              >
+                레이어: 존·라인
+              </span>
+            ) : (
+              <button
+                type="button"
+                className={`tool-chip tool-chip-button ${
+                  monthDeskLayerMode !== 'full' ? 'tool-chip-active' : ''
+                }`}
+                onClick={() => {
+                  const cur = settings.chartMonthDeskLayerMode ?? 'strike';
+                  const next =
+                    cur === 'strike' ? 'standard' : cur === 'standard' ? 'full' : 'strike';
+                  apply({ chartMonthDeskLayerMode: next });
+                }}
+                title="차트 zone·line 밀도 — Strike(타점만) → Standard → Full(전체)"
+                style={{ ...qChip, borderColor: 'rgba(167,139,250,0.5)' }}
+              >
+                레이어:
+                {monthDeskLayerMode === 'strike'
+                  ? 'Strike'
+                  : monthDeskLayerMode === 'standard'
+                    ? 'Std'
+                    : 'Full'}
+              </button>
+            )}
+            <button
+              type="button"
+              className={`tool-chip tool-chip-button ${
+                settings.chartMonthDeskClickPrecisionEnabled !== false ? 'tool-chip-active' : ''
+              }`}
+              onClick={() =>
+                apply({
+                  chartMonthDeskClickPrecisionEnabled: settings.chartMonthDeskClickPrecisionEnabled === false,
+                })
+              }
+              title="캔들 클릭 → MTF 핫존·타점 E·반등·SL zone·line (카드 없음)"
+              style={{ ...qChip, borderColor: 'rgba(45,212,191,0.55)' }}
+            >
+              클릭정밀{settings.chartMonthDeskClickPrecisionEnabled !== false ? 'ON' : 'OFF'}
+            </button>
+            {!isZoneLineProDesk && (
+              <>
+                <button
+                  type="button"
+                  className={`tool-chip tool-chip-button ${
+                    settings.chartMonthDeskBreakoutFollowPath !== false ? 'tool-chip-active' : ''
+                  }`}
+                  onClick={() =>
+                    apply({
+                      chartMonthDeskBreakoutFollowPath: settings.chartMonthDeskBreakoutFollowPath === false,
+                    })
+                  }
+                  title="돌파 연동 경로"
+                  style={{ ...qChip, borderColor: 'rgba(96,165,250,0.45)' }}
+                >
+                  연동경로
+                </button>
+                <button
+                  type="button"
+                  className={`tool-chip tool-chip-button ${whaleHotZoneEnabled ? 'tool-chip-active' : ''}`}
+                  onClick={() => {
+                    const m = uiMode as SettingsUIMode;
+                    const next = !whaleHotZoneEnabled;
+                    apply({
+                      chartBulkHideZones: false,
+                      modeFeatureOverrides: {
+                        ...(settings.modeFeatureOverrides || {}),
+                        [m]: { ...(settings.modeFeatureOverrides?.[m] || {}), whaleHotZoneEnabled: next },
+                      },
+                    });
+                  }}
+                  title="볼륨 Hot Zone"
+                  style={{ ...qChip, borderColor: 'rgba(251,191,36,0.42)' }}
+                >
+                  고래Hot존
+                </button>
+              </>
+            )}
+              </>
+            )}
+          </>
+        )}
         {isAiMode && (
           <>
             <button
@@ -11242,10 +23954,10 @@ const ChartViewInner = ({
           type="button"
           className={`tool-chip tool-chip-button ${settings.showInstitutionalTrendBadge !== false ? 'tool-chip-active' : ''}`}
           onClick={() => apply({ showInstitutionalTrendBadge: !(settings.showInstitutionalTrendBadge !== false) })}
-          title="우측 상단 기관밴드 요약: 롱·숏 신호, 기준선, 추세 유지 봉 수, TF 분석과 일치 여부"
+          title="SuperTrend 시리즈 우측 가격축 마지막값 — 일반=추세선, 마감·안착=존상·존하"
           style={qChip}
         >
-          ST요약
+          존 축가격
         </button>
         <div
           style={{
@@ -11343,6 +24055,21 @@ const ChartViewInner = ({
         >
           {telegramTestSending ? '텔레그램 전송중…' : '텔레그램 테스트'}
         </button>
+        {isMergedAnalysisDesk && (
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button${settings.telegramMergedDeskUiCaptureEnabled !== false ? ' tool-chip-active' : ''}`}
+            onClick={() =>
+              apply({
+                telegramMergedDeskUiCaptureEnabled: settings.telegramMergedDeskUiCaptureEnabled === false,
+              })
+            }
+            title="서버 텔레: 통합·분석 tv-frame UI 캡처 ON/OFF (OFF=SVG). 저장 없이 전송만"
+            style={{ ...qChip, fontSize: 11, fontWeight: 800 }}
+          >
+            UI캡처 {settings.telegramMergedDeskUiCaptureEnabled !== false ? 'ON' : 'OFF'}
+          </button>
+        )}
         <button
           type="button"
           className={`tool-chip tool-chip-button${settings.telegramAuto1mEnabled ? ' tool-chip-active' : ''}`}
@@ -11408,7 +24135,7 @@ const ChartViewInner = ({
           type="button"
           className={`tool-chip tool-chip-button${settings.telegramMultiTfEnabled ? ' tool-chip-active' : ''}`}
           onClick={() => apply({ telegramMultiTfEnabled: !settings.telegramMultiTfEnabled })}
-          title="지정한 심볼·HTF(1h~1M)마다 백그라운드 분석 후 조건 시 텔레(본문만, 차트 TF 무관). 우측 패널 · 가상매매 탭에서 심볼/TF/간격 편집"
+          title="지정한 심볼·TF(15m·1h·4h·1d·1w·1M)마다 백그라운드 분석 후 조건 시 텔레(본문만, 차트 TF 무관). 우측 패널 · 가상매매 탭에서 심볼/TF/간격 편집"
           style={{ ...qChip, fontSize: 11 }}
         >
           멀티TF
@@ -11662,6 +24389,47 @@ const ChartViewInner = ({
             합류신호{settings.showSmcDeskConfluenceLs !== false ? 'ON' : 'OFF'}
           </button>
         )}
+        {(isSmartDeskLikeMode || isMergedAnalysisDesk) && uiMode !== 'SMC_DELTA_DESK' && (
+          <button
+            type="button"
+            className={`tool-chip tool-chip-button ${settings.showTvStructureLs === true ? 'tool-chip-active' : ''}`}
+            onClick={() => {
+              /** 단일 마스터 토글: ON=TV작도 전부 / OFF=전부 제거 (다른 기능 on/off 교차 없음) */
+              const nextOn = settings.showTvStructureLs !== true;
+              apply({ showTvStructureLs: nextOn });
+              if (nextOn) {
+                const src =
+                  isMergedAnalysisDesk && candlesForMergedDeskEngine.length >= 50
+                    ? candlesForMergedDeskEngine
+                    : candles;
+                const preview =
+                  src.length >= 50
+                    ? buildTvStructureLongShortPack({
+                        candles: src,
+                        swingPivot: Math.max(2, Math.min(4, Math.round(Number(settings.smcDeskSwingPivot) || 2))),
+                        maxSignals: 6,
+                      })
+                    : null;
+                const nOb = preview?.obs.filter((o) => !o.broken).length ?? 0;
+                const nOv = preview?.overlays.length ?? 0;
+                const nMk = preview?.markers.length ?? 0;
+                setSmcDeskWelcomeToast(
+                  nOv > 0 || nMk > 0
+                    ? `TV롱숏 ON — 작도 ${nOv} · 마커 ${nMk} · OB ${Math.min(nOb, 2)} (참고)`
+                    : 'TV롱숏 ON — 봉 부족/구조 대기(참고). 4h·1D·봉 50개+'
+                );
+              } else {
+                setSmcDeskWelcomeToast('TV롱숏 OFF — 작도·마커 전부 숨김');
+              }
+              window.setTimeout(() => setSmcDeskWelcomeToast(null), 4500);
+              setOverlayTick((t) => t + 1);
+            }}
+            title="TV롱숏: 한 번 클릭=작도 전부 ON, 다시 클릭=전부 OFF. 다른 기능과 교차 토글 없음. 확정 아님"
+            style={qChip}
+          >
+            TV롱숏{settings.showTvStructureLs === true ? 'ON' : 'OFF'}
+          </button>
+        )}
         {isSmartDeskLikeMode && uiMode !== 'SMC_DELTA_DESK' && (
           <button
             type="button"
@@ -11832,8 +24600,17 @@ const ChartViewInner = ({
         <button
           type="button"
           className="tool-chip tool-chip-button"
+          onClick={() => void saveChartView()}
+          title="지금 보이는 줌을 저장 — 분·시·일·주·월에 공동 적용"
+          style={{ ...qChip, borderColor: 'rgba(56,189,248,0.55)', fontWeight: 800 }}
+        >
+          {isNarrowUi ? '뷰저장' : '화면비율 저장'}
+        </button>
+        <button
+          type="button"
+          className="tool-chip tool-chip-button"
           onClick={restoreDefaultChartView}
-          title="줌·스크롤 후 복구 — 최신 캔들 기준으로 보이는 구간·가격축 자동 맞춤(앱 분석과 동일한 봉 수)"
+          title="저장한 화면 비율로 복원(없으면 기본 96봉). 현재 화면을 다시 저장하지 않음"
           style={qChip}
         >
           {isNarrowUi ? '뷰복원' : '화면비율·뷰 복원'}
@@ -11844,7 +24621,7 @@ const ChartViewInner = ({
         )}
       </div>
 
-      {chartSectionVis.s1 && (
+      {chartSectionVis.s1 && !isMergedAnalysisDesk && (
       <div
         ref={topbarMenuRef}
         className={`chart-topbar ${isNarrowUi ? 'chart-topbar--narrow' : ''}`}
@@ -11861,7 +24638,7 @@ const ChartViewInner = ({
               left: '50%',
               top: 'max(12px, env(safe-area-inset-top, 0px))',
               transform: 'translateX(-50%)',
-              zIndex: 200,
+              zIndex: 99999,
               maxWidth: 'min(92vw, 440px)',
               padding: '12px 14px',
               borderRadius: 10,
@@ -11913,94 +24690,193 @@ const ChartViewInner = ({
                   </span>
                 )}
               </div>
-              <div className="chart-toolbar-row chart-toolbar-row--scroll">
-                {hzDualLeftChrome ? (
-                  <span
-                    className="tool-chip"
+              {chartTfBarCollapsed ? (
+                <div className="chart-toolbar-row chart-toolbar-row--scroll" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="tool-chip tool-chip-button"
+                    onClick={() => setChartTfBarCollapsed(false)}
+                    title="타임프레임·SAS·설정·이동 버튼 펼치기"
                     style={{
                       ...qChip,
-                      flexShrink: 0,
-                      whiteSpace: 'nowrap',
-                      borderColor: 'rgba(125,211,252,0.45)',
-                      color: '#7dd3fc',
                       fontWeight: 800,
-                      cursor: 'default',
+                      minHeight: 44,
+                      padding: '10px 14px',
+                      fontSize: 13,
+                      flexShrink: 0,
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation',
                     }}
-                    title="핫존 듀얼 뷰 — 좌측은 일봉(1D) 고정"
                   >
-                    핫존 듀얼 · 일봉 1D
-                  </span>
-                ) : (
-                  ['1m','3m','5m','15m','1h','4h','1d','1w','1M','1Y'].map(tf => {
-                    const sig = mtfSignalByTf.get(tf);
-                    const tfLabel = tf === '1w' ? '1W' : tf;
-                    const sigColor = sig?.verdict === 'LONG' ? '#22C55E' : sig?.verdict === 'SHORT' ? '#EF4444' : '#94a3b8';
-                    return (
-                      <button
-                        key={tf}
-                        type="button"
-                        className={`tool-chip tool-chip-button ${timeframe === tf ? 'tool-chip-active' : ''}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          selectTimeframe(tf);
+                    TF ▼
+                  </button>
+                  {hzDualLeftChrome ? (
+                    <span
+                      className="tool-chip"
+                      style={{
+                        ...qChip,
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                        borderColor: 'rgba(125,211,252,0.45)',
+                        color: '#7dd3fc',
+                        fontWeight: 800,
+                        cursor: 'default',
+                      }}
+                      title="핫존 듀얼 뷰 — 좌측은 일봉(1D) 고정"
+                    >
+                      핫존 듀얼 · 일봉 1D
+                    </span>
+                  ) : (
+                    (() => {
+                      const sig = mtfSignalByTf.get(timeframe);
+                      const tl = tfChipLbl(timeframe);
+                      const sigColor =
+                        sig?.verdict === 'LONG' ? '#22C55E' : sig?.verdict === 'SHORT' ? '#EF4444' : '#94a3b8';
+                      return (
+                        <span
+                          className="tool-chip"
+                          style={{
+                            ...qChip,
+                            cursor: 'default',
+                            fontWeight: 700,
+                            flexShrink: 0,
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={`펼치면 TF 변경 · ${tfCandleCloseTitleSuffix(timeframe, tfCloseNowMs, bitgetVolumePackOn ? 'bitget' : 'binance')}`}
+                        >
+                          {tl}
+                          <TfCandleCloseRemain tf={timeframe} nowMs={tfCloseNowMs} active compact  exchange={bitgetVolumePackOn ? 'bitget' : 'binance'} />
+                          {sig && sig.verdictKo !== '-' && (
+                            <span style={{ marginLeft: 4, color: sigColor, fontSize: 10 }}>{sig.verdictKo}</span>
+                          )}
+                        </span>
+                      );
+                    })()
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="chart-toolbar-row chart-toolbar-row--scroll">
+                    <button
+                      type="button"
+                      className="tool-chip tool-chip-button"
+                      onClick={() => setChartTfBarCollapsed(true)}
+                      title="TF 격자·SAS·설정·이동 숨김"
+                      style={{ ...qChip, fontWeight: 800, flexShrink: 0 }}
+                    >
+                      TF 접기 ▲
+                    </button>
+                    {hzDualLeftChrome ? (
+                      <span
+                        className="tool-chip"
+                        style={{
+                          ...qChip,
+                          flexShrink: 0,
+                          whiteSpace: 'nowrap',
+                          borderColor: 'rgba(125,211,252,0.45)',
+                          color: '#7dd3fc',
+                          fontWeight: 800,
+                          cursor: 'default',
                         }}
-                        title={sig ? `${tfLabel} ${sig.verdictKo}` : (tf === '1w' ? '주봉' : tf === '1M' ? '월봉' : tf === '1Y' ? '연봉' : undefined)}
-                        style={{ ...qChip, flexShrink: 0, whiteSpace: 'nowrap' }}
+                        title="핫존 듀얼 뷰 — 좌측은 일봉(1D) 고정"
                       >
-                        {tfLabel}
-                        {sig && sig.verdictKo !== '-' && (
-                          <span style={{ marginLeft: 3, fontWeight: 700, color: sigColor, fontSize: isNarrowUi ? 9 : undefined }}>
-                            {sig.verdictKo}
-                          </span>
-                        )}
+                        핫존 듀얼 · 일봉 1D
+                      </span>
+                    ) : (
+                      ['1m','3m','5m','15m','1h','4h','1d','1w','1M','1Y'].map(tf => {
+                        const sig = mtfSignalByTf.get(tf);
+                        const tfLabel = tf === '1w' ? '1W' : tf;
+                        const sigColor =
+                          sig?.verdict === 'LONG' ? '#22C55E' : sig?.verdict === 'SHORT' ? '#EF4444' : '#94a3b8';
+                        const closeTitle = tfCandleCloseTitleSuffix(tf, tfCloseNowMs, bitgetVolumePackOn ? 'bitget' : 'binance');
+                        return (
+                          <button
+                            key={tf}
+                            type="button"
+                            className={`tool-chip tool-chip-button ${timeframe === tf ? 'tool-chip-active' : ''}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              selectTimeframe(tf);
+                            }}
+                            title={
+                              sig
+                                ? `${tfLabel} ${sig.verdictKo} · ${closeTitle}`
+                                : tf === '1w'
+                                  ? `주봉 · ${closeTitle}`
+                                  : tf === '1M'
+                                    ? `월봉 · ${closeTitle}`
+                                    : tf === '1Y'
+                                      ? `연봉 · ${closeTitle}`
+                                      : closeTitle
+                            }
+                            style={{ ...qChip, flexShrink: 0, whiteSpace: 'nowrap' }}
+                          >
+                            {tfLabel}
+                            <TfCandleCloseRemain
+                              tf={tf}
+                              nowMs={tfCloseNowMs}
+                              active={timeframe === tf}
+                              compact={isNarrowUi}
+                             exchange={bitgetVolumePackOn ? 'bitget' : 'binance'} />
+                            {sig && sig.verdictKo !== '-' && (
+                              <span
+                                style={{ marginLeft: 3, fontWeight: 700, color: sigColor, fontSize: isNarrowUi ? 9 : undefined }}
+                              >
+                                {sig.verdictKo}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                  <div className="chart-toolbar-row chart-toolbar-row--settings">
+                    <button
+                      type="button"
+                      className={`tool-chip tool-chip-button ${settings.showSmartAdaptiveSignal !== false ? 'tool-chip-active' : ''}`}
+                      onClick={() => apply({ showSmartAdaptiveSignal: settings.showSmartAdaptiveSignal === false })}
+                      title="SAS: 롱🐂·숏🦅 목표선"
+                      style={{ fontWeight: 700, padding: '4px 8px', fontSize: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
+                    >
+                      SAS
+                    </button>
+                    {isAiMode && (
+                      <>
+                        <button
+                          type="button"
+                          className={`tool-chip tool-chip-button ${whaleDynamicRsProEnabled ? 'tool-chip-active' : ''}`}
+                          onClick={() => applyModeFeature('whaleDynamicRsProEnabled', !whaleDynamicRsProEnabled)}
+                          title="Dynamic R/S"
+                          style={{ fontWeight: 600, padding: '4px 8px', fontSize: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          DRS
+                        </button>
+                        <button
+                          type="button"
+                          className={`tool-chip tool-chip-button ${whaleLiquidityBiasEnabled ? 'tool-chip-active' : ''}`}
+                          onClick={() => applyModeFeature('whaleLiquidityBiasEnabled', !whaleLiquidityBiasEnabled)}
+                          title="LQB 유동성 존(BSL/SSL 면)"
+                          style={{ fontWeight: 600, padding: '4px 8px', fontSize: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          LQB
+                        </button>
+                      </>
+                    )}
+                    {!isMergedAnalysisDesk && (
+                      <button
+                        type="button"
+                        className={`tool-chip tool-chip-button ${labelMenuOpen ? 'tool-chip-active' : ''}`}
+                        onClick={() => setLabelMenuOpen(v => !v)}
+                        title="차트 표시 옵션 및 라벨 설정"
+                        style={{ fontWeight: 600, padding: '4px 10px', fontSize: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        ⚙ 설정
                       </button>
-                    );
-                  })
-                )}
-              </div>
-              <div className="chart-toolbar-row chart-toolbar-row--settings">
-                <button
-                  type="button"
-                  className={`tool-chip tool-chip-button ${settings.showSmartAdaptiveSignal !== false ? 'tool-chip-active' : ''}`}
-                  onClick={() => apply({ showSmartAdaptiveSignal: settings.showSmartAdaptiveSignal === false })}
-                  title="SAS: 롱🐂·숏🦅 목표선"
-                  style={{ fontWeight: 700, padding: '4px 8px', fontSize: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
-                >
-                  SAS
-                </button>
-                {isAiMode && (
-                  <>
-                    <button
-                      type="button"
-                      className={`tool-chip tool-chip-button ${whaleDynamicRsProEnabled ? 'tool-chip-active' : ''}`}
-                      onClick={() => applyModeFeature('whaleDynamicRsProEnabled', !whaleDynamicRsProEnabled)}
-                      title="Dynamic R/S"
-                      style={{ fontWeight: 600, padding: '4px 8px', fontSize: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      DRS
-                    </button>
-                    <button
-                      type="button"
-                      className={`tool-chip tool-chip-button ${whaleLiquidityBiasEnabled ? 'tool-chip-active' : ''}`}
-                      onClick={() => applyModeFeature('whaleLiquidityBiasEnabled', !whaleLiquidityBiasEnabled)}
-                      title="LQB 유동성 존(BSL/SSL 면)"
-                      style={{ fontWeight: 600, padding: '4px 8px', fontSize: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      LQB
-                    </button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  className={`tool-chip tool-chip-button ${labelMenuOpen ? 'tool-chip-active' : ''}`}
-                  onClick={() => setLabelMenuOpen(v => !v)}
-                  title="차트 표시 옵션 및 라벨 설정"
-                  style={{ fontWeight: 600, padding: '4px 10px', fontSize: 10, whiteSpace: 'nowrap', flexShrink: 0 }}
-                >
-                  ⚙ 설정
-                </button>
-              </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
             <div className="toolbar toolbar-actions chart-toolbar-actions-narrow">
               <div className="live-box" style={{ fontSize: 10, padding: '5px 8px' }}>실시간 · {lastUpdate || '--:--:--'}</div>
@@ -12012,132 +24888,261 @@ const ChartViewInner = ({
         ) : (
           <>
         <div className="toolbar">
-          <button
-            type="button"
-            className="tool-chip tool-chip-button"
-            title="드래그해서 메뉴 이동"
-            onMouseDown={startMenuDrag('topbar')}
-            style={{ cursor: 'grab' }}
-          >
-            ↕ 이동
-          </button>
-          <UIModeSwitcher uiMode={uiMode} setUiMode={setUiMode} style={{ marginRight: 8 }} />
-          {isSmartDeskLikeMode && uiMode !== 'SMC_DELTA_DESK' && (
-            <span
-              className="tool-chip"
-              title="TradingView/SMC 스타일 압축 — 존·줄·밴드·캔들 마커 우선"
-              style={{
-                marginRight: 8,
-                padding: '6px 12px',
-                fontSize: 11,
-                fontWeight: 800,
-                flexShrink: 0,
-                whiteSpace: 'nowrap',
-                borderColor: 'rgba(98,239,224,0.45)',
-                color: '#62efe0',
-                background: 'rgba(98,239,224,0.1)',
-                cursor: 'default',
-              }}
-            >
-              SMC 데스크 · 압축 뷰
-            </span>
-          )}
-          {isAiMode && (
+          {chartTfBarCollapsed ? (
             <>
               <button
                 type="button"
-                className={`tool-chip tool-chip-button ${whaleDynamicRsProEnabled ? 'tool-chip-active' : ''}`}
-                onClick={() => applyModeFeature('whaleDynamicRsProEnabled', !whaleDynamicRsProEnabled)}
-                title="Dynamic R/S PRO 요약 — 피벗·ATR 존 (차트 설정에도 동일)"
-                style={{ marginRight: 4, padding: '6px 10px', fontSize: 11, fontWeight: 600 }}
+                className="tool-chip tool-chip-button"
+                onClick={() => setChartTfBarCollapsed(false)}
+                title="타임프레임·SAS·설정·이동 펼치기 — PC·모바일 동일 저장"
+                style={{
+                  marginRight: 8,
+                  fontWeight: 800,
+                  padding: '8px 14px',
+                  fontSize: 13,
+                  minHeight: 40,
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation',
+                }}
               >
-                DRS
+                TF ▼
+              </button>
+              {hzDualLeftChrome ? (
+                <span
+                  className="tool-chip"
+                  style={{
+                    marginRight: 8,
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    fontWeight: 800,
+                    border: '1px solid rgba(125,211,252,0.4)',
+                    borderRadius: 8,
+                    color: '#7dd3fc',
+                    cursor: 'default',
+                  }}
+                  title="핫존 듀얼 뷰 — 좌측은 일봉(1D) 고정"
+                >
+                  핫존 듀얼 · 일봉 1D
+                </span>
+              ) : (
+                (() => {
+                  const sig = mtfSignalByTf.get(timeframe);
+                  const tl = tfChipLbl(timeframe);
+                  const sigColor =
+                    sig?.verdict === 'LONG' ? '#22C55E' : sig?.verdict === 'SHORT' ? '#EF4444' : '#94a3b8';
+                  return (
+                    <span
+                      className="tool-chip"
+                      style={{
+                        marginRight: 8,
+                        padding: '6px 12px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'default',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={`펼치면 TF 변경 · ${tfCandleCloseTitleSuffix(timeframe, tfCloseNowMs, bitgetVolumePackOn ? 'bitget' : 'binance')}`}
+                    >
+                      {tl}
+                      <TfCandleCloseRemain tf={timeframe} nowMs={tfCloseNowMs} active  exchange={bitgetVolumePackOn ? 'bitget' : 'binance'} />
+                      {sig && sig.verdictKo !== '-' && (
+                        <span style={{ marginLeft: 6, color: sigColor }}>{sig.verdictKo}</span>
+                      )}
+                    </span>
+                  );
+                })()
+              )}
+              <UIModeSwitcher uiMode={uiMode} setUiMode={setUiMode} style={{ marginRight: 8 }} />
+              {isSmartDeskLikeMode && uiMode !== 'SMC_DELTA_DESK' && (
+                <span
+                  className="tool-chip"
+                  title="TradingView/SMC 스타일 압축 — 존·줄·밴드·캔들 마커 우선"
+                  style={{
+                    marginRight: 8,
+                    padding: '6px 12px',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
+                    borderColor: 'rgba(98,239,224,0.45)',
+                    color: '#62efe0',
+                    background: 'rgba(98,239,224,0.1)',
+                    cursor: 'default',
+                  }}
+                >
+                  SMC 데스크 · 압축 뷰
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="tool-chip tool-chip-button"
+                onClick={() => setChartTfBarCollapsed(true)}
+                title="TF 격자·SAS·설정·이동 숨김"
+                style={{ marginRight: 8, fontWeight: 800, padding: '6px 10px' }}
+              >
+                TF 접기 ▲
               </button>
               <button
                 type="button"
-                className={`tool-chip tool-chip-button ${whaleLiquidityBiasEnabled ? 'tool-chip-active' : ''}`}
-                onClick={() => applyModeFeature('whaleLiquidityBiasEnabled', !whaleLiquidityBiasEnabled)}
-                title="LQB — BSL/SSL 유동성 존(ATR 두께 면), 가로선·떠다니는 텍스트 없음"
-                style={{ marginRight: 8, padding: '6px 10px', fontSize: 11, fontWeight: 600 }}
+                className="tool-chip tool-chip-button"
+                title="드래그해서 메뉴 이동"
+                onMouseDown={startMenuDrag('topbar')}
+                style={{ cursor: 'grab' }}
               >
-                LQB
+                ↕ 이동
               </button>
+              <UIModeSwitcher uiMode={uiMode} setUiMode={setUiMode} style={{ marginRight: 8 }} />
+              {isSmartDeskLikeMode && uiMode !== 'SMC_DELTA_DESK' && (
+                <span
+                  className="tool-chip"
+                  title="TradingView/SMC 스타일 압축 — 존·줄·밴드·캔들 마커 우선"
+                  style={{
+                    marginRight: 8,
+                    padding: '6px 12px',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
+                    borderColor: 'rgba(98,239,224,0.45)',
+                    color: '#62efe0',
+                    background: 'rgba(98,239,224,0.1)',
+                    cursor: 'default',
+                  }}
+                >
+                  SMC 데스크 · 압축 뷰
+                </span>
+              )}
+              {isAiMode && (
+                <>
+                  <button
+                    type="button"
+                    className={`tool-chip tool-chip-button ${whaleDynamicRsProEnabled ? 'tool-chip-active' : ''}`}
+                    onClick={() => applyModeFeature('whaleDynamicRsProEnabled', !whaleDynamicRsProEnabled)}
+                    title="Dynamic R/S PRO 요약 — 피벗·ATR 존 (차트 설정에도 동일)"
+                    style={{ marginRight: 4, padding: '6px 10px', fontSize: 11, fontWeight: 600 }}
+                  >
+                    DRS
+                  </button>
+                  <button
+                    type="button"
+                    className={`tool-chip tool-chip-button ${whaleLiquidityBiasEnabled ? 'tool-chip-active' : ''}`}
+                    onClick={() => applyModeFeature('whaleLiquidityBiasEnabled', !whaleLiquidityBiasEnabled)}
+                    title="LQB — BSL/SSL 유동성 존(ATR 두께 면), 가로선·떠다니는 텍스트 없음"
+                    style={{ marginRight: 8, padding: '6px 10px', fontSize: 11, fontWeight: 600 }}
+                  >
+                    LQB
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className={`tool-chip tool-chip-button ${settings.showSmartAdaptiveSignal !== false ? 'tool-chip-active' : ''}`}
+                onClick={() => apply({ showSmartAdaptiveSignal: settings.showSmartAdaptiveSignal === false })}
+                title="Smart Adaptive Signal — 롱 🐂 · 숏 🦅 · 목표선 (차트 우측 상단 빠른 메뉴에도 SAS 있음)"
+                style={{ marginRight: 8, fontWeight: 700 }}
+              >
+                SAS
+              </button>
+              {hzDualLeftChrome ? (
+                <span
+                  className="tool-chip"
+                  style={{
+                    marginRight: 8,
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    fontWeight: 800,
+                    border: '1px solid rgba(125,211,252,0.4)',
+                    borderRadius: 8,
+                    color: '#7dd3fc',
+                    cursor: 'default',
+                  }}
+                  title="핫존 듀얼 뷰 — 좌측은 일봉(1D) 고정"
+                >
+                  핫존 듀얼 · 일봉 1D
+                </span>
+              ) : (
+                ['1m','3m','5m','15m','1h','4h','1d','1w','1M','1Y'].map(tf => {
+                  const sig = mtfSignalByTf.get(tf);
+                  const tfLabel = tf === '1w' ? '1W' : tf;
+                  const sigColor =
+                    sig?.verdict === 'LONG' ? '#22C55E' : sig?.verdict === 'SHORT' ? '#EF4444' : '#94a3b8';
+                  const closeTitle = tfCandleCloseTitleSuffix(tf, tfCloseNowMs, bitgetVolumePackOn ? 'bitget' : 'binance');
+                  return (
+                    <button
+                      key={tf}
+                      className={`tool-chip tool-chip-button ${timeframe === tf ? 'tool-chip-active' : ''}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        selectTimeframe(tf);
+                      }}
+                      title={
+                        sig
+                          ? `${tfLabel} ${sig.verdictKo} · ${closeTitle}`
+                          : tf === '1w'
+                            ? `주봉 · ${closeTitle}`
+                            : tf === '1M'
+                              ? `월봉 · ${closeTitle}`
+                              : tf === '1Y'
+                                ? `연봉 · ${closeTitle}`
+                                : closeTitle
+                      }
+                    >
+                      {tfLabel}
+                      <TfCandleCloseRemain tf={tf} nowMs={tfCloseNowMs} active={timeframe === tf}  exchange={bitgetVolumePackOn ? 'bitget' : 'binance'} />
+                      {sig && sig.verdictKo !== '-' && (
+                        <span style={{ marginLeft: 4, fontWeight: 700, color: sigColor }}>
+                          {sig.verdictKo}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+              {!isMergedAnalysisDesk && (
+                <button
+                  type="button"
+                  className={`tool-chip tool-chip-button ${labelMenuOpen ? 'tool-chip-active' : ''}`}
+                  onClick={() => setLabelMenuOpen(v => !v)}
+                  title="차트 표시 옵션 및 라벨 설정"
+                  style={{ fontWeight: 600, padding: '6px 12px', marginLeft: 8 }}
+                >
+                  ⚙ 설정
+                </button>
+              )}
             </>
           )}
-          <button
-            type="button"
-            className={`tool-chip tool-chip-button ${settings.showSmartAdaptiveSignal !== false ? 'tool-chip-active' : ''}`}
-            onClick={() => apply({ showSmartAdaptiveSignal: settings.showSmartAdaptiveSignal === false })}
-            title="Smart Adaptive Signal — 롱 🐂 · 숏 🦅 · 목표선 (차트 우측 상단 빠른 메뉴에도 SAS 있음)"
-            style={{ marginRight: 8, fontWeight: 700 }}
-          >
-            SAS
-          </button>
-          {hzDualLeftChrome ? (
-            <span
-              className="tool-chip"
-              style={{
-                marginRight: 8,
-                padding: '6px 12px',
-                fontSize: 12,
-                fontWeight: 800,
-                border: '1px solid rgba(125,211,252,0.4)',
-                borderRadius: 8,
-                color: '#7dd3fc',
-                cursor: 'default',
-              }}
-              title="핫존 듀얼 뷰 — 좌측은 일봉(1D) 고정"
-            >
-              핫존 듀얼 · 일봉 1D
-            </span>
-          ) : (
-            ['1m','3m','5m','15m','1h','4h','1d','1w','1M','1Y'].map(tf => {
-              const sig = mtfSignalByTf.get(tf);
-              const tfLabel = tf === '1w' ? '1W' : tf;
-              const sigColor = sig?.verdict === 'LONG' ? '#22C55E' : sig?.verdict === 'SHORT' ? '#EF4444' : '#94a3b8';
-              return (
-                <button
-                  key={tf}
-                  className={`tool-chip tool-chip-button ${timeframe === tf ? 'tool-chip-active' : ''}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    selectTimeframe(tf);
-                  }}
-                  title={sig ? `${tfLabel} ${sig.verdictKo}` : (tf === '1w' ? '주봉' : tf === '1M' ? '월봉' : tf === '1Y' ? '연봉' : undefined)}
-                >
-                  {tfLabel}
-                  {sig && sig.verdictKo !== '-' && (
-                    <span style={{ marginLeft: 4, fontWeight: 700, color: sigColor }}>
-                      {sig.verdictKo}
-                    </span>
-                  )}
-                </button>
-              );
-            })
-          )}
-          <button
-            type="button"
-            className={`tool-chip tool-chip-button ${labelMenuOpen ? 'tool-chip-active' : ''}`}
-            onClick={() => setLabelMenuOpen(v => !v)}
-            title="차트 표시 옵션 및 라벨 설정"
-            style={{ fontWeight: 600, padding: '6px 12px', marginLeft: 8 }}
-          >
-            ⚙ 설정
-          </button>
         </div>
         <div className="toolbar toolbar-actions">
           <div className="live-box">실시간 · {lastUpdate || '--:--:--'}</div>
+          {isMergedAnalysisDesk && (
+            <button
+              type="button"
+              className="tool-chip tool-chip-button"
+              onClick={() => {
+                if (typeof window === 'undefined') return;
+                window.dispatchEvent(new Event(OPEN_MERGED_DESK_CHART_SETTINGS_EVENT));
+              }}
+              title="통합모드 차트설정 — 전체화면에서도 열립니다"
+              style={{ fontWeight: 600, padding: '6px 10px' }}
+            >
+              ⚙ 차트설정
+            </button>
+          )}
           <button type="button" className="fullscreen-btn" onClick={toggleFullscreen}>{isFullscreen ? '전체화면 종료' : '전체화면'}</button>
         </div>
           </>
         )}
         {labelMenuOpen &&
+          !isMergedAnalysisDesk &&
           typeof document !== 'undefined' &&
           createPortal(
           <div
             ref={labelSettingsPanelRef}
-            className={`label-settings-panel ${isNarrowUi && !labelSettingsPanelPos ? 'label-settings-panel--sheet' : ''}`}
+            className={`label-settings-panel ${isNarrowUi && !labelSettingsPanelPos ? 'label-settings-panel--sheet' : ''}${settingsPortalHost ? ' label-settings-panel--in-fullscreen' : ''}`}
             style={labelSettingsPanelLayoutStyle}
           >
             <div
@@ -12218,6 +25223,8 @@ const ChartViewInner = ({
                                 ? '바이블'
                               : uiMode === 'HOT_ZONE'
                                 ? '핫존'
+                              : isMonthStartDeskMode
+                                ? '마감·안착'
                               : uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE'
                                 ? '통합작도'
                               : uiMode === 'TAPPOINT'
@@ -12275,6 +25282,30 @@ const ChartViewInner = ({
                       <button type="button" className={`tool-chip tool-chip-button ${settings.chartBulkHideLabels ? 'tool-chip-active' : ''}`} onClick={() => apply({ chartBulkHideLabels: !settings.chartBulkHideLabels })}>라벨 전부 끄기</button>
                       <button type="button" className={`tool-chip tool-chip-button ${settings.chartBulkHideHLines ? 'tool-chip-active' : ''}`} onClick={() => apply({ chartBulkHideHLines: !settings.chartBulkHideHLines })}>가로선 전부 끄기</button>
                       <button type="button" className={`tool-chip tool-chip-button ${settings.chartBulkHideZones ? 'tool-chip-active' : ''}`} onClick={() => apply({ chartBulkHideZones: !settings.chartBulkHideZones })}>존 전부 끄기</button>
+                      <button
+                        type="button"
+                        className={`tool-chip tool-chip-button ${(settings.chartTradeAtlasEnabled ?? true) ? 'tool-chip-active' : ''}`}
+                        title="모든 TF: 롱/숏 구간 + 타점(E) + 손절(SL) + TP 가로선 + 좌측 HUD"
+                        onClick={() =>
+                          apply({
+                            chartTradeAtlasEnabled: !(settings.chartTradeAtlasEnabled ?? true),
+                          })
+                        }
+                      >
+                        타점·손익 Atlas
+                      </button>
+                      <button
+                        type="button"
+                        className={`tool-chip tool-chip-button ${(settings.chartTradeAtlasShowHud ?? true) ? 'tool-chip-active' : ''}`}
+                        disabled={!(settings.chartTradeAtlasEnabled ?? true)}
+                        onClick={() =>
+                          apply({
+                            chartTradeAtlasShowHud: !(settings.chartTradeAtlasShowHud ?? true),
+                          })
+                        }
+                      >
+                        Atlas HUD
+                      </button>
                       <button type="button" className="tool-chip tool-chip-button" onClick={exportSettingsJson} title="현재 차트 설정을 JSON 파일로 저장">
                         설정 내보내기
                       </button>
@@ -12301,6 +25332,201 @@ const ChartViewInner = ({
                         시각정리(한 번에)
                       </button>
                       <button type="button" className={`tool-chip tool-chip-button ${showUnifiedCandleMarkers ? 'tool-chip-active' : ''}`} onClick={() => apply({ showUnifiedCandleMarkers: !showUnifiedCandleMarkers })}>캔들신호 마커</button>
+                      {isMonthStartDeskMode && (
+                        <>
+                          <button
+                            type="button"
+                            className={`tool-chip tool-chip-button ${(settings.chartMonthDeskTypeomEnabled ?? true) ? 'tool-chip-active' : ''}`}
+                            onClick={() =>
+                              apply({
+                                chartMonthDeskTypeomEnabled: !(settings.chartMonthDeskTypeomEnabled ?? true),
+                              })
+                            }
+                            title="골든포켓·코어·(겹침 시) FVG + 마감존×구조 정합 문구 + 종가위치 + ST과폭 시 스냅 완화 + OB·레그50%·79% + E·무효·TP. 참고만."
+                          >
+                            마감 타점(EQ·TP)
+                          </button>
+                          <button
+                            type="button"
+                            className={`tool-chip tool-chip-button ${
+                              settings.chartMonthDeskPullbackHotZoneEnabled !== false ? 'tool-chip-active' : ''
+                            }`}
+                            onClick={() =>
+                              apply({
+                                chartMonthDeskPullbackHotZoneEnabled:
+                                  settings.chartMonthDeskPullbackHotZoneEnabled === false,
+                              })
+                            }
+                            title="눌림 핫존(pullbackHotZone): 피보·눌림 존·HUD. 끄면 차트 부담 감소. 40봉 미만이면 표시 없음."
+                          >
+                            눌림 핫존
+                          </button>
+                          <button
+                            type="button"
+                            className={`tool-chip tool-chip-button ${
+                              monthDeskClearSummaryOn ? 'tool-chip-active' : ''
+                            }`}
+                            onClick={toggleMonthDeskClearSummary}
+                            title="ON=라인요약 전부 / OFF=라인요약 끔 (zone 유지)"
+                          >
+                            간결+요약
+                          </button>
+                          <button
+                            type="button"
+                            className={`tool-chip tool-chip-button ${
+                              settings.chartMonthDeskFullSmcLayers !== false ? 'tool-chip-active' : ''
+                            }`}
+                            onClick={() =>
+                              apply({
+                                chartMonthDeskFullSmcLayers: settings.chartMonthDeskFullSmcLayers === false,
+                              })
+                            }
+                            title="BOS/CHOCH·플레이북 등 SMC 구조 레이어. $$$$ 핵심타점은 항상 롱·숏 통합 1개."
+                          >
+                            SMC 구조 레이어
+                          </button>
+                          <button
+                            type="button"
+                            className={`tool-chip tool-chip-button ${
+                              settings.chartMonthDeskCompactOverlayLabels === true ? 'tool-chip-active' : ''
+                            }`}
+                            onClick={() =>
+                              apply({
+                                chartMonthDeskCompactOverlayLabels:
+                                  settings.chartMonthDeskCompactOverlayLabels !== true,
+                              })
+                            }
+                            title="옵트인: 연합·타입옴 zone 숨김·라벨 축소. 기본은 분석 레이어 전부 유지."
+                          >
+                            라벨 축소(옵트인)
+                          </button>
+                          <button
+                            type="button"
+                            className={`tool-chip tool-chip-button ${whaleHotZoneEnabled ? 'tool-chip-active' : ''}`}
+                            onClick={() => {
+                              const m = uiMode as SettingsUIMode;
+                              const next = !whaleHotZoneEnabled;
+                              apply({
+                                chartBulkHideZones: false,
+                                modeFeatureOverrides: {
+                                  ...(settings.modeFeatureOverrides || {}),
+                                  [m]: { ...(settings.modeFeatureOverrides?.[m] || {}), whaleHotZoneEnabled: next },
+                                },
+                              });
+                            }}
+                            title="고래 모드와 동일: 볼륨 기반 Hot Zone(S/R 레이더). 마감·안착 차트에 표시."
+                          >
+                            고래 Hot Zone
+                          </button>
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              flexWrap: 'wrap',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '4px 8px',
+                              borderRadius: 8,
+                              background: 'rgba(15,23,42,0.55)',
+                              border: '1px solid rgba(244,114,182,0.22)',
+                            }}
+                            title="마감 타점만. 0%=time2에서 멈춤, 100%=시간축 가시 우끝(빈 축 쪽)까지. (이전: 마지막 봉=캡이라 연장이 안 먹던 문제 수정)"
+                          >
+                            <span style={{ fontSize: 10, color: '#94a3b8', whiteSpace: 'nowrap' }}>우측 연장</span>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={Math.max(0, Math.min(100, Math.round(Number(settings.chartMonthDeskTypeomRightExtendPct) || 0)))}
+                              onChange={(e) =>
+                                apply({ chartMonthDeskTypeomRightExtendPct: Number(e.target.value) })
+                              }
+                              disabled={!(settings.chartMonthDeskTypeomEnabled ?? true)}
+                              style={{ width: 96, accentColor: '#ec4899' }}
+                            />
+                            <span style={{ fontSize: 10, color: '#e2e8f0', minWidth: 38, textAlign: 'right' }}>
+                              {Math.max(0, Math.min(100, Math.round(Number(settings.chartMonthDeskTypeomRightExtendPct) || 0)))}%
+                            </span>
+                            <span style={{ fontSize: 10, color: '#94a3b8' }}>라벨</span>
+                            <button
+                              type="button"
+                              className={`tool-chip tool-chip-button ${
+                                getLabelAlign(MONTH_DESK_TYPEOM_LABEL_PACK_KEY) === 'left' ? 'tool-chip-active' : ''
+                              }`}
+                              style={{ padding: '2px 7px', fontSize: 10 }}
+                              disabled={!(settings.chartMonthDeskTypeomEnabled ?? true)}
+                              onClick={() => setLabelAlign(MONTH_DESK_TYPEOM_LABEL_PACK_KEY, 'left')}
+                            >
+                              좌
+                            </button>
+                            <button
+                              type="button"
+                              className={`tool-chip tool-chip-button ${
+                                getLabelAlign(MONTH_DESK_TYPEOM_LABEL_PACK_KEY) === 'center' ? 'tool-chip-active' : ''
+                              }`}
+                              style={{ padding: '2px 7px', fontSize: 10 }}
+                              disabled={!(settings.chartMonthDeskTypeomEnabled ?? true)}
+                              onClick={() => setLabelAlign(MONTH_DESK_TYPEOM_LABEL_PACK_KEY, 'center')}
+                            >
+                              중
+                            </button>
+                            <button
+                              type="button"
+                              className={`tool-chip tool-chip-button ${
+                                getLabelAlign(MONTH_DESK_TYPEOM_LABEL_PACK_KEY) === 'right' ? 'tool-chip-active' : ''
+                              }`}
+                              style={{ padding: '2px 7px', fontSize: 10 }}
+                              disabled={!(settings.chartMonthDeskTypeomEnabled ?? true)}
+                              onClick={() => setLabelAlign(MONTH_DESK_TYPEOM_LABEL_PACK_KEY, 'right')}
+                            >
+                              우
+                            </button>
+                            <input
+                              type="range"
+                              min={LABEL_H_SHIFT_MIN}
+                              max={LABEL_H_SHIFT_MAX}
+                              value={getLabelHShift(MONTH_DESK_TYPEOM_LABEL_PACK_KEY)}
+                              onChange={(e) =>
+                                setLabelHShift(MONTH_DESK_TYPEOM_LABEL_PACK_KEY, Number(e.target.value))
+                              }
+                              disabled={!(settings.chartMonthDeskTypeomEnabled ?? true)}
+                              style={{ width: 72, accentColor: '#a78bfa' }}
+                              title="라벨 가로 픽셀 이동(음수=왼쪽)"
+                            />
+                            <span style={{ fontSize: 10, color: '#cbd5e1', minWidth: 44 }}>
+                              {(() => {
+                                const v = getLabelHShift(MONTH_DESK_TYPEOM_LABEL_PACK_KEY);
+                                return v > 0 ? `+${v}` : `${v}`;
+                              })()}
+                              px
+                            </span>
+                            <span style={{ fontSize: 10, color: '#94a3b8' }}>HUD기준</span>
+                            <button
+                              type="button"
+                              className={`tool-chip tool-chip-button ${
+                                (settings.chartMonthDeskSessionBasis ?? 'chart_candle') === 'chart_candle'
+                                  ? 'tool-chip-active'
+                                  : ''
+                              }`}
+                              style={{ padding: '2px 7px', fontSize: 10 }}
+                              onClick={() => apply({ chartMonthDeskSessionBasis: 'chart_candle' })}
+                              title="마감·안착 HUD: 차트 TF 봉 종가 기준 문구"
+                            >
+                              캔들종가
+                            </button>
+                            <button
+                              type="button"
+                              className={`tool-chip tool-chip-button ${
+                                settings.chartMonthDeskSessionBasis === 'utc_calendar' ? 'tool-chip-active' : ''
+                              }`}
+                              style={{ padding: '2px 7px', fontSize: 10 }}
+                              onClick={() => apply({ chartMonthDeskSessionBasis: 'utc_calendar' })}
+                              title="HUD에 UTC 일 경계 근사 문구(거래소 정식과 다를 수 있음)"
+                            >
+                              UTC근사
+                            </button>
+                          </div>
+                        </>
+                      )}
                       <button
                         type="button"
                         className={`tool-chip tool-chip-button ${(settings.chartVerdictTint ?? 'off') === 'off' ? '' : 'tool-chip-active'}`}
@@ -12388,6 +25614,8 @@ const ChartViewInner = ({
                                   ? '스마트'
                                   : uiMode === 'CANDLE_ANALYSIS'
                                       ? '캔들분석'
+                                      : isMonthStartDeskMode
+                                        ? '마감·안착'
                                       : uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE'
                                         ? '통합작도'
                                       : uiMode === 'TAPPOINT'
@@ -12620,8 +25848,8 @@ const ChartViewInner = ({
                       <button type="button" className={`tool-chip tool-chip-button ${showVisionWedge ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showVisionWedge', !showVisionWedge)}>Wedge</button>
                       <button type="button" className={`tool-chip tool-chip-button ${showVisionReversal ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showVisionReversal', !showVisionReversal)}>Rev</button>
                       <button type="button" className={`tool-chip tool-chip-button ${showVisionRange ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showVisionRange', !showVisionRange)}>Range</button>
-                      <button type="button" className={`tool-chip tool-chip-button ${showReactionZone ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showReactionZone', !showReactionZone)} title="캔들 위 반응구간">반응구간</button>
-                      <button type="button" className={`tool-chip tool-chip-button ${showTailongClose ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showTailongClose', !showTailongClose)} title="봉마감 기준 돌파·장대·꼬리·흐름 신호(강·중·약, TF별 보수 임계)">봉마감(타이롱)</button>
+                      <button type="button" className={`tool-chip tool-chip-button ${showReactionZone ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showReactionZone', !showReactionZone)} title="ATR 반응 띠 1개 (±0.25)">반응구간</button>
+                      <button type="button" className={`tool-chip tool-chip-button ${showTailongClose ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showTailongClose', !showTailongClose)} title="봉마감 신호 + 타이롱 경로(구조 ON 시)">봉마감(타이롱)</button>
                       <button type="button" className={`tool-chip tool-chip-button ${showTailongCloseBreakout ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showTailongCloseBreakout', !showTailongCloseBreakout)} title="봉마감 돌파/이탈 성공·실패">돌파</button>
                       <button type="button" className={`tool-chip tool-chip-button ${showTailongCloseWick ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showTailongCloseWick', !showTailongCloseWick)} title="윗/아래 꼬리 흡수 신호">꼬리흡수</button>
                       <button type="button" className={`tool-chip tool-chip-button ${showTailongCloseBody ? 'tool-chip-active' : ''}`} onClick={() => applyModeFeature('showTailongCloseBody', !showTailongCloseBody)} title="장대양봉/장대음봉 마감">장대봉</button>
@@ -12633,7 +25861,9 @@ const ChartViewInner = ({
                     {(uiMode === 'CANDLE_ANALYSIS' || uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE') && (
                       <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px dashed rgba(251,191,36,0.35)' }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: '#fbbf24', marginBottom: 6 }}>
-                          {uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE' ? '통합작도 · 캔들 차트 레이어' : '캔들분석 차트 레이어'}
+                          {uiMode === 'UNIFIED_DESK' || uiMode === 'AI_ZONE'
+                              ? '통합작도 · 캔들 차트 레이어'
+                              : '캔들분석 차트 레이어'}
                         </div>
                         <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, lineHeight: 1.45 }}>
                           전용 레이어 ON/OFF. <strong>엔진 병합</strong>을 켜면 위 &quot;모드별 기능&quot; 토글(구조·존·하모닉·RSI·비전 등)과 같은{' '}
@@ -13601,12 +26831,25 @@ const ChartViewInner = ({
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>차트 축 가격 글자</span>
+                    <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>차트 축 가격 글자(1~20)</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      step={1}
+                      value={Math.max(1, Math.min(20, chartScaleFontSize))}
+                      onChange={e => {
+                        const n = parseInt(e.target.value, 10);
+                        if (!Number.isFinite(n)) return;
+                        apply({ chartScaleFontSize: Math.max(1, Math.min(20, n)) });
+                      }}
+                      style={{ width: 52, padding: '2px 4px', fontSize: 11 }}
+                    />
                     <input
                       type="range"
-                      min={10}
-                      max={18}
-                      value={Math.max(10, Math.min(18, chartScaleFontSize))}
+                      min={1}
+                      max={20}
+                      value={Math.max(1, Math.min(20, chartScaleFontSize))}
                       onChange={e => apply({ chartScaleFontSize: parseInt(e.target.value, 10) || 12 })}
                       style={{ width: 100, accentColor: '#62efe0' }}
                     />
@@ -13769,7 +27012,7 @@ const ChartViewInner = ({
             </div>
             )}
           </div>
-        , isFullscreen && frameRef.current ? frameRef.current : document.body)}
+        , settingsPortalHost || (isFullscreen && frameRef.current ? frameRef.current : document.body))}
       </div>
       )}
       </div>
@@ -13871,7 +27114,72 @@ const ChartViewInner = ({
           </div>
         </div>
       )}
-      {chartMarkerClickDetailB && signalBarTip && signalBarTip.lines.length > 0 && (
+      {featureExplainCard && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 12,
+            bottom: 12,
+            zIndex: 8,
+            pointerEvents: 'auto',
+            background: 'rgba(6,10,18,0.94)',
+            border: `1px solid ${featureExplainCard.accent}66`,
+            borderRadius: 12,
+            padding: '10px 12px',
+            minWidth: 220,
+            maxWidth: Math.min(400, typeof window !== 'undefined' ? window.innerWidth - 32 : 400),
+            maxHeight: 'min(52vh, 420px)',
+            overflowY: 'auto',
+            color: '#e2e8f0',
+            fontSize: 11,
+            lineHeight: 1.45,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+            <div>
+              <div style={{ fontWeight: 800, color: featureExplainCard.accent, fontSize: 13 }}>
+                {featureExplainCard.titleKo}
+                {featureExplainCard.priceLabel ? (
+                  <span style={{ marginLeft: 8, color: '#cbd5e1', fontWeight: 600, fontSize: 12 }}>
+                    {featureExplainCard.priceLabel}
+                  </span>
+                ) : null}
+              </div>
+              {featureExplainCard.subtitleKo ? (
+                <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 2 }}>{featureExplainCard.subtitleKo}</div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="tool-chip tool-chip-button"
+              onClick={() => {
+                setFeatureExplainCard(null);
+                setSignalBarTip(null);
+              }}
+              style={{ padding: '1px 7px', fontSize: 10, flexShrink: 0 }}
+            >
+              닫기
+            </button>
+          </div>
+          {featureExplainCard.sections.map((sec, si) => (
+            <div key={`fx-${si}`} style={{ marginBottom: 8 }}>
+              <div style={{ fontWeight: 700, color: '#cbd5e1', marginBottom: 3, fontSize: 10.5 }}>
+                {sec.heading}
+              </div>
+              {sec.bullets.map((b, bi) => (
+                <div key={`fx-${si}-${bi}`} style={{ marginBottom: 2, paddingLeft: 2 }}>
+                  · {b}
+                </div>
+              ))}
+            </div>
+          ))}
+          <div style={{ marginTop: 4, color: '#64748b', fontSize: 9.5, borderTop: '1px solid rgba(148,163,184,0.2)', paddingTop: 6 }}>
+            {featureExplainCard.disclaimerKo}
+          </div>
+        </div>
+      )}
+      {chartMarkerClickDetailB && !featureExplainCard && signalBarTip && signalBarTip.lines.length > 0 && (
         <div
           style={{
             position: 'absolute',
@@ -13963,8 +27271,136 @@ const ChartViewInner = ({
           </div>
         </>
       )}
-      <div className="overlay-layer">
-        {uiMode === 'AI_ZONE' && (
+      {rbLabelTip && (
+        <>
+          <div
+            role="presentation"
+            aria-hidden
+            style={{ position: 'fixed', inset: 0, zIndex: 28, background: 'rgba(0,0,0,0.14)' }}
+            onClick={() => setRbLabelTip(null)}
+          />
+          <div
+            role="dialog"
+            aria-label="라벨 지지·거래량 분석"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              left: (() => {
+                const vw = typeof window !== 'undefined' ? window.innerWidth : 400;
+                const panelW = Math.min(360, vw - 16);
+                return Math.max(8, Math.min(rbLabelTip.left + 6, vw - panelW - 8));
+              })(),
+              top: (() => {
+                const vh = typeof window !== 'undefined' ? window.innerHeight : 600;
+                return Math.max(8, Math.min(rbLabelTip.top + 6, vh - 120));
+              })(),
+              zIndex: 29,
+              pointerEvents: 'auto',
+              background: 'rgba(8,12,22,0.97)',
+              border: '1px solid rgba(96,165,250,0.45)',
+              borderRadius: 10,
+              padding: '10px 12px',
+              minWidth: 220,
+              maxWidth: 'min(94vw, 360px)',
+              maxHeight: 'min(62vh, 420px)',
+              overflow: 'auto',
+              color: '#e2e8f0',
+              fontSize: 11.5,
+              lineHeight: 1.5,
+              boxShadow: '0 10px 28px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+              <div style={{ fontWeight: 800, color: '#93c5fd', fontSize: 11 }}>
+                {rbLabelTip.title || '라벨 지지·거래량'}
+              </div>
+              <button
+                type="button"
+                className="tool-chip tool-chip-button"
+                onClick={() => setRbLabelTip(null)}
+                style={{ padding: '1px 7px', fontSize: 10, flexShrink: 0 }}
+              >
+                닫기
+              </button>
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{rbLabelTip.text}</div>
+          </div>
+        </>
+      )}
+      <div
+        ref={overlayFrontLayerRef}
+        className={`overlay-layer overlay-layer--dynamic${uiMode === 'FUSION_MODE' ? ' overlay-layer--fusion-pro' : ''}`}
+        style={{
+          willChange: 'transform',
+          pointerEvents: 'none',
+          ...(uiMode === 'FUSION_MODE' ? { opacity: 0.48 } : null),
+        }}
+      >
+        {isMergedAnalysisDesk &&
+          mergedDeskPatternSilhouettePack &&
+          mergedDeskPatternSilhouetteScreen && (
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 3,
+                pointerEvents: 'none',
+              }}
+            >
+              <MergedDeskPatternSilhouetteLayer
+                pack={mergedDeskPatternSilhouettePack}
+                box={mergedDeskPatternSilhouetteScreen.box}
+                stamps={mergedDeskPatternSilhouetteScreen.stamps}
+              />
+            </div>
+          )}
+        {(isMonthStartDeskMode || isAiZoneDesk) &&
+          settings.chartMonthDeskBreakoutFollowPath !== false &&
+          !(isMonthStartDeskMode && settings.chartMonthDeskFloatingHudEnabled !== true) && (
+          <BreakoutFollowHud
+            chain={analysisMatchesTf ? analysis?.breakoutFollow : null}
+          />
+        )}
+        {isMonthStartDeskMode && <MonthDeskTradePlanRail geom={monthDeskTradePlanRailGeom} />}
+        {(isMonthStartDeskMode || isMergedAnalysisDesk) &&
+          settings.chartMonthDeskClickPrecisionEnabled !== false &&
+          monthDeskClickPrecision && (
+            <MonthDeskClickPrecisionBar
+              result={monthDeskClickPrecision}
+              onSelectTf={selectTimeframe}
+              onClear={() => setMonthDeskClickPrecision(null)}
+            />
+          )}
+        {monthDeskFeatureSettleLabelsOn && (
+          <MonthDeskZoneRightBandLabels
+            geom={monthDeskZoneRightBandGeom}
+            labelMode={monthDeskSettleLabelMode}
+            summaryChip={monthDeskSettleSummaryChip}
+            summaryRows={monthDeskSettleLineSummaryRows}
+            showSummaryPanel={monthDeskClearSummaryOn}
+          />
+        )}
+        {isReferenceDeskMode && referenceDeskTradeAtlasRightBandGeom && (
+          <MonthDeskZoneRightBandLabels
+            geom={referenceDeskTradeAtlasRightBandGeom}
+            labelMode="off"
+          />
+        )}
+        {isMergedAnalysisDesk && mergedAnalysisTradeRightBandGeom && (
+          <MonthDeskZoneRightBandLabels geom={mergedAnalysisTradeRightBandGeom} labelMode="off" />
+        )}
+        {isReferenceDeskMode &&
+          referenceDeskLayerFlags.mtf &&
+          (mtfInlineSignals.length > 0 || (analysis as AnalyzeResponse & { multiTF?: unknown })?.multiTF) && (
+            <ReferenceDeskMtfChartStrip
+              signals={mtfInlineSignals}
+              chartTf={timeframe}
+              multiTF={(analysis as AnalyzeResponse & { multiTF?: Record<string, string> })?.multiTF ?? null}
+              onSelectTf={selectTimeframe}
+            />
+          )}
+        {isAiZoneDesk && (
           <>
             <div
               style={{
@@ -14085,13 +27521,34 @@ const ChartViewInner = ({
               ? { dx: 0, dy: 0 }
               : overlayOffsets[offKey] ?? overlayOffsets[item.id] ?? { dx: 0, dy: 0 };
           const isDragging = !isWhaleAutoOverlay && !smcPlaybookLock && !fixedMagnetZone && dragState?.id === item.id;
-          const liveOff = isDragging ? { dx: dragState.currentDx, dy: dragState.currentDy } : off;
+          const liveOff: OverlayLabelOffset = isDragging
+            ? {
+                dx: dragState.currentDx,
+                dy: dragState.currentDy,
+                pinAbsX: dragState.currentAbsLeft,
+                pinAbsY: dragState.currentAbsTop,
+                pinWidth: dragState.pinWidth ?? off.pinWidth,
+              }
+            : off;
+          const monthDeskTailQuiet =
+            isMonthStartDeskMode &&
+            String((item as OverlayItem).overlayZoneExtraClass || '').includes(MONTH_DESK_TAIL_QUIET_CLASS);
           if (
             item.kind === 'channelBand' &&
             Array.isArray(item.channelBandScreen) &&
             item.channelBandScreen.length >= 3
           ) {
-            if (OVERLAY_ZONE_FILL_BEHIND_CHART) return null;
+            const idFront = typeof item.id === 'string' ? item.id : '';
+            const extraFront = String((item as OverlayItem).overlayZoneExtraClass || '');
+            const isRb =
+              idFront.startsWith('merged-desk-rb-') ||
+              extraFront.includes('merged-desk-rb-channel') ||
+              extraFront.includes('merged-desk-blue-red-channel');
+            if (isMergedAnalysisDesk && !isMergedDeskRequestedVisibleZone(item as OverlayItem)) {
+              return null;
+            }
+            /** 일반 채널은 under만 · RB는 앞 레이어(캔들 뒤 z)에 라벨·해치 유지 */
+            if (OVERLAY_ZONE_FILL_BEHIND_CHART && !isRb && !mergedTouchUi) return null;
             const poly = item.channelBandScreen as { x: number; y: number }[];
             let minX = Infinity;
             let minY = Infinity;
@@ -14107,13 +27564,284 @@ const ChartViewInner = ({
             const h = Math.max(1, maxY - minY);
             const pts = poly.map((p) => `${p.x - minX + liveOff.dx},${p.y - minY + liveOff.dy}`).join(' ');
             const fillC = typeof item.color === 'string' && item.color.length ? item.color : 'rgba(80,80,80,0.2)';
+            const isSec = extraFront.includes('merged-desk-rb-secondary') || extraFront.includes('merged-desk-rb-outline');
+            const isConf = extraFront.includes('merged-desk-rb-confluence') || idFront.includes('confluence');
+            const isPri = extraFront.includes('merged-desk-rb-primary') && !isConf;
+            const railLed = extraFront.includes('merged-desk-rb-rail-led');
+            const volUpFace = extraFront.includes('merged-desk-rb-vol-up');
+            const volDnFace = extraFront.includes('merged-desk-rb-vol-down');
+            const isBear =
+              volDnFace ||
+              extraFront.includes('merged-desk-rb-paint-bear') ||
+              fillC.includes('239,68,68') ||
+              fillC.includes('248,113,113') ||
+              fillC.includes('225,29,72') ||
+              fillC.includes('185,28,28') ||
+              fillC.includes('244,114,182') ||
+              extraFront.includes('merged-desk-rb-bear');
+            const paintBear =
+              extraFront.includes('merged-desk-rb-paint-bear') || extraFront.includes('merged-desk-rb-vol-down');
+            const paintBull =
+              extraFront.includes('merged-desk-rb-paint-bull') || extraFront.includes('merged-desk-rb-vol-up');
+            const strokeC = railLed
+              ? isBear || paintBear
+                ? 'rgba(248,113,113,0.98)'
+                : 'rgba(56,189,248,0.98)'
+              : isConf
+              ? fillC.includes('251,191,36')
+                ? 'rgba(251,191,36,0.95)'
+                : paintBear
+                  ? 'rgba(239,68,68,0.95)'
+                  : 'rgba(34,197,94,0.95)'
+              : volDnFace || paintBear || isBear
+                ? 'rgba(239,68,68,0.95)'
+                : volUpFace || paintBull
+                  ? 'rgba(34,197,94,0.95)'
+                  : 'rgba(34,197,94,0.95)';
+            const hatchStroke = volDnFace || paintBear || isBear
+              ? 'rgba(248,113,113,0.40)'
+              : 'rgba(34,197,94,0.42)';
+            const hatchModeRaw = String(settings.chartMergedDeskRbHatchMode || 'off');
+            const hatchMode =
+              hatchModeRaw === 'soft' || hatchModeRaw === 'on' ? hatchModeRaw : 'off';
+            /** 사용자 농도 0~48 → 0=테두리만(무색) · 연/중/진 */
+            const fillOpRaw = Number(settings.chartMergedDeskRbFillOpacity);
+            const fillOpPct = Number.isFinite(fillOpRaw)
+              ? Math.max(0, Math.min(48, fillOpRaw))
+              : 14;
+            const fillOp = fillOpPct / 100;
+            const borderOnly = fillOpPct <= 0;
+            const useHatch = isPri && hatchMode !== 'off' && !borderOnly;
+            const hatchSoft = hatchMode === 'soft' || fillOpPct <= 10;
+            const z = isConf ? 8 : isPri ? 7 : 5;
+            const patternId = `rb-hatch-${String(item.id).replace(/[^a-zA-Z0-9_-]/g, '')}`;
+            const railGradId = `rb-rail-led-grad-${String(item.id).replace(/[^a-zA-Z0-9_-]/g, '')}`;
+            const gradTopA = borderOnly ? 0 : Math.min(0.55, 0.08 + fillOp * 2.2);
+            const gradMidA = borderOnly ? 0 : Math.min(0.28, 0.03 + fillOp * 1.1);
+            const gradBotA = borderOnly ? 0 : Math.min(0.5, 0.06 + fillOp * 2.0);
+            const fillPolyA = borderOnly ? 0 : Math.min(1, 0.35 + fillOp * 3);
+            /** 띠 라벨은 우측 고정이라 dx는 부호를 뒤집어 더한다 — 도형은 그대로, 글자만 이동 */
+            const rbLabelDx = getLabelHShift(String(item.id));
+            const rbLabelDy = getLabelVShift(String(item.id));
+            const rbLabelFs = (() => {
+              const idStr = String(item.id);
+              const k = stableOverlayVisibilityKey(idStr);
+              const v = overlayFontSizes[k] ?? overlayFontSizes[idStr];
+              return Number.isFinite(v) ? Number(v) : null;
+            })();
+            const rbNudge = labelNudgeAttrs(String(item.id));
+            const rbRail = isBear ? 'lower' : 'upper';
+            const rbMagnet = isRb ? magnetOnChannelRail(poly, rbRail, 0.84) : null;
+            const rbRailDeg = rbMagnet ? clampMagnetAngle(rbMagnet.angleDeg, 52) : 0;
+            const rbIsDiag = Math.abs(rbRailDeg) >= 4;
+            /** 대각 통로 = 레일 위 + 기울기. 수평만 우측 중간 */
+            const rbStickX = (rbMagnet ? rbMagnet.x : maxX) + liveOff.dx + rbLabelDx;
+            const rbStickY =
+              (rbMagnet
+                ? rbMagnet.y
+                : poly.length >= 4
+                  ? (poly[1]!.y + poly[2]!.y) / 2
+                  : (minY + maxY) / 2) +
+              liveOff.dy +
+              rbLabelDy;
+            const rbFeatZoom = featureLabelZoom(mergedDeskZoomScale, h, w);
+            const rbStickClass = rbIsDiag ? 'overlay-label--rail-stick' : 'overlay-label--feature-stick';
             return (
-              <div key={item.id} style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}>
+              <div
+                key={item.id}
+                className={rbNudge.className || undefined}
+                style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: z, ...rbNudge.style }}
+              >
                 <div style={{ position: 'absolute', left: minX, top: minY, width: w, height: h, pointerEvents: 'none' }}>
                   <svg width={w} height={h} style={{ display: 'block', overflow: 'visible' }}>
-                    <polygon points={pts} fill={fillC} stroke="none" />
+                    {useHatch || railLed ? (
+                      <defs>
+                        {railLed ? (
+                          <>
+                            <linearGradient id={railGradId} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={`rgba(248,113,113,${gradTopA})`} />
+                              <stop offset="45%" stopColor={`rgba(56,189,248,${gradMidA})`} />
+                              <stop offset="100%" stopColor={`rgba(56,189,248,${gradBotA})`} />
+                            </linearGradient>
+                            {!borderOnly ? (
+                              <filter id={`${railGradId}-glow`} x="-25%" y="-25%" width="150%" height="150%">
+                                <feGaussianBlur stdDeviation={fillOpPct <= 10 ? 1.2 : 2.4} result="b" />
+                                <feMerge>
+                                  <feMergeNode in="b" />
+                                  <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                              </filter>
+                            ) : null}
+                          </>
+                        ) : null}
+                        {useHatch ? (
+                          <pattern
+                            id={patternId}
+                            width={hatchSoft ? 12 : 8}
+                            height={hatchSoft ? 12 : 8}
+                            patternUnits="userSpaceOnUse"
+                            patternTransform="rotate(35)"
+                          >
+                            <line
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2={hatchSoft ? 12 : 8}
+                              stroke={hatchStroke}
+                              strokeWidth={hatchSoft ? 1 : 2}
+                              opacity={hatchSoft ? 0.35 : 0.85}
+                            />
+                          </pattern>
+                        ) : null}
+                      </defs>
+                    ) : null}
+                    {/** 박스권 = 농도 반영 · 0=테두리만 · 레일LED면 그라데이션도 농도 연동 */}
+                    <polygon
+                      points={pts}
+                      fill={
+                        borderOnly
+                          ? 'none'
+                          : railLed
+                            ? `url(#${railGradId})`
+                            : fillC
+                      }
+                      stroke="none"
+                      strokeWidth={0}
+                      opacity={borderOnly ? 0 : isSec ? 0.95 * fillPolyA : fillPolyA}
+                      filter={railLed && !borderOnly ? `url(#${railGradId}-glow)` : undefined}
+                    />
+                    {useHatch ? (
+                      <polygon
+                        points={pts}
+                        fill={`url(#${patternId})`}
+                        stroke="none"
+                        opacity={hatchSoft ? 0.45 : 0.72}
+                      />
+                    ) : null}
+                    {isRb && poly.length >= 4 ? (
+                      <g>
+                        <polygon
+                          points={pts}
+                          fill="none"
+                          stroke={strokeC}
+                          strokeWidth={railLed ? (isPri ? 3.2 : 2.6) : isPri ? 2.45 : isConf ? 2.15 : 1.9}
+                          strokeLinejoin="round"
+                          strokeLinecap="round"
+                          opacity={railLed ? 0.95 : 1}
+                        />
+                        {!railLed ? (
+                          <line
+                            x1={(poly[0]!.x + poly[3]!.x) / 2 - minX + liveOff.dx}
+                            y1={(poly[0]!.y + poly[3]!.y) / 2 - minY + liveOff.dy}
+                            x2={(poly[1]!.x + poly[2]!.x) / 2 - minX + liveOff.dx}
+                            y2={(poly[1]!.y + poly[2]!.y) / 2 - minY + liveOff.dy}
+                            stroke="rgba(226,232,240,0.55)"
+                            strokeWidth={isPri ? 1.05 : 0.9}
+                            strokeDasharray="2 7"
+                            strokeLinecap="round"
+                            opacity={0.85}
+                          />
+                        ) : (
+                          <>
+                            <line
+                              x1={poly[0]!.x - minX + liveOff.dx}
+                              y1={poly[0]!.y - minY + liveOff.dy}
+                              x2={poly[1]!.x - minX + liveOff.dx}
+                              y2={poly[1]!.y - minY + liveOff.dy}
+                              stroke="rgba(248,113,113,0.95)"
+                              strokeWidth={3}
+                              strokeLinecap="round"
+                            />
+                            <line
+                              x1={poly[3]!.x - minX + liveOff.dx}
+                              y1={poly[3]!.y - minY + liveOff.dy}
+                              x2={poly[2]!.x - minX + liveOff.dx}
+                              y2={poly[2]!.y - minY + liveOff.dy}
+                              stroke="rgba(56,189,248,0.95)"
+                              strokeWidth={3}
+                              strokeLinecap="round"
+                            />
+                          </>
+                        )}
+                      </g>
+                    ) : null}
                   </svg>
                 </div>
+                  {isRb && String(item.label || '').trim() ? (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      title={`${String((item as OverlayItem).labelTooltip || item.label || '').slice(0, 120)} · 클릭: 지지·거래량`}
+                      className={
+                        extraFront.includes('merged-desk-rb-kit--down')
+                          ? `merged-desk-rb-label-clickable ${rbStickClass} merged-desk-rb-kit--down`
+                          : extraFront.includes('merged-desk-rb-kit--up')
+                            ? `merged-desk-rb-label-clickable ${rbStickClass} merged-desk-rb-kit--up`
+                            : String(item.label || '').includes('◆') ||
+                                String(item.label || '').includes('중착') ||
+                                String(item.label || '').includes('게이트')
+                              ? `merged-desk-rb-gate-badge merged-desk-rb-label-clickable ${rbStickClass}${
+                                  String(item.label || '').includes('숏') ||
+                                  String(item.label || '').includes('실패') ||
+                                  String(item.label || '').includes('하락')
+                                    ? ' merged-desk-rb-gate-badge--short'
+                                    : isConf
+                                      ? ' merged-desk-rb-gate-badge--conf'
+                                      : ' merged-desk-rb-gate-badge--long'
+                                }`
+                              : `merged-desk-rb-label-clickable ${rbStickClass}`
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const lab = String(item.label || '').trim();
+                        openLabelClickIntel(
+                          item,
+                          e.clientX,
+                          e.clientY,
+                          explainMergedDeskRbLabel(lab, String((item as OverlayItem).labelTooltip || '')),
+                        );
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter' && e.key !== ' ') return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const lab = String(item.label || '').trim();
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        openLabelClickIntel(
+                          item,
+                          rect.left,
+                          rect.bottom,
+                          explainMergedDeskRbLabel(lab, String((item as OverlayItem).labelTooltip || '')),
+                        );
+                      }}
+                      style={
+                        {
+                          position: 'absolute',
+                          left: rbStickX,
+                          top: rbStickY,
+                          ['--md-feat-zoom' as string]: String(rbFeatZoom),
+                          ['--md-rail-deg' as string]: `${rbRailDeg}deg`,
+                          pointerEvents: 'auto',
+                          cursor: 'pointer',
+                          padding: isPri ? '2px 6px' : '1px 4px',
+                          borderRadius: 4,
+                          fontSize: 8,
+                          fontWeight: 800,
+                          letterSpacing: '-0.02em',
+                          color: '#f8fafc',
+                          background:
+                            String((item as OverlayItem).labelBackgroundColor || '') ||
+                            (isBear ? 'rgba(127,29,29,0.9)' : 'rgba(21,128,61,0.9)'),
+                          border: `1px solid ${strokeC}`,
+                          whiteSpace: 'nowrap',
+                          boxShadow: isPri ? '0 2px 8px rgba(0,0,0,0.55)' : '0 1px 3px rgba(0,0,0,0.35)',
+                          opacity: isSec ? 0.85 : 1,
+                        } as React.CSSProperties
+                      }
+                    >
+                      {String(item.label).trim()}
+                    </div>
+                  ) : null}
               </div>
             );
           }
@@ -14130,6 +27858,104 @@ const ChartViewInner = ({
               (item as OverlayItem).category === 'bibleMode';
             const whaleCat = String((item as OverlayItem).category || '');
             const zid = String(item.id || '');
+            const isMirageTvZoneEarly =
+              isMergedAnalysisDesk &&
+              zid.startsWith('merged-ares-mlsp-tv-') &&
+              ['zone', 'demandZone', 'supplyZone', 'ob', 'fvg', 'reactionZone'].includes(
+                String(item.kind || '')
+              );
+            const isBtccionDeskZone =
+              isMergedAnalysisDesk &&
+              zid.startsWith('merged-desk-btccion-') &&
+              ['zone', 'reactionZone', 'demandZone', 'supplyZone'].includes(String(item.kind || ''));
+            const zoneExtraEarly = String((item as OverlayItem).overlayZoneExtraClass || '');
+            const isAiMarketZoneFace =
+              zoneExtraEarly.includes('ai-market-zone') ||
+              String(item.id || '').startsWith('ai-market-zone-') ||
+              String((item as OverlayItem).category || '') === 'aiMarketZone';
+            const isAiMarketZoneCallout =
+              isAiMarketZoneFace &&
+              (zoneExtraEarly.includes('ai-market-zone-callout') ||
+                zoneExtraEarly.includes('ai-market-zone-outer') ||
+                String(item.id || '').startsWith('ai-market-zone-outer-'));
+            if (isMergedAnalysisDesk && !isMergedDeskRequestedVisibleZone(item as OverlayItem)) {
+              return null;
+            }
+            /** 사용자가 끈 면만 앞 레이어 생략 — HQ/HotZone/핵심존 유지 */
+            if (isMergedAnalysisDesk && zoneExtraEarly.includes('merged-desk-zone-face-hidden')) {
+              return null;
+            }
+            const isMergedDeskHotZoneClick =
+              isMergedAnalysisDesk &&
+              (zid.startsWith('merged-desk-hotzone-') ||
+                zoneExtraEarly.includes('merged-desk-hotzone-entry') ||
+                zoneExtraEarly.includes('merged-desk-pill-zone') ||
+                zoneExtraEarly.includes('merged-hq-entry-zone') ||
+                zoneExtraEarly.includes('merged-desk-projected-support') ||
+                zoneExtraEarly.includes('merged-desk-downside-plan-support') ||
+                zoneExtraEarly.includes('merged-ares-bounce-path')) &&
+              (item.kind === 'demandZone' ||
+                item.kind === 'supplyZone' ||
+                String(item.kind || '') === 'zone');
+            const isPillZoneFace =
+              isMergedAnalysisDesk &&
+              (zoneExtraEarly.includes('merged-desk-pill-zone') ||
+                zoneExtraEarly.includes('merged-desk-hotzone-entry') ||
+                zoneExtraEarly.includes('merged-desk-practice-ai-zone') ||
+                zoneExtraEarly.includes('merged-desk-mtf-dump-zone') ||
+                zoneExtraEarly.includes('merged-hq-entry-zone') ||
+                zoneExtraEarly.includes('merged-desk-money-zone-keep'));
+            const isRbNamedFaceZone =
+              isMergedAnalysisDesk &&
+              (zoneExtraEarly.includes('merged-desk-rb-ai-face') ||
+                zoneExtraEarly.includes('merged-desk-rb-core-break-zone') ||
+                zoneExtraEarly.includes('merged-desk-rb-core-settle-zone') ||
+                zoneExtraEarly.includes('merged-desk-rb-core-fail-zone') ||
+                zoneExtraEarly.includes('merged-desk-rb-core-set') ||
+                zoneExtraEarly.includes('merged-desk-rb-rail-bounce') ||
+                zoneExtraEarly.includes('merged-desk-rb-pullback-entry') ||
+                zid.startsWith('merged-desk-rb-ai-') ||
+                zid.startsWith('merged-desk-rb-core-break') ||
+                zid.startsWith('merged-desk-rb-core-settle') ||
+                zid.startsWith('merged-desk-rb-core-fail') ||
+                zid.includes('rb-rail-bounce') ||
+                zid.includes('rb-pullback'));
+            const isHotZoneNamedFace =
+              isMergedAnalysisDesk && isMergedDeskHotZoneNamedFaceOverlay(item as OverlayItem);
+            const isProjectedSupportNamedFace =
+              isMergedAnalysisDesk && isMergedDeskProjectedSupportNamedFaceOverlay(item as OverlayItem);
+            const isAdvVolSeatNamedFace =
+              isMergedAnalysisDesk && isMergedDeskAdvVolSeatNamedFaceOverlay(item as OverlayItem);
+            const isRocketRangeNamedFace =
+              isMergedAnalysisDesk && isMergedDeskRocketRangeNamedFaceOverlay(item as OverlayItem);
+            const isEagle1AiZoneNamedFace =
+              isMergedAnalysisDesk &&
+              (zid.startsWith('eagle1-ai-zone--') ||
+                zid.startsWith('eagle1-entry-zone') ||
+                zoneExtraEarly.includes('eagle1-ai-analysis-zone'));
+            const isPreCaptureNamedFace =
+              isHotZoneNamedFace ||
+              isProjectedSupportNamedFace ||
+              isAdvVolSeatNamedFace ||
+              isRocketRangeNamedFace ||
+              isEagle1AiZoneNamedFace;
+            const chipSimRank = isMergedAnalysisDesk
+              ? mergedDeskChipSimRankById.get(String(item.id))
+              : undefined;
+            const isRbChannelZone =
+              isMergedAnalysisDesk &&
+              (zid.startsWith('merged-desk-rb-') || zoneExtraEarly.includes('merged-desk-rb-'));
+            const isAiZoneOverlayClick =
+              isMergedAnalysisDesk &&
+              settings.chartMergedDeskAiAnalysisZoneEnabled !== false &&
+              (zid.startsWith('eagle1-ai-zone--') ||
+                zoneExtraEarly.includes('eagle1-ai-analysis-zone'));
+            const isDeskZoneExplainClick =
+              !!onMirageZoneSelect &&
+              (isAiZoneOverlayClick ||
+                isMirageTvZoneEarly ||
+                (isMergedDeskHotZoneClick && zoneExtraEarly.includes('merged-desk-money-zone-keep')));
+            /** 통합·분석 Mirage zone — 캔들 위(앞 레이어)에 면·라벨 직접 작도 */
             /** 고래 툴킷 DRS/LQB: 기본은 면·테두리만 — SMC 데스크는 짧은 배지·툴팁으로 출처 표시 */
             const isWhaleToolkitPaintOnly =
               whaleCat === 'whaleToolkit' && (zid.startsWith('whale-drs-') || zid.startsWith('whale-lqb-'));
@@ -14148,9 +27974,11 @@ const ChartViewInner = ({
             /** 핵심 S/D는 TV식 짧은 캡션만(상승·하락 % 덧붙이지 않음) · SMC 데스크는 Supply/Demand/OB/FVG 영문 고정 */
             const zoneLabelWithDir = smcShortCaption
               ? smcShortCaption
-              : isCaCoreSd
-                ? zoneBaseLabel
-                : withDirAndProb(zoneBaseLabel, zoneDirTag, zoneDirProb);
+              : isMonthStartDeskMode && isMonthDeskZoneLike(item as OverlayItem)
+                ? monthDeskZoneCaptionShort(zid, zoneBaseLabel, String(item.kind || ''))
+                : isCaCoreSd
+                  ? zoneBaseLabel
+                  : withDirAndProb(zoneBaseLabel, zoneDirTag, zoneDirProb);
             const baseLeft = Math.min(item.x1, item.x2);
             const baseWidth = Math.abs(item.x2 - item.x1);
             const isTapZone = item.id?.startsWith?.('tap-');
@@ -14170,22 +27998,203 @@ const ChartViewInner = ({
                   item.id.startsWith('smart-overlay-zone')));
             const xMaxRight = item.xMaxRight ?? (baseLeft + baseWidth);
             const isCoreMagnetZoneStrictW = isCoreAnalysisMagnetZoneStrictWidthId(item.id);
-            const width = isCoreMagnetZoneStrictW
+            const mirageZoneLeftPx = Math.min(item.x1, item.x2 ?? item.x1);
+            const mirageZoneRightPx = Number(
+              item.xMaxRight ?? Math.max(item.x1, item.x2 ?? item.x1)
+            );
+            let width = isMirageTvZoneEarly
+              ? Math.max(8, mirageZoneRightPx - mirageZoneLeftPx)
+              : isCoreMagnetZoneStrictW
               ? Math.max(1, baseWidth)
               : Math.max(baseWidth, xMaxRight - baseLeft);
-            const left = baseLeft + liveOff.dx;
+            let left = isMirageTvZoneEarly
+              ? mirageZoneLeftPx + liveOff.dx
+              : baseLeft + liveOff.dx;
             const top = Math.min(item.y1, item.y2) + liveOff.dy;
-            const height = Math.abs(item.y2 - item.y1);
-            /** 존 면은 우측까지 확장되어도 라벨·가격띠는 time2 봉 X(zoneTimeEndScreenX)에 고정 — priceStripRight(뷰포트) 고정 방지 */
-            const zte = (item as OverlayItem).zoneTimeEndScreenX;
+            let height = Math.abs(item.y2 - item.y1);
+            /** Mirage·HQ·HotZone 등 분석 zone — 형성봉→마지막봉 logical 재스냅 (last=last stub 금지) */
+            if (
+              isMergedAnalysisDesk &&
+              (isMirageTvZoneEarly ||
+                isMergedDeskAnalyzedCandleSpanOverlay(item as OverlayItem) ||
+                isPillZoneFace ||
+                isRbNamedFaceZone ||
+                isPreCaptureNamedFace) &&
+              ['zone', 'supplyZone', 'demandZone', 'box', 'reactionZone', 'fvg', 'ob'].includes(
+                String(item.kind || '')
+              )
+            ) {
+              const liveSeries = seriesRef.current;
+              const liveChart = chartRef.current;
+              const host = hostRef.current;
+              const cs =
+                chartSeriesCandlesRef.current.length >= 2
+                  ? chartSeriesCandlesRef.current
+                  : mergedDeskAlignCandles.length >= 2
+                    ? mergedDeskAlignCandles
+                    : candlesForOverlay;
+              if (liveSeries && liveChart && host && cs.length >= 2) {
+                const tsLive = liveChart.timeScale();
+                const tw = timeScalePixelWidth(tsLive, host.getBoundingClientRect().width);
+                let liveLastBarX = NaN;
+                let liveFirstBarX = NaN;
+                try {
+                  const sc = candlestickSeriesBarCount(liveSeries);
+                  if (sc > 0) {
+                    const xc = tsLive.logicalToCoordinate((sc - 1) as unknown as Logical);
+                    if (xc != null && Number.isFinite(Number(xc))) liveLastBarX = Number(xc);
+                    const xf = tsLive.logicalToCoordinate(0 as unknown as Logical);
+                    if (xf != null && Number.isFinite(Number(xf))) liveFirstBarX = Number(xf);
+                  }
+                } catch {
+                  /* ignore */
+                }
+                const deskTimeToX = (t: number) =>
+                  coreMagnetBarTimeToX(cs, t, tsLive, liveSeries);
+                const safeLast = Number.isFinite(liveLastBarX)
+                  ? liveLastBarX
+                  : Math.max(item.x1, item.x2 ?? item.x1);
+                let span: { xLeft: number; xRight: number } | null = null;
+                const isRbCoreFace =
+                  zid.startsWith('merged-desk-rb-core-settle') ||
+                  zid.startsWith('merged-desk-rb-core-fail') ||
+                  zid.startsWith('merged-desk-rb-core-break') ||
+                  zoneExtraEarly.includes('merged-desk-rb-core-set');
+                if (isRbCoreFace) {
+                  const tForm = Number((item as OverlayItem).time1);
+                  const xL = Number.isFinite(tForm) ? deskTimeToX(tForm) : NaN;
+                  const lastX = mergedDeskSeriesLastBarScreenX(liveSeries, tsLive, cs);
+                  if (Number.isFinite(xL) && Number.isFinite(lastX) && lastX > xL + 4) {
+                    span = { xLeft: xL, xRight: lastX };
+                  }
+                } else if (isMergedDeskRbCompactFaceOverlay(item as OverlayItem)) {
+                  span = mergedDeskRbCompactFaceScreenSpan(
+                    cs,
+                    item as OverlayItem,
+                    deskTimeToX,
+                    safeLast
+                  );
+                } else if (isMirageTvZoneEarly || zid.startsWith('merged-ares-mlsp-tv-')) {
+                  span = resolveMirageZoneFacePixels({
+                    item: item as OverlayItem,
+                    candles: cs,
+                    timeframe,
+                    timeScale: tsLive,
+                    series: liveSeries,
+                    timeToX: deskTimeToX,
+                    chartRightPx: tw,
+                    safeXLastBar: safeLast,
+                  });
+                }
+                if (!span && !isMergedDeskRbCompactFaceOverlay(item as OverlayItem)) {
+                  span = mergedDeskAnalyzedZoneScreenSpan(
+                    cs,
+                    item as OverlayItem,
+                    deskTimeToX,
+                    safeLast,
+                    liveFirstBarX
+                  );
+                }
+                if (span && span.xRight > span.xLeft + 4) {
+                  left = span.xLeft + liveOff.dx;
+                  width = Math.max(8, span.xRight - span.xLeft);
+                } else if (Number.isFinite(safeLast) && !isMergedDeskRbCompactFaceOverlay(item as OverlayItem)) {
+                  /** time1≈time2 stub → 최소 최근 구간의 형성폭으로 좌측 확장 */
+                  const approxBars = Math.min(48, Math.max(12, Math.floor(cs.length * 0.2)));
+                  const formT = Number(cs[Math.max(0, cs.length - 1 - approxBars)]!.time);
+                  const formX = deskTimeToX(formT);
+                  if (Number.isFinite(formX) && formX < safeLast) {
+                    left = formX + liveOff.dx;
+                    width = Math.max(8, safeLast - formX);
+                  }
+                }
+              }
+            }
+            /**
+             * zone 면·라벨 = 마지막 봉 +10.
+             */
+            let mergedDeskLastBarAnchorX = NaN;
+            let mergedDeskFuturePadAnchorX = NaN;
+            const stickMoneyToAnalyzedCandle = false;
+            void stickMoneyToAnalyzedCandle;
+            if (
+              isMergedAnalysisDesk &&
+              ['zone', 'fvg', 'ob', 'supplyZone', 'demandZone', 'bprZone', 'reactionZone', 'channelBand'].includes(
+                String(item.kind || '')
+              )
+            ) {
+              const liveSeries = seriesRef.current;
+              const liveChart = chartRef.current;
+              if (liveSeries && liveChart) {
+                const tsLive = liveChart.timeScale();
+                const fb =
+                  chartSeriesCandlesRef.current.length >= 2
+                    ? chartSeriesCandlesRef.current
+                    : candlesForOverlay;
+                const lastX = mergedDeskSeriesLastBarScreenX(liveSeries, tsLive, fb);
+                const compactFace = isMergedDeskRbCompactFaceOverlay(item as OverlayItem);
+                const isRb = isMergedDeskRbDrawOverlay(item as OverlayItem);
+                const dumpPad = isMergedDeskDumpLabelPadOverlay(item as OverlayItem);
+                const padBars = MERGED_DESK_LABEL_EXTEND_PAST_LAST_BARS;
+                const padX = mergedDeskSeriesFuturePadScreenX(
+                  liveSeries,
+                  tsLive,
+                  padBars,
+                  fb
+                );
+                if (Number.isFinite(lastX)) {
+                  mergedDeskLastBarAnchorX = lastX + liveOff.dx;
+                }
+                if (Number.isFinite(padX) && padBars > 0) {
+                  mergedDeskFuturePadAnchorX = padX + liveOff.dx;
+                }
+                if (
+                  !compactFace &&
+                  !isOverlayAbsPinned(liveOff) &&
+                  Number.isFinite(mergedDeskFuturePadAnchorX) &&
+                  mergedDeskFuturePadAnchorX > left
+                ) {
+                  width = Math.max(8, mergedDeskFuturePadAnchorX - left);
+                } else if (
+                  !isOverlayAbsPinned(liveOff) &&
+                  Number.isFinite(mergedDeskLastBarAnchorX) &&
+                  mergedDeskLastBarAnchorX > left
+                ) {
+                  width = Math.max(8, mergedDeskLastBarAnchorX - left);
+                } else if (
+                  isOverlayAbsPinned(liveOff) &&
+                  typeof liveOff.pinWidth === 'number' &&
+                  liveOff.pinWidth > 0
+                ) {
+                  width = liveOff.pinWidth;
+                }
+              }
+            }
+            /** 라벨 우측 앵커 — 마지막 봉 +10 */
             const zoneInnerRight = left + width;
-            const zoneFormRightPx =
-              typeof zte === 'number' && Number.isFinite(zte) ? zte : Math.max(item.x1, item.x2 ?? item.x1);
-            const zoneFormLeftPx = Math.min(item.x1, zoneFormRightPx);
-            const zoneFeatureRightX = zoneFormRightPx + liveOff.dx;
-            const zoneLabelCenterX = (zoneFormLeftPx + zoneFormRightPx) / 2 + liveOff.dx;
+            const zoneFormRightPx = zoneInnerRight - liveOff.dx;
+            const zoneFormLeftPx = left - liveOff.dx;
+            const zoneFeatureRightX = Number.isFinite(mergedDeskFuturePadAnchorX)
+              ? Math.min(zoneInnerRight, mergedDeskFuturePadAnchorX)
+              : Number.isFinite(mergedDeskLastBarAnchorX)
+                ? Math.min(zoneInnerRight, mergedDeskLastBarAnchorX)
+                : zoneInnerRight;
+            const zoneLabelCenterX = left + width / 2;
             const isSmartMoneyMvpLine = String(item.id || '').startsWith('smartmoney-mvp-');
-            const align = isCaCoreSd || isMajorEngineSrZone || isSmartMoneyMvpLine ? 'right' : getLabelAlign(item.id);
+            /** HQ/HotZone/coreSr/Mirage/key — 전부 우측 라벨 (btc-eth-zone-draw) */
+            const isMergedAresZoneLabel =
+              isMergedAnalysisDesk &&
+              (isMergedAnalysisDeskLabeledZone(item as OverlayItem, true) ||
+                isMergedDeskReferenceZoneOverlay(item as OverlayItem) ||
+                isMergedDeskAnalyzedCandleSpanOverlay(item as OverlayItem) ||
+                (isMergedDeskStructureScenarioOverlay(item as OverlayItem) &&
+                  ['zone', 'fvg', 'ob', 'supplyZone', 'demandZone', 'bprZone', 'reactionZone'].includes(
+                    String(item.kind || '')
+                  )));
+            const align =
+              isCaCoreSd || isMajorEngineSrZone || isSmartMoneyMvpLine || isMergedAresZoneLabel
+                ? 'right'
+                : getLabelAlign(item.id);
             const justifyContent = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
             const zoneHigh = typeof item.price1 === 'number' && typeof item.price2 === 'number' ? Math.max(item.price1, item.price2) : (item.price1 ?? item.price2);
             const zoneLow = typeof item.price1 === 'number' && typeof item.price2 === 'number' ? Math.min(item.price1, item.price2) : (item.price1 ?? item.price2);
@@ -14196,7 +28205,7 @@ const ChartViewInner = ({
               lineLblRaw.length > 0 &&
               typeof item.id === 'string' &&
               item.id.startsWith('candle-analysis-auto-');
-            const zoneDirTint = resolveZoneDirectionalColors(item as OverlayItem);
+            const zoneDirTint = resolveZoneDirectionalColorsDistinct(item as OverlayItem);
             const zoneLabelColor = useAutoLineTint
               ? toSolidOverlayColor(lineLblRaw)
               : zoneDirTint
@@ -14205,7 +28214,9 @@ const ChartViewInner = ({
             const zonePriceColor = zoneLabelColor;
             const priceBoxRight = zoneFeatureRightX;
             const chartW = item.chartWidth ?? 0;
-            const stripFs = isCandleAnalysisZone
+            const stripFs = isMergedAnalysisDesk
+              ? Math.min(8, Math.max(7, overlayPriceStripFontSize))
+              : isCandleAnalysisZone
               ? Math.max(7, Math.min(11, overlayPriceStripFontSize - 1))
               : Math.max(8, Math.min(16, overlayPriceStripFontSize));
             const priceBoxStyle = buildPriceStripOverlayStyle(priceDisplayPosition, priceDisplayHShift, priceBoxRight, chartW, {
@@ -14226,27 +28237,103 @@ const ChartViewInner = ({
                 ? 132
                 : isCandleAnalysisZone
                   ? 118
+                  : isMergedAnalysisDesk
+                    ? 104
                   : maxCleanChartLayout
                     ? 132
                     : 148;
             const labelBoxH = isCaCoreSd || isMajorEngineSrZone ? 38 : isCandleAnalysisZone ? 18 : 24;
             const labelHShift = getLabelHShift(item.id);
+            const isFusionStructureZoneLabel =
+              uiMode === 'FUSION_MODE' && typeof item.id === 'string' && item.id.startsWith('fusion-structure-');
             /** TV식: 존 우측(가격축 쪽)에 캡션 — 캔들 가운데 겹침 방지. 엔진 FVG는 형성 구간 우측/중앙 기준 */
             const caCoreRightPad = 10;
+            const isMonthDeskFeatureZone =
+              isMonthStartDeskMode && isMonthDeskFeatureOverlayId(zid) && isMonthDeskZoneLike(item as OverlayItem);
+            const isMirageTvZoneFace =
+              isMergedAnalysisDesk &&
+              typeof item.id === 'string' &&
+              (item.id.startsWith('merged-ares-mlsp-tv-') ||
+                String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                  'merged-ares-mlsp-tv-'
+                )) &&
+              ['zone', 'supplyZone', 'demandZone', 'ob', 'fvg', 'box', 'reactionZone'].includes(
+                String(item.kind || '')
+              );
+            /** btccion zone — 앞 레이어에 면·테두리·라벨을 가격 박스에 고정 (줌해도 면과 라벨 동행) */
+            const isBtccionZoneFace = isBtccionDeskZone;
+            /** zone 라벨 — 존 우측(마지막 캔들 쪽). 통합·분석은 left/hShift로 좌측 이탈 금지 */
+            const mergedZoneLabelRightX = Math.max(left + 4, zoneFeatureRightX - labelBoxW - 8);
             const anchorX =
-              isCaCoreSd || isMajorEngineSrZone
-                ? Math.max(left + 4, zoneInnerRight - labelBoxW - caCoreRightPad)
-                : zoneLabelPosition === 'right'
-                  ? zoneFeatureRightX - labelBoxW - 8
-                  : zoneLabelPosition === 'center'
-                    ? zoneLabelCenterX - labelBoxW / 2
-                    : left + 6;
-            const labelLeft = anchorX + labelHShift + zoneLabelHShift;
+              isMirageTvZoneFace || isBtccionZoneFace || (isMergedAnalysisDesk && isMergedAresZoneLabel)
+                ? mergedZoneLabelRightX
+                : isMonthDeskFeatureZone
+                ? zoneFeatureRightX - labelBoxW - 6
+                : isCaCoreSd || isMajorEngineSrZone
+                  ? Math.max(left + 4, zoneInnerRight - labelBoxW - caCoreRightPad)
+                  : zoneLabelPosition === 'right'
+                    ? zoneFeatureRightX - labelBoxW - 8
+                    : zoneLabelPosition === 'center'
+                      ? zoneLabelCenterX - labelBoxW / 2
+                      : left + 6;
+            const labelLeftRaw =
+              isMergedAnalysisDesk && isMergedAresZoneLabel
+                ? mergedZoneLabelRightX
+                : isFusionStructureZoneLabel
+                  ? anchorX + labelHShift
+                  : anchorX + labelHShift + zoneLabelHShift;
+            /** 통합·분석: 일반 라벨은 +20 여백, $$$$·최강은 마지막 봉에 안착 */
+            const labelLeftClamped =
+              isMergedAnalysisDesk && stickMoneyToAnalyzedCandle && Number.isFinite(mergedDeskLastBarAnchorX)
+                ? Math.min(
+                    Math.max(left + 4, mergedDeskLastBarAnchorX - labelBoxW - 4),
+                    Math.max(4, mergedDeskLastBarAnchorX - 4)
+                  )
+                : isMergedAnalysisDesk && Number.isFinite(mergedDeskFuturePadAnchorX)
+                ? Math.min(
+                    Math.max(
+                      Number.isFinite(mergedDeskLastBarAnchorX)
+                        ? mergedDeskLastBarAnchorX + 4
+                        : 4,
+                      labelLeftRaw
+                    ),
+                    Math.max(4, mergedDeskFuturePadAnchorX - labelBoxW - 4)
+                  )
+                : isMergedAnalysisDesk && Number.isFinite(mergedDeskLastBarAnchorX)
+                  ? Math.min(
+                      labelLeftRaw,
+                      Math.max(4, mergedDeskLastBarAnchorX - labelBoxW - 4)
+                    )
+                  : labelLeftRaw;
+            /** 통합·분석 존 라벨 — 돈구간/최강은 마지막 봉 자석, 그 외 면 우측 */
+            let labelLeft =
+              isMergedAnalysisDesk && stickMoneyToAnalyzedCandle && Number.isFinite(mergedDeskLastBarAnchorX)
+                ? Math.max(left + 4, mergedDeskLastBarAnchorX - labelBoxW - 4) + labelHShift
+                : isMergedAnalysisDesk && isMergedAresZoneLabel
+                  ? zoneInnerRight + labelHShift
+                  : labelLeftClamped;
             const caStackDy = isCaCoreSd ? (caCoreSdZoneCaptionDy.get(item.id) ?? 0) : 0;
+            const labelVShift = getLabelVShift(item.id);
+            const zoneLabelMagnet = magnetOnZoneRect(left, top, width, height);
+            const zoneLabelLiveY = liveSeriesPriceY(
+              seriesRef.current,
+              mergedDeskFeaturePrice(item as OverlayItem)
+            );
             const rawLabelTop =
-              isCaCoreSd ? top + 2 + caStackDy : isMajorEngineSrZone ? top + 2 : top + 4;
-            const labelTop = rawLabelTop;
-            const showZoneLabel = overlayHtmlLabelIntersectsChart(labelLeft, rawLabelTop, labelBoxW, labelBoxH, chartW, chartH);
+              (isMergedAnalysisDesk && isMergedAresZoneLabel
+                ? (zoneLabelLiveY != null ? zoneLabelLiveY + liveOff.dy : zoneLabelMagnet.y)
+                : isCaCoreSd
+                  ? top + 2 + caStackDy
+                  : isMajorEngineSrZone
+                    ? top + 2
+                    : top + 4) + labelVShift;
+            let labelTop = isFusionStructureZoneLabel ? rawLabelTop : rawLabelTop;
+            {
+              const pinned = applyOverlayPinAbs(liveOff, labelLeft, labelTop);
+              labelLeft = pinned.left;
+              labelTop = pinned.top;
+            }
+            const showZoneLabel = overlayHtmlLabelIntersectsChart(labelLeft, labelTop, labelBoxW, labelBoxH, chartW, chartH);
             const hideSmartZoneChartCaption =
               candleAnalysisLikeUi &&
               typeof item.id === 'string' &&
@@ -14263,12 +28350,119 @@ const ChartViewInner = ({
                 item.id === 'ai-zone-long-ref' ||
                 item.id === 'ai-zone-short-ref' ||
                 (item as OverlayItem).aiZoneNearestSr === true);
+            const isMergedAresZone = isMergedAnalysisDeskLabeledZone(item as OverlayItem, isMergedAnalysisDesk);
+            const hideMirageRightBandLabel =
+              isMergedAnalysisDesk && isMergedDeskMirageChartLabelHidden(item as OverlayItem);
+            const zoneWantsLineLabel =
+              zoneExtraEarly.includes('merged-desk-zone-label-on') ||
+              zoneExtraEarly.includes('merged-desk-zone-label-solo') ||
+              zoneExtraEarly.includes('merged-desk-zone-pro-hero') ||
+              zoneExtraEarly.includes('merged-desk-rb-rail-bounce') ||
+              zoneExtraEarly.includes('merged-desk-hotzone') ||
+              zoneExtraEarly.includes('merged-desk-practice-ai-zone') ||
+              zoneExtraEarly.includes('merged-desk-mtf-dump-zone') ||
+              zoneExtraEarly.includes('merged-desk-money-zone-keep') ||
+              zoneExtraEarly.includes('merged-desk-rb-pullback') ||
+              zoneExtraEarly.includes('merged-hq-entry-zone') ||
+              zoneExtraEarly.includes('ai-market-zone-callout') ||
+              zid.includes('rb-rail-bounce') ||
+              isAiMarketZoneCallout;
+            /** face-hidden·의도적 face-minimal만 숨김. label-on 등은 라인 라벨 유지 */
+            const hideMergedDeskFaceMinimalCaption =
+              isMergedAnalysisDesk &&
+              (zoneExtraEarly.includes('merged-desk-zone-face-hidden') ||
+                (zoneExtraEarly.includes('merged-desk-zone-face-minimal') && !zoneWantsLineLabel));
+            const mergedAresZoneLabel = isMergedAresZone ? String(item.label || '').trim() : '';
+            const mirageZoneFaceBase = String((item as OverlayItem).zoneFaceBase || '').trim();
+            const mirageZoneFaceSignal = String((item as OverlayItem).zoneFaceSignal || '').trim();
+            /** face-hidden이면 캡션 금지. 그 외(라벨 ON·label-on)는 표시 */
+            const mirageZoneFaceDisplayBase = hideMergedDeskFaceMinimalCaption
+              ? ''
+              : mirageZoneFaceBase || mergedAresZoneLabel.split('·')[0]?.trim() || mergedAresZoneLabel;
+            const mirageZoneFaceDisplaySignal = hideMergedDeskFaceMinimalCaption
+              ? ''
+              : mirageZoneFaceSignal ||
+                (mergedAresZoneLabel.includes('·')
+                  ? mergedAresZoneLabel.split('·').slice(1).join('·').trim()
+                  : '');
             const showZoneCaption =
               showZoneLabel &&
+              !hideMirageRightBandLabel &&
+              !hideMergedDeskFaceMinimalCaption &&
               !hideSmartZoneChartCaption &&
               !isBiblePatternFrame &&
               !shouldHideWhaleAutoZoneChartCaption(item) &&
-              (!isWhaleToolkitPaintOnly || smcDeskWhaleZoneCaption);
+              (!isWhaleToolkitPaintOnly || smcDeskWhaleZoneCaption) &&
+              !!(mirageZoneFaceDisplayBase || mergedAresZoneLabel || zoneBaseLabel);
+            const mergedFaceCaptionText =
+              mirageZoneFaceDisplayBase || mergedAresZoneLabel || zoneBaseLabel;
+            const isYellowCoreBreakPin =
+              zoneExtraEarly.includes('merged-desk-rb-core-break-zone') ||
+              zoneExtraEarly.includes('merged-desk-rb-core--hot');
+            const isPracticeAiZoneFace = zoneExtraEarly.includes('merged-desk-practice-ai-zone');
+            const isListedPillFace =
+              isYellowCoreBreakPin ||
+              zoneExtraEarly.includes('merged-desk-rb-ai-face') ||
+              zoneExtraEarly.includes('merged-desk-rb-ai-edge') ||
+              zoneExtraEarly.includes('merged-desk-rb-rail-bounce') ||
+              zoneExtraEarly.includes('merged-desk-rb-pullback-entry') ||
+              zoneExtraEarly.includes('merged-desk-hotzone') ||
+              isPracticeAiZoneFace ||
+              zoneExtraEarly.includes('merged-desk-mtf-dump-zone') ||
+              zoneExtraEarly.includes('merged-desk-money-zone-keep') ||
+              /^(◆*|★*)?(실전AI|실전AI지지|실전AI저항|실전·|최강분석|최강·|핵심돌파|핵심안착|핵심실패|AI채널면|매수면|매도면|\$\$\$\$|레일반등|레일저항|반등타점|저항타점|눌림반등|Hot지지|Hot저항|약반등|중반등|강반등|초강력반등|약하락|중하락|강하락|초강력하락|약저항|중저항|강저항|초강력저항)/.test(
+                String(mergedFaceCaptionText || '').replace(/^◆+/, '')
+              );
+            /** 라벨 ON이면 보이는 zone마다 면 우측 라벨 표시 */
+            const isRbRailBounceFace =
+              zoneExtraEarly.includes('merged-desk-rb-rail-bounce') ||
+              zid.includes('rb-rail-bounce');
+            const forceBounceZoneFaceLabel =
+              mergedDeskOverlayLabelsOn &&
+              !zoneExtraEarly.includes('merged-desk-zone-face-hidden') &&
+              (zoneWantsLineLabel ||
+                isRbNamedFaceZone ||
+                isHotZoneNamedFace ||
+                isPillZoneFace ||
+                isMergedAresZone ||
+                !!(mirageZoneFaceDisplayBase || mergedAresZoneLabel || zoneBaseLabel));
+            const bounceFaceText =
+              isAiMarketZoneCallout && mirageZoneFaceDisplayBase
+                ? mirageZoneFaceDisplaySignal
+                  ? `${mirageZoneFaceDisplayBase}\n${mirageZoneFaceDisplaySignal}`
+                  : mirageZoneFaceDisplayBase
+                : mirageZoneFaceDisplayBase ||
+                  mergedAresZoneLabel ||
+                  zoneBaseLabel ||
+                  (isRbRailBounceFace
+                    ? zoneExtraEarly.includes('rail-bounce-short') ||
+                      String(item.structureBias || '') === 'bearish'
+                      ? '★약하락'
+                      : '★약반등'
+                    : '');
+            const deskFacePinTextOn =
+              forceBounceZoneFaceLabel || isRbRailBounceFace
+                ? true
+                : isListedPillFace
+                  ? isOverlayPillFaceVisible(mergedFaceCaptionText)
+                  : isOverlayWhiteFaceVisible(mergedFaceCaptionText);
+            const fusionZoneLabelId = String(item.id || '');
+            const fusionZoneLabelTier =
+              fusionZoneLabelId.includes('-must-hold') ||
+              fusionZoneLabelId.includes('-must-break') ||
+              fusionZoneLabelId.includes('-status-chip') ||
+              fusionZoneLabelId.includes('-trigger')
+                ? 'critical'
+                : fusionZoneLabelId.includes('-entry1') ||
+                    fusionZoneLabelId.includes('-tp-safe') ||
+                    fusionZoneLabelId.includes('-pullback-zone') ||
+                    fusionZoneLabelId.includes('-rebound-zone')
+                  ? 'major'
+                  : 'minor';
+            const fusionHideMinorZoneLabel =
+              uiMode === 'FUSION_MODE' &&
+              fusionZoneLabelTier === 'minor' &&
+              (maxCleanChartLayout || executionCalmLayout);
             const zoneBorder = isAiCoreZone
               ? `2.2px solid ${zoneLabelColor}dd`
               : isBiblePatternFrame
@@ -14338,11 +28532,98 @@ const ChartViewInner = ({
             /** `overlayZoneExtraClass`가 있으면 테두리는 globals.css에서 처리(인라인 border가 클래스를 덮지 않게) */
             const zoneBorderInline = overlayZoneExtraFront.length > 0 ? undefined : zoneBorder;
             const zoneGeomOnScreen = overlayHtmlLabelIntersectsChart(left, top, width, height, chartW, chartH);
+            const fusionPriorityId = String(item.id || '');
+            const isFusionPriorityTarget =
+              uiMode === 'FUSION_MODE' &&
+              (
+                fusionPriorityId.includes('-must-hold') ||
+                fusionPriorityId.includes('-must-break') ||
+                fusionPriorityId.includes('-tp-safe-zone') ||
+                fusionPriorityId.includes('-tp-stretch-zone')
+              );
+            const isFusionPriorityNear =
+              isFusionPriorityTarget &&
+              typeof lastClosePixelY === 'number' &&
+              lastClosePixelY >= top - 14 &&
+              lastClosePixelY <= top + height + 14;
+            const isMirageZoneSelected =
+              isMirageTvZoneEarly &&
+              selectedMirageZoneId != null &&
+              String(item.id) === String(selectedMirageZoneId);
+            const mirageFaceCaptionReveal =
+              overlayZoneExtraFront.includes('merged-ares-mlsp-tv-zone-approach') ||
+              overlayZoneExtraFront.includes('merged-ares-mlsp-tv-zone-selected') ||
+              isMirageZoneSelected;
+            /** 캡션 = 존 우측 + 기능 가격 Y. 줌마다 live 좌표라 도형에서 안 떨어짐 */
+            const zoneMagnet = magnetOnZoneRect(left, top, width, height);
+            const isCoreFaceLabel = isMergedDeskCoreLabelFeature(
+              zid,
+              zoneExtraEarly,
+              mergedFaceCaptionText || zoneBaseLabel
+            );
+            const faceLiveY = liveSeriesPriceY(
+              seriesRef.current,
+              mergedDeskFeaturePrice(item as OverlayItem)
+            );
+            /** AI면 팩만(id merged-desk-rb-ai-*) — 도식/schematic 제외. 라벨=존 좌측 위 테두리 밖 */
+            const isRbAiZoneFacePack =
+              zid.startsWith('merged-desk-rb-ai-') ||
+              ((zoneExtraEarly.includes('merged-desk-rb-ai-htf') ||
+                zoneExtraEarly.includes('merged-desk-rb-ai-ltf') ||
+                zoneExtraEarly.includes('merged-desk-rb-ai-edge') ||
+                zoneExtraEarly.includes('merged-desk-rb-ai-st')) &&
+                !zoneExtraEarly.includes('merged-desk-rb-schematic'));
+            /** 전투·conflict 밴드 캡션은 항상 우측(가격축) */
+            const isSmcBattleZoneFace =
+              zoneExtraEarly.includes('merged-desk-smc-zone-battle') ||
+              zoneExtraEarly.includes('merged-ares-mlsp-tv-conflict-band') ||
+              zoneExtraEarly.includes('merged-desk-smc-zone-battle-member');
+            const faceStickX = (() => {
+              const isSchematicReactionFace =
+                zoneExtraEarly.includes('merged-desk-rb-schematic-bounce') ||
+                zoneExtraEarly.includes('merged-desk-rb-schematic-resist') ||
+                zoneExtraEarly.includes('merged-desk-rb-schematic-dump') ||
+                zoneExtraEarly.includes('merged-desk-structure-reaction');
+              if (isSmcBattleZoneFace) {
+                return Number.isFinite(mergedDeskFuturePadAnchorX)
+                  ? mergedDeskFuturePadAnchorX
+                  : zoneInnerRight;
+              }
+              /** 좌측 테두리 — 라벨은 transform으로 테두리 위(밖)에 앉힘 */
+              if (isRbAiZoneFacePack) return left;
+              /** 도식저항·반등 = 터치봉 구간 중앙에 라벨 부착 */
+              if (isSchematicReactionFace) return left + Math.max(8, width) / 2;
+              if (forceBounceZoneFaceLabel || isPillZoneFace || isHotZoneNamedFace) return zoneInnerRight;
+              if (isCoreFaceLabel || isRbNamedFaceZone) {
+                return Number.isFinite(mergedDeskFuturePadAnchorX)
+                  ? mergedDeskFuturePadAnchorX
+                  : zoneInnerRight;
+              }
+              return zoneInnerRight;
+            })();
+            /** AI면은 드래그 가로시프트 무시 — 우측으로 밀리지 않게. 전투밴드는 우측 자석 */
+            const mirageFaceCaptionLeft =
+              isRbAiZoneFacePack && !isSmcBattleZoneFace
+                ? faceStickX
+                : faceStickX + getLabelHShift(String(item.id));
+            const mirageFaceCaptionTop =
+              isRbAiZoneFacePack && !isSmcBattleZoneFace
+                ? top - 2 + getLabelVShift(String(item.id))
+                : (faceLiveY != null ? faceLiveY + liveOff.dy : zoneMagnet.y) +
+                  getLabelVShift(String(item.id));
+            const zoneNudge = labelNudgeAttrs(String(item.id));
             return (
-              <div key={item.id} style={{ position: 'absolute', left: 0, top: 0 }}>
+              <div
+                key={item.id}
+                className={zoneNudge.className || undefined}
+                style={{ position: 'absolute', left: 0, top: 0, ...zoneNudge.style }}
+              >
                 <div
                   className={[
                     'overlay-zone',
+                    isMirageZoneSelected ? 'merged-ares-mlsp-tv-zone-selected' : '',
+                    overlayLabelProximityIds.has(String(item.id)) && !fusionPerfLite ? 'overlay-zone-near-candle' : '',
+                    isFusionPriorityNear && !fusionPerfLite ? 'overlay-fusion-priority-near' : '',
                     isCandleAnalysisZone ? 'overlay-zone--candle-analysis' : '',
                     (item as OverlayItem).zonePulse ? 'overlay-zone--core-pulse' : '',
                     ...overlayZoneExtraFront,
@@ -14354,7 +28635,23 @@ const ChartViewInner = ({
                     top,
                     width,
                     height,
-                    background: OVERLAY_ZONE_FILL_BEHIND_CHART
+                    background: overlayZoneExtraFront.includes('merged-desk-zone-face-hidden')
+                      ? 'transparent'
+                      : isPillZoneFace
+                      ? undefined
+                      : isMirageTvZoneFace || isBtccionZoneFace || isRbNamedFaceZone || isPreCaptureNamedFace
+                      ? typeof item.color === 'string' && item.color.length
+                        ? isPreCaptureNamedFace
+                          ? tintMergedDeskEuromapFill(item.color, settings, zid)
+                          : item.color
+                        : isHotZoneNamedFace
+                          ? tintMergedDeskEuromapFill('rgba(245,158,11,0.28)', settings, zid)
+                          : isProjectedSupportNamedFace
+                            ? tintMergedDeskEuromapFill('rgba(45,212,191,0.28)', settings, zid)
+                          : isBtccionZoneFace
+                            ? 'rgba(56,189,248,0.22)'
+                            : 'rgba(148,163,184,0.24)'
+                      : OVERLAY_ZONE_FILL_BEHIND_CHART && !mergedTouchUi
                       ? 'transparent'
                       : zoneDirTint
                         ? zoneDirTint.fillSoft
@@ -14365,22 +28662,49 @@ const ChartViewInner = ({
                             : isCandleAnalysisZone
                               ? caZoneFillSoftMult
                               : zoneFillPreserveFront
-                                ? zoneFillPreserveLayoutMult(maxCleanChartLayout, executionCalmLayout)
+                                ? zoneFillPreserveLayoutMult(
+                                    maxCleanChartLayout,
+                                    executionCalmLayout,
+                                    isMergedAnalysisDesk
+                                  )
                                 : zoneFillSoftenMult,
-                          zoneFillPreserveFront ? { minAlpha: 0.055 } : undefined
+                          zoneFillPreserveFront
+                            ? { minAlpha: isMergedAnalysisDesk ? 0.028 : 0.055 }
+                            : undefined
                         ),
-                    border:
-                      (isWhaleToolkitPaintOnly ? `1.5px solid ${zoneLabelColor}72` : undefined) ??
+                    border: overlayZoneExtraFront.includes('merged-desk-zone-face-hidden')
+                      ? 'none'
+                      : isPillZoneFace
+                        ? undefined
+                        : isMirageTvZoneFace
+                        ? `1px ${String(item.id || '').includes('ob') ? 'dashed' : 'solid'} ${zoneLabelColor}66`
+                        : isBtccionZoneFace
+                        ? `1.5px ${zid.includes('hunt') ? 'dashed' : 'solid'} ${zoneLabelColor}cc`
+                        : (isWhaleToolkitPaintOnly ? `1.5px solid ${zoneLabelColor}72` : undefined) ??
                       zoneBorderInline ??
                       (zoneDirTint && !isBiblePatternFrame ? `1px solid ${zoneDirTint.strokeSoft}` : undefined),
+                    borderRadius: overlayZoneExtraFront.includes('merged-desk-zone-face-hidden')
+                      ? undefined
+                      : isPillZoneFace
+                        ? overlayZoneExtraFront.includes('merged-desk-zone-pro-soft')
+                          ? 3
+                          : 4
+                        : undefined,
+                    opacity: overlayZoneExtraFront.includes('merged-desk-zone-face-hidden') ? 0 : undefined,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent,
                     paddingLeft: 6,
                     paddingRight: 6,
-                    pointerEvents: OVERLAY_ZONE_FILL_BEHIND_CHART || smcPlaybookLock ? 'none' : 'auto',
-                    cursor:
-                      OVERLAY_ZONE_FILL_BEHIND_CHART || smcPlaybookLock
+                    pointerEvents:
+                      isDeskZoneExplainClick
+                        ? 'auto'
+                        : OVERLAY_ZONE_FILL_BEHIND_CHART || smcPlaybookLock
+                          ? 'none'
+                          : 'auto',
+                    cursor: isDeskZoneExplainClick
+                      ? 'pointer'
+                      : OVERLAY_ZONE_FILL_BEHIND_CHART || smcPlaybookLock
                         ? 'default'
                         : isWhaleAutoOverlay
                           ? 'default'
@@ -14388,21 +28712,458 @@ const ChartViewInner = ({
                             ? 'grabbing'
                             : 'grab',
                   }}
+                  onClick={(e) => {
+                    focusChartLabelInSettings(
+                      String(item.id),
+                      String(mirageZoneFaceDisplayBase || mergedAresZoneLabel || zoneBaseLabel || item.label || '')
+                    );
+                    e.stopPropagation();
+                    if (didDragRef.current) { didDragRef.current = false; return; }
+                    const lab = String(item.label || zoneBaseLabel || '').trim();
+                    openLabelClickIntel(
+                      item,
+                      e.clientX,
+                      e.clientY,
+                      isRbChannelZone
+                        ? explainMergedDeskRbLabel(lab, String((item as OverlayItem).labelTooltip || ''))
+                        : undefined,
+                    );
+                    if (isDeskZoneExplainClick && onMirageZoneSelect) {
+                      onMirageZoneSelect(String(item.id));
+                    }
+                  }}
                   onMouseDown={(e) => {
                     if (OVERLAY_ZONE_FILL_BEHIND_CHART || isWhaleAutoOverlay || smcPlaybookLock) return;
-                    startLabelDrag(item.id, left, xMaxRight, liveOff, e);
+                    if (isDeskZoneExplainClick) return;
+                    startLabelDrag(item.id, left, xMaxRight, liveOff, e, {
+                      absLeft: labelLeft,
+                      absTop: labelTop,
+                      width,
+                    });
                   }}
                 >
-                  <span style={{ opacity: 0, pointerEvents: 'none' }}>{zoneLabelWithDir}</span>
+                  {zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                    ? (() => {
+                        const raw = item as OverlayItem;
+                        const ep1 =
+                          Number(raw.priceFrozen1) > 0
+                            ? Number(raw.priceFrozen1)
+                            : Number(raw.price1) > 0
+                              ? Number(raw.price1)
+                              : Number(raw.y1);
+                        const ep2 =
+                          Number(raw.priceFrozen2) > 0
+                            ? Number(raw.priceFrozen2)
+                            : Number(raw.price2) > 0
+                              ? Number(raw.price2)
+                              : Number(raw.y2);
+                        if (!(ep1 > 0) || !(ep2 > 0)) return null;
+                        const hi = Math.max(ep1, ep2);
+                        const lo = Math.min(ep1, ep2);
+                        const rawPct = Number(settings.chartMergedDeskDumpLabelPosPct);
+                        const pct = Number.isFinite(rawPct)
+                          ? Math.max(0, Math.min(100, rawPct))
+                          : 100;
+                        const fine =
+                          (Number(zoneLabelHShift) || 0) + getLabelHShift(String(item.id));
+                        /** 맨 우측 모서리(기본) · 좌/중은 % · 위=상단가 · 아래=하단가 */
+                        const edgeStyle = (edge: 'hi' | 'lo') => {
+                          const y =
+                            edge === 'hi' ? ('translateY(-50%)' as const) : ('translateY(50%)' as const);
+                          if (pct >= 90) {
+                            return {
+                              left: 'auto' as const,
+                              right: Math.max(0, 4 - fine),
+                              transform: y,
+                            };
+                          }
+                          if (pct <= 10) {
+                            return {
+                              left: Math.max(0, 4 + fine),
+                              right: 'auto' as const,
+                              transform: y,
+                            };
+                          }
+                          return {
+                            left: `calc(${pct}% + ${fine}px)`,
+                            right: 'auto' as const,
+                            transform: `translate(-50%, ${edge === 'hi' ? '-50%' : '50%'})`,
+                          };
+                        };
+                        const edgeFs = (() => {
+                          const n = Number(settings.chartMergedDeskDumpEdgePriceFontSize);
+                          return Number.isFinite(n) ? Math.max(7, Math.min(18, Math.round(n))) : 8;
+                        })();
+                        const edgeCol =
+                          typeof settings.chartMergedDeskDumpEdgePriceColor === 'string' &&
+                          /^#[0-9a-fA-F]{6}$/.test(settings.chartMergedDeskDumpEdgePriceColor)
+                            ? settings.chartMergedDeskDumpEdgePriceColor
+                            : '#fef08a';
+                        return (
+                          <>
+                            <span
+                              className="merged-desk-mtf-dump-edge-px merged-desk-mtf-dump-edge-px--hi"
+                              style={{
+                                ...edgeStyle('hi'),
+                                fontSize: edgeFs,
+                                color: edgeCol,
+                                borderColor: edgeCol,
+                              }}
+                              title={`상단 ${Math.round(hi)}`}
+                            >
+                              {Math.round(hi)}
+                            </span>
+                            <span
+                              className="merged-desk-mtf-dump-edge-px merged-desk-mtf-dump-edge-px--lo"
+                              style={{
+                                ...edgeStyle('lo'),
+                                fontSize: edgeFs,
+                                color: edgeCol,
+                                borderColor: edgeCol,
+                              }}
+                              title={`하단 ${Math.round(lo)}`}
+                            >
+                              {Math.round(lo)}
+                            </span>
+                          </>
+                        );
+                      })()
+                    : null}
+                  {(!isMergedAnalysisDesk ||
+                    forceBounceZoneFaceLabel ||
+                    isOverlayWhiteFaceVisible(
+                      mirageZoneFaceDisplayBase || mergedAresZoneLabel || zoneBaseLabel
+                    )) &&
+                    !(
+                      zoneExtraEarly.includes('merged-desk-mtf-dump-zone') &&
+                      !(mirageZoneFaceDisplayBase || bounceFaceText || '').trim()
+                    ) && (
+                  <span
+                    className={
+                      [
+                        isMergedAnalysisDesk && isMergedAresZone
+                          ? forceBounceZoneFaceLabel
+                            ? 'merged-ares-zone-caption merged-desk-bounce-zone-line-label'
+                            : 'merged-ares-zone-caption'
+                          : forceBounceZoneFaceLabel
+                            ? 'merged-desk-bounce-zone-line-label'
+                            : undefined,
+                        isAiMarketZoneCallout ? 'ai-market-zone-callout-label' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ') || undefined
+                    }
+                    style={{
+                      /** 반등·Hot·돈구간: zone 우측 라인에 라벨 1개만 · AMZ는 목업형 멀티라인 */
+                      opacity: isRbAiZoneFacePack
+                        ? 0
+                        : forceBounceZoneFaceLabel
+                        ? 1
+                        : isMirageTvZoneFace || (isMergedAnalysisDesk && isMergedAresZone)
+                          ? 0
+                          : isBtccionZoneFace
+                            ? 1
+                            : isMergedAresZone && (mergedAresZoneLabel || zoneBaseLabel)
+                              ? 1
+                              : 0,
+                      display: isRbAiZoneFacePack
+                        ? 'none'
+                        : forceBounceZoneFaceLabel
+                        ? isAiMarketZoneCallout
+                          ? 'flex'
+                          : 'inline-flex'
+                        : isMirageTvZoneFace || (isMergedAnalysisDesk && isMergedAresZone)
+                          ? 'none'
+                          : undefined,
+                      flexDirection: isAiMarketZoneCallout ? ('column' as const) : undefined,
+                      alignItems: isAiMarketZoneCallout ? ('flex-start' as const) : undefined,
+                      gap: isAiMarketZoneCallout ? 2 : undefined,
+                      pointerEvents: 'none',
+                      fontSize: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? Math.max(
+                            7,
+                            Math.min(
+                              18,
+                              Math.round(Number(settings.chartMergedDeskDumpFaceLabelFontSize) || 9)
+                            )
+                          )
+                        : isAiMarketZoneCallout
+                        ? 10
+                        : forceBounceZoneFaceLabel
+                          ? 10
+                          : isMirageTvZoneFace
+                            ? 8
+                            : isBtccionZoneFace
+                              ? 10
+                              : 9,
+                      fontWeight: zoneExtraEarly.includes('merged-desk-mtf-dump-zone') ? 800 : 900,
+                      color: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? String((item as OverlayItem).labelTextColor || '#fef9c3')
+                        : '#f8fafc',
+                      padding: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? '0 3px'
+                        : isAiMarketZoneCallout
+                        ? '6px 8px'
+                        : forceBounceZoneFaceLabel
+                          ? '2px 7px'
+                          : isMirageTvZoneFace
+                            ? '2px 5px'
+                            : '2px 6px',
+                      borderRadius: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? 0
+                        : isAiMarketZoneCallout
+                          ? 8
+                          : 3,
+                      background: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? 'transparent'
+                        : forceBounceZoneFaceLabel
+                        ? zoneExtraEarly.includes('hotzone-signal--short') ||
+                          zoneExtraEarly.includes('rail-bounce-short') ||
+                          zoneExtraEarly.includes('pullback-short') ||
+                          String(item.structureBias || '') === 'bearish'
+                          ? isAiMarketZoneCallout
+                            ? 'rgba(69,10,10,0.94)'
+                            : 'rgba(127,29,29,0.96)'
+                          : isAiMarketZoneCallout
+                            ? 'rgba(2,44,34,0.94)'
+                            : 'rgba(6,78,59,0.96)'
+                        : 'rgba(15,23,42,0.88)',
+                      border: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? 'none'
+                        : forceBounceZoneFaceLabel
+                        ? zoneExtraEarly.includes('hotzone-signal--short') ||
+                          String(item.structureBias || '') === 'bearish'
+                          ? '1px solid rgba(248,113,113,0.75)'
+                          : '1px solid rgba(74,222,128,0.75)'
+                        : isMirageTvZoneFace || isBtccionZoneFace
+                          ? '1px solid rgba(255,255,255,0.1)'
+                          : undefined,
+                      boxShadow: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? 'none'
+                        : forceBounceZoneFaceLabel
+                        ? isAiMarketZoneCallout
+                          ? '0 4px 14px rgba(0,0,0,0.45)'
+                          : '0 0 0 1px rgba(250,204,21,0.35)'
+                        : isMirageTvZoneFace || isBtccionZoneFace
+                          ? '0 1px 4px rgba(0,0,0,0.3)'
+                          : undefined,
+                      WebkitTextStroke: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? '0.4px rgba(0,0,0,0.88)'
+                        : undefined,
+                      textShadow: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? '0 0 2px #000,0 0 4px #000,0 1px 0 #000,0 -1px 0 #000,1px 0 0 #000,-1px 0 0 #000,0 0 10px rgba(0,0,0,0.95)'
+                        : undefined,
+                      whiteSpace: isAiMarketZoneCallout ? 'pre-line' : 'nowrap',
+                      lineHeight: isAiMarketZoneCallout ? 1.25 : undefined,
+                      maxWidth: isAiMarketZoneCallout ? 168 : undefined,
+                      zIndex: 6,
+                      ...(zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                        ? (() => {
+                            const pct = Math.max(
+                              0,
+                              Math.min(100, Number(settings.chartMergedDeskDumpLabelPosPct) || 0)
+                            );
+                            const fine =
+                              (Number(zoneLabelHShift) || 0) + getLabelHShift(String(item.id));
+                            return {
+                              position: 'absolute' as const,
+                              left: `calc(${pct}% + ${fine}px)`,
+                              right: 'auto',
+                              top: '50%',
+                              transform: `translate(-${pct}%, -50%)`,
+                              fontFamily:
+                                '"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif',
+                            };
+                          })()
+                        : isMergedAnalysisDesk
+                          ? {
+                              left: 'auto',
+                              right: 4,
+                              top: '50%',
+                              position: 'absolute' as const,
+                              transform: 'translateY(-50%)',
+                            }
+                          : null),
+                    }}
+                  >
+                    {forceBounceZoneFaceLabel
+                      ? bounceFaceText || '★약반등'
+                      : mergedAresZoneLabel || zoneLabelWithDir}
+                  </span>
+                  )}
                 </div>
+                {/** zone 라인 라벨이 있으면 핀 라벨 금지 — 1개만 */}
+                {!forceBounceZoneFaceLabel &&
+                  ((isMirageTvZoneFace &&
+                  mirageZoneFaceDisplayBase &&
+                  deskFacePinTextOn &&
+                  !hideMergedDeskFaceMinimalCaption &&
+                  !hideMirageRightBandLabel &&
+                  !overlayZoneExtraFront.includes('merged-desk-zone-pro-soft')) ||
+                  (isDeskZoneExplainClick &&
+                    deskFacePinTextOn &&
+                    !hideMergedDeskFaceMinimalCaption &&
+                    !hideMirageRightBandLabel &&
+                    !overlayZoneExtraFront.includes('merged-desk-zone-pro-soft') &&
+                    (mirageZoneFaceDisplayBase || mergedAresZoneLabel || zoneBaseLabel)) ||
+                  (isMergedAnalysisDesk &&
+                    (isPillZoneFace || isRbNamedFaceZone || isPreCaptureNamedFace || isRbRailBounceFace) &&
+                    !!(bounceFaceText || mirageZoneFaceDisplayBase || mergedAresZoneLabel || zoneBaseLabel) &&
+                    deskFacePinTextOn &&
+                    (!hideMergedDeskFaceMinimalCaption || isRbRailBounceFace) &&
+                    !hideMirageRightBandLabel &&
+                    (!overlayZoneExtraFront.includes('merged-desk-zone-pro-soft') || isRbRailBounceFace))) && (
+                  <div
+                    data-chart-text-off={!deskFacePinTextOn ? '1' : undefined}
+                    className={[
+                      'merged-ares-mlsp-tv-zone-caption-pin',
+                      'merged-ares-mlsp-tv-zone-caption-pin--reveal',
+                      'merged-ares-mlsp-tv-zone-caption-pin--clickable',
+                      isMergedDeskHotZoneClick || isPillZoneFace || isRbNamedFaceZone || isPreCaptureNamedFace
+                        ? 'merged-desk-hotzone-caption-pin'
+                        : '',
+                      isRbAiZoneFacePack && !isSmcBattleZoneFace
+                        ? 'overlay-label--zone-left-stick'
+                        : 'overlay-label--feature-stick',
+                      isCoreFaceLabel ? 'overlay-label--core-stick' : '',
+                      isProjectedSupportNamedFace
+                        ? 'merged-desk-precapture-caption-pin'
+                        : '',
+                      (isPillZoneFace || isHotZoneNamedFace) && zoneExtraEarly.includes('hotzone-signal--short')
+                        ? 'merged-desk-hotzone-caption-pin--short'
+                        : (isPillZoneFace || isHotZoneNamedFace) && zoneExtraEarly.includes('hotzone-signal--long')
+                          ? 'merged-desk-hotzone-caption-pin--long'
+                          : '',
+                      chipSimRank ? `merged-desk-chip-sim merged-desk-chip-sim--${chipSimRank}` : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    style={{
+                      left: mirageFaceCaptionLeft,
+                      top: mirageFaceCaptionTop,
+                      ['--md-feat-zoom' as string]: String(
+                        forceBounceZoneFaceLabel
+                          ? Math.max(
+                              0.92,
+                              featureLabelZoom(
+                                mergedDeskZoomScale,
+                                Math.max(height, 28),
+                                Math.max(width, 96)
+                              )
+                            )
+                          : featureLabelZoom(mergedDeskZoomScale, height, width)
+                      ),
+                      ...(getExplicitFontSize(String(item.id))
+                        ? { fontSize: getExplicitFontSize(String(item.id)) as number }
+                        : {
+                            fontSize: zoneExtraEarly.includes('merged-desk-mtf-dump-zone')
+                              ? 8
+                              : forceBounceZoneFaceLabel
+                                ? 10
+                                : 8,
+                          }),
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="라벨 지지·거래량"
+                    onClick={(e) => {
+                      focusChartLabelInSettings(
+                        String(item.id),
+                        String(mirageZoneFaceDisplayBase || mergedAresZoneLabel || zoneBaseLabel || item.label || '')
+                      );
+                      e.stopPropagation();
+                      if (didDragRef.current) { didDragRef.current = false; return; }
+                      openLabelClickIntel(item, e.clientX, e.clientY);
+                      if (isDeskZoneExplainClick && onMirageZoneSelect) {
+                        onMirageZoneSelect(String(item.id));
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      openLabelClickIntel(item, rect.left, rect.bottom);
+                      if (isDeskZoneExplainClick && onMirageZoneSelect) {
+                        onMirageZoneSelect(String(item.id));
+                      }
+                    }}
+                  >
+                    <span
+                      className="merged-ares-mlsp-tv-zone-text"
+                      title={
+                        chipSimRank
+                          ? `유사 ${chipSimRank}위 · ${String((item as OverlayItem).labelTooltip || mergedAresZoneLabel || zoneBaseLabel || '')} · 클릭: 지지·거래량`
+                          : `${String((item as OverlayItem).labelTooltip || mergedAresZoneLabel || zoneBaseLabel || '')} · 클릭: 지지·거래량`
+                      }
+                    >
+                      {chipSimRank ? (
+                        <span className={`merged-desk-chip-sim-badge merged-desk-chip-sim-badge--${chipSimRank}`}>
+                          {chipSimBadgeText(chipSimRank)}
+                        </span>
+                      ) : null}
+                      <span className="merged-ares-mlsp-tv-zone-text__base">
+                        {bounceFaceText ||
+                          mirageZoneFaceDisplayBase ||
+                          mergedAresZoneLabel ||
+                          zoneBaseLabel}
+                      </span>
+                      {mirageZoneFaceDisplaySignal &&
+                      mirageZoneFaceDisplaySignal !== '--' &&
+                      mirageZoneFaceDisplaySignal !== '-' &&
+                      (isAiMarketZoneCallout ||
+                        isPracticeAiZoneFace ||
+                        overlayZoneExtraFront.includes('merged-desk-mtf-dump-zone') ||
+                        !overlayZoneExtraFront.includes('merged-desk-money-zone-keep') ||
+                        overlayZoneExtraFront.some(
+                          (c) =>
+                            c.startsWith('merged-desk-rb-core-') ||
+                            c.includes('merged-desk-rb-rail-bounce') ||
+                            c.includes('merged-desk-rb-pullback')
+                        )) ? (
+                        <span
+                          className="merged-ares-mlsp-tv-zone-text__signal"
+                          style={
+                            isAiMarketZoneCallout || isPracticeAiZoneFace
+                              ? { display: 'block', whiteSpace: 'pre-line', marginTop: 2 }
+                              : undefined
+                          }
+                        >
+                          {isAiMarketZoneCallout || isPracticeAiZoneFace
+                            ? mirageZoneFaceDisplaySignal
+                            : `·${mirageZoneFaceDisplaySignal}`}
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                )}
                 {showZoneCaption &&
-                  !suppressZoneHtmlCaptions &&
+                  !forceBounceZoneFaceLabel &&
+                  !isMirageTvZoneFace &&
+                  !isDeskZoneExplainClick &&
+                  !(isMergedAnalysisDesk && (isPillZoneFace || isRbNamedFaceZone || isPreCaptureNamedFace)) &&
+                  !fusionHideMinorZoneLabel &&
+                  !monthDeskTailQuiet &&
+                  isOverlayChartTextVisible(
+                    String(item.id),
+                    mirageZoneFaceDisplayBase || mergedAresZoneLabel || zoneBaseLabel
+                  ) &&
+                  (!suppressZoneHtmlCaptions ||
+                    (isMonthStartDeskMode && shouldShowMonthDeskZoneCaption(String(item.id || '')))) &&
                   (isCaCoreSd ||
                     isMajorEngineSrZone ||
-                    isOverlayChartTextVisible(item.id) ||
+                    isMergedAresZone ||
+                    (isMonthStartDeskMode && shouldShowMonthDeskZoneCaption(String(item.id || ''))) ||
                     smcDeskWhaleZoneCaption) && (
                   <div
-                    className={overlayLabelProximityIds.has(String(item.id)) ? 'overlay-label-near-candle' : undefined}
+                    className={[
+                      overlayLabelProximityIds.has(String(item.id)) && !fusionPerfLite ? 'overlay-label-near-candle' : undefined,
+                      uiMode === 'FUSION_MODE' ? 'overlay-fusion-label' : undefined,
+                      uiMode === 'FUSION_MODE' ? `overlay-fusion-label--${fusionZoneLabelTier}` : undefined,
+                      chipSimRank ? `merged-desk-chip-sim merged-desk-chip-sim--${chipSimRank}` : undefined,
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined}
                     style={{
                       position: 'absolute',
                       left: labelLeft,
@@ -14410,15 +29171,17 @@ const ChartViewInner = ({
                       whiteSpace: isCaCoreSd || isMajorEngineSrZone ? 'pre-line' : 'nowrap',
                       textAlign: isCaCoreSd || isMajorEngineSrZone ? 'right' : undefined,
                       lineHeight: isCaCoreSd || isMajorEngineSrZone ? 1.2 : undefined,
-                      fontSize: isCaCoreSd || isMajorEngineSrZone
-                        ? (maxCleanChartLayout ? 9 : 9.5)
-                        : isCandleAnalysisZone
-                          ? (maxCleanChartLayout ? 8.25 : 9)
-                          : isTapZone
-                            ? Math.max(getFontSize(item.id), 12)
-                            : maxCleanChartLayout
-                              ? Math.max(8, getFontSize(item.id) - 0.5)
-                              : getFontSize(item.id),
+                      /** 사용자가 그 라벨에 직접 지정한 크기가 있으면 모드별 고정값보다 우선 */
+                      fontSize: getExplicitFontSize(item.id) ??
+                        (isCaCoreSd || isMajorEngineSrZone
+                          ? (maxCleanChartLayout ? 9 : 9.5)
+                          : isCandleAnalysisZone
+                            ? (maxCleanChartLayout ? 8.25 : 9)
+                            : isTapZone
+                              ? Math.max(getFontSize(item.id), 12)
+                              : maxCleanChartLayout
+                                ? Math.max(8, getFontSize(item.id) - 0.5)
+                                : getFontSize(item.id)),
                       fontFamily: getFontFamily(item.id) || undefined,
                       fontWeight: isCaCoreSd || isMajorEngineSrZone ? 700 : isCandleAnalysisZone ? 560 : isTapZone ? 700 : isWhaleOb ? 760 : 520,
                       color: isCaCoreSd || isMajorEngineSrZone ? '#f8fafc' : zoneLabelColor,
@@ -14447,42 +29210,65 @@ const ChartViewInner = ({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       pointerEvents: OVERLAY_ZONE_FILL_BEHIND_CHART ? 'auto' : undefined,
-                      cursor:
-                        smcPlaybookLock
+                      cursor: smcPlaybookLock
                           ? 'default'
-                          : OVERLAY_ZONE_FILL_BEHIND_CHART && !isWhaleAutoOverlay
-                            ? isDragging
-                              ? 'grabbing'
-                              : 'grab'
-                            : isCaCoreSd || isMajorEngineSrZone || !compactTradeLabel(item.id, zoneLabelWithDir).expandable
-                              ? 'default'
-                              : 'pointer',
+                          : isDragging
+                            ? 'grabbing'
+                            : 'pointer',
                     }}
                     onMouseDown={(e) => {
                       if (smcPlaybookLock || !OVERLAY_ZONE_FILL_BEHIND_CHART || isWhaleAutoOverlay) return;
-                      startLabelDrag(item.id, left, xMaxRight, liveOff, e);
+                      startLabelDrag(item.id, left, xMaxRight, liveOff, e, {
+                      absLeft: labelLeft,
+                      absTop: labelTop,
+                      width,
+                    });
                     }}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (didDragRef.current) { didDragRef.current = false; return; }
+                      const lab = String(item.label || zoneLabelWithDir || '').trim();
+                      openLabelClickIntel(
+                        item,
+                        e.clientX,
+                        e.clientY,
+                        isRbChannelZone
+                          ? explainMergedDeskRbLabel(lab, String((item as OverlayItem).labelTooltip || ''))
+                          : undefined,
+                      );
+                      if (isDeskZoneExplainClick && onMirageZoneSelect) {
+                        onMirageZoneSelect(String(item.id));
+                      }
                       if (isCaCoreSd || isMajorEngineSrZone) return;
                       const current = compactTradeLabel(item.id, zoneLabelWithDir);
                       if (!current.expandable) return;
-                      if (didDragRef.current) { didDragRef.current = false; return; }
                       setOverlayTradeLabelExpanded(prev => ({ ...prev, [item.id]: !prev[item.id] }));
                     }}
                     title={
                       [
                         (item as OverlayItem).labelTooltip,
-                        !isCaCoreSd && !isMajorEngineSrZone && compactTradeLabel(item.id, zoneLabelWithDir).expandable ? '클릭: 상세 접기/펼치기' : '',
+                        '클릭: 지지·거래량',
+                        isRbChannelZone
+                          ? '채널·게이트 설명 포함'
+                          : !isCaCoreSd && !isMajorEngineSrZone && compactTradeLabel(item.id, zoneLabelWithDir).expandable
+                            ? '클릭: 상세 접기/펼치기'
+                            : '',
                       ]
                         .filter(Boolean)
                         .join(' · ') || undefined
                     }
                   >
+                    {chipSimRank ? (
+                      <span className={`merged-desk-chip-sim-badge merged-desk-chip-sim-badge--${chipSimRank}`}>
+                        {chipSimBadgeText(chipSimRank)}
+                      </span>
+                    ) : null}
                     {isCaCoreSd ? zoneBaseLabel : compactTradeLabel(item.id, zoneLabelWithDir).label}
                   </div>
                 )}
                 {chartSectionVis.s2 &&
                   hasPrices &&
+                  !isMergedAnalysisDesk &&
                   !suppressZoneHtmlCaptions &&
                   !isCaCoreSd &&
                   !isWhaleToolkitPaintOnly &&
@@ -14530,6 +29316,21 @@ const ChartViewInner = ({
           }
 
           if (typeof item.x2 === 'number' && typeof item.y2 === 'number' && isLineKind(item.kind)) {
+            if (isMergedAnalysisDesk && isMergedDeskHideVerticalDashOverlay(item as OverlayItem)) {
+              return <Fragment key={item.id} />;
+            }
+            /** 통합·분석 — 중복 추세선 숨김(1본만 표시) */
+            if (
+              isMergedAnalysisDesk &&
+              (String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                'merged-desk-trendline-hidden'
+              ) ||
+                /merged-desk-rb-(short|long|fb)-(upper|lower|mid)$/.test(String(item.id || '')) ||
+                (String(item.id || '').startsWith('merged-swing-channel-') &&
+                  /-(upper|mid|lower)$/.test(String(item.id || ''))))
+            ) {
+              return <Fragment key={item.id} />;
+            }
             const isSmartMoneyMvpLine = String(item.id || '').startsWith('smartmoney-mvp-');
             const noProjectSeg = Boolean((item as OverlayItem).noProject);
             const baseMinX = Math.min(item.x1, item.x2);
@@ -14537,7 +29338,11 @@ const ChartViewInner = ({
             const segW = Math.abs(item.x2 - item.x1) || 1;
             const xMaxRight = item.xMaxRight ?? (baseMinX + segW);
             // noProject: screenOverlays에서는 끝점까지 계산되지만, 여기서 비-tap 추세선은 기본이 xMaxRight까지 외삽됨 → 스파이더웹 방지
-            const lineWidth = noProjectSeg ? Math.max(segW, 1) : Math.max(segW, xMaxRight - baseMinX);
+            const lineWidthRaw = noProjectSeg ? Math.max(segW, 1) : Math.max(segW, xMaxRight - baseMinX);
+            const lineWidth =
+              isOverlayAbsPinned(liveOff) && typeof liveOff.pinWidth === 'number' && liveOff.pinWidth > 0
+                ? liveOff.pinWidth
+                : lineWidthRaw;
             // max(20,…) 제거: 세로가 작을 때 viewBox 비율이 깨져 선이 휘어 보이던 문제 방지
             const lineHeight = Math.max(6, Math.abs(item.y2 - item.y1));
             const yAtRight = item.y1 + (item.y2 - item.y1) * ((xMaxRight - item.x1) / segW);
@@ -14550,14 +29355,122 @@ const ChartViewInner = ({
               ? item.x2 - baseMinX
               : (isTapLine ? (item.x2 ?? xMaxRight) : xMaxRight) - baseMinX;
             const y2 = noProjectSeg ? item.y2 - baseMinY : yAtRight - baseMinY;
+            const linePriceY = minY + y2;
+            const lineIdStr = String(item.id || '');
+            const isMergedDeskTradeRailLine =
+              isMergedAnalysisDesk && lineIdStr.startsWith('merged-desk-trade-rail-');
+            const isBtccionDeskLine =
+              isMergedAnalysisDesk && lineIdStr.startsWith('merged-desk-btccion-');
+            const isMlspTvTrendLine =
+              isMergedAnalysisDesk &&
+              (lineIdStr.startsWith('merged-ares-mlsp-tv-tri-') ||
+                lineIdStr.startsWith('merged-ares-mlsp-tv-sr-') ||
+                lineIdStr.startsWith('merged-ares-mlsp-tv-trend-'));
+            const isMlspTvTextOnlyLine = isMergedDeskTradeRailLine || isMlspTvTrendLine;
+            const isMonthDeskTypeomLine = isMonthDeskTypeomKeyLevelLine(lineIdStr);
+            const monthDeskProClear =
+              isMonthStartDeskMode && monthDeskOverlayClear;
+            const monthDeskPlanLineOnRightBand =
+              isMonthStartDeskMode &&
+              (monthDeskZoneRightBandGeom?.priceRows.length ?? 0) > 0 &&
+              (lineIdStr.startsWith('month-desk-plan-') ||
+                lineIdStr.startsWith('month-desk-core-long-') ||
+                lineIdStr.startsWith('month-desk-anchor-') ||
+                lineIdStr === 'trade-atlas-entry' ||
+                lineIdStr === 'trade-atlas-sl' ||
+                lineIdStr.startsWith('trade-atlas-tp'));
+            const tradeAtlasLineOnRightBand =
+              isReferenceDeskMode &&
+              (referenceDeskTradeAtlasRightBandGeom?.priceRows.length ?? 0) > 0 &&
+              (lineIdStr === 'trade-atlas-entry' ||
+                lineIdStr === 'trade-atlas-sl' ||
+                lineIdStr.startsWith('trade-atlas-tp'));
+            const mergedTradeLineOnRightBand =
+              isMergedAnalysisDesk &&
+              (mergedAnalysisTradeRightBandGeom?.priceRows.length ?? 0) > 0 &&
+              lineIdStr.startsWith('merged-ares-line-');
+            /** priceLines(전폭 선·축)가 있으면 HTML E/SL/TP 알약 숨김 */
+            const mergedDeskTradeHtmlLabelHide =
+              isMergedAnalysisDesk &&
+              Boolean(mergedDeskPriceLinesSig) &&
+              (/^merged-ares-line-(e|sl|tp[123])$/.test(lineIdStr) ||
+                /^merged-desk-trade-rail-(e|sl|tp[123])$/.test(lineIdStr) ||
+                /^merged-swing-mid-(e|sl|tp[123])$/.test(lineIdStr) ||
+                lineIdStr.startsWith('merged-desk-hotzone-rail-') ||
+                String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                  'merged-swing-mid-rail'
+                ) ||
+                String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                  'merged-ares-trade-rail-line'
+                ) ||
+                /^(E|SL|TP[123]?|무효|▲E|▼E|ENTRY|진입|손절)(\s|$|[·・])/i.test(
+                  String(item.label || '').trim()
+                ));
+            const mergedMirageHideLineLabel =
+              isMergedAnalysisDesk && isMergedDeskMirageChartLabelHidden(item as OverlayItem);
+            const mergedBounceTargetLineHideLabel =
+              isMergedAnalysisDesk && isMergedDeskBounceTargetLine(item as OverlayItem);
+            const mergedMirageLspLineHideLabel =
+              isMergedAnalysisDesk &&
+              (isMergedDeskMirageLspLineHideHtmlLabel(item as OverlayItem) || mergedMirageHideLineLabel);
+            /** 스윙채널·청적채널·추세 — 마지막 캔들 끝 라벨 금지 */
+            const mergedChannelNoEndLabel =
+              isMergedAnalysisDesk &&
+              (String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                'merged-desk-channel-no-end-label'
+              ) ||
+                String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                  'merged-swing-channel'
+                ) ||
+                String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                  'merged-desk-candle-trend'
+                ) ||
+                String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                  'merged-desk-rb-channel'
+                ) ||
+                lineIdStr.startsWith('merged-swing-channel-') ||
+                /merged-desk-rb-(short|long|fb)-(upper|lower|mid)$/.test(lineIdStr));
+            const monthDeskProLineLabelOk =
+              !monthDeskPlanLineOnRightBand &&
+              !tradeAtlasLineOnRightBand &&
+              !mergedTradeLineOnRightBand &&
+              !mergedDeskTradeHtmlLabelHide &&
+              !mergedBounceTargetLineHideLabel &&
+              !mergedMirageLspLineHideLabel &&
+              !mergedChannelNoEndLabel &&
+              (!monthDeskProClear || monthDeskProLineShowsLabel(lineIdStr));
+            const monthDeskProLineClass = monthDeskProClear
+              ? String((item as OverlayItem).overlayZoneExtraClass || '')
+                  .split(/\s+/)
+                  .find((c) => c.startsWith('overlay-line--md-pro-')) ?? ''
+              : '';
+            const typeomFontSize = isMonthDeskTypeomLine ? Math.min(Math.max(8, getFontSize(lineIdStr)), 10) : null;
+            const lineLabelBoxH = typeomFontSize != null ? Math.round(typeomFontSize * 1.28 + 5) : 28;
+            const lineLabelBoxW = typeomFontSize != null ? 218 : 260;
             const lineDragXMax = noProjectSeg ? Math.max(item.x1, item.x2) : xMaxRight;
             const align = getLabelAlign(item.id);
             const textX = align === 'left' ? x1 + 6 : align === 'right' ? Math.max(x1 + 6, x2 - 4) : (x1 + x2) / 2;
             const textAnchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
+            const lineSettleRow =
+              monthDeskFeatureSettleLabelsOn && lineIdStr
+                ? monthDeskFeatureSettleByOverlayId?.get(lineIdStr)
+                : undefined;
+            const lineSettleBracket =
+              lineSettleRow && monthDeskSettleLabelMode !== 'off'
+                ? resolveSettleBracketForBand(
+                    lineIdStr,
+                    lineSettleRow,
+                    monthDeskSettleLabelMode,
+                    monthDeskSettleSummaryChip
+                  )
+                : '';
             const linePriceText = typeof item.price1 === 'number'
               ? (typeof item.price2 === 'number' && Math.abs(item.price1 - item.price2) > 1e-6
                 ? `${formatOverlayPrice(item.price1)} ~ ${formatOverlayPrice(item.price2)}`
-                : formatOverlayPrice(item.price1))
+                : formatOverlayPrice(item.price1)) +
+                (lineSettleBracket && !monthDeskPlanLineOnRightBand && !mergedTradeLineOnRightBand
+                  ? ` ${lineSettleBracket}`
+                  : '')
               : '';
             const tapLabelNudge =
               item.id === 'tap-breakout' ? -14 :
@@ -14570,7 +29483,8 @@ const ChartViewInner = ({
             const labelNudge = (item.id === 'tailong-resistance' ? -10 : item.id === 'tailong-support' ? 10 : 0) + tapLabelNudge;
             const labelOnlyY = Math.max(12, lineHeight / 2) + labelNudge;
             const lblTxRaw = (item as OverlayItem).labelTextColor;
-            const isTfCloseLine = String(item.id || '').startsWith('close-');
+            const isTfCloseLine =
+              String(item.id || '').startsWith('close-') || isSettleCloseOverlayId(String(item.id || ''));
             const tfCloseWhite = isTfCloseLine && settings.chartTfCloseLinesWhite !== false;
             const lineTextSolid = lblTxRaw
               ? toSolidOverlayColor(lblTxRaw)
@@ -14618,8 +29532,53 @@ const ChartViewInner = ({
             const chartW = item.chartWidth ?? 0;
             const chartH = item.chartHeight ?? 0;
             const lineLabelHShift = getLabelHShift(item.id);
-            const lineLabelLeft =
-              minX + finalTextX - 110 + lineLabelHShift + (isSmartMoneyMvpLine ? 0 : (htmlLabelStackDx.get(item.id) ?? 0));
+            const isFusionStructureLineLabel =
+              uiMode === 'FUSION_MODE' && typeof item.id === 'string' && item.id.startsWith('fusion-structure-');
+            /** 통합·분석 라인 라벨 — 우측(마지막 캔들/선 끝) 고정. 좌측 스택 금지 */
+            const mergedDeskLineLabelRight =
+              isMergedAnalysisDesk &&
+              (isMergedDeskTradeRailLine ||
+                isBtccionDeskLine ||
+                isMlspTvTrendLine ||
+                isSmartMoneyMvpLine ||
+                isMergedAnalysisDeskOverlayId(lineIdStr) ||
+                item.kind === 'liquiditySweep' ||
+                lineIdStr.startsWith('sweep-') ||
+                lineIdStr.startsWith('merged-') ||
+                lineIdStr.startsWith('smartmoney-mvp-'));
+            const lineRightEdgeX = Math.max(
+              minX + lineWidth,
+              Number(item.xMaxRight ?? 0) + liveOff.dx,
+              Number.isFinite(Number((item as OverlayItem).zoneTimeEndScreenX))
+                ? Number((item as OverlayItem).zoneTimeEndScreenX) + liveOff.dx
+                : 0
+            );
+            let lineLabelLeft = (() => {
+              if (isFusionStructureLineLabel) return minX + finalTextX - 110 + lineLabelHShift;
+              if (mergedDeskLineLabelRight) {
+                const liveSeries = seriesRef.current;
+                const liveChart = chartRef.current;
+                if (liveSeries && liveChart) {
+                  const fb =
+                    chartSeriesCandlesRef.current.length >= 2
+                      ? chartSeriesCandlesRef.current
+                      : candlesForOverlay;
+                  const padX = mergedDeskSeriesFuturePadScreenX(
+                    liveSeries,
+                    liveChart.timeScale(),
+                    MERGED_DESK_RIGHT_FUTURE_BARS,
+                    fb
+                  );
+                  if (Number.isFinite(padX)) {
+                    return Number(padX) + lineLabelHShift + liveOff.dx;
+                  }
+                }
+                const rightEdge = Math.max(lineRightEdgeX, minX + lineWidth);
+                const axisCap = chartW > 96 ? chartW - lineLabelBoxW - 8 : rightEdge - 6;
+                return Math.max(8, Math.min(axisCap, rightEdge - lineLabelBoxW - 6)) + lineLabelHShift;
+              }
+              return minX + finalTextX - 110 + lineLabelHShift + (htmlLabelStackDx.get(item.id) ?? 0);
+            })();
             const rawLineLabelTop = minY + labelOnlyY - 12;
             const lineFlatForLabel = isOverlayLineFlatPrice({
               price1: asOverlayFiniteNumber(item.price1),
@@ -14631,16 +29590,86 @@ const ChartViewInner = ({
               lastClosePixelY != null && !lineFlatForLabel
                 ? nudgeLabelYFromLastPrice(rawLineLabelTop, lastClosePixelY, chartH - 12)
                 : rawLineLabelTop;
-            if (!isSmartMoneyMvpLine) {
+            if (isFusionStructureLineLabel) {
+              lineLabelTop = rawLineLabelTop;
+            } else if (isBtccionDeskLine) {
+              /** 라벨을 가로선 가격 Y에 고정 — 스택/넛지로 떨어지지 않게 */
+              lineLabelTop = linePriceY - lineLabelBoxH / 2;
+            } else if (isMonthDeskTypeomLine && lineFlatForLabel) {
+              lineLabelTop = linePriceY - lineLabelBoxH / 2 + (htmlLabelStackDy.get(item.id) ?? 0);
+            } else if (!isSmartMoneyMvpLine) {
               lineLabelTop += htmlLabelStackDy.get(item.id) ?? 0;
             } else {
               lineLabelTop = rawLineLabelTop;
             }
-            const LINE_LABEL_W = 260;
-            const LINE_LABEL_H = 28;
-            const isCloseSettlementLine = Boolean(item.id?.startsWith?.('close-'));
+            const isCloseSettlementLine =
+              isTfCloseLine ||
+              /안착마감|마감·안착|마감안착|종가마감|종가안착|종가 마감/.test(
+                `${item.label || ''}${baseLabel || ''}${keyLevelDisplayLabel || ''}`
+              );
+            let lineLabelRailDeg = 0;
+            let lineLabelFeatZoom = 1;
+            const mergedDeskMagnetLine =
+              isMergedAnalysisDesk && (mergedDeskLineLabelRight || isCloseSettlementLine);
+            if (mergedDeskMagnetLine) {
+              const x1s = item.x1 + liveOff.dx;
+              const y1s = item.y1 + liveOff.dy;
+              const x2s = (noProjectSeg ? item.x2 : xMaxRight) + liveOff.dx;
+              const y2s = (noProjectSeg ? item.y2 : yAtRight) + liveOff.dy;
+              const mag = magnetOnSegment(
+                x1s,
+                y1s,
+                x2s,
+                y2s,
+                isCloseSettlementLine ? 0.92 : 0.88
+              );
+              lineLabelLeft = mag.x + lineLabelHShift;
+              if (isMergedAnalysisDesk) {
+                const liveSeries = seriesRef.current;
+                const liveChart = chartRef.current;
+                if (liveSeries && liveChart) {
+                  const fb =
+                    chartSeriesCandlesRef.current.length >= 2
+                      ? chartSeriesCandlesRef.current
+                      : candlesForOverlay;
+                  const padX = mergedDeskSeriesFuturePadScreenX(
+                    liveSeries,
+                    liveChart.timeScale(),
+                    MERGED_DESK_LABEL_EXTEND_PAST_LAST_BARS,
+                    fb
+                  );
+                  if (Number.isFinite(padX)) {
+                    lineLabelLeft = Number(padX) + lineLabelHShift + liveOff.dx;
+                  }
+                }
+              }
+              if (!lineFlatForLabel) {
+                lineLabelRailDeg = clampMagnetAngle(mag.angleDeg, 52);
+                lineLabelTop = mag.y;
+              } else {
+                const liveY = liveSeriesPriceY(
+                  seriesRef.current,
+                  mergedDeskFeaturePrice(item as OverlayItem)
+                );
+                /** 가로선·안착마감: 선 가격 Y + 선 끝 X 자석 */
+                lineLabelTop = liveY != null ? liveY + liveOff.dy : mag.y;
+              }
+              lineLabelFeatZoom = featureLabelZoom(
+                mergedDeskZoomScale,
+                lineFlatForLabel ? 0 : Math.abs(y2s - y1s),
+                Math.abs(x2s - x1s)
+              );
+            }
+            lineLabelTop += getLabelVShift(item.id);
+            {
+              const pinned = applyOverlayPinAbs(liveOff, lineLabelLeft, lineLabelTop);
+              lineLabelLeft = pinned.left;
+              lineLabelTop = pinned.top;
+            }
+            const LINE_LABEL_W = lineLabelBoxW;
+            const LINE_LABEL_H = lineLabelBoxH;
             const showLineLabel = overlayHtmlLabelIntersectsChart(lineLabelLeft, lineLabelTop, LINE_LABEL_W, LINE_LABEL_H, chartW, chartH);
-            const showLineLabelResolved = showLineLabel;
+            const showLineLabelResolved = showLineLabel && monthDeskProLineLabelOk;
             const axisStripPos = isCloseSettlementLine ? closeStripPosition : priceDisplayPosition;
             const axisStripShift = isCloseSettlementLine ? closeStripHShift : priceDisplayHShift;
             const closeMarkType =
@@ -14649,9 +29678,68 @@ const ChartViewInner = ({
                 : null;
             const closeMark = closeMarkType === 'good' ? '✓' : closeMarkType === 'bad' ? '✗' : '';
             const closeCompactLabel = isCloseSettlementLine ? `${closeTfFromId(item.id)} ${closeMark || ''}`.trim() : keyLevelDisplayLabel;
-            const isCoreCloseLine = item.id === 'key-mustReclaim-close' || item.id === 'key-mustHold-close';
+            const isCoreCloseLine =
+              item.id === 'key-mustReclaim-close' ||
+              item.id === 'key-mustHold-close' ||
+              item.id === 'month-desk-strike-long-entry' ||
+              item.id === 'month-desk-strike-short-entry';
+            const isStrikeAiBeam =
+              item.id === 'month-desk-strike-ai-long-beam' ||
+              item.id === 'month-desk-strike-ai-short-beam';
             const lineGeomOnScreen = overlayHtmlLabelIntersectsChart(minX, minY, lineWidth, lineHeight, chartW, chartH);
-            const lineIdStr = String(item.id || '');
+            const isFusionPriorityLineTarget =
+              uiMode === 'FUSION_MODE' &&
+              (
+                lineIdStr.includes('-must-hold') ||
+                lineIdStr.includes('-must-break') ||
+                lineIdStr.includes('-trigger')
+              );
+            const isFusionPriorityLineNear =
+              isFusionPriorityLineTarget &&
+              typeof lastClosePixelY === 'number' &&
+              Math.abs(linePriceY - lastClosePixelY) <= 16;
+            const fusionLineLabelTier =
+              lineIdStr.includes('-must-hold') ||
+              lineIdStr.includes('-must-break') ||
+              lineIdStr.includes('-status-chip') ||
+              lineIdStr.includes('-trigger')
+                ? 'critical'
+                : lineIdStr.includes('-entry1') || lineIdStr.includes('-tp-safe')
+                  ? 'major'
+                  : 'minor';
+            const fusionHideMinorLineLabel =
+              uiMode === 'FUSION_MODE' &&
+              fusionLineLabelTier === 'minor' &&
+              (maxCleanChartLayout || executionCalmLayout);
+            const isMergedDeskTrendlineKeep =
+              isMergedAnalysisDesk &&
+              String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                'merged-desk-trendline-keep'
+              );
+            const forceShowFusionLineLabel =
+              (uiMode === 'FUSION_MODE' && lineIdStr.startsWith('fusion-structure-')) ||
+              isMergedDeskTrendlineKeep;
+            const fusionConfluenceText = uiMode === 'FUSION_MODE' ? String(fusionStructureHud?.cptcConfluenceText || '') : '';
+            const fusionLongStrong = fusionConfluenceText.includes('롱 강화');
+            const fusionShortStrong = fusionConfluenceText.includes('숏 강화');
+            const isFusionLongLine = lineIdStr.includes('-long-') || String(item.label || '').includes('[롱');
+            const isFusionShortLine = lineIdStr.includes('-short-') || String(item.label || '').includes('[숏');
+            const fusionStrokeBoost =
+              uiMode === 'FUSION_MODE'
+                ? fusionLongStrong
+                  ? isFusionLongLine
+                    ? 0.22
+                    : isFusionShortLine
+                      ? -0.12
+                      : 0
+                  : fusionShortStrong
+                    ? isFusionShortLine
+                      ? 0.22
+                      : isFusionLongLine
+                        ? -0.12
+                        : 0
+                    : 0
+                : 0;
             const lineCatStr = String((item as OverlayItem).category || '');
             const lineTrendEligible =
               (item.kind === 'trendLine' || item.kind === 'rsiDivergenceLine') &&
@@ -14677,31 +29765,102 @@ const ChartViewInner = ({
               lineTrendEligible &&
               !isSmcDeskZigzagWhite &&
               !isSmcDeskParkfOrCpTrend;
+            const isTbSupportLine =
+              String(item.id || '').startsWith('merged-ares-tb-support') ||
+              String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                'merged-ares-tb-support-line'
+              );
+            const rbLineExtra = String((item as OverlayItem).overlayZoneExtraClass || '');
+            const isRbCorridorLine =
+              String(item.id || '').startsWith('merged-desk-rb-') &&
+              (rbLineExtra.includes('merged-desk-rb-channel') ||
+                rbLineExtra.includes('merged-desk-blue-red-channel'));
+            const isRbPaintBearLine =
+              isRbCorridorLine &&
+              (rbLineExtra.includes('merged-desk-rb-paint-bear') ||
+                rbLineExtra.includes('merged-desk-rb-vol-down') ||
+                rbLineExtra.includes('merged-desk-rb-bear') ||
+                item.structureBias === 'bearish');
             const lineStrokeColor =
-              tfCloseWhite
+              isTbSupportLine
+                ? '#00E676'
+                : isRbCorridorLine
+                ? isRbPaintBearLine
+                  ? item.color || 'rgba(239,68,68,0.95)'
+                  : item.color || 'rgba(34,197,94,0.95)'
+                : isBtccionDeskLine
+                ? item.color || 'rgba(56,189,248,0.95)'
+                : tfCloseWhite
                 ? 'rgba(255,255,255,0.93)'
                 : isSmcDeskZigzagWhite
                   ? 'rgba(248,250,252,0.88)'
-                  : (isUnifiedTrendStrokeLine || isSmcDeskVerdictTrend) && verdictVisualBias === 'long'
-                    ? 'rgba(34,197,94,0.9)'
-                    : (isUnifiedTrendStrokeLine || isSmcDeskVerdictTrend) && verdictVisualBias === 'short'
-                      ? 'rgba(239,68,68,0.9)'
-                      : item.color || '#62efe0';
+                  : uiMode === 'FUSION_MODE' && isUnifiedTrendStrokeLine && verdictVisualBias === 'long'
+                    ? 'rgba(52,211,153,0.4)'
+                    : uiMode === 'FUSION_MODE' && isUnifiedTrendStrokeLine && verdictVisualBias === 'short'
+                      ? 'rgba(248,113,113,0.4)'
+                      : uiMode === 'FUSION_MODE' && isUnifiedTrendStrokeLine
+                        ? 'rgba(148,163,184,0.38)'
+                        : (isUnifiedTrendStrokeLine || isSmcDeskVerdictTrend) && verdictVisualBias === 'long'
+                          ? 'rgba(34,197,94,0.9)'
+                          : (isUnifiedTrendStrokeLine || isSmcDeskVerdictTrend) && verdictVisualBias === 'short'
+                            ? 'rgba(239,68,68,0.9)'
+                            : item.color || '#62efe0';
+            const lineNudge = labelNudgeAttrs(String(item.id));
             return (
-              <div key={item.id} style={{ position: 'absolute', left: 0, top: 0 }}>
+              <div
+                key={item.id}
+                className={lineNudge.className || undefined}
+                style={{ position: 'absolute', left: 0, top: 0, ...lineNudge.style }}
+              >
                 <svg
-                  className={`overlay-svg-item ${isCoreCloseLine ? 'overlay-core-line' : ''}`}
+                  className={[
+                    'overlay-svg-item',
+                    isMergedDeskWaveMovePathOverlay(item as OverlayItem)
+                      ? 'eagle1-hud-keep merged-desk-wave-path-line'
+                      : '',
+                    rbLineExtra.includes('merged-desk-wave-path-kink')
+                      ? 'merged-desk-wave-path-kink'
+                      : '',
+                    isCoreCloseLine ? 'overlay-core-line' : '',
+                    isStrikeAiBeam ? 'overlay-line--strike-signal-hot' : '',
+                    isMergedDeskTrendlineKeep ? 'merged-desk-trendline-keep' : '',
+                    String(item.id || '').startsWith('month-desk-smc-')
+                      ? 'overlay-svg-item--monthdesk-smc'
+                      : '',
+                    monthDeskProLineClass,
+                    isBtccionDeskLine
+                      ? 'merged-desk-btccion-line'
+                      : String((item as OverlayItem).overlayZoneExtraClass || '')
+                          .split(/\s+/)
+                          .find((c) => c.startsWith('merged-ares-mlsp-') || c.startsWith('merged-desk-btccion-')) ?? '',
+                    isRbCorridorLine && isRbPaintBearLine ? 'merged-desk-rb-paint-bear' : '',
+                    isRbCorridorLine && !isRbPaintBearLine ? 'merged-desk-rb-paint-bull' : '',
+                    overlayLabelProximityIds.has(String(item.id)) && !fusionPerfLite ? 'overlay-line-near-candle' : '',
+                    isFusionPriorityLineNear && !fusionPerfLite ? 'overlay-fusion-priority-near' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   style={{
                     left: minX,
-                    top: minY,
+                    top: isBtccionDeskLine ? minY - 4 : minY,
                     width: lineWidth,
-                    height: lineHeight,
+                    height: isBtccionDeskLine ? Math.max(lineHeight, 12) : lineHeight,
+                    overflow: isMergedDeskWaveMovePathOverlay(item as OverlayItem) ? 'visible' : undefined,
+                    zIndex: isMergedDeskWaveMovePathOverlay(item as OverlayItem) ? 18 : undefined,
                     cursor: smcPlaybookLock ? 'default' : isDragging ? 'grabbing' : 'grab',
                   }}
-                  viewBox={`0 0 ${lineWidth} ${lineHeight}`}
+                  viewBox={
+                    isBtccionDeskLine
+                      ? `0 -4 ${lineWidth} ${Math.max(lineHeight, 12)}`
+                      : `0 0 ${lineWidth} ${lineHeight}`
+                  }
                   onMouseDown={(e) => {
                     if (smcPlaybookLock) return;
-                    startLabelDrag(item.id, minX, lineDragXMax, liveOff, e);
+                    startLabelDrag(item.id, minX, lineDragXMax, liveOff, e, {
+                      absLeft: lineLabelLeft,
+                      absTop: lineLabelTop,
+                      width: lineWidth,
+                    });
                   }}
                 >
                   <line
@@ -14712,13 +29871,19 @@ const ChartViewInner = ({
                     stroke={lineStrokeColor}
                     strokeOpacity={1}
                     strokeWidth={
-                      tfCloseWhite
+                      isMergedDeskWaveMovePathOverlay(item as OverlayItem)
+                        ? Math.max(2.4, getLineStrokeWidth(item) + 0.4)
+                        : isBtccionDeskLine
+                        ? Math.max(2.1, getLineStrokeWidth(item) + 0.6)
+                        : isTbSupportLine
+                        ? 2
+                        : tfCloseWhite
                         ? Math.min(2.35, getLineStrokeWidth(item) + 0.35)
                         : isSmcDeskZigzagWhite
                           ? Math.min(2.2, getLineStrokeWidth(item) + 0.45)
                           : isCoreCloseLine
                             ? getLineStrokeWidth(item) + 1
-                            : getLineStrokeWidth(item)
+                            : Math.max(1, getLineStrokeWidth(item) + fusionStrokeBoost)
                     }
                     strokeDasharray={
                       isSmcDeskZigzagWhite
@@ -14734,24 +29899,98 @@ const ChartViewInner = ({
                   />
                 </svg>
                 {keyLevelDisplayLabel &&
+                !monthDeskTailQuiet &&
+                (!fusionHideMinorLineLabel || forceShowFusionLineLabel) &&
                 showLineLabelResolved &&
-                (!suppressHtmlOverlayCaptions || isAiZoneEngineOverlayId(String(item.id))) &&
-                isOverlayChartTextVisible(item.id) ? (
+                ((!suppressHtmlOverlayCaptions ||
+                  isAiZoneEngineOverlayId(String(item.id)) ||
+                  (isMergedAnalysisDesk && isMergedAnalysisDeskLabeledLine(item as OverlayItem, isMergedAnalysisDesk)) ||
+                  (monthDeskProClear && monthDeskProLineShowsLabel(lineIdStr))) ||
+                  forceShowFusionLineLabel) &&
+                (isMlspTvTextOnlyLine
+                  ? isOverlayWhiteFaceVisible(
+                      String(keyLevelDisplayLabelWithDir || keyLevelDisplayLabel || baseLabel || '')
+                    )
+                  : isOverlayChartTextVisible(
+                      item.id,
+                      String(keyLevelDisplayLabelWithDir || keyLevelDisplayLabel || baseLabel || '')
+                    )) ? (
                   <div
+                    data-chart-text-off={
+                      !isOverlayChartTextVisible(
+                        item.id,
+                        String(keyLevelDisplayLabelWithDir || keyLevelDisplayLabel || baseLabel || '')
+                      )
+                        ? '1'
+                        : undefined
+                    }
                     className={[
+                      'overlay-line-label',
                       isCoreCloseLine ? 'overlay-core-label' : undefined,
-                      overlayLabelProximityIds.has(String(item.id)) && !isCoreCloseLine ? 'overlay-label-near-candle' : undefined,
+                      isMlspTvTextOnlyLine ? 'overlay-line-label--mlsp-tv-text' : undefined,
+                      overlayLabelProximityIds.has(String(item.id)) && !isCoreCloseLine && !fusionPerfLite ? 'overlay-label-near-candle' : undefined,
+                      isFusionPriorityLineNear && !fusionPerfLite ? 'overlay-fusion-priority-near' : undefined,
+                      uiMode === 'FUSION_MODE' ? 'overlay-fusion-label' : undefined,
+                      uiMode === 'FUSION_MODE' ? `overlay-fusion-label--${fusionLineLabelTier}` : undefined,
+                      isMergedAnalysisDesk && mergedDeskChipSimRankById.has(String(item.id))
+                        ? `merged-desk-chip-sim merged-desk-chip-sim--${mergedDeskChipSimRankById.get(String(item.id))}`
+                        : undefined,
+                      isMergedAnalysisDesk && Math.abs(lineLabelRailDeg) >= 4
+                        ? 'overlay-label--rail-stick'
+                        : mergedDeskMagnetLine
+                          ? 'overlay-label--feature-stick'
+                          : undefined,
                     ]
                       .filter(Boolean)
                       .join(' ') || undefined}
-                    style={{ position: 'absolute', left: lineLabelLeft, top: lineLabelTop, color: lineTextSolid, fontSize: isTapLine ? Math.max(getFontSize(item.id), 12) : getFontSize(item.id), fontWeight: isTapLine ? 700 : 500, fontFamily: getFontFamily(item.id) || undefined, background: lineLabelBg ?? (isCoreCloseLine ? 'rgba(8,15,25,.62)' : 'rgba(8,15,25,.40)'), padding: isCoreCloseLine || lineLabelBg ? '3px 8px' : '2px 6px', borderRadius: 999, whiteSpace: 'nowrap', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', cursor: smcPlaybookLock ? 'default' : compactTradeLabel(item.id, String(keyLevelDisplayLabelWithDir)).expandable ? 'pointer' : 'default', textShadow: lineLabelBg ? 'none' : '0 0 8px rgba(0,0,0,.88), 0 1px 2px rgba(0,0,0,.65)' }}
-                    onClick={() => {
+                    style={{
+                      position: 'absolute',
+                      left: lineLabelLeft,
+                      top: lineLabelTop,
+                      ['--md-feat-zoom' as string]: String(lineLabelFeatZoom),
+                      ['--md-rail-deg' as string]: `${lineLabelRailDeg}deg`,
+                      color: lineTextSolid,
+                      fontSize: getExplicitFontSize(item.id) ??
+                        (isTapLine
+                          ? Math.max(getFontSize(item.id), 12)
+                          : isMlspTvTextOnlyLine
+                            ? 8
+                            : typeomFontSize != null
+                              ? typeomFontSize
+                              : getFontSize(item.id)),
+                      fontWeight: isTapLine ? 700 : isMlspTvTextOnlyLine ? 700 : isMonthDeskTypeomLine ? 600 : 500,
+                      fontFamily: getFontFamily(item.id) || undefined,
+                      background: isMlspTvTextOnlyLine
+                        ? 'transparent'
+                        : lineLabelBg ?? (isCoreCloseLine ? 'rgba(8,15,25,.62)' : 'rgba(8,15,25,.40)'),
+                      padding:
+                        isMlspTvTextOnlyLine
+                          ? 0
+                          : isCoreCloseLine || lineLabelBg ? '3px 8px' : isMonthDeskTypeomLine ? '2px 5px' : '2px 6px',
+                      borderRadius: isMlspTvTextOnlyLine ? 0 : 999,
+                      whiteSpace: 'nowrap',
+                      maxWidth: lineLabelBoxW,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      cursor: smcPlaybookLock ? 'default' : isDragging ? 'grabbing' : 'pointer',
+                      textShadow: lineLabelBg ? 'none' : '0 0 8px rgba(0,0,0,.88), 0 1px 2px rgba(0,0,0,.65)',
+                    }}
+                    onClick={(e) => {
+                      focusChartLabelInSettings(
+                        String(item.id),
+                        String(keyLevelDisplayLabelWithDir || keyLevelDisplayLabel || baseLabel || '')
+                      );
+                      e.stopPropagation();
+                      if (didDragRef.current) { didDragRef.current = false; return; }
+                      openLabelClickIntel(item, e.clientX, e.clientY);
                       const current = compactTradeLabel(item.id, String(keyLevelDisplayLabelWithDir));
                       if (!current.expandable) return;
-                      if (didDragRef.current) { didDragRef.current = false; return; }
                       setOverlayTradeLabelExpanded(prev => ({ ...prev, [item.id]: !prev[item.id] }));
                     }}
-                    title={compactTradeLabel(item.id, String(keyLevelDisplayLabelWithDir)).expandable ? '클릭: 상세 접기/펼치기' : undefined}
+                    title={[
+                      compactTradeLabel(item.id, String(keyLevelDisplayLabelWithDir)).expandable ? '클릭: 상세 접기/펼치기' : '',
+                      '클릭: 지지·거래량',
+                    ].filter(Boolean).join(' · ')}
                   >
                     {closeMark ? (
                       <>
@@ -14764,17 +30003,30 @@ const ChartViewInner = ({
                         <span>{` ${closeTfFromId(item.id)}`}</span>
                       </>
                     ) : (
-                      <span>{compactTradeLabel(item.id, String(lineDirTag ? withDirAndProb(String(closeCompactLabel), lineDirTag, lineDirProb) : closeCompactLabel)).label}</span>
+                      <span>
+                        {isMergedAnalysisDesk && mergedDeskChipSimRankById.has(String(item.id)) ? (
+                          <span
+                            className={`merged-desk-chip-sim-badge merged-desk-chip-sim-badge--${mergedDeskChipSimRankById.get(String(item.id))}`}
+                          >
+                            {chipSimBadgeText(mergedDeskChipSimRankById.get(String(item.id)) as ChipSimRank)}
+                          </span>
+                        ) : null}
+                        {compactTradeLabel(item.id, String(lineDirTag ? withDirAndProb(String(closeCompactLabel), lineDirTag, lineDirProb) : closeCompactLabel)).label}
+                      </span>
                     )}
                   </div>
                 ) : null}
                 {chartSectionVis.s2 &&
                 linePriceText &&
+                !isMergedAnalysisDesk &&
+                !monthDeskTailQuiet &&
+                !mergedBounceTargetLineHideLabel &&
+                !isMlspTvTextOnlyLine &&
                 (!suppressHtmlOverlayCaptions || isAiZoneEngineOverlayId(String(item.id))) &&
                 isOverlayChartTextVisible(item.id) &&
                 lineGeomOnScreen ? (
                   <div
-                    className={overlayLabelProximityIds.has(String(item.id)) ? 'overlay-label-near-candle' : undefined}
+                    className={overlayLabelProximityIds.has(String(item.id)) && !fusionPerfLite ? 'overlay-label-near-candle' : undefined}
                     style={{
                       ...buildPriceStripOverlayStyle(
                         axisStripPos,
@@ -14823,8 +30075,63 @@ const ChartViewInner = ({
             return <Fragment key={item.id} />;
           }
 
+          if (
+            isMergedAnalysisDesk &&
+            item.kind === 'label' &&
+            (String(item.id || '').startsWith('merged-desk-verdict-') ||
+              (String(item.id || '').startsWith('merged-desk-') &&
+                String(item.id || '').includes('-blink-')) ||
+              String(item.id || '').startsWith('merged-smc-choch-level-label-') ||
+              (String(item.id || '').startsWith('merged-ares-mlsp-') &&
+                !String((item as OverlayItem).overlayZoneExtraClass || '').includes(
+                  'merged-ares-mlsp-tv-zone-caption'
+                ) &&
+                isMergedDeskMirageChartLabelHidden(item as OverlayItem)))
+          ) {
+            return <Fragment key={item.id} />;
+          }
+
           const isCaCorePivot =
             item.kind === 'label' && typeof item.id === 'string' && item.id.startsWith('ca-core-pivot-');
+          const isTbTopLabel =
+            item.kind === 'label' && typeof item.id === 'string' && item.id.startsWith('merged-ares-tb-label-top');
+          const isTbBotLabel =
+            item.kind === 'label' && typeof item.id === 'string' && item.id.startsWith('merged-ares-tb-label-bottom');
+          const isTbLabel = isTbTopLabel || isTbBotLabel;
+          const mlspExtra = String((item as OverlayItem).overlayZoneExtraClass || '');
+          const isRbSignalPin =
+            item.kind === 'label' &&
+            (mlspExtra.includes('merged-desk-rb-signal-pin') ||
+              (typeof item.id === 'string' &&
+                (item.id.startsWith('merged-desk-rb-ai-') ||
+                  item.id.startsWith('merged-desk-rb-master') ||
+                  item.id.startsWith('merged-desk-rb-entry') ||
+                  item.id.startsWith('merged-desk-rb-tp') ||
+                  item.id.startsWith('merged-desk-rb-core-break') ||
+                  item.id.startsWith('merged-desk-rb-core-settle') ||
+                  item.id.startsWith('merged-desk-rb-phase'))));
+          const isAdvVolSeatPin =
+            item.kind === 'label' &&
+            (mlspExtra.includes('merged-desk-advvol-seat-pin') ||
+              (typeof item.id === 'string' && item.id.startsWith('merged-desk-advvol-seat-')));
+          const isMlspTvLabel =
+            item.kind === 'label' &&
+            typeof item.id === 'string' &&
+            (item.id.startsWith('merged-ares-mlsp-') || mlspExtra.includes('merged-ares-mlsp-'));
+          const isMlspTvZoneCaption =
+            isMlspTvLabel && mlspExtra.includes('merged-ares-mlsp-tv-zone-caption');
+          const isMlspSignalLabel = isMlspTvLabel && mlspExtra.includes('merged-ares-mlsp-signal-');
+          const isSmcChochLevelLabel =
+            item.kind === 'label' &&
+            typeof item.id === 'string' &&
+            item.id.startsWith('merged-smc-choch-level-label-');
+          const isMlspTradeLabel =
+            isMlspTvLabel &&
+            (mlspExtra.includes('-entry-label') ||
+              mlspExtra.includes('-sl-label') ||
+              mlspExtra.includes('-tp1-label') ||
+              mlspExtra.includes('-tp2-label') ||
+              mlspExtra.includes('-tp3-label'));
           const isSmbcBreakoutPin =
             item.kind === 'label' && typeof item.id === 'string' && item.id.startsWith('zone-smbc-mk-');
           const isBibleModePin =
@@ -14832,28 +30139,176 @@ const ChartViewInner = ({
             typeof item.id === 'string' &&
             item.id.startsWith('bible-cp-') &&
             !item.id.startsWith('bible-cp-frame-');
+          const isMonthDeskDeckPin =
+            isMonthStartDeskMode && item.kind === 'label' && item.id === 'month-desk-chart-deck';
+          const isMonthDeskObPreBeamPin =
+            isMonthStartDeskMode &&
+            item.kind === 'label' &&
+            String(item.id || '').startsWith('ob-pre-beam-pin-');
+          const isMonthDeskSignalPin =
+            isMonthStartDeskMode &&
+            item.kind === 'label' &&
+            String(item.id || '').startsWith('month-desk-pin-');
+          const isMonthDeskSettlePin =
+            isMonthStartDeskMode && item.kind === 'label' && item.id === 'month-desk-pin-settle';
+          const isMonthDeskHudPin = isMonthDeskDeckPin || isMonthDeskObPreBeamPin || isMonthDeskSignalPin;
+          const monthDeskHudPinExtra = isMonthDeskHudPin
+            ? String((item as OverlayItem).overlayZoneExtraClass || '')
+                .split(/\s+/)
+                .filter((c) => c.startsWith('overlay-pin--'))
+                .join(' ')
+            : '';
+          const monthDeskHudBorder = isMonthDeskHudPin
+            ? String(
+                (item as OverlayItem & { labelBorderColor?: string }).labelBorderColor ||
+                  item.color ||
+                  '#fcd34d'
+              )
+            : undefined;
           const isPatternLabel = (item as any).category === 'patternVision' && item.kind === 'label';
           const patternId = isPatternLabel ? item.id.replace(/-label$/, '') : undefined;
           const pinBaseLabel = overlayDisplayLabel(item.label, item.id, uiMode, translateLabelsToKo, item.kind);
           const pinDirTag = inferOverlayDirectionTag(item as OverlayItem, pinBaseLabel);
           const pinDirProb = resolveDirectionProb(item as OverlayItem, pinBaseLabel, pinDirTag);
           const pinLabel = withDirAndProb(pinBaseLabel, pinDirTag, pinDirProb);
-          const pinLabelShown = isBibleModePin ? String(item.label || '') : pinLabel;
+          const pinLabelShown = isMonthDeskHudPin
+            ? String(item.label || '')
+            : isBibleModePin || isRbSignalPin || isAdvVolSeatPin
+              ? String(item.label || '')
+              : pinLabel;
           const caPivotNudge = isCaCorePivot ? caCorePivotNudge.get(item.id) : undefined;
           const rawPinLeft =
             item.x1 + liveOff.dx + getLabelHShift(item.id) + (caPivotNudge?.dx ?? 0);
-          const rawPinTop = item.y1 + liveOff.dy + (caPivotNudge?.dy ?? 0);
+          const rawPinTop =
+            item.y1 + liveOff.dy + getLabelVShift(item.id) + (caPivotNudge?.dy ?? 0);
           const chartW = item.chartWidth ?? 0;
           const chartH = item.chartHeight ?? 0;
-          const pinLeft = rawPinLeft + (htmlLabelStackDx.get(String(item.id)) ?? 0);
+          const PIN_APPROX_W = isMonthDeskDeckPin
+            ? 220
+            : isMonthDeskSettlePin
+              ? 22
+              : isMonthDeskObPreBeamPin
+              ? 108
+              : isTbLabel
+              ? 58
+              : isMlspTradeLabel
+              ? 88
+              : isSmcChochLevelLabel
+              ? 88
+              : isMlspSignalLabel
+              ? 52
+              : isMlspTvZoneCaption
+              ? 72
+              : isMlspTvLabel
+              ? 64
+              : isCaCorePivot
+              ? 58
+              : isSmbcBreakoutPin
+                ? 28
+                : isBibleModePin
+                  ? 40
+                  : isRbSignalPin
+                    ? 92
+                  : 240;
+          let pinLeft = rawPinLeft + (htmlLabelStackDx.get(String(item.id)) ?? 0);
+          if (
+            isMergedAnalysisDesk &&
+            (isMlspTradeLabel || (isMlspTvLabel && !isMlspTvZoneCaption && !isMlspSignalLabel)) &&
+            !isSmcChochLevelLabel &&
+            chartW > 96
+          ) {
+            const axisPad = isMlspTradeLabel ? 52 : isSmcChochLevelLabel ? 48 : 56;
+            /** 가격축 옆 고정이라 좌표를 덮어쓴다 — 사용자 이동값은 그 위에 다시 얹는다 */
+            pinLeft = Math.max(8, chartW - PIN_APPROX_W - axisPad) + getLabelHShift(item.id);
+          }
+          const stickPadLabel =
+            isMergedAnalysisDesk &&
+            item.kind === 'label' &&
+            !isMonthDeskHudPin &&
+            !isTbLabel &&
+            !isMlspTradeLabel &&
+            !isSmcChochLevelLabel &&
+            (isRbSignalPin ||
+              isAdvVolSeatPin ||
+              isMlspTvZoneCaption ||
+              (typeof item.id === 'string' &&
+                (item.id.startsWith('merged-desk-') ||
+                  item.id.startsWith('merged-ares-') ||
+                  item.id.startsWith('merged-trade-') ||
+                  item.id.startsWith('merged-swing-'))));
+          if (stickPadLabel) {
+            const pinId = String(item.id || '');
+            const pinExtra = String((item as OverlayItem).overlayZoneExtraClass || '');
+            if (isMergedDeskCoreLabelFeature(pinId, pinExtra, String(item.label || ''))) {
+              const liveSeries = seriesRef.current;
+              const liveChart = chartRef.current;
+              const tCore = Number((item as OverlayItem).time1);
+              if (liveSeries && liveChart && Number.isFinite(tCore) && tCore > 0) {
+                const fb =
+                  chartSeriesCandlesRef.current.length >= 2
+                    ? chartSeriesCandlesRef.current
+                    : candlesForOverlay;
+                const xCore = coreMagnetBarTimeToX(fb, tCore, liveChart.timeScale(), liveSeries);
+                if (Number.isFinite(xCore)) {
+                  pinLeft = Number(xCore) + getLabelHShift(item.id) + liveOff.dx;
+                } else {
+                  pinLeft = rawPinLeft;
+                }
+              } else {
+                pinLeft = rawPinLeft;
+              }
+            } else {
+              pinLeft = rawPinLeft;
+            }
+          }
           let pinTop =
-            lastClosePixelY != null && !isSmbcBreakoutPin && !isCaCorePivot
-              ? nudgeLabelYFromLastPrice(rawPinTop, lastClosePixelY, chartH - 8)
-              : rawPinTop;
-          pinTop += htmlLabelStackDy.get(item.id) ?? 0;
-          const PIN_APPROX_W = isCaCorePivot ? 58 : isSmbcBreakoutPin ? 28 : isBibleModePin ? 40 : 240;
-          const PIN_APPROX_H = isCaCorePivot ? 40 : isSmbcBreakoutPin ? 26 : isBibleModePin ? 40 : 36;
+            isMonthDeskHudPin || isTbLabel || isMlspTvLabel || isSmcChochLevelLabel || stickPadLabel
+              ? rawPinTop
+              : lastClosePixelY != null && !isSmbcBreakoutPin && !isCaCorePivot && !isRbSignalPin && !isAdvVolSeatPin
+                ? nudgeLabelYFromLastPrice(rawPinTop, lastClosePixelY, chartH - 8)
+                : rawPinTop;
+          if (stickPadLabel) {
+            const liveY = liveSeriesPriceY(
+              seriesRef.current,
+              mergedDeskFeaturePrice(item as OverlayItem)
+            );
+            if (liveY != null) pinTop = liveY + liveOff.dy + getLabelVShift(item.id);
+          } else {
+            pinTop += htmlLabelStackDy.get(item.id) ?? 0;
+          }
+          {
+            const pinned = applyOverlayPinAbs(liveOff, pinLeft, pinTop);
+            pinLeft = pinned.left;
+            pinTop = pinned.top;
+          }
+          const PIN_APPROX_H = isMonthDeskDeckPin
+            ? 52
+            : isMonthDeskSettlePin
+              ? 16
+              : isMonthDeskObPreBeamPin
+              ? 34
+              : isTbLabel
+              ? 38
+              : isCaCorePivot
+              ? 40
+              : isSmbcBreakoutPin
+                ? 26
+                : isBibleModePin
+                  ? 40
+                  : 36;
           const showPinOverlay = overlayHtmlLabelIntersectsChart(pinLeft, pinTop, PIN_APPROX_W, PIN_APPROX_H, chartW, chartH);
+          const isDotPricePin =
+            isMergedAnalysisDesk &&
+            item.kind === 'label' &&
+            !isSmbcBreakoutPin &&
+            !isCaCorePivot &&
+            !isBibleModePin &&
+            !isMonthDeskHudPin &&
+            Number.isFinite(Number(item.price1)) &&
+            Number(item.price1) > 0;
+          if (isDotPricePin && !isOverlayChartTextVisible(String(item.id))) {
+            return <Fragment key={item.id} />;
+          }
           const pinLabelBg = (item as OverlayItem).labelBackgroundColor;
           const pinLabelFg = (item as OverlayItem).labelTextColor;
           const pinColor = pinLabelFg
@@ -14873,29 +30328,56 @@ const ChartViewInner = ({
             !isBibleModePin;
           const isSmcPlaybookPin = isSmcEntryPlaybookOverlayId(item.id);
           const smcPivotGlowColor = String(item.color || '#94a3b8');
-          if (!showPinOverlay) {
+          if (!showPinOverlay || (monthDeskTailQuiet && (isSmcPlaybookPin || !pinLabelShown.trim()))) {
             return <Fragment key={item.id} />;
           }
           return (
-            <div key={item.id} style={{ position: 'absolute', left: 0, top: 0 }}>
             <div
-              className={`overlay-pin ${isPatternLabel && onChartPointClick ? 'overlay-pin-clickable' : ''}${isBibleModePin ? ' overlay-pin--bible' : ''}${overlayLabelProximityIds.has(String(item.id)) ? ' overlay-label-near-candle' : ''}`}
+              key={item.id}
+              className={labelNudgeAttrs(String(item.id)).className || undefined}
+              style={{ position: 'absolute', left: 0, top: 0, ...labelNudgeAttrs(String(item.id)).style }}
+            >
+            <div
+              className={`overlay-pin overlay-pin-clickable${stickPadLabel ? ' overlay-pin--md-stick' : ''}${isMergedDeskCoreLabelFeature(String(item.id || ''), mlspExtra, String(item.label || '')) ? ' overlay-label--core-stick' : ''}${isBibleModePin ? ' overlay-pin--bible' : ''}${isMonthDeskHudPin ? ` ${monthDeskHudPinExtra || (isMonthDeskObPreBeamPin ? 'overlay-pin--monthdesk-ob-prebeam' : 'overlay-pin--monthdesk-deck')}` : ''}${isTbTopLabel ? ' merged-ares-tb-label--top' : ''}${isTbBotLabel ? ' merged-ares-tb-label--bottom' : ''}${isMlspSignalLabel ? ` ${mlspExtra.split(/\s+/).find((c) => c.startsWith('merged-ares-mlsp-signal-')) || 'merged-ares-mlsp-signal-long'}` : ''}${isMlspTradeLabel ? ' merged-ares-mlsp-trade-label' : ''}${isMlspTvZoneCaption ? ' merged-ares-mlsp-tv-zone-caption' : isMlspTvLabel && !isMlspSignalLabel ? ' merged-ares-mlsp-pin-right' : ''}${isSmcChochLevelLabel ? ' merged-ares-smc-choch-pin' : ''}${mlspExtra.includes('merged-ares-mlsp-pen-label') ? ' merged-ares-mlsp-pen-label' : ''}${mlspExtra.includes('merged-ares-mlsp-sweep-tag-label') ? ' merged-ares-mlsp-sweep-tag-label' : ''}${isRbSignalPin ? ` merged-desk-rb-signal-pin ${mlspExtra}` : ''}${isAdvVolSeatPin ? ` merged-desk-advvol-seat-pin ${mlspExtra}` : ''}${overlayLabelProximityIds.has(String(item.id)) ? ' overlay-label-near-candle' : ''}`}
+              title={[
+                String((item as OverlayItem).labelTooltip || pinLabelShown || '').trim(),
+                '클릭: 지지·거래량',
+                isDotPricePin ? '더블클릭: 이 가격핀 OFF' : '',
+              ].filter(Boolean).join(' · ')}
               style={{
                 left: pinLeft,
                 top: pinTop,
-                borderColor: item.color || '#62efe0',
+                borderColor: monthDeskHudBorder ?? item.color ?? '#62efe0',
                 color: pinColor,
-                background: pinLabelBg ?? undefined,
-                padding: isBibleModePin
+                background: isTbLabel || isMlspSignalLabel ? undefined : pinLabelBg ?? undefined,
+                padding: isTbLabel || isMlspSignalLabel
+                  ? undefined
+                  : isBibleModePin
                   ? 0
-                  : isCaCorePivot
+                  : isMonthDeskHudPin
+                    ? undefined
+                    : isCaCorePivot
                   ? '5px 7px'
                   : isSmbcBreakoutPin
                     ? 0
                     : pinLabelBg
                       ? '3px 10px'
                       : undefined,
-                borderRadius: isBibleModePin ? 999 : isCaCorePivot ? 999 : isSmbcBreakoutPin ? 4 : pinLabelBg ? 8 : isSmcDeskSwingGlow ? 999 : undefined,
+                borderRadius: isTbLabel || isMlspSignalLabel
+                  ? undefined
+                  : isBibleModePin
+                    ? 999
+                    : isMonthDeskHudPin
+                      ? undefined
+                      : isCaCorePivot
+                        ? 999
+                        : isSmbcBreakoutPin
+                          ? 4
+                          : pinLabelBg
+                            ? 8
+                            : isSmcDeskSwingGlow
+                              ? 999
+                              : undefined,
                 width: isBibleModePin ? 36 : isCaCorePivot ? 52 : isSmbcBreakoutPin ? 22 : isSmcDeskSwingGlow ? 36 : undefined,
                 height: isBibleModePin ? 36 : isCaCorePivot ? undefined : isSmbcBreakoutPin ? 22 : isSmcDeskSwingGlow ? 36 : undefined,
                 minWidth: isBibleModePin ? 36 : isCaCorePivot ? 50 : isSmbcBreakoutPin ? 22 : isSmcDeskSwingGlow ? 34 : undefined,
@@ -14904,8 +30386,25 @@ const ChartViewInner = ({
                 flexDirection: isCaCorePivot ? 'column' : undefined,
                 alignItems: isBibleModePin || isCaCorePivot || isSmbcBreakoutPin || isSmcDeskSwingGlow ? 'center' : undefined,
                 boxSizing: isBibleModePin || isSmbcBreakoutPin || isCaCorePivot ? 'border-box' : undefined,
-                borderWidth: isBibleModePin ? 2 : isCaCorePivot ? 1.5 : isSmbcBreakoutPin ? 2 : isSmcDeskSwingGlow ? 2 : undefined,
-                borderStyle: isBibleModePin || isCaCorePivot || isSmbcBreakoutPin || isSmcDeskSwingGlow ? 'solid' : undefined,
+                borderWidth: isBibleModePin
+                  ? 2
+                  : isMonthDeskHudPin
+                    ? undefined
+                    : isCaCorePivot
+                      ? 1.5
+                      : isSmbcBreakoutPin
+                        ? 2
+                        : isSmcDeskSwingGlow
+                          ? 2
+                          : undefined,
+                borderStyle:
+                  isBibleModePin ||
+                  isMonthDeskHudPin ||
+                  isCaCorePivot ||
+                  isSmbcBreakoutPin ||
+                  isSmcDeskSwingGlow
+                    ? 'solid'
+                    : undefined,
                 boxShadow: isSmcDeskSwingGlow
                   ? `0 0 16px ${smcPivotGlowColor}cc, 0 0 40px ${smcPivotGlowColor}55, inset 0 0 14px rgba(255,255,255,0.12)`
                   : isBibleModePin
@@ -14915,19 +30414,28 @@ const ChartViewInner = ({
                     ? '0 0 14px rgba(168,85,247,0.55), 0 0 28px rgba(168,85,247,0.22), inset 0 0 12px rgba(255,255,255,0.06)'
                     : '0 0 14px rgba(45,212,191,0.5), 0 0 28px rgba(45,212,191,0.2), inset 0 0 12px rgba(255,255,255,0.06)'
                   : undefined,
-                fontSize: isSmcDeskSwingGlow
-                  ? 9
-                  : isBibleModePin
-                    ? 18
-                    : isCaCorePivot
-                      ? 8.5
-                      : isSmbcBreakoutPin
-                        ? 11
-                        : getFontSize(item.id),
-                fontWeight: isCaCorePivot ? 700 : isSmbcBreakoutPin ? 800 : undefined,
-                lineHeight: isCaCorePivot ? 1.2 : isSmbcBreakoutPin ? 1 : undefined,
-                textAlign: isCaCorePivot ? 'center' : undefined,
-                whiteSpace: isCaCorePivot ? 'pre-line' : undefined,
+                fontSize: getExplicitFontSize(item.id) ??
+                  (isTbLabel || isMlspTradeLabel
+                    ? 8
+                    : isMlspTvZoneCaption
+                      ? 8
+                      : isMlspSignalLabel
+                        ? 9
+                        : isSmcDeskSwingGlow
+                          ? 9
+                          : isMonthDeskHudPin
+                            ? undefined
+                            : isBibleModePin
+                              ? 18
+                              : isCaCorePivot
+                                ? 8.5
+                                : isSmbcBreakoutPin
+                                  ? 11
+                                  : getFontSize(item.id)),
+                fontWeight: isTbLabel || isMlspTvLabel ? 700 : isMonthDeskHudPin ? undefined : isCaCorePivot ? 700 : isSmbcBreakoutPin ? 800 : undefined,
+                lineHeight: isTbLabel || isMlspTvLabel || isMonthDeskHudPin || isCaCorePivot ? 1.2 : isSmbcBreakoutPin ? 1 : undefined,
+                textAlign: isTbLabel || isMlspTvLabel || isMonthDeskHudPin ? 'center' : isCaCorePivot ? 'center' : undefined,
+                whiteSpace: isTbLabel || isMlspTvLabel || isMonthDeskHudPin || isCaCorePivot ? 'pre-line' : undefined,
                 fontFamily: getFontFamily(item.id) || undefined,
                 justifyContent:
                   isBibleModePin || isCaCorePivot || isSmbcBreakoutPin
@@ -14937,7 +30445,7 @@ const ChartViewInner = ({
                       : getLabelAlign(item.id) === 'right'
                         ? 'flex-end'
                         : 'center',
-                cursor: isBibleModePin ? 'pointer' : isSmcPlaybookPin ? 'default' : isDragging ? 'grabbing' : 'grab',
+                cursor: isDragging ? 'grabbing' : 'pointer',
                 textShadow: isBibleModePin
                   ? 'none'
                   : isCaCorePivot
@@ -14947,26 +30455,29 @@ const ChartViewInner = ({
                     : '0 0 8px rgba(0,0,0,.88), 0 1px 2px rgba(0,0,0,.65)',
               }}
               onMouseDown={(e) => {
-                if (isBibleModePin || isSmcPlaybookPin) return;
-                startLabelDrag(item.id, pinLeft, pinXMaxRight, liveOff, e);
+                if (isBibleModePin || isSmcPlaybookPin || isTbLabel) return;
+                startLabelDrag(item.id, pinLeft, pinXMaxRight, liveOff, e, {
+                  absLeft: pinLeft,
+                  absTop: pinTop,
+                });
               }}
-              onClick={
-                isBibleModePin
-                  ? (e) => {
-                      e.stopPropagation();
-                      if (didDragRef.current) {
-                        didDragRef.current = false;
-                        return;
-                      }
-                      const text = (item as OverlayItem).labelTooltip || String(item.label || '');
-                      setBiblePatternTip({ text, left: e.clientX, top: e.clientY });
-                    }
-                  : isPatternLabel && onChartPointClick && patternId
-                  ? () => {
-                if (didDragRef.current) { didDragRef.current = false; return; }
+              onClick={(e) => {
+                e.stopPropagation();
+                if (didDragRef.current) {
+                  didDragRef.current = false;
+                  return;
+                }
+                if (isDotPricePin && e.detail >= 2) {
+                  setOverlayChartTextVisible(String(item.id), false);
+                  return;
+                }
+                const extra = isBibleModePin
+                  ? String((item as OverlayItem).labelTooltip || item.label || '')
+                  : undefined;
+                openLabelClickIntel(item, e.clientX, e.clientY, extra);
+                if (!(isPatternLabel && onChartPointClick && patternId)) return;
                 const limit = visibleLimit(timeframe);
                 const visibleLen = Math.min(limit, candles.length);
-                const baseIdx = candles.length - visibleLen;
                 const c = candles[candles.length - 1];
                 if (!c) return;
                 const engine = analysis?.engine as Record<string, any> | undefined;
@@ -14986,20 +30497,26 @@ const ChartViewInner = ({
                   },
                   patternId,
                 });
-                  }
-                  : undefined
-              }
+              }}
             >
-              {!isSmbcBreakoutPin && !isCaCorePivot && !isBibleModePin && !isSmcDeskSwingGlow ? (
+              {!isSmbcBreakoutPin &&
+              !isCaCorePivot &&
+              !isBibleModePin &&
+              !isSmcDeskSwingGlow &&
+              !isMonthDeskHudPin ? (
                 <span className="overlay-pin-dot" style={{ background: item.color || '#62efe0' }} />
               ) : null}
-              {isBibleModePin
+              {isBibleModePin || isMonthDeskHudPin
                 ? pinLabelShown
                 : isCaCorePivot || isSmcDeskSwingGlow || isOverlayChartTextVisible(item.id)
                 ? isSmbcBreakoutPin
                   ? String(item.label || '')
                   : isCaCorePivot
                     ? pinLabel
+                    : isMlspTvZoneCaption
+                      ? pinLabel
+                    : isMlspTradeLabel || isRbSignalPin
+                      ? pinLabelShown
                     : [pinLabel, typeof item.price1 === 'number' ? formatOverlayPrice(item.price1) : null].filter(Boolean).join(' · ')
                 : ''}
             </div>
@@ -15023,6 +30540,7 @@ const ChartViewInner = ({
           uiMode === 'UNIFIED_DESK' ||
           uiMode === 'AI_ZONE' ||
           uiMode === 'TAPPOINT') &&
+          !isReferenceDeskMode &&
           (analysis?.verdict === 'LONG' || analysis?.verdict === 'SHORT') &&
           (analysis?.confidence ?? 0) >= 80 &&
           Boolean((analysis as any)?.confirmedSignal?.confirmed) &&
@@ -15037,8 +30555,11 @@ const ChartViewInner = ({
         uiMode !== 'CANDLE_ANALYSIS' &&
         uiMode !== 'BIBLE_MODE' &&
         uiMode !== 'HOT_ZONE' &&
+        uiMode !== 'REFERENCE_DESK' &&
         !isSmcDeskMode &&
-        !unifiedDeskMode && (
+        !unifiedDeskMode &&
+        !isMergedAnalysisDesk &&
+        settings.chartMergedDeskAiAnalysisZoneEnabled === false && (
         <div
           style={{
             position: 'absolute',
@@ -15220,6 +30741,15 @@ const ChartViewInner = ({
         );
       })()}
 
+      {whaleCompareOpen && whaleComparePack && (
+        <BitgetWhaleVolumeComparePanel
+          compare={whaleComparePack}
+          mtfPack={whaleCompareMtf}
+          onClose={() => setWhaleCompareOpen(false)}
+        />
+      )}
+
+      {!bitgetVolumePackOn && (
       <div className="chart-bottombar">
         <div className="scale">
           <div className="small-chip">{symbol}</div>
@@ -15233,6 +30763,7 @@ const ChartViewInner = ({
           {marketError ? <div className="small-chip small-chip-warn">오류</div> : <div className="small-chip small-chip-live">실시간 연동</div>}
         </div>
       </div>
+      )}
     </div>
   );
 }

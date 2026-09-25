@@ -1,0 +1,5 @@
+interface:
+  display_name: Cursor UI Architect
+  short_description: Premium UI/UX and frontend architecture rules for app building in Cursor.
+  icon: layout-template
+  color: '#111827'

@@ -1,0 +1,16 @@
+{
+  "exchange": "bitget",
+  "symbol": "ETHUSDT",
+  "market_type": "usdt-futures",
+  "timeframe": "1M",
+  "first_open_time": null,
+  "last_open_time": null,
+  "first_iso": null,
+  "last_iso": null,
+  "row_count": 0,
+  "gap_count": 0,
+  "missing_intervals": [],
+  "source_endpoint": "https://api.bitget.com/api/v2/mix/market/history-candles",
+  "downloaded_at": 1790238618519,
+  "engine_version": "eagle1-core-0.23.1"
+}

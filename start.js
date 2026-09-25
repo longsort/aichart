@@ -70,6 +70,74 @@ next.on('exit', (code, sig) => {
   process.exit(code != null ? code : sig ? 1 : 0);
 });
 
+/**
+ * instrumentation 자체 루프 보조 — curl로 동일 cron API 호출.
+ * (락으로 중복 실행 스킵) TELEGRAM_AUTO_ALERT_SELF_LOOP=0 이면 끔.
+ */
+function startTelegramSelfPollBackup() {
+  if (String(process.env.TELEGRAM_AUTO_ALERT_SELF_LOOP || '1').trim() === '0') return;
+  const secret = String(
+    process.env.TELEGRAM_MULTITF_CRON_SECRET || process.env.INTERNAL_ANALYZE_SECRET || ''
+  )
+    .trim()
+    .replace(/^["']|["']$/g, '');
+  if (!secret) {
+    console.warn('[start] telegram self-poll skip: TELEGRAM_MULTITF_CRON_SECRET empty');
+    return;
+  }
+  const base = String(process.env.INTERNAL_API_BASE_URL || `http://127.0.0.1:${port}`)
+    .trim()
+    .replace(/\/$/, '');
+  const interval = Math.max(
+    60_000,
+    Math.min(600_000, Number(process.env.TELEGRAM_AUTO_ALERT_INTERVAL_MS || 120_000) || 120_000)
+  );
+  const boot = Math.max(
+    20_000,
+    Math.min(180_000, Number(process.env.TELEGRAM_AUTO_ALERT_BOOT_DELAY_MS || 70_000) || 70_000)
+  );
+  const url = `${base}/api/cron/telegram-auto-alert`;
+  const tick = () => {
+    const u = new URL(url);
+    const lib = u.protocol === 'https:' ? require('https') : require('http');
+    const req = lib.request(
+      {
+        hostname: u.hostname,
+        port: u.port || (u.protocol === 'https:' ? 443 : 80),
+        path: u.pathname + u.search,
+        method: 'GET',
+        headers: { Authorization: `Bearer ${secret}` },
+        timeout: 170_000,
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (c) => {
+          body += c;
+        });
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 400) {
+            console.warn('[start] telegram self-poll', res.statusCode, body.slice(0, 200));
+          } else {
+            console.info('[start] telegram self-poll ok', body.slice(0, 160));
+          }
+        });
+      }
+    );
+    req.on('error', (err) => console.warn('[start] telegram self-poll err', err.message));
+    req.on('timeout', () => {
+      req.destroy();
+      console.warn('[start] telegram self-poll timeout');
+    });
+    req.end();
+  };
+  console.log('[start] telegram self-poll armed', { url, intervalMs: interval, bootDelayMs: boot });
+  setTimeout(() => {
+    tick();
+    setInterval(tick, interval);
+  }, boot);
+}
+startTelegramSelfPollBackup();
+
 const serverPath = path.join(__dirname, 'server', 'index.js');
 const nodeModRoot = path.join(__dirname, 'node_modules');
 const prevNodePath = process.env.NODE_PATH || '';

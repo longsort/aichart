@@ -14,9 +14,57 @@
       "lossStreak": 0
     },
     "gate": {
-      "minOverall": 64,
-      "minEdge": 12,
-      "unlockWins": 3,
+      "minOverall": 58,
+      "minEdge": 8,
+      "unlockWins": 2,
+      "autoTune": true
+    },
+    "activeSignal": null,
+    "recentOutcomes": [],
+    "blacklist": {}
+  },
+  "aichart2": {
+    "axisWeights": {
+      "structure": 1,
+      "zone": 1,
+      "pattern": 1,
+      "momentum": 1,
+      "close": 1,
+      "liquidity": 1
+    },
+    "stats": {
+      "wins": 0,
+      "losses": 0,
+      "lossStreak": 0
+    },
+    "gate": {
+      "minOverall": 58,
+      "minEdge": 8,
+      "unlockWins": 2,
+      "autoTune": true
+    },
+    "activeSignal": null,
+    "recentOutcomes": [],
+    "blacklist": {}
+  },
+  "aichart3": {
+    "axisWeights": {
+      "structure": 1,
+      "zone": 1,
+      "pattern": 1,
+      "momentum": 1,
+      "close": 1,
+      "liquidity": 1
+    },
+    "stats": {
+      "wins": 0,
+      "losses": 0,
+      "lossStreak": 0
+    },
+    "gate": {
+      "minOverall": 58,
+      "minEdge": 8,
+      "unlockWins": 2,
       "autoTune": true
     },
     "activeSignal": null,
