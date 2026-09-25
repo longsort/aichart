@@ -11,6 +11,7 @@ import pandas as pd
 from .entry_gates import REGIME_NAME, SESSION_NAME, combine_gates
 from .feature_engine import build_features
 from .m5_confirm import aggregate_alerts_to_15m, build_5m_alerts, load_5m_csv
+from .structure_execution import plan_from_feature_row
 from .utils import ENGINE_ROOT, load_config, utc_now_iso, write_json
 
 SESSION_KO = {0: "아시아", 1: "런던", 2: "뉴욕", 3: "오버랩"}
@@ -278,6 +279,22 @@ def signal_from_frame(
     # 적응형: 설정 상한 초과 금지
     lev = min(lev, float(mode.get("max_leverage_allowed", lev)))
 
+    # 구조 → 지정가/시장가 플랜 (맹목 시장가 진입 금지)
+    close_px = float(ohlc["close"].iloc[-1])
+    exec_plan = plan_from_feature_row(
+        row.iloc[0],
+        ohlc.iloc[-1],
+        selected if status != "WAIT" else None,
+        sl_pct,
+        tp1,
+        signal_school=str(mode.get("school") or mode.get("mode") or ""),
+    )
+    # 신호가 있어도 구조가 WAIT이면 진입 보류
+    if selected and exec_plan.get("execMode") == "WAIT":
+        status = "WAIT"
+        reasons.append(exec_plan.get("reasonKo") or "구조상 대기")
+        selected = None
+
     status_ko = {
         "WAIT": "대기",
         "LONG_SIGNAL": "롱 후보(페이퍼)",
@@ -313,11 +330,19 @@ def signal_from_frame(
         "oos_net_ev": mode.get("oos_net_ev"),
         "oos_max_dd": mode.get("oos_max_dd"),
         "oos_n": mode.get("oos_n"),
+        "close": close_px,
+        "execution": exec_plan,
+        "execMode": exec_plan.get("execMode"),
+        "entryType": exec_plan.get("entryType"),
+        "limitPrice": exec_plan.get("limitPrice"),
+        "invalidate": exec_plan.get("invalidate"),
+        "feeBias": exec_plan.get("feeBias"),
+        "playbookKo": exec_plan.get("playbookKo"),
         "real_order": False,
         "paper_only": True,
         "mode": mode.get("mode"),
         "source": mode.get("source"),
-        "noteKo": "페이퍼 신호만 · 실주문 OFF · 레버는 검증통과값 · 확정수익 아님",
+        "noteKo": "구조판독→지정가/시장가 · 페이퍼만 · 실주문 OFF · 맹목 시장가 금지",
     }
     write_json(ENGINE_ROOT / "outputs" / "reports" / "latest_live_signal.json", out)
     if append_journal:

@@ -1,6 +1,6 @@
 {
   "timestamp": 1790337600000,
-  "updatedAt": "2026-09-25T12:39:07.239227+00:00",
+  "updatedAt": "2026-09-25T13:26:32.393016+00:00",
   "status": "WAIT",
   "statusKo": "대기",
   "reasonKo": "클린확률 임계 미달",
@@ -27,9 +27,34 @@
   "oos_net_ev": 0.008330644227119578,
   "oos_max_dd": 0.3651072155272119,
   "oos_n": 22,
+  "close": 84630.8,
+  "execution": {
+    "execMode": "WAIT",
+    "entryType": null,
+    "limitPrice": null,
+    "workPrice": null,
+    "invalidate": null,
+    "urgency": 0,
+    "feeBias": "maker",
+    "reasonKo": "방향 없음 · 대기",
+    "structureTags": [],
+    "structure": {
+      "sessionKo": "오버랩",
+      "regimeKo": "상승추세",
+      "tags": [],
+      "volume_z": -1.1357029705986317,
+      "vwap_atr": 0.019814076253772375
+    }
+  },
+  "execMode": "WAIT",
+  "entryType": null,
+  "limitPrice": null,
+  "invalidate": null,
+  "feeBias": "maker",
+  "playbookKo": null,
   "real_order": false,
   "paper_only": true,
   "mode": "survival_clean_m5_v1",
   "source": "paper_survival_m5_v1.json",
-  "noteKo": "페이퍼 신호만 · 실주문 OFF · 레버는 검증통과값 · 확정수익 아님"
+  "noteKo": "구조판독→지정가/시장가 · 페이퍼만 · 실주문 OFF · 맹목 시장가 금지"
 }
