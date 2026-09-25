@@ -26,7 +26,8 @@ export type CandleAnalysisPathTuning = {
 
 function defaultHorizonBars(timeframe: string): number {
   const tf = String(timeframe || '1h').toLowerCase();
-  if (tf === '1m' || tf === '3m' || tf === '5m') return 36;
+  if (tf === '1m') return 120;
+  if (tf === '3m' || tf === '5m') return 36;
   if (tf === '15m') return 32;
   if (tf === '1h') return 28;
   if (tf === '4h') return 24;

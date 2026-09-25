@@ -74,6 +74,10 @@ import {
 } from '@/lib/settings';
 import { SETTINGS_CHANGED_EVENT, useSettingsChangeTick } from '@/lib/useSettingsChangeTick';
 import {
+  isOneMinuteTimeframe,
+  oneMinuteAnalysisFeaturePatch,
+} from '@/lib/oneMinuteAnalysisDesk';
+import {
   MERGED_DESK_CHART_DISPLAY_TICK_EVENT,
   MERGED_DESK_CHART_LAYOUT_RESET_EVENT,
   OPEN_MERGED_DESK_CHART_SETTINGS_EVENT,
@@ -4703,6 +4707,15 @@ const ChartViewInner = ({
       return next;
     });
   };
+  /** 1분봉: 캔들 수 확대 + 분석용 오버레이·패널 전부 표시 (지시·검수용) */
+  useEffect(() => {
+    if (!isOneMinuteTimeframe(timeframe)) return;
+    setSettings((prev) => {
+      const patch = oneMinuteAnalysisFeaturePatch(prev);
+      if (!Object.keys(patch).length) return prev;
+      return saveSettings({ ...prev, ...patch });
+    });
+  }, [timeframe]);
   /** 간결+요약 — 라인요약 UI만 (zone 필터와 분리) */
   const monthDeskClearSummaryOn = isMonthDeskClearSummaryBundleOn(settings);
   /** 차트 zone 밀도 — 간결+요약 칩과 별개 (rich=zone 유지) */
@@ -18701,7 +18714,7 @@ const ChartViewInner = ({
       const direction = confirmed?.direction;
       const barTime = (sig?.signalBarTime != null && candles.some((c) => (c.time as number) === sig.signalBarTime)) ? sig.signalBarTime : effSignalLast;
       const cooldownBarsByTf = (tf: string): number => {
-        if (tf === '1m') return 18;
+        if (tf === '1m') return 6; // 분석용: 분봉 신호 더 자주 노출
         if (tf === '3m' || tf === '5m') return 14;
         if (tf === '15m') return 10;
         if (tf === '1h') return 8;
@@ -18713,7 +18726,8 @@ const ChartViewInner = ({
       const minGapBars = cooldownBarsByTf(timeframe);
       const minGapSec = Math.max(1, periodSeconds(timeframe)) * minGapBars;
       const rsiScoreThresholdByTf = (tf: string): number => {
-        if (tf === '1m' || tf === '3m' || tf === '5m') return 89;
+        if (tf === '1m') return 78; // 분석용: 분봉에서 기능 신호가 더 보이게
+        if (tf === '3m' || tf === '5m') return 89;
         if (tf === '15m') return 88;
         if (tf === '1h') return 87;
         if (tf === '4h') return 86;

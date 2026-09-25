@@ -121,7 +121,8 @@ export function structureRocketSourceAllowedForTimeframe(timeframe: string, sour
 /** 병합 후 structureRocketSignals 최대 개수 (TF별) — 달봉은 봉 수·가로 넓이 대비 희소하게 */
 export function structureRocketMergeMax(timeframe: string): number {
   const m: Record<string, number> = {
-    '1m': 52,
+    /** 1m 분석 지시용: 분봉마다 구조·존 신호가 잘리지 않도록 상향 */
+    '1m': 160,
     '3m': 50,
     '5m': 48,
     '15m': 44,
@@ -144,7 +145,7 @@ export function structureRocketBuilderBudget(timeframe: string): {
 } {
   const mergeMax = structureRocketMergeMax(timeframe);
   const m: Record<string, { b: number; c: number; z: number }> = {
-    '1m': { b: 26, c: 22, z: 44 },
+    '1m': { b: 64, c: 48, z: 96 },
     '3m': { b: 26, c: 22, z: 42 },
     '5m': { b: 24, c: 20, z: 40 },
     '15m': { b: 22, c: 20, z: 36 },
@@ -172,6 +173,14 @@ export const RSI_SWING_WATCH_THRESHOLD = 60;
 /** 구조 세트업(E/SL/TP) 동시 표시 상한 — 축 라벨 과밀 방지 */
 export const STRUCTURE_PRICE_LINES_MAX = 8;
 
+/** TF별 구조 가격선 상한 — 1m 분석 시 더 많이 노출 */
+export function structurePriceLinesMax(timeframe: string): number {
+  const tf = normalizeChartTimeframe(timeframe);
+  if (tf === '1m') return 24;
+  if (tf === '3m' || tf === '5m') return 16;
+  return STRUCTURE_PRICE_LINES_MAX;
+}
+
 /**
  * 15m/1h/4h: 시장 fetch·차트·패턴 예측 maxBars 공통 상한 — **약 6개월(182.625일)** 분량.
  * (버퍼링·초기 로딩 완화 — 필요 시 pre3-memory 등 오프라인 분석으로 긴 히스토리 유지)
@@ -188,7 +197,8 @@ export const MARKET_BARS_3Y: Record<string, number> = {
  */
 export function visibleLimit(timeframe: string): number {
   const map: Record<string, number> = {
-    '1m': 2200, // ~1.5일
+    /** 1m: ~7일 — 사용자 분봉 분석·지시용 (기존 ~1.5일에서 확대) */
+    '1m': 10_080,
     '3m': 1440, // ~3일
     '5m': 1200, // ~4.2일
     '15m': 960, // ~10일 (스윙 분석 기준)

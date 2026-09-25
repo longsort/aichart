@@ -29,7 +29,7 @@ const CAT: OverlayItem['category'] = 'smcDesk';
 
 function lookbackBars(tf: string): number {
   const m: Record<string, number> = {
-    '1m': 96,
+    '1m': 720, // 12h — 분봉 분석용
     '3m': 96,
     '5m': 120,
     '15m': 140,

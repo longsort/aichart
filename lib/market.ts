@@ -94,8 +94,8 @@ function rangeFor(tf: string) {
 
 function historicalFetchLimit(tf: string): number {
   const map: Record<string, number> = {
-    // minute TF: bounded for dev-server heap stability — 항상 visibleLimit 이상
-    '1m': 2800,
+    // 1m: visibleLimit(7일)과 맞춤 — 분석·지시용 분봉 히스토리
+    '1m': 10_080,
     '3m': 1800,
     '5m': 1400,
     /** 약 6개월 — 페이지네이션 수집(analyze 표시 구간은 visibleLimit) */
