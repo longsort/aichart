@@ -41,8 +41,7 @@ FILES = [
     "app/api/profit-pattern/journal/route.ts",
     "app/api/profit-pattern/locks/route.ts",
     "app/api/cron/profit-pattern-auto/route.ts",
-    # UI
-    "app/components/eagle1Tapoint/Eagle1TapointDeskView.tsx",
+    # UI: VPS DeskView 이미 PP 패치됨 — 덮어쓰지 않음
     # scripts / data / env hint
     "scripts/install-profit-pattern-cron.sh",
     "scripts/smokeProfitPatternMultiCoin.ts",
