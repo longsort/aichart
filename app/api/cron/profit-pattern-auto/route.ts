@@ -56,7 +56,7 @@ async function run(req: NextRequest) {
     req.nextUrl.searchParams.get('dryRun') === '1';
 
   const arm = readPpServerArm();
-  const report = await runProfitPatternServerScan({ arm, dryRun });
+  const report = await runProfitPatternServerScan({ dryRun });
   return NextResponse.json({
     ok: true,
     dryRun,

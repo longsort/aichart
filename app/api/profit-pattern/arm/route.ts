@@ -12,7 +12,7 @@ import {
   writePpServerArm,
 } from '@/lib/profitPattern15m/serverArm';
 import { PROFIT_PATTERN_CORE_SYMBOLS } from '@/lib/profitPattern15m/skill';
-import { readBitgetCredsFromEnv } from '@/lib/bitgetMixOrder';
+import { readExchangeKeysMeta } from '@/lib/serverExchangeKeysStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,9 +26,21 @@ function authUser(): string | null {
   }
 }
 
+function bitgetKeysConfigured(user: string | null): boolean {
+  if (user) {
+    const meta = readExchangeKeysMeta(user);
+    if (meta?.hasSecret && meta?.hasPassphrase) return true;
+  }
+  const apiKey = (process.env.BITGET_API_KEY || '').trim();
+  const apiSecret = (process.env.BITGET_API_SECRET || '').trim();
+  const passphrase = (process.env.BITGET_API_PASSPHRASE || '').trim();
+  return Boolean(apiKey && apiSecret && passphrase);
+}
+
 export async function GET() {
+  const user = authUser();
   const arm = readPpServerArm();
-  const keys = Boolean(readBitgetCredsFromEnv());
+  const keys = bitgetKeysConfigured(user);
   return NextResponse.json({
     ok: true,
     arm,
@@ -43,8 +55,13 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const user = authUser();
   /** cron/내부도 허용 — 시크릿 헤더 */
-  const cronSecret = (process.env.PROFIT_PATTERN_CRON_SECRET || process.env.TELEGRAM_MULTITF_CRON_SECRET || '').trim();
-  const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() || '';
+  const cronSecret = (
+    process.env.PROFIT_PATTERN_CRON_SECRET ||
+    process.env.TELEGRAM_MULTITF_CRON_SECRET ||
+    ''
+  ).trim();
+  const bearer =
+    req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() || '';
   const internalOk = Boolean(cronSecret && bearer === cronSecret);
   if (!user && !internalOk) {
     return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
@@ -58,9 +75,7 @@ export async function POST(req: NextRequest) {
     paperOnly?: boolean;
   };
 
-  const symbols = Array.isArray(body.symbols)
-    ? body.symbols
-    : undefined;
+  const symbols = Array.isArray(body.symbols) ? body.symbols : undefined;
 
   const arm = writePpServerArm({
     liveArmed: body.liveArmed,
@@ -75,6 +90,6 @@ export async function POST(req: NextRequest) {
     ok: true,
     arm,
     serverEntryReady: ppServerEntryReady(arm),
-    bitgetKeysConfigured: Boolean(readBitgetCredsFromEnv()),
+    bitgetKeysConfigured: bitgetKeysConfigured(user),
   });
 }

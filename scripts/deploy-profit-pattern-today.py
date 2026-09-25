@@ -33,8 +33,7 @@ FILES = [
     "lib/profitPattern15m/serverPersist.ts",
     "lib/profitPattern15m/serverRunner.ts",
     "lib/profitPattern15m/index.ts",
-    "lib/bitgetFuturesMarket.ts",
-    "lib/bitgetMixOrder.ts",
+    # VPS bitgetFuturesMarket.ts(663줄) · MixOrder 미사용 — 덮어쓰지 않음
     "lib/mergedDeskServerArmClient.ts",
     "lib/eagle1Tapoint/chartSignals.ts",
     # API
