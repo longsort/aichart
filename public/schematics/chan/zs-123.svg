@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Chan — Fenxing / Bi / Zhongshu / BS 1-2-3</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.4" points="60,200 120,80 200,300 280,100 360,280 460,90 560,260 640,120 760,240 860,80 940,200"/>
+  <rect x="200" y="140" width="360" height="140" fill="rgba(59,130,246,0.12)" stroke="#2563eb"/>
+  <text x="320" y="130" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#1d4ed8">ZHONGSHU (overlap of 3 bi)</text>
+  <text x="120" y="70" font-family="Segoe UI, sans-serif" font-size="12">fenxing</text>
+  <text x="80" y="250" font-family="Segoe UI, sans-serif" font-size="12">BI</text>
+  <text x="200" y="320" font-family="Segoe UI, sans-serif" font-size="13" font-weight="800">1</text>
+  <text x="460" y="80" font-family="Segoe UI, sans-serif" font-size="13" font-weight="800">2</text>
+  <text x="760" y="260" font-family="Segoe UI, sans-serif" font-size="13" font-weight="800">3</text>
+  <text x="80" y="430" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">1=leave zs opposite  2=retest zs  3=break zs with trend bi. Approximate.</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Not full CZSC. Overlap heuristic only.</text>
+</svg>

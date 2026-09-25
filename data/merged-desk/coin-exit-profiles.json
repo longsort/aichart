@@ -1,0 +1,87 @@
+{
+  "ETH": {
+    "coin": "ETH",
+    "slPricePct": 0.1502787412115852,
+    "tpPricePct": 0.18784842651448147,
+    "tpRoePct": 5.635452795434444,
+    "slRoePct": 4.508362236347556,
+    "leverage": 10,
+    "preferTfs": [
+      "5m",
+      "3m"
+    ],
+    "skipTfs": [
+      "15m"
+    ],
+    "failBands": [],
+    "sampleTrades": 328,
+    "winRate": 0.5487804878048781,
+    "avgMfePct": 0.35311436148847625,
+    "avgMaePct": 0.15397008908026652,
+    "updatedAt": 1789882592503,
+    "noteKo": "ETH 폭락존3·5·15 · 31일 · 거래328 · 승180 · SL 0.150%/TP 0.188% · 30x ROE TP5.6/SL4.5 · 확정아님"
+  },
+  "BTC": {
+    "coin": "BTC",
+    "slPricePct": 0.2584984848701566,
+    "tpPricePct": 0.20006362849041645,
+    "tpRoePct": 3.3304639116092885,
+    "slRoePct": 2.6643711292874306,
+    "leverage": 10,
+    "preferTfs": [
+      "3m"
+    ],
+    "skipTfs": [],
+    "sampleTrades": 451,
+    "winRate": 0.6651884700665188,
+    "avgMfePct": 0.22399553084806975,
+    "avgMaePct": 0.16328812607191506,
+    "updatedAt": 1789873009330,
+    "noteKo": "BTC 3m 로켓 · 31일 · 🚀407/📉381 · 거래451 · 승300 · 권장 30x TP 6.0%ROE / SL 7.8%ROE · 확정아님",
+    "failBands": []
+  },
+  "BNB": {
+    "coin": "BNB",
+    "slPricePct": 0.10258767008019029,
+    "tpPricePct": 0.1490260502229502,
+    "tpRoePct": 4.470781506688506,
+    "slRoePct": 3.077630102405709,
+    "leverage": 10,
+    "preferTfs": [
+      "5m",
+      "3m"
+    ],
+    "skipTfs": [
+      "15m"
+    ],
+    "failBands": [],
+    "sampleTrades": 32,
+    "winRate": 0.53125,
+    "avgMfePct": 0.1367694788457258,
+    "avgMaePct": 0.09252093525034377,
+    "updatedAt": 1789882620263,
+    "noteKo": "SFP3·5·15 · 9.747916666666667일 · 거래32 · 승17 · SL 0.103% / TP 0.149% · 30x ROE TP4.5 / SL3.1 · 스킵TF 15m · 실패구간 2 · 확정아님"
+  },
+  "XRP": {
+    "coin": "XRP",
+    "slPricePct": 0.8553410427038156,
+    "tpPricePct": 1.0691763033797694,
+    "tpRoePct": 32.07528910139308,
+    "slRoePct": 25.66023128111447,
+    "leverage": 30,
+    "preferTfs": [
+      "5m",
+      "15m"
+    ],
+    "skipTfs": [
+      "3m"
+    ],
+    "failBands": [],
+    "sampleTrades": 685,
+    "winRate": 0.7445255474452555,
+    "avgMfePct": 0.29631834836921944,
+    "avgMaePct": 0.42571046400709156,
+    "updatedAt": 1789874257499,
+    "noteKo": "XRP 4패턴 리플레이 · 약31일 · 거래685 · 승510 · 전략별 분리 · 확정아님"
+  }
+}

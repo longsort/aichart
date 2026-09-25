@@ -1,0 +1,16 @@
+{
+  "exchange": "bitget",
+  "symbol": "XRPUSDT",
+  "market_type": "usdt-futures",
+  "timeframe": "15m",
+  "first_open_time": 1789235100000,
+  "last_open_time": 1789882200000,
+  "first_iso": "2026-09-12T17:45:00.000Z",
+  "last_iso": "2026-09-20T05:30:00.000Z",
+  "row_count": 720,
+  "gap_count": 0,
+  "missing_intervals": [],
+  "source_endpoint": "https://api.bitget.com/api/v2/mix/market/history-candles",
+  "downloaded_at": 1790222171040,
+  "engine_version": "eagle1-core-0.23.1"
+}

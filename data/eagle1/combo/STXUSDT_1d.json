@@ -1,0 +1,45 @@
+{
+  "symbol": "STXUSDT",
+  "timeframe": "1d",
+  "at": 1787740700129,
+  "promoted": null,
+  "summaryKo": "강신호 조합 없음 · 단독 SMC 금지",
+  "hits": [
+    {
+      "id": "reversal_cluster_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 49,
+      "tpBeforeSl": 0.6938775510204082,
+      "netExpectancy": -1.056339981550055,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "reversal_cluster_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 49,
+      "tpBeforeSl": 0.6938775510204082,
+      "netExpectancy": -1.056339981550055,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 19,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "조합 미완 · 충족 1/3"
+    },
+    {
+      "id": "breakout_continuation_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 19,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    }
+  ]
+}

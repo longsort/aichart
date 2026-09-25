@@ -1,0 +1,54 @@
+{
+  "BTCUSDT": {
+    "symbol": "BTCUSDT",
+    "direction": "LONG",
+    "entry": 84392.6,
+    "sl": 84055.02960000001,
+    "tp": 84527.62816000001,
+    "lockedAt": 1790341322,
+    "eventId": "profitPattern15m-BTCUSDT-1790341200-LONG",
+    "source": "profitPattern",
+    "lineEntryKo": "50x롱",
+    "lineSlKo": "50x롱스탑",
+    "lineTpKo": "50x롱목표"
+  },
+  "ETHUSDT": {
+    "symbol": "ETHUSDT",
+    "direction": "LONG",
+    "entry": 2687.76,
+    "sl": 2677.00896,
+    "tp": 2692.0604160000003,
+    "lockedAt": 1790344084,
+    "eventId": "profitPattern15m-ETHUSDT-1790343900-LONG",
+    "source": "profitPattern",
+    "lineEntryKo": "50x롱",
+    "lineSlKo": "50x롱스탑",
+    "lineTpKo": "50x롱목표"
+  },
+  "BNBUSDT": {
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entry": 774.21,
+    "sl": 771.11316,
+    "tp": 775.448736,
+    "lockedAt": 1790343246,
+    "eventId": "profitPattern15m-BNBUSDT-1790343000-LONG",
+    "source": "profitPattern",
+    "lineEntryKo": "50x롱",
+    "lineSlKo": "50x롱스탑",
+    "lineTpKo": "50x롱목표"
+  },
+  "SOLUSDT": {
+    "symbol": "SOLUSDT",
+    "direction": "LONG",
+    "entry": 119.483,
+    "sl": 119.00506800000001,
+    "tp": 119.67417280000001,
+    "lockedAt": 1790343962,
+    "eventId": "profitPattern15m-SOLUSDT-1790343900-LONG",
+    "source": "profitPattern",
+    "lineEntryKo": "50x롱",
+    "lineSlKo": "50x롱스탑",
+    "lineTpKo": "50x롱목표"
+  }
+}

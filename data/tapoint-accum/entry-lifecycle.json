@@ -1,0 +1,352 @@
+[
+  {
+    "signalId": "ib-a-BNBUSDT-1m-SHORT-765",
+    "symbol": "BNBUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 765.08,
+    "openedAt": 1790188335161,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-a-ETHUSDT-5m-SHORT-2669:live",
+    "symbol": "ETHUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 2668.92,
+    "openedAt": 1790189831196,
+    "paper": false,
+    "noteKo": "live-order · MANAGE"
+  },
+  {
+    "signalId": "ib-a-BTCUSDT-3m-LONG-84207",
+    "symbol": "BTCUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 84206.6,
+    "openedAt": 1790190395530,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459269",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 767.09,
+    "openedAt": 1790224622247,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-SOLUSDT-15m-SHORT-497284",
+    "symbol": "SOLUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 114.824,
+    "openedAt": 1790224803197,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-ETHUSDT-5m-SHORT-1491854",
+    "symbol": "ETHUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 2677.45,
+    "openedAt": 1790225663950,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-ETHUSDT-5m-LONG-1491855",
+    "symbol": "ETHUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 2696.42,
+    "openedAt": 1790226564074,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459278",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 773.75,
+    "openedAt": 1790226924388,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-SHORT-2486431",
+    "symbol": "BTCUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 84061.7,
+    "openedAt": 1790230929133,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-SHORT-7459329:live",
+    "symbol": "BNBUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 769.85,
+    "openedAt": 1790239128478,
+    "paper": false,
+    "noteKo": "live-order · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459344:live",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 765.92,
+    "openedAt": 1790242636990,
+    "paper": false,
+    "noteKo": "live-order · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459368",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 770.1,
+    "openedAt": 1790248548652,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-LONG-2486458",
+    "symbol": "BTCUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 83413.7,
+    "openedAt": 1790250348013,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-SHORT-2486465",
+    "symbol": "BTCUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 83600,
+    "openedAt": 1790254938425,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459403",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 776.32,
+    "openedAt": 1790256830013,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459419",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 780.11,
+    "openedAt": 1790260790743,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-LONG-2486473",
+    "symbol": "BTCUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 84211.2,
+    "openedAt": 1790261240573,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-XRPUSDT-1H-SHORT-124323",
+    "symbol": "XRPUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 1.5076,
+    "openedAt": 1790261331729,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-SHORT-7459437",
+    "symbol": "BNBUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 779.41,
+    "openedAt": 1790265111981,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459445",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 781.98,
+    "openedAt": 1790266822072,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-LONG-2486486",
+    "symbol": "BTCUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 84295.8,
+    "openedAt": 1790270421033,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-SHORT-7459466",
+    "symbol": "BNBUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 778.09,
+    "openedAt": 1790272041430,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459479",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 780.33,
+    "openedAt": 1790275191333,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-LONG-2486498",
+    "symbol": "BTCUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 84403.6,
+    "openedAt": 1790278881787,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-SHORT-7459500",
+    "symbol": "BNBUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 778.23,
+    "openedAt": 1790280142020,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-SHORT-2486504",
+    "symbol": "BTCUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 84331.1,
+    "openedAt": 1790282931782,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459526:live",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 779.48,
+    "openedAt": 1790286424389,
+    "paper": false,
+    "noteKo": "live-order · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-SHORT-7459537:live",
+    "symbol": "BNBUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 776.37,
+    "openedAt": 1790288882737,
+    "paper": false,
+    "noteKo": "live-order · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-SHORT-2486514",
+    "symbol": "BTCUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 84223.9,
+    "openedAt": 1790290763469,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459562",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 779.3,
+    "openedAt": 1790294993782,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-LONG-2486522:live",
+    "symbol": "BTCUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 84513.6,
+    "openedAt": 1790296304821,
+    "paper": false,
+    "noteKo": "live-order · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-LONG-2486526",
+    "symbol": "BTCUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 84616.5,
+    "openedAt": 1790299317051,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BTCUSDT-3m-LONG-2486527",
+    "symbol": "BTCUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 84544.1,
+    "openedAt": 1790299677202,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-SHORT-7459581",
+    "symbol": "BNBUSDT",
+    "direction": "SHORT",
+    "entryState": "MANAGE",
+    "entryPrice": 776.69,
+    "openedAt": 1790299678299,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  },
+  {
+    "signalId": "ib-align-BNBUSDT-1m-LONG-7459585",
+    "symbol": "BNBUSDT",
+    "direction": "LONG",
+    "entryState": "MANAGE",
+    "entryPrice": 776.74,
+    "openedAt": 1790300577388,
+    "paper": false,
+    "noteKo": "서버 · MANAGE"
+  }
+]

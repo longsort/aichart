@@ -1,0 +1,45 @@
+{
+  "symbol": "SOLUSDT",
+  "timeframe": "1Y",
+  "at": 1790055088714,
+  "promoted": null,
+  "summaryKo": "강신호 조합 없음 · 단독 SMC 금지",
+  "hits": [
+    {
+      "id": "reversal_cluster_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 59,
+      "tpBeforeSl": 0.5932203389830508,
+      "netExpectancy": -3.6148846122751346,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "reversal_cluster_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 59,
+      "tpBeforeSl": 0.5932203389830508,
+      "netExpectancy": -3.6148846122751346,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 10,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 10,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    }
+  ]
+}

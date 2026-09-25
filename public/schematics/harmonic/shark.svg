@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Shark (0-X-A-B-C)</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.5" points="80,300 260,120 480,360 700,80 900,280"/>
+  <text x="80" y="290" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">0</text>
+  <text x="260" y="110" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">X</text>
+  <text x="480" y="350" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">A</text>
+  <text x="700" y="70" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">B</text>
+  <text x="900" y="270" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800" fill="#1d4ed8">C</text>
+  <text x="80" y="430" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">AB=1.13–1.618 XA   BC=1.618–2.24 AB   C is PRZ  (not classic XABCD D)</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">PRZ at D is a zone, not a fill. Invalid if XA structure breaks.</text>
+</svg>

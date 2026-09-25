@@ -1,0 +1,25 @@
+{
+  "symbol": "BTCUSDT",
+  "timeframe": "4h",
+  "lastSyncAt": 1789751514996,
+  "lastClosedOpenTime": 1789718400000,
+  "count": 6568,
+  "firstOpenTime": 1695081600000,
+  "lastOpenTime": 1789718400000,
+  "repair": {
+    "duplicateDropped": 0,
+    "missingFilled": 0,
+    "gapWindowsRepaired": 0,
+    "invalidOhlcRepaired": 0,
+    "negativeVolumeRepaired": 0,
+    "unfinishedDropped": 7,
+    "apiPages": 2
+  },
+  "incrementalLogs": [
+    "load BTCUSDT 4h: csv=1440 overlay=5141 merged=6575",
+    "incremental from lastClosed 2026-09-18T08:00:00.000Z",
+    "recent API bars=500 overlayAppend=0",
+    "tail fill bars=2 overlayAppend=0",
+    "fast-ui: skip headFill/gap-repair"
+  ]
+}

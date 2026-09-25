@@ -1,0 +1,417 @@
+{
+  "exchange": "bitget",
+  "symbol": "BTCUSDT",
+  "market_type": "usdt-futures",
+  "timeframe": "1m",
+  "first_open_time": 1771027200000,
+  "last_open_time": 1786711800000,
+  "first_iso": "2026-02-14T00:00:00.000Z",
+  "last_iso": "2026-08-14T12:50:00.000Z",
+  "row_count": 260104,
+  "gap_count": 1307,
+  "missing_intervals": [
+    {
+      "from_open_time": 1771031100000,
+      "to_open_time": 1771031220000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771043160000,
+      "to_open_time": 1771043280000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771055220000,
+      "to_open_time": 1771055340000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771067280000,
+      "to_open_time": 1771067400000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771079340000,
+      "to_open_time": 1771079460000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771091400000,
+      "to_open_time": 1771091520000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771103460000,
+      "to_open_time": 1771103580000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771115520000,
+      "to_open_time": 1771115640000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771127580000,
+      "to_open_time": 1771127700000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771139640000,
+      "to_open_time": 1771139760000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771151700000,
+      "to_open_time": 1771151820000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771163760000,
+      "to_open_time": 1771163880000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771175820000,
+      "to_open_time": 1771175940000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771187880000,
+      "to_open_time": 1771188000000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771199940000,
+      "to_open_time": 1771200060000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771212000000,
+      "to_open_time": 1771212120000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771224060000,
+      "to_open_time": 1771224180000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771236120000,
+      "to_open_time": 1771236240000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771248180000,
+      "to_open_time": 1771248300000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771260240000,
+      "to_open_time": 1771260360000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771272300000,
+      "to_open_time": 1771272420000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771284360000,
+      "to_open_time": 1771284480000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771296420000,
+      "to_open_time": 1771296540000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771308480000,
+      "to_open_time": 1771308600000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771320540000,
+      "to_open_time": 1771320660000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771332600000,
+      "to_open_time": 1771332720000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771339980000,
+      "to_open_time": 1771340100000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771352040000,
+      "to_open_time": 1771352160000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771364100000,
+      "to_open_time": 1771364220000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771376160000,
+      "to_open_time": 1771376280000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771388220000,
+      "to_open_time": 1771388340000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771400280000,
+      "to_open_time": 1771400400000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771412340000,
+      "to_open_time": 1771412460000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771424400000,
+      "to_open_time": 1771424520000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771436460000,
+      "to_open_time": 1771436580000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771448520000,
+      "to_open_time": 1771448640000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771460580000,
+      "to_open_time": 1771460700000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771472640000,
+      "to_open_time": 1771472760000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771484700000,
+      "to_open_time": 1771484820000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771496760000,
+      "to_open_time": 1771496880000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771508820000,
+      "to_open_time": 1771508940000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771520880000,
+      "to_open_time": 1771521000000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771532940000,
+      "to_open_time": 1771533060000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771545000000,
+      "to_open_time": 1771545120000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771557060000,
+      "to_open_time": 1771557180000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771569120000,
+      "to_open_time": 1771569240000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771581180000,
+      "to_open_time": 1771581300000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771593240000,
+      "to_open_time": 1771593360000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771605300000,
+      "to_open_time": 1771605420000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771617360000,
+      "to_open_time": 1771617480000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771629420000,
+      "to_open_time": 1771629540000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771641480000,
+      "to_open_time": 1771641600000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771653540000,
+      "to_open_time": 1771653660000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771665600000,
+      "to_open_time": 1771665720000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771677660000,
+      "to_open_time": 1771677780000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771689720000,
+      "to_open_time": 1771689840000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771701780000,
+      "to_open_time": 1771701900000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771713840000,
+      "to_open_time": 1771713960000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771725900000,
+      "to_open_time": 1771726020000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771737960000,
+      "to_open_time": 1771738080000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771750020000,
+      "to_open_time": 1771750140000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771762080000,
+      "to_open_time": 1771762200000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771774140000,
+      "to_open_time": 1771774260000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771786200000,
+      "to_open_time": 1771786320000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771798260000,
+      "to_open_time": 1771798380000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771810320000,
+      "to_open_time": 1771810440000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771822380000,
+      "to_open_time": 1771822500000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771834440000,
+      "to_open_time": 1771834560000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771846500000,
+      "to_open_time": 1771846620000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771858560000,
+      "to_open_time": 1771858680000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771870620000,
+      "to_open_time": 1771870740000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771882680000,
+      "to_open_time": 1771882800000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771894740000,
+      "to_open_time": 1771894860000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771906800000,
+      "to_open_time": 1771906920000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771918860000,
+      "to_open_time": 1771918980000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771930920000,
+      "to_open_time": 1771931040000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771942980000,
+      "to_open_time": 1771943100000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771955040000,
+      "to_open_time": 1771955160000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771967100000,
+      "to_open_time": 1771967220000,
+      "gap_ms": 120000
+    },
+    {
+      "from_open_time": 1771979160000,
+      "to_open_time": 1771979280000,
+      "gap_ms": 120000
+    }
+  ],
+  "source_endpoint": "https://api.bitget.com/api/v2/mix/market/history-candles",
+  "downloaded_at": 1790344873850,
+  "engine_version": "eagle1-core-0.23.1"
+}

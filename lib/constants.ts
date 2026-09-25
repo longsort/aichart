@@ -64,11 +64,54 @@ const CHART_TF_ALIASES: Record<string, string> = {
 export function normalizeChartTimeframe(tf: string): string {
   const raw = String(tf ?? '').trim();
   if (!raw) return '';
+  /** 1M(월) vs 1m(분) — 대소문자 구분 토큰 우선 */
+  const exact = TIMEFRAMES.find((x) => x === raw);
+  if (exact) return exact;
   const lower = raw.toLowerCase();
   if (CHART_TF_ALIASES[lower]) return CHART_TF_ALIASES[lower];
-  const hit = TIMEFRAMES.find((x) => x.toLowerCase() === lower);
+  const hit = TIMEFRAMES.find((x) => x !== '1M' && x.toLowerCase() === lower);
   if (hit) return hit;
+  if (lower === '1mo' || lower === '1month') return '1M';
   return raw;
+}
+
+/** Binance kline open time (UTC) — 분·시봉 버킷 스냅용 (1d/1w/1M은 Bitget 16:00 UTC 때문에 버킷 생략) */
+const CHART_TF_STEP_SEC: Record<string, number> = {
+  '1m': 60,
+  '3m': 180,
+  '5m': 300,
+  '15m': 900,
+  '1h': 3600,
+  '4h': 14_400,
+};
+
+/**
+ * 갭 메움·공백 제거용 명목 step — 분·시·일·주·월 **공동**.
+ * 버킷 스냅(`chartTimeframeStepSeconds`)과 분리: 1d는 자정으로 강제하지 않고 간격만 86400.
+ */
+const CHART_TF_NOMINAL_STEP_SEC: Record<string, number> = {
+  '1m': 60,
+  '3m': 180,
+  '5m': 300,
+  '15m': 900,
+  '1h': 3600,
+  '4h': 14_400,
+  '1d': 86_400,
+  '1w': 604_800,
+  /** 월·년은 가변 — sanitize에서 중앙값과 혼합 */
+  '1M': 2_592_000,
+  '1Y': 31_536_000,
+};
+
+export function chartTimeframeStepSeconds(tf: string): number {
+  const n = normalizeChartTimeframe(tf);
+  return CHART_TF_STEP_SEC[n] ?? 0;
+}
+
+/** 전 TF 공통 — 빠진 봉 슬롯 메움·공백(뛰엄뛰엄) 제거용 */
+export function chartTimeframeNominalStepSeconds(tf: string): number {
+  const n = normalizeChartTimeframe(tf);
+  return CHART_TF_NOMINAL_STEP_SEC[n] ?? 0;
 }
 
 /** 차트 `timeframe`과 analyze 응답의 `timeframe`을 동일 TF로 볼지(문자열 엄격 비교 금지) */
@@ -212,4 +255,16 @@ export function visibleLimit(timeframe: string): number {
   };
   const k = normalizeChartTimeframe(timeframe);
   return map[k] ?? 700;
+}
+
+/**
+ * true면 차트 캔들 본봉의 Pre3·줄·존 근접·구조 단계·핫존 등 반짝/펄스 색 overlays 끔(기본 상승·하락만).
+ * 다시 켜려면 false로 바꾸면 됨.
+ */
+export const CHART_DISABLE_ALL_CANDLE_SPARKLE = true;
+
+/** 상장일~전량 차트 히스토리 TF (1d/1w/1M) */
+export function isListingFullHistoryTf(timeframe: string): boolean {
+  const k = normalizeChartTimeframe(timeframe);
+  return k === '1d' || k === '1w' || k === '1M';
 }

@@ -1,0 +1,42 @@
+{
+  "BTC": {
+    "coin": "BTC",
+    "leverage": 20,
+    "equityPct": 5,
+    "tp1RoePct": 8,
+    "slRoePct": 8,
+    "updatedAt": 1790320308532
+  },
+  "ETH": {
+    "coin": "ETH",
+    "leverage": 20,
+    "equityPct": 5,
+    "tp1RoePct": 8,
+    "slRoePct": 8,
+    "updatedAt": 1790320308532
+  },
+  "BNB": {
+    "coin": "BNB",
+    "leverage": 10,
+    "equityPct": 5,
+    "tp1RoePct": 8,
+    "slRoePct": 8,
+    "updatedAt": 1790320308532
+  },
+  "XRP": {
+    "coin": "XRP",
+    "leverage": 10,
+    "equityPct": 5,
+    "tp1RoePct": 8,
+    "slRoePct": 8,
+    "updatedAt": 1790320308532
+  },
+  "SOL": {
+    "coin": "SOL",
+    "leverage": 10,
+    "equityPct": 5,
+    "tp1RoePct": 8,
+    "slRoePct": 8,
+    "updatedAt": 1790320308532
+  }
+}

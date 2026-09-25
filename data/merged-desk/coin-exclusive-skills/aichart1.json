@@ -1,0 +1,22 @@
+{
+  "BTC": {
+    "htfSweepFilter": true,
+    "btcRocket": true
+  },
+  "ETH": {
+    "htfSweepFilter": true,
+    "ethDump": true
+  },
+  "BNB": {
+    "htfSweepFilter": true,
+    "bnbPpl": true
+  },
+  "XRP": {
+    "htfSweepFilter": true,
+    "xrpFour": true
+  },
+  "SOL": {
+    "htfSweepFilter": true,
+    "solFlow": true
+  }
+}

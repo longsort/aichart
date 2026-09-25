@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Head &amp; Shoulders</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.6" points="70,320 160,160 250,300 400,80 550,300 640,170 760,340 900,400"/>
+  <line x1="160" y1="300" x2="640" y2="300" stroke="#64748b" stroke-dasharray="4 3"/>
+  <text x="160" y="150" font-family="Segoe UI, sans-serif" font-size="14" font-weight="800">LS</text>
+  <text x="400" y="68" font-family="Segoe UI, sans-serif" font-size="14" font-weight="800">HEAD</text>
+  <text x="640" y="158" font-family="Segoe UI, sans-serif" font-size="14" font-weight="800">RS</text>
+  <text x="400" y="322" font-family="Segoe UI, sans-serif" font-size="13" fill="#64748b">neckline</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">Break of neckline completes. Target ~ head-to-neck projected. Heuristic.</text>
+</svg>

@@ -1,0 +1,13 @@
+{
+  "updatedAt": 1790345031245,
+  "paper": {
+    "confirmed": 1927,
+    "rejects": 86321,
+    "updatedAt": 1790345031245
+  },
+  "oos": {
+    "holdoutPf": null,
+    "holdoutNetEv": null,
+    "n": 60
+  }
+}

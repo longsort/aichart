@@ -1,21 +1,33 @@
-﻿import fs from 'fs/promises';
+import fs from 'fs/promises';
 import path from 'path';
 import type { Candle } from '@/types';
+import { normalizeChartTimeframe } from '@/lib/constants';
 
 const cache = new Map<string, { at: number; candles: Candle[] }>();
-const TTL_MS = 30_000;
+const TTL_MS = 10 * 60_000;
 
 function tfToFileSuffix(tf: string): string {
-  const t = String(tf || '15m').trim();
-  if (t === '15m') return '15m';
-  if (t === '1h' || t === '1H') return '1H';
-  if (t === '4h' || t === '4H') return '4H';
-  return '15m';
+  const n = normalizeChartTimeframe(String(tf || '15m'));
+  const map: Record<string, string> = {
+    '1m': '1m',
+    '3m': '3m',
+    '5m': '5m',
+    '15m': '15m',
+    '1h': '1H',
+    '4h': '4H',
+    '1d': '1D',
+    '1w': '1W',
+    '1M': '1M',
+    '1Y': '1Y',
+  };
+  if (!map[n]) return null;
+  return map[n];
 }
 
 export async function readBitgetFuturesCsv(symbol: string, timeframe: string): Promise<Candle[]> {
   const sym = String(symbol || 'BTCUSDT').toUpperCase();
   const tf = tfToFileSuffix(timeframe);
+  if (!tf) return [];
   const key = `${sym}|${tf}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.candles;
@@ -49,4 +61,38 @@ export async function readBitgetFuturesCsv(symbol: string, timeframe: string): P
   out.sort((a, b) => a.time - b.time);
   cache.set(key, { at: Date.now(), candles: out });
   return out;
+}
+
+/** 리플레이용 CSV 저장 (기존 파일 덮어쓰기) */
+export async function writeBitgetFuturesCsv(
+  symbol: string,
+  timeframe: string,
+  candles: Candle[]
+): Promise<string | null> {
+  const sym = String(symbol || 'BTCUSDT').toUpperCase();
+  const tf = tfToFileSuffix(timeframe);
+  if (!tf || !candles.length) return null;
+  const dir = path.join(process.cwd(), 'data', 'bitget-futures');
+  await fs.mkdir(dir, { recursive: true });
+  const file = path.join(dir, `${sym}_${tf}.csv`);
+  const lines = ['timestamp,datetime,open,high,low,close,volume,quoteVolume'];
+  for (const c of candles) {
+    const ms = Number(c.time) * 1000;
+    const iso = new Date(ms).toISOString();
+    lines.push(
+      [
+        ms,
+        iso,
+        c.open,
+        c.high,
+        c.low,
+        c.close,
+        c.volume ?? 0,
+        '',
+      ].join(',')
+    );
+  }
+  await fs.writeFile(file, lines.join('\n'), 'utf8');
+  cache.set(`${sym}|${tf}`, { at: Date.now(), candles: [...candles].sort((a, b) => a.time - b.time) });
+  return file;
 }

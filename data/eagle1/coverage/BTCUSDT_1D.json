@@ -1,0 +1,16 @@
+{
+  "exchange": "bitget",
+  "symbol": "BTCUSDT",
+  "market_type": "usdt-futures",
+  "timeframe": "1D",
+  "first_open_time": 1658160000000,
+  "last_open_time": 1782489600000,
+  "first_iso": "2022-07-18T16:00:00.000Z",
+  "last_iso": "2026-06-26T16:00:00.000Z",
+  "row_count": 1440,
+  "gap_count": 0,
+  "missing_intervals": [],
+  "source_endpoint": "https://api.bitget.com/api/v2/mix/market/history-candles",
+  "downloaded_at": 1790344873883,
+  "engine_version": "eagle1-core-0.23.1"
+}

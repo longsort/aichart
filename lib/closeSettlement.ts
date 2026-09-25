@@ -12,6 +12,16 @@ const TF_PERIOD_SEC: Record<string, number> = {
   '1Y': 365 * 86400,
 };
 
+export function timeframePeriodSec(tf: string): number {
+  return TF_PERIOD_SEC[tf] ?? 3600;
+}
+
+/** 차트 캔들 소스 — 통합·분석 USDT 선물은 bitget 기본 (알트 포함), 환율은 forex */
+export type CandleCloseExchange = 'binance' | 'bitget';
+
+/** Bitget USDT-M 일·주·월 시가 = 16:00 UTC (= 한국 01:00) */
+const BITGET_HTF_OPEN_HOUR_UTC = 16;
+
 export type CloseSettlementItem = {
   tf: string;
   label: string;
@@ -28,7 +38,7 @@ export type CloseSettlementItem = {
 };
 
 function getNextWeeklyCloseTime(nowSec: number): number {
-  // Binance 주봉 경계: 월요일 00:00 UTC (KST 월 09:00)
+  // 월요일 09:00 KST = 월요일 00:00 UTC (Binance)
   const d = new Date(nowSec * 1000);
   const day = d.getUTCDay(); // 0=Sun,1=Mon
   const daysFromMonday = (day + 6) % 7;
@@ -43,7 +53,7 @@ function getNextWeeklyCloseTime(nowSec: number): number {
 }
 
 function getNextMonthlyCloseTime(nowSec: number): number {
-  // Binance 월봉 경계: 매월 1일 00:00 UTC
+  // 매월 1일 09:00 KST = 1일 00:00 UTC (Binance)
   const d = new Date(nowSec * 1000);
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth();
@@ -51,15 +61,156 @@ function getNextMonthlyCloseTime(nowSec: number): number {
   return Math.floor(nextMonthStart / 1000);
 }
 
+function getNextYearlyCloseTime(nowSec: number): number {
+  // 1/1 09:00 KST = 1/1 00:00 UTC
+  const d = new Date(nowSec * 1000);
+  const y = d.getUTCFullYear();
+  const nextYearStart = Date.UTC(y + 1, 0, 1, 0, 0, 0, 0);
+  return Math.floor(nextYearStart / 1000);
+}
+
+/** 매일 09:00 KST (= UTC 00:00) — Binance */
+function getNextDailyCloseTimeUtc(nowSec: number): number {
+  const open = Math.floor(nowSec / 86400) * 86400;
+  return open + 86400;
+}
+
+/** Bitget 일봉 마감 = 다음 16:00 UTC */
+function getNextBitgetDailyCloseSec(nowSec: number): number {
+  const d = new Date(nowSec * 1000);
+  let close =
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate(),
+      BITGET_HTF_OPEN_HOUR_UTC,
+      0,
+      0,
+      0
+    ) / 1000;
+  if (close <= nowSec) close += 86400;
+  return close;
+}
+
+/** Bitget 주봉 마감 = 다음 월요일 16:00 UTC */
+function getNextBitgetWeeklyCloseSec(nowSec: number): number {
+  const d = new Date(nowSec * 1000);
+  const day = d.getUTCDay();
+  const daysFromMonday = (day + 6) % 7;
+  let weekOpen =
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate() - daysFromMonday,
+      BITGET_HTF_OPEN_HOUR_UTC,
+      0,
+      0,
+      0
+    ) / 1000;
+  if (nowSec < weekOpen) return weekOpen;
+  return weekOpen + 7 * 86400;
+}
+
+/** Bitget 월봉 마감 = 다음 달 1일 16:00 UTC */
+function getNextBitgetMonthlyCloseSec(nowSec: number): number {
+  const d = new Date(nowSec * 1000);
+  const thisOpen =
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      1,
+      BITGET_HTF_OPEN_HOUR_UTC,
+      0,
+      0,
+      0
+    ) / 1000;
+  if (nowSec < thisOpen) return thisOpen;
+  return (
+    Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth() + 1,
+      1,
+      BITGET_HTF_OPEN_HOUR_UTC,
+      0,
+      0,
+      0
+    ) / 1000
+  );
+}
+
+/** 분·시·4h: 거래소 UTC period 정렬 */
+function nextUtcPeriodCloseSec(nowSec: number, periodSec: number): number {
+  const open = Math.floor(nowSec / periodSec) * periodSec;
+  return open + periodSec;
+}
+
 /**
- * 기준 시각(초 단위 UTC) 기준으로 각 TF별 다음 봉 마감 시각 계산.
- * - 분/시간/일: period 기반
- * - 주: 월요일 00:00 UTC 고정
- * - 월: 매월 1일 00:00 UTC 고정
+ * TF 칩·차트 타이머 봉 마감 — **거래소식**.
+ * - 분·시·4h: UTC period (Bitget·Binance 공통, 4h 첫 세션 = KST 09:00)
+ * - Binance 1d/1w/1M: 09:00 KST (= UTC 00:00)
+ * - Bitget 1d/1w/1M: 16:00 UTC (= 한국 01:00) — USDT-M 선물 시가
+ */
+export function nextCandleCloseUnixSec(
+  nowSec: number,
+  tf: string,
+  exchange: CandleCloseExchange = 'binance'
+): number {
+  if (exchange === 'bitget') {
+    if (tf === '1d') return getNextBitgetDailyCloseSec(nowSec);
+    if (tf === '1w') return getNextBitgetWeeklyCloseSec(nowSec);
+    if (tf === '1M') return getNextBitgetMonthlyCloseSec(nowSec);
+    if (tf === '1Y') return getNextYearlyCloseTime(nowSec);
+    return nextUtcPeriodCloseSec(nowSec, timeframePeriodSec(tf));
+  }
+  if (tf === '1d') return getNextDailyCloseTimeUtc(nowSec);
+  if (tf === '1w') return getNextWeeklyCloseTime(nowSec);
+  if (tf === '1M') return getNextMonthlyCloseTime(nowSec);
+  if (tf === '1Y') return getNextYearlyCloseTime(nowSec);
+  return nextUtcPeriodCloseSec(nowSec, timeframePeriodSec(tf));
+}
+
+export function candleCloseRemainSec(
+  nowSec: number,
+  tf: string,
+  exchange: CandleCloseExchange = 'binance'
+): number {
+  return Math.max(0, Math.floor(nextCandleCloseUnixSec(nowSec, tf, exchange) - nowSec));
+}
+
+export function candleCloseSessionTipKo(exchange: CandleCloseExchange = 'binance'): string {
+  if (exchange === 'bitget') {
+    return 'Bitget 선물 · 일·주·월 시가 16:00 UTC(한국 01:00) · 분·시·4h UTC격자';
+  }
+  return 'Binance · 일·주·월 09:00 KST · 분·시·4h UTC격자';
+}
+
+/** UI용: 3:42 · 1:12:05 · 2d 5h */
+export function formatCandleCloseRemain(remainSec: number): string {
+  const s = Math.max(0, Math.floor(remainSec));
+  if (s < 3600) {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, '0')}`;
+  }
+  if (s < 86400) {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const r = s % 60;
+    return `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  }
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  return `${d}d ${h}h`;
+}
+
+/**
+ * 종가마감 보드용(기존): 주·월은 Binance UTC 00:00, 일은 period 정렬.
+ * TF 칩 카운트다운은 `nextCandleCloseUnixSec` 사용.
  */
 function getNextCloseTime(nowSec: number, tf: string, periodSec: number): number {
   if (tf === '1w') return getNextWeeklyCloseTime(nowSec);
   if (tf === '1M') return getNextMonthlyCloseTime(nowSec);
+  if (tf === '1Y') return getNextYearlyCloseTime(nowSec);
   const currentOpen = Math.floor(nowSec / periodSec) * periodSec;
   const nextClose = currentOpen + periodSec;
   return nextClose > nowSec ? nextClose : nextClose + periodSec;

@@ -4,6 +4,7 @@
  */
 
 import type { Candle, OverlayItem } from '@/types';
+import type { LineData, UTCTimestamp } from 'lightweight-charts';
 import type { LuxTrendlineEngineResult, LuxTrendlineMeta } from './luxAlgoTrendlineEngine';
 import {
   type ParkfTrendlineColorHex,
@@ -96,6 +97,8 @@ function pushParkfPin(
 export type ParkfLineStyle = 'solid' | 'dashed' | 'dotted';
 
 export type ParkfTrendlineOpts = {
+  /** false면 LinReg 밴드·교차 핀 없이 피벗 추세선만 */
+  includeLinReg?: boolean;
   linregLength: number;
   useLargeLinReg: boolean;
   useMediumLinReg: boolean;
@@ -332,6 +335,23 @@ function extendLinRegLeftAnchor(
   const slope = (pR - pL) / dt;
   const tNew = tL - extendBars * barMs;
   return { tL: tNew, pL: pL + slope * (tNew - tL) };
+}
+
+/** Pine extend.right — 회귀 구간과 동일 봉 수만큼 미래로 기하 연장 */
+function extendLinRegRightAnchor(
+  tL: number,
+  pL: number,
+  tR: number,
+  pR: number,
+  barMs: number,
+  extendBars: number
+): { tR: number; pR: number } {
+  if (extendBars <= 0) return { tR, pR };
+  const dt = tR - tL;
+  if (Math.abs(dt) < 1e-9) return { tR, pR };
+  const slope = (pR - pL) / dt;
+  const tNew = tR + extendBars * barMs;
+  return { tR: tNew, pR: pR + slope * (tNew - tR) };
 }
 
 /** Pine pivothigh: center strictly higher than leftbars before and rightbars after */
@@ -618,6 +638,24 @@ export function computeLinRegLargeChannelBounds(
   return { tL, tR, mult, stdDev, bandDev, length, startMid, endMid, upperAt, lowerAt };
 }
 
+/** 차트 LinReg Large와 동일 창의 미드 직선 — 마감·안착 보조선용 */
+export function buildParkfLinRegMidLineData(
+  visible: Candle[],
+  partial?: Partial<ParkfTrendlineOpts>
+): LineData<UTCTimestamp>[] {
+  const b = computeLinRegLargeChannelBounds(visible, partial);
+  if (!b) return [];
+  const dt = b.tR - b.tL;
+  if (Math.abs(dt) < 1e-9) return [];
+  const out: LineData<UTCTimestamp>[] = [];
+  for (const c of visible) {
+    const t = Number(c.time);
+    const mid = b.startMid + ((b.endMid - b.startMid) * (t - b.tL)) / dt;
+    out.push({ time: c.time as UTCTimestamp, value: mid });
+  }
+  return out;
+}
+
 /** 돌파 메타(★ 라벨용) — LinReg 밴드 기준 단순 근사 */
 function computeMetaFromLinReg(
   last: Candle,
@@ -656,22 +694,27 @@ export function computeParkfTrendlineOverlays(
   const lin = calcSlopePine(closes, length);
   const out: OverlayItem[] = [];
 
-  if (lin) {
+  if (lin && opts.includeLinReg !== false) {
     const { stdDev, upDev, dnDev, bandDev } = calcDevPine(closes, highs, lows, length, lin.slope, lin.average, lin.intercept);
 
     const startP = linRegPriceAtOldest(lin.intercept, lin.slope, length);
     const endP = linRegPriceAtNewest(lin.intercept);
     const i0 = n - length;
     let tL = visible[i0].time as number;
-    const tR = visible[n - 1].time as number;
+    let tR = visible[n - 1].time as number;
     const barMs = barDurationMs(visible);
 
     let startPrice = startP;
-    const endPrice = endP;
+    let endPrice = endP;
     if (opts.extendLinRegLeft) {
       const ext = extendLinRegLeftAnchor(tL, startPrice, tR, endPrice, barMs, length);
       tL = ext.tL;
       startPrice = ext.pL;
+    }
+    if (opts.extendLinRegRight) {
+      const extR = extendLinRegRightAnchor(tL, startPrice, tR, endPrice, barMs, length);
+      tR = extR.tR;
+      endPrice = extR.pR;
     }
 
     const pushBand = (

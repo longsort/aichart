@@ -1,0 +1,17 @@
+{
+  "width": 390,
+  "height": 844,
+  "hidden": [
+    "engine-ob-broken-1",
+    "aux-bos",
+    "debug-score"
+  ],
+  "visible": [
+    "eagle1-entry",
+    "eagle1-sl",
+    "eagle1-tp1"
+  ],
+  "entrySlTpVisible": true,
+  "movedLabels": false,
+  "calculated_at": 1787366960342
+}

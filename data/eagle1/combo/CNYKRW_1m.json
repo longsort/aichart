@@ -1,0 +1,45 @@
+{
+  "symbol": "CNYKRW",
+  "timeframe": "1m",
+  "at": 1788139407899,
+  "promoted": null,
+  "summaryKo": "강신호 조합 없음 · 단독 SMC 금지",
+  "hits": [
+    {
+      "id": "reversal_cluster_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 39,
+      "tpBeforeSl": 0.46153846153846156,
+      "netExpectancy": -0.4545215177335577,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "reversal_cluster_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 39,
+      "tpBeforeSl": 0.46153846153846156,
+      "netExpectancy": -0.4545215177335577,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 44,
+      "tpBeforeSl": 0.4318181818181818,
+      "netExpectancy": 1.471267166004994,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 44,
+      "tpBeforeSl": 0.4318181818181818,
+      "netExpectancy": 1.471267166004994,
+      "note": "방향 조건 미충족"
+    }
+  ]
+}

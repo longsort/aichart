@@ -52,3 +52,7 @@ node_modules
 # BTC edge engine large raw OHLC (fetch from VPS / Bitget)
 btc_edge_engine/data/raw/BTCUSDT_5m.csv
 data/bitget-futures/BTCUSDT_5m.csv
+
+# Next.js
+.next/
+out/

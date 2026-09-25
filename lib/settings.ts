@@ -22,6 +22,18 @@ function scopedKey(base: string): string {
   return u ? `${base}::${u}` : base;
 }
 
+/** aichart1/2/3 등 로그인 ID로 localStorage 키를 나눔 */
+export function sessionScopedStorageKey(base: string): string {
+  return scopedKey(base);
+}
+
+export function bindSiteSessionUser(user: string): void {
+  if (typeof window === 'undefined') return;
+  const u = String(user || '').trim().toLowerCase();
+  if (!u) return;
+  window.localStorage.setItem(USER_KEY, u);
+}
+
 function readStoredSettingsCandidate(keys: string[]): Partial<UserSettings> | null {
   if (typeof window === 'undefined') return null;
   for (const k of keys) {
@@ -3045,9 +3057,8 @@ export async function syncSettingsFromServer(): Promise<UserSettings> {
     window.localStorage.setItem(currentSettingsKey(), payload);
     window.localStorage.setItem(scopedKey(BACKUP_KEY), payload);
     window.localStorage.setItem(scopedKey(LAST_GOOD_KEY), payload);
-    /** 기기별 UI 모드도 통합·분석으로 맞춤 — 폰/PC 동일 랜딩 */
+    /** 레일 UI 모드·차트 자리는 계정별 로컬 유지 — 서버 sync가 화면을 바꾸지 않음 */
     try {
-      window.localStorage.setItem('ailongshort-rail-ui-mode-v1', 'MERGED_ANALYSIS_DESK');
       window.localStorage.setItem('ailongshort-mtf-dump-display-mtf-v2', '1');
     } catch {
       /* ignore */

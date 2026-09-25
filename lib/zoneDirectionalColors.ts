@@ -44,6 +44,13 @@ export function resolveZoneDirectionalColors(item: OverlayItem): ZoneDirectional
   const colorStr = String(item.color ?? '');
   const h = rgbaHints(colorStr);
 
+  /** 마감·안착 타점(골든포켓·코어·FVG): `item.color` 시안·로즈·스카이 톤 유지 — 수요존=초록 일괄 덮어쓰기 방지 */
+  if (id.startsWith('month-desk-typeom-')) return null;
+  /** 눌림 핫존(phz): 피보·눌림 존 면방식 유지 */
+  if (id.startsWith('phz-')) return null;
+  /** 고래 Hot Zone 레이더(hotzone-*) — 볼륨 열지도 색 유지 */
+  if (id.startsWith('hotzone-')) return null;
+
   if (kind === 'demandZone') {
     return { fillSoft: ZONE_LONG_FILL, strokeSoft: ZONE_LONG_STROKE, labelSolid: ZONE_LONG_SOLID, role: 'long' };
   }
@@ -58,7 +65,7 @@ export function resolveZoneDirectionalColors(item: OverlayItem): ZoneDirectional
     if (id === 'reaction-zone-resistance') {
       return { fillSoft: ZONE_SHORT_FILL, strokeSoft: ZONE_SHORT_STROKE, labelSolid: ZONE_SHORT_SOLID, role: 'short' };
     }
-    if (id === 'reaction-zone-entry') {
+    if (id === 'reaction-zone-atr' || id === 'reaction-zone-entry') {
       return { fillSoft: ZONE_MID_FILL, strokeSoft: ZONE_MID_STROKE, labelSolid: ZONE_MID_SOLID, role: 'mid' };
     }
   }
@@ -124,4 +131,59 @@ export function resolveZoneDirectionalColors(item: OverlayItem): ZoneDirectional
   }
 
   return null;
+}
+
+function stableVariantIndex(key: string, modulo: number): number {
+  if (modulo <= 1) return 0;
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h | 0) % modulo;
+}
+
+function variantKey(item: OverlayItem): string {
+  return `${String(item.kind || '')}|${String(item.id || '')}|${String(item.label || '').slice(0, 80)}`;
+}
+
+/** 롱·숏·중립 역할은 유지하되, 동일 역할 존·라인이 한색으로 뭉치지 않게 id·종류별로 틴트 분리 */
+const LONG_VARIANTS: ZoneDirectionalTint[] = [
+  { fillSoft: 'rgba(34,197,94,0.16)', strokeSoft: 'rgba(34,197,94,0.44)', labelSolid: '#22C55E', role: 'long' },
+  { fillSoft: 'rgba(16,185,129,0.15)', strokeSoft: 'rgba(5,150,105,0.46)', labelSolid: '#059669', role: 'long' },
+  { fillSoft: 'rgba(52,211,153,0.14)', strokeSoft: 'rgba(20,184,166,0.42)', labelSolid: '#14B8A6', role: 'long' },
+  { fillSoft: 'rgba(74,222,128,0.13)', strokeSoft: 'rgba(22,163,74,0.40)', labelSolid: '#16a34a', role: 'long' },
+  { fillSoft: 'rgba(110,231,183,0.12)', strokeSoft: 'rgba(4,120,87,0.38)', labelSolid: '#047857', role: 'long' },
+];
+
+const SHORT_VARIANTS: ZoneDirectionalTint[] = [
+  { fillSoft: 'rgba(239,68,68,0.16)', strokeSoft: 'rgba(239,68,68,0.44)', labelSolid: '#EF4444', role: 'short' },
+  { fillSoft: 'rgba(248,113,113,0.14)', strokeSoft: 'rgba(220,38,38,0.42)', labelSolid: '#DC2626', role: 'short' },
+  { fillSoft: 'rgba(251,113,133,0.14)', strokeSoft: 'rgba(190,18,60,0.40)', labelSolid: '#BE123C', role: 'short' },
+  { fillSoft: 'rgba(252,165,165,0.13)', strokeSoft: 'rgba(185,28,28,0.38)', labelSolid: '#B91C1C', role: 'short' },
+  { fillSoft: 'rgba(254,202,202,0.12)', strokeSoft: 'rgba(153,27,27,0.36)', labelSolid: '#991B1B', role: 'short' },
+];
+
+const MID_VARIANTS: ZoneDirectionalTint[] = [
+  { fillSoft: 'rgba(59,130,246,0.16)', strokeSoft: 'rgba(59,130,246,0.44)', labelSolid: '#3B82F6', role: 'mid' },
+  { fillSoft: 'rgba(99,102,241,0.14)', strokeSoft: 'rgba(79,70,229,0.42)', labelSolid: '#4F46E5', role: 'mid' },
+  { fillSoft: 'rgba(129,140,248,0.14)', strokeSoft: 'rgba(67,56,202,0.42)', labelSolid: '#4338CA', role: 'mid' },
+  { fillSoft: 'rgba(56,189,248,0.13)', strokeSoft: 'rgba(2,132,199,0.40)', labelSolid: '#0284C7', role: 'mid' },
+  { fillSoft: 'rgba(168,85,247,0.12)', strokeSoft: 'rgba(126,34,206,0.38)', labelSolid: '#7C3AED', role: 'mid' },
+];
+
+export function resolveZoneDirectionalColorsDistinct(item: OverlayItem): ZoneDirectionalTint | null {
+  const base = resolveZoneDirectionalColors(item);
+  if (!base) return null;
+  const key = variantKey(item);
+  if (base.role === 'long') {
+    const arr = LONG_VARIANTS;
+    return arr[stableVariantIndex(key, arr.length)] ?? base;
+  }
+  if (base.role === 'short') {
+    const arr = SHORT_VARIANTS;
+    return arr[stableVariantIndex(key, arr.length)] ?? base;
+  }
+  const arr = MID_VARIANTS;
+  return arr[stableVariantIndex(key, arr.length)] ?? base;
 }

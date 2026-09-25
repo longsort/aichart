@@ -1,0 +1,117 @@
+{
+  "exchange": "bitget",
+  "symbol": "BTCUSDT",
+  "market_type": "usdt-futures",
+  "timeframe": "12H",
+  "first_open_time": 1567310400000,
+  "last_open_time": 1786680000000,
+  "first_iso": "2019-09-01T04:00:00.000Z",
+  "last_iso": "2026-08-14T04:00:00.000Z",
+  "row_count": 5059,
+  "gap_count": 20,
+  "missing_intervals": [
+    {
+      "from_open_time": 1571328000000,
+      "to_open_time": 1571414400000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1579017600000,
+      "to_open_time": 1579104000000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1586707200000,
+      "to_open_time": 1586793600000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1594396800000,
+      "to_open_time": 1594483200000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1602086400000,
+      "to_open_time": 1602172800000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1609776000000,
+      "to_open_time": 1609862400000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1617465600000,
+      "to_open_time": 1617552000000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1625155200000,
+      "to_open_time": 1625241600000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1632844800000,
+      "to_open_time": 1632931200000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1640534400000,
+      "to_open_time": 1640620800000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1648224000000,
+      "to_open_time": 1648310400000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1655913600000,
+      "to_open_time": 1656000000000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1663603200000,
+      "to_open_time": 1663689600000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1671292800000,
+      "to_open_time": 1671379200000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1678982400000,
+      "to_open_time": 1679068800000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1686672000000,
+      "to_open_time": 1686758400000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1694361600000,
+      "to_open_time": 1694448000000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1702051200000,
+      "to_open_time": 1702137600000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1709740800000,
+      "to_open_time": 1709827200000,
+      "gap_ms": 86400000
+    },
+    {
+      "from_open_time": 1717430400000,
+      "to_open_time": 1717516800000,
+      "gap_ms": 86400000
+    }
+  ],
+  "source_endpoint": "https://api.bitget.com/api/v2/mix/market/history-candles",
+  "downloaded_at": 1790344922109,
+  "engine_version": "eagle1-core-0.23.1"
+}

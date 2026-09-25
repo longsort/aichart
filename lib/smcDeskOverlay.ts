@@ -29,7 +29,7 @@ const CAT: OverlayItem['category'] = 'smcDesk';
 
 function lookbackBars(tf: string): number {
   const m: Record<string, number> = {
-    '1m': 720, // 12h — 분봉 분석용
+    '1m': 96,
     '3m': 96,
     '5m': 120,
     '15m': 140,
@@ -47,7 +47,7 @@ function lookbackBars(tf: string): number {
   return m[tf] ?? 160;
 }
 
-function atrRecent(candles: Candle[], period: number): number {
+export function atrRecent(candles: Candle[], period: number): number {
   const n = candles.length;
   if (n < period + 1) return 0;
   let sum = 0;
@@ -80,8 +80,8 @@ function isSwingLow(candles: Candle[], i: number, L: number): boolean {
   return true;
 }
 
-/** 스윙 피벗으로 본 구간 고저 → EQ = 중간 */
-function rangeFromPivots(
+/** 스윙 피벗으로 본 구간 고저 → EQ = 중간 (마감안착 타점 등 클라이언트 전용에서 재사용) */
+export function rangeFromPivots(
   candles: Candle[],
   L: number,
   start: number,
@@ -119,8 +119,8 @@ function rangeFromPivots(
   return { swingHigh: hi, swingLow: lo, tStart };
 }
 
-/** `structure_marks_engine_fu.dart` 와 동일 — 종가만으로 스윙 레벨 돌파 판정 */
-function structureMarksFu(
+/** `structure_marks_engine_fu.dart` 와 동일 — 종가만으로 스윙 레벨 돌파 판정 (마감 타점 등에서 재사용) */
+export function structureMarksFu(
   candles: Candle[],
   L: number,
   maxMarks: number
@@ -303,6 +303,11 @@ export function resolveStructureMarkPhase(
   return 'confirmed';
 }
 
+import {
+  structurePhaseLabelSuffix,
+  structurePhaseTooltipExtra,
+} from '@/lib/mergedDeskStructurePhaseKo';
+
 function structurePhaseStyle(phase: StructureMarkPhase, baseHex: string): {
   lineRgba: string;
   labelHex: string;
@@ -311,51 +316,53 @@ function structurePhaseStyle(phase: StructureMarkPhase, baseHex: string): {
   tooltipExtra: string;
 } {
   const FAILED_LINE = '#9CA3AF';
+  const suffix = structurePhaseLabelSuffix(phase);
+  const tip = structurePhaseTooltipExtra(phase);
   switch (phase) {
     case 'failed':
       return {
         lineRgba: 'rgba(156,163,175,0.42)',
         labelHex: FAILED_LINE,
         lineDash: '4 5',
-        labelSuffix: ' ✕',
-        tooltipExtra: ' — 이후 종가가 레벨 안쪽으로 되돌아 무효',
+        labelSuffix: suffix,
+        tooltipExtra: tip,
       };
     case 'trace':
       return {
         lineRgba: rgbaFromHex(baseHex, 0.2),
         labelHex: rgbaFromHex(baseHex, 0.5),
         lineDash: '2 7',
-        labelSuffix: ' ·',
-        tooltipExtra: ' — 돌파 직후 추적(연한 톤)',
+        labelSuffix: suffix,
+        tooltipExtra: tip,
       };
     case 'breakout':
       return {
         lineRgba: rgbaFromHex(baseHex, 0.48),
         labelHex: rgbaFromHex(baseHex, 0.82),
         lineDash: '3 6',
-        labelSuffix: '',
-        tooltipExtra: ' — 종가로 스윙 레벨 돌파가 확정된 봉',
+        labelSuffix: suffix,
+        tooltipExtra: tip,
       };
     case 'settling':
       return {
         lineRgba: rgbaFromHex(baseHex, 0.62),
         labelHex: rgbaFromHex(baseHex, 0.92),
         lineDash: '6 4',
-        labelSuffix: ' ~',
-        tooltipExtra: ' — 안착 진행(돌파 후 1봉 유지)',
+        labelSuffix: suffix,
+        tooltipExtra: tip,
       };
     case 'confirmed':
       return {
         lineRgba: rgbaFromHex(baseHex, 0.88),
         labelHex: baseHex,
         lineDash: undefined,
-        labelSuffix: ' ✓',
-        tooltipExtra: ' — 마감 기준 레벨 유지(3봉 이상)',
+        labelSuffix: suffix,
+        tooltipExtra: tip,
       };
   }
 }
 
-function collectOrderBlocks(
+export function collectOrderBlocks(
   candles: Candle[],
   startIdx: number,
   atrVal: number,

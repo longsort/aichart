@@ -1,0 +1,45 @@
+{
+  "symbol": "TRUMPUSDT",
+  "timeframe": "4h",
+  "at": 1787753236201,
+  "promoted": null,
+  "summaryKo": "조합은 맞으나 표본 승격 조건 미달",
+  "hits": [
+    {
+      "id": "reversal_cluster_long",
+      "complete": true,
+      "promote": false,
+      "sampleSize": 91,
+      "tpBeforeSl": 0.5164835164835165,
+      "netExpectancy": -0.762501614911777,
+      "note": "표본 기대값 비양수 · 승격 안 함"
+    },
+    {
+      "id": "reversal_cluster_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 91,
+      "tpBeforeSl": 0.5164835164835165,
+      "netExpectancy": -0.762501614911777,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_long",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 10,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    },
+    {
+      "id": "breakout_continuation_short",
+      "complete": false,
+      "promote": false,
+      "sampleSize": 10,
+      "tpBeforeSl": null,
+      "netExpectancy": null,
+      "note": "방향 조건 미충족"
+    }
+  ]
+}

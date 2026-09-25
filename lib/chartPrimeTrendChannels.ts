@@ -166,6 +166,21 @@ function linePriceAtX(g: LineGeom, x: number): number {
   return g.y1 + ((g.y2 - g.y1) / dx) * (x - g.x1);
 }
 
+function snapLineGeomToCandleBars(
+  candles: Candle[],
+  g: LineGeom
+): { time1: number; price1: number; time2: number; price2: number } {
+  const n = candles.length;
+  const i1 = Math.max(0, Math.min(n - 1, Math.floor(g.x1)));
+  const i2 = Math.max(0, Math.min(n - 1, Math.floor(g.x2)));
+  return {
+    time1: Number(candles[i1]!.time),
+    price1: roundTick(linePriceAtX(g, i1)),
+    time2: Number(candles[i2]!.time),
+    price2: roundTick(linePriceAtX(g, i2)),
+  };
+}
+
 function pushChannelOverlays(
   out: OverlayItem[],
   pack: ChannelPack,
@@ -184,20 +199,19 @@ function pushChannelOverlays(
   zoneBotStroke: string
 ): void {
   const push = (id: string, g: LineGeom, color: string, dash: string | undefined, w: number) => {
-    const i1 = visIdx(candles, Math.max(0, Math.min(Math.floor(g.x1), candles.length - 1)));
-    const i2 = visIdx(candles, Math.max(0, Math.min(Math.floor(g.x2), candles.length - 1)));
+    const snap = snapLineGeomToCandleBars(candles, g);
     out.push({
       id: `cptc-${pack.kind}-${id}`,
       kind: 'trendLine',
       label: '',
       x1: xiNorm(g.x1),
-      y1: (maxP - g.y1) / Math.max(1e-9, maxP - minP),
+      y1: (maxP - snap.price1) / Math.max(1e-9, maxP - minP),
       x2: xiNorm(g.x2),
-      y2: (maxP - g.y2) / Math.max(1e-9, maxP - minP),
-      time1: visTime(candles, i1),
-      time2: visTime(candles, i2),
-      price1: g.y1,
-      price2: g.y2,
+      y2: (maxP - snap.price2) / Math.max(1e-9, maxP - minP),
+      time1: snap.time1,
+      time2: snap.time2,
+      price1: snap.price1,
+      price2: snap.price2,
       confidence: 62,
       color,
       lineLabelColor: color,
@@ -205,6 +219,7 @@ function pushChannelOverlays(
       lineDash: dash,
       lineStrokeWidth: w,
       noProject: true,
+      overlayZoneExtraClass: 'chart-prime-candle-trend',
     });
   };
 
@@ -254,10 +269,8 @@ function pushChannelBandFills(
     ? Math.min(94, Math.max(40, 60 + (100 - fillOpts.volumeScore) / 5))
     : 80;
   const band = (suffix: string, upper: LineGeom, lower: LineGeom, fill: string) => {
-    const i1 = visIdx(candles, Math.max(0, Math.min(Math.floor(upper.x1), candles.length - 1)));
-    const i2 = visIdx(candles, Math.max(0, Math.min(Math.floor(upper.x2), candles.length - 1)));
-    const t1 = visTime(candles, i1);
-    const t2 = visTime(candles, i2);
+    const up = snapLineGeomToCandleBars(candles, upper);
+    const lo = snapLineGeomToCandleBars(candles, lower);
     out.push({
       id: `cptc-${pack.kind}-fill-${suffix}`,
       kind: 'channelBand',
@@ -266,20 +279,21 @@ function pushChannelBandFills(
       y1: 0,
       x2: 1,
       y2: 1,
-      time1: t1,
-      time2: t2,
-      price1: upper.y1,
-      price2: upper.y2,
+      time1: up.time1,
+      time2: up.time2,
+      price1: up.price1,
+      price2: up.price2,
       confidence: 48,
       color: fill,
       category: 'chartPrimeTrendChannels',
+      overlayZoneExtraClass: 'chart-prime-candle-trend',
       channelBand: {
-        time1: t1,
-        time2: t2,
-        priceHigh1: upper.y1,
-        priceHigh2: upper.y2,
-        priceLow1: lower.y1,
-        priceLow2: lower.y2,
+        time1: up.time1,
+        time2: up.time2,
+        priceHigh1: up.price1,
+        priceHigh2: up.price2,
+        priceLow1: lo.price1,
+        priceLow2: lo.price2,
       },
     });
   };
@@ -403,6 +417,255 @@ function extendPack(pack: ChannelPack, dydx: number, newX2: number): void {
   ext(pack.bottomZone);
   ext(pack.bottom);
   ext(pack.center);
+}
+
+/** 마감 밴드 융합용 — 동결 채널을 봉 i까지 연장해 중심가 평가 */
+function evalPackAtBarForBias(pack: ChannelPack, barIndex: number): ChannelPack {
+  const p = JSON.parse(JSON.stringify(pack)) as ChannelPack;
+  if (barIndex > p.center.x2 + 1e-9) {
+    const dx = p.top.x2 - p.top.x1;
+    const dydx = Math.abs(dx) > 1e-12 ? (p.top.y2 - p.top.y1) / dx : 0;
+    extendPack(p, dydx, barIndex);
+  }
+  return p;
+}
+
+/** 종가 vs CP 채널 중심 — up 채널은 양수가 롱 쪽, down 채널은 음수가 숏 쪽 */
+function cpChannelBiasScoreAt(
+  i: number,
+  candles: Candle[],
+  downCount: number,
+  downPack: ChannelPack | null,
+  upCount: number,
+  upPack: ChannelPack | null,
+  frozenDown: ChannelPack | null,
+  frozenUp: ChannelPack | null,
+  lastFrozen: 'down' | 'up' | null
+): number {
+  let pack: ChannelPack | null = null;
+  let live = false;
+  if (downCount === 1 && downPack) {
+    pack = downPack;
+    live = true;
+  } else if (upCount === 1 && upPack) {
+    pack = upPack;
+    live = true;
+  } else if (lastFrozen === 'down' && frozenDown) pack = frozenDown;
+  else if (lastFrozen === 'up' && frozenUp) pack = frozenUp;
+  else pack = frozenDown ?? frozenUp;
+  if (!pack) return 0;
+  const ep = live ? pack : evalPackAtBarForBias(pack, i);
+  const cx = linePriceAtX(ep.center, i);
+  const tx = linePriceAtX(ep.top, i);
+  const bx = linePriceAtX(ep.bottom, i);
+  const half = Math.max(1e-9, Math.abs(tx - bx) / 2);
+  const pos = Math.max(-1, Math.min(1, (candles[i].close - cx) / half));
+  if (ep.kind === 'up') return 0.92 * pos + 0.38;
+  return -0.92 * pos - 0.38;
+}
+
+function cpChannelCenterPriceAt(
+  i: number,
+  candles: Candle[],
+  downCount: number,
+  downPack: ChannelPack | null,
+  upCount: number,
+  upPack: ChannelPack | null,
+  frozenDown: ChannelPack | null,
+  frozenUp: ChannelPack | null,
+  lastFrozen: 'down' | 'up' | null
+): number | null {
+  let pack: ChannelPack | null = null;
+  let live = false;
+  if (downCount === 1 && downPack) {
+    pack = downPack;
+    live = true;
+  } else if (upCount === 1 && upPack) {
+    pack = upPack;
+    live = true;
+  } else if (lastFrozen === 'down' && frozenDown) pack = frozenDown;
+  else if (lastFrozen === 'up' && frozenUp) pack = frozenUp;
+  else pack = frozenDown ?? frozenUp;
+  if (!pack) return null;
+  const ep = live ? pack : evalPackAtBarForBias(pack, i);
+  return linePriceAtX(ep.center, i);
+}
+
+/** 마감 밴드 — CP 융합 점수 + 채널 중심 가격(보조선) */
+export type ChartPrimeBiasCenterPack = {
+  biasScores: number[];
+  centerPrices: (number | null)[];
+};
+
+/**
+ * Chart Prime 채널 엔진과 동일 상태 전개 — 편향 점수와 봉별 중심 가격.
+ */
+export function computeChartPrimeBiasAndCenterSeries(
+  candles: Candle[],
+  partial?: Partial<ChartPrimeTrendChannelOpts>
+): ChartPrimeBiasCenterPack {
+  const opt = { ...DEFAULT_OPTS, ...partial };
+  const widthScale = Math.max(0.28, Math.min(1.35, Number(opt.channelWidthScale) || 1));
+  const L = Math.max(2, Math.min(30, Math.floor(opt.length)));
+  const n = candles.length;
+  const scores = new Array(n).fill(0);
+  const centers: (number | null)[] = new Array(n).fill(null);
+  if (n < L * 2 + 3) return { biasScores: scores, centerPrices: centers };
+
+  const volNormHist = new Array(n).fill(0);
+  let cumVolSum = 0;
+  const cumVolAvg = new Array(n).fill(0);
+  const rankHist = new Array(n).fill(0);
+  let cumRankSum = 0;
+  const cumRankAvg = new Array(n).fill(0);
+
+  for (let i = 0; i < n; i++) {
+    const wv = wmaVolume(candles, i, 21);
+    volNormHist[i] = minMaxNorm(candles, i, 100, wv);
+    cumVolSum += volNormHist[i];
+    cumVolAvg[i] = cumVolSum / (i + 1);
+    const from = Math.max(0, i - 99);
+    const rank = percentileNearestRank(volNormHist.slice(from, i + 1), 75);
+    rankHist[i] = rank;
+    cumRankSum += rank;
+    cumRankAvg[i] = cumRankSum / (i + 1);
+  }
+
+  let prevPh: number | null = null;
+  let prevPhIdx: number | null = null;
+  let lastPh: number | null = null;
+  let lastPhIdx: number | null = null;
+  let prevPl: number | null = null;
+  let prevPlIdx: number | null = null;
+  let lastPl: number | null = null;
+  let lastPlIdx: number | null = null;
+
+  let prevPhLag: number | null = null;
+  let prevPlLag: number | null = null;
+
+  let downCount = 0;
+  let upCount = 0;
+  let downDydx = 0;
+  let upDydx = 0;
+  let downPack: ChannelPack | null = null;
+  let upPack: ChannelPack | null = null;
+  let frozenDown: ChannelPack | null = null;
+  let frozenUp: ChannelPack | null = null;
+  let lastFrozen: 'down' | 'up' | null = null;
+
+  for (let i = 2 * L; i < n; i++) {
+    const ph = pivotHighConfirmed(candles, i, L);
+    const pl = pivotLowConfirmed(candles, i, L);
+
+    if (ph != null) {
+      prevPh = lastPh;
+      prevPhIdx = lastPhIdx;
+      lastPh = ph;
+      lastPhIdx = i;
+    }
+    if (pl != null) {
+      prevPl = lastPl;
+      prevPlIdx = lastPlIdx;
+      lastPl = pl;
+      lastPlIdx = i;
+    }
+
+    const atr10 = atrAt(candles, i, 10) * 6 * widthScale;
+
+    if (
+      prevPh != null &&
+      lastPh != null &&
+      prevPhIdx != null &&
+      lastPhIdx != null &&
+      prevPh !== prevPhLag &&
+      lastPhIdx !== prevPhIdx &&
+      atan2p(lastPh - prevPh, lastPhIdx - prevPhIdx) <= 0 &&
+      downCount === 0 &&
+      (!opt.wait || upCount !== 1)
+    ) {
+      downCount = 1;
+      downDydx = (lastPh - prevPh) / (lastPhIdx - prevPhIdx);
+      downPack = buildDownPack(prevPh, lastPh, prevPhIdx, lastPhIdx, L, atr10);
+      if (!opt.show) {
+        upCount = 0;
+        upPack = null;
+        frozenUp = null;
+      }
+    }
+
+    if (
+      prevPl != null &&
+      lastPl != null &&
+      prevPlIdx != null &&
+      lastPlIdx != null &&
+      prevPl !== prevPlLag &&
+      lastPlIdx !== prevPlIdx &&
+      atan2p(lastPl - prevPl, lastPlIdx - prevPlIdx) >= 0 &&
+      upCount === 0 &&
+      (!opt.wait || downCount !== 1)
+    ) {
+      upCount = 1;
+      upDydx = (lastPl - prevPl) / (lastPlIdx - prevPlIdx);
+      upPack = buildUpPack(prevPl, lastPl, prevPlIdx, lastPlIdx, L, atr10);
+      if (!opt.show) {
+        downCount = 0;
+        downPack = null;
+        frozenDown = null;
+      }
+    }
+
+    if (downCount === 1 && downPack) {
+      if (!opt.extend) {
+        extendPack(downPack, downDydx, i);
+      }
+      const topP = linePriceAtX(downPack.top, i);
+      const botP = linePriceAtX(downPack.bottom, i);
+      if (candles[i].low > topP) {
+        downCount = 0;
+        frozenDown = JSON.parse(JSON.stringify(downPack)) as ChannelPack;
+        lastFrozen = 'down';
+      } else if (candles[i].high < botP) {
+        downCount = 0;
+        frozenDown = JSON.parse(JSON.stringify(downPack)) as ChannelPack;
+        lastFrozen = 'down';
+      }
+    }
+
+    if (upCount === 1 && upPack) {
+      if (!opt.extend) {
+        extendPack(upPack, upDydx, i);
+      }
+      const topP = linePriceAtX(upPack.top, i);
+      const botP = linePriceAtX(upPack.bottom, i);
+      if (candles[i].low > topP) {
+        upCount = 0;
+        frozenUp = JSON.parse(JSON.stringify(upPack)) as ChannelPack;
+        lastFrozen = 'up';
+      } else if (candles[i].high < botP) {
+        upCount = 0;
+        frozenUp = JSON.parse(JSON.stringify(upPack)) as ChannelPack;
+        lastFrozen = 'up';
+      }
+    }
+
+    prevPhLag = prevPh;
+    prevPlLag = prevPl;
+
+    scores[i] = cpChannelBiasScoreAt(i, candles, downCount, downPack, upCount, upPack, frozenDown, frozenUp, lastFrozen);
+    centers[i] = cpChannelCenterPriceAt(i, candles, downCount, downPack, upCount, upPack, frozenDown, frozenUp, lastFrozen);
+  }
+
+  return { biasScores: scores, centerPrices: centers };
+}
+
+/**
+ * Chart Prime 채널 엔진과 동일 상태 전개로 봉별 편향 점수(-대략~대략) — 마감 밴드 색 융합 전용.
+ */
+export function computeChartPrimeBiasScoreSeries(
+  candles: Candle[],
+  partial?: Partial<ChartPrimeTrendChannelOpts>
+): number[] {
+  return computeChartPrimeBiasAndCenterSeries(candles, partial).biasScores;
 }
 
 /**

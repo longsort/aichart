@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">AB=CD measured move</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.6" points="80,360 300,80 500,300 820,90"/>
+  <text x="80" y="380" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800">A</text>
+  <text x="300" y="70" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800">B</text>
+  <text x="500" y="322" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800">C</text>
+  <text x="820" y="80" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800">D</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">AB length ≈ CD. Time symmetry optional. Zone not a fill.</text>
+</svg>

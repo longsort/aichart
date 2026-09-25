@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { productionSessionSecretMisconfigured, resolveAppSessionSecret } from '@/lib/serverRouteGuard';
 
 const COOKIE = 'ailongshort-site';
 
@@ -75,7 +76,16 @@ export async function middleware(request: NextRequest) {
   if (AUTH_WHITELIST_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
     return NextResponse.next();
   }
-  const secret = process.env.APP_SESSION_SECRET?.trim() || 'ailongshort-dev-session-secret';
+  const secret = resolveAppSessionSecret();
+  if (productionSessionSecretMisconfigured()) {
+    return NextResponse.json(
+      {
+        error: '인증 시크릿을 찾지 못했습니다. APP_SESSION_SECRET 또는 INTERNAL_ANALYZE_SECRET 을 설정하세요.',
+        code: 'SITE_AUTH_MISCONFIGURED',
+      },
+      { status: 503 }
+    );
+  }
   const raw = request.cookies.get(COOKIE)?.value;
   if (!raw || !(await verifySiteAuthCookieEdge(raw, secret))) {
     return NextResponse.json({ error: '로그인이 필요합니다.', code: 'SITE_AUTH_REQUIRED' }, { status: 401 });

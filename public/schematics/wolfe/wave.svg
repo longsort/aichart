@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480">
+  <rect width="1000" height="480" fill="#ffffff"/>
+  <text x="500" y="28" text-anchor="middle" font-family="Georgia, Times New Roman, serif" font-size="16" font-weight="700" fill="#0f172a">Wolfe Wave</text>
+  <polyline fill="none" stroke="#0f172a" stroke-width="2.6" points="80,300 220,80 360,340 560,40 780,280 920,120"/>
+  <line x1="80" y1="300" x2="560" y2="40" stroke="#94a3b8" stroke-dasharray="4 3"/>
+  <line x1="220" y1="80" x2="780" y2="280" stroke="#94a3b8" stroke-dasharray="4 3"/>
+  <text x="80" y="320" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800">1</text>
+  <text x="220" y="70" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800">2</text>
+  <text x="360" y="362" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800">3</text>
+  <text x="560" y="30" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800">4</text>
+  <text x="780" y="300" font-family="Segoe UI, sans-serif" font-size="16" font-weight="800">5</text>
+  <text x="900" y="110" font-family="Segoe UI, sans-serif" font-size="12">EPA</text>
+  <text x="80" y="455" font-family="Segoe UI, sans-serif" font-size="12" fill="#64748b">1-3-5 and 2-4 converge. Point 5 is entry zone estimate. EPA is a line, not a fill.</text>
+</svg>

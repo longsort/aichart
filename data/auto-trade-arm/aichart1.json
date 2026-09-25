@@ -1,0 +1,63 @@
+{
+  "liveArmed": true,
+  "enabledSymbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "SOLUSDT"
+  ],
+  "leverage": 10,
+  "marginMode": "isolated",
+  "sizeMode": "equityPct",
+  "scalpEquityPct": 5,
+  "doksuriEquityPct": 5,
+  "marginUsdt": 20,
+  "strategyScalp": false,
+  "strategyDoksuri1": true,
+  "minRr": 1.2,
+  "maxConcurrent": 20,
+  "scalpTp1RoePct": 8,
+  "scalpSlRoePct": 8,
+  "tapOnly": true,
+  "updatedAt": 1790344699768,
+  "lastStatusKo": "자동매매 동작 중 · 지금은 들어갈 자리 없음",
+  "lastTickAt": 1790344699768,
+  "watchBoard": {
+    "verdictKo": "자동매매 동작 중 · 지금은 들어갈 자리 없음",
+    "alive": true,
+    "updatedAt": 1790344699768,
+    "coins": [
+      {
+        "symbol": "BTCUSDT",
+        "coin": "BTC",
+        "tone": "wait",
+        "lineKo": "15분밴드자동 · READY 아님 · WATCH_SHORT"
+      },
+      {
+        "symbol": "ETHUSDT",
+        "coin": "ETH",
+        "tone": "wait",
+        "lineKo": "15분밴드자동 · READY 아님 · WATCH_LONG"
+      },
+      {
+        "symbol": "BNBUSDT",
+        "coin": "BNB",
+        "tone": "wait",
+        "lineKo": "15분밴드자동 · READY 아님 · WATCH_SHORT"
+      },
+      {
+        "symbol": "XRPUSDT",
+        "coin": "XRP",
+        "tone": "wait",
+        "lineKo": "15분밴드자동 · READY 아님 · WATCH_LONG"
+      },
+      {
+        "symbol": "SOLUSDT",
+        "coin": "SOL",
+        "tone": "wait",
+        "lineKo": "15분밴드자동(BAND15_AUTO) 롱 · Paper · LIVE아님"
+      }
+    ]
+  }
+}

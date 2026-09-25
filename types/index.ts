@@ -7,6 +7,8 @@ export type Candle = {
   volume: number;
   /** 바이낸스 kline[9] 테이커 매수 기준 체결량 — 있으면 매수/매도 체결 우세·고래 급증 히스토그램에 사용 */
   takerBuyBaseVolume?: number;
+  /** Bitget mix candles[6] quote turnover */
+  quoteVolume?: number;
 };
 
 export type Verdict = 'LONG' | 'SHORT' | 'WATCH';
@@ -61,10 +63,12 @@ export type OverlayCategory =
   | 'fib'
   | 'rsi'
   | 'harmonic'
+  | 'aiMarketZone'
   | 'po3'
   | 'candle'
   | 'bpr'
   | 'patternVision'
+  | 'assetsChartAi'
   | 'keyLevel'
   | 'autoTrendline'
   | 'reactionZone'
@@ -86,7 +90,19 @@ export type OverlayCategory =
   /** 고래 모드 툴킷: Dynamic R/S PRO, Liquidity Bias 등 Pine 요약 레이어 */
   | 'whaleToolkit'
   /** 기관식 S/R 밴드 존(지지·저항 띠) */
-  | 'institutionalSrBand';
+  | 'institutionalSrBand'
+  /** 마감·안착 SuperTrend 존 면 채움 */
+  | 'monthDeskEnvelope'
+  /** TradingView Tops & Bottoms — 피벗 TOP/BOT · 지그재그 */
+  | 'topsBottoms'
+  /** Mirage Liquidity Sweep Pro — 스윕 · BSL/SSL · SL/TP */
+  | 'mirageLSP'
+  /** 타이롱 미래 점선 경로 */
+  | 'tailongPath'
+  /** AVWAP 줄선 합류 롱·숏 진입가이드 zone (확정 아님) */
+  | 'avwapEntryGuide'
+  /** 독수리1호 Parallel Channel Engine — 상승/하락/횡보 평행채널 */
+  | 'parallelChannelEngine';
 
 /** 강한 매수/매도 구간 — 호가·대량체결 물량 기준 (캔들 무관). 확률은 매수/매도 데이터 기반. */
 export type StrongZoneOutput = {
@@ -163,6 +179,10 @@ export type OverlayItem = {
     priceLow1: number;
     priceLow2: number;
   };
+  /** 마감·안착: SuperTrend 존 스텝 면 — ChartView가 봉 시각 기준 폴리곤으로 변환 */
+  monthDeskEnvelopeStep?: {
+    points: Array<{ time: number; upper: number; lower: number }>;
+  };
   /** 핵심 존(진입·돌파·필수 지지 등) — 차트에서 은은한 펄스 강조 */
   zonePulse?: boolean;
   /**
@@ -174,6 +194,14 @@ export type OverlayItem = {
   overlayZoneExtraClass?: string;
   /** 짧은 라벨일 때 차트 툴팁용 풀 텍스트(캔들분석 자동 OB 등) */
   labelTooltip?: string;
+  /** Mirage zone 면 — 역할 칩(모바일 기본 1토큰) */
+  zoneFaceBase?: string;
+  /** Mirage zone 면 — 신호 1토큰(접근·선택 시 progressive 표시) */
+  zoneFaceSignal?: string;
+  /** Mirage zone — 차트 EN 라벨일 때 HUD용 전체 한글 요약 */
+  zoneFaceDetailKo?: string;
+  /** Mirage zone 면 라벨 언어 */
+  zoneFaceLang?: 'ko' | 'en';
   /**
    * BOS/CHOCH/MSB 구조 마크 — 롱(매수) 방향 돌파 vs 숏(매도) 방향 돌파.
    * 차트 압축 라벨의 「상승/하락/중립」은 색(hex) 추정 대신 이 값을 우선한다.
@@ -181,6 +209,19 @@ export type OverlayItem = {
   structureBias?: 'bullish' | 'bearish';
   /** AI 분석 S/R 사다리: 현재가에 가장 가까운 지지·저항 밴드(굵은 테두리·고채도) */
   aiZoneNearestSr?: boolean;
+  /** 실측 지지 홀드%(터치→반등) — 표본 기반 · 가짜 고정값 금지 */
+  supportProb?: number | null;
+  /** 실측 저항 홀드%(터치→거절) — 표본 기반 */
+  resistanceProb?: number | null;
+  /** 지지+저항 터치 표본 수 */
+  probSamples?: number | null;
+  /** 화면 작도 전용 — 분석 가격(조작 금지). ChartView paint 레이어만 사용 */
+  analysisPrice1?: number;
+  analysisPrice2?: number;
+  analysisTime1?: number;
+  analysisTime2?: number;
+  /** core=ATR캡 박스, outer=분석범위 테두리, distant-rail=먼 HTF 축약 */
+  zoneRenderRole?: 'core' | 'outer' | 'distant-rail';
 };
 
 /** 통합 그래프·시장 미세 — 다거래소 CVD 합산·OI·청산·CMF */
@@ -205,6 +246,11 @@ export type UnifiedMarketMetrics = {
   /** 강제청산 명목(바이낸스 USDM 최근 N건) */
   liquidationLongUsd: number;
   liquidationShortUsd: number;
+  /** 최근 청산 밀집 대표가 (롱청산=SELL / 숏청산=BUY) */
+  liqClusterLongPrice?: number | null;
+  liqClusterShortPrice?: number | null;
+  liqClusterLongUsd?: number;
+  liqClusterShortUsd?: number;
   cmf20: number | null;
   exchangeLegs: UnifiedMarketExchangeLeg[];
   collectedAtMs: number;
@@ -735,6 +781,11 @@ export type AnalyzeResponse = {
     probabilityEdge: number;
     signalTime?: number;
   }>;
+  /**
+   * 돌파·안착 연동 체인 — 트리거 돌파 후 상·하방 목표 경로(패널·차트·AI 동일 소스).
+   * `lib/breakoutFollowChain.ts`
+   */
+  breakoutFollow?: import('@/lib/breakoutFollowChain').BreakoutFollowChain;
   /** 안착 확정 ZONE 3단계 (후보/확인/실패) + 점수 */
   settlementZone?: {
     state: 'none' | 'candidate' | 'confirmed' | 'failed';
@@ -799,6 +850,37 @@ export type AnalyzeResponse = {
   };
   /** 룰엔진 출력을 차트 레이어용 숫자 JSON으로 정규화 (smart-overlay-v1) */
   smartOverlay?: import('./smartOverlay').SmartOverlayPayload;
+  /** 독수리1호 — 테두리 HUD·엔진 팩 (없을 수 있음) */
+  eagle1Availability?: import('@/lib/eagle1/rawTypes').Eagle1AvailabilityFlags;
+  eagle1Hud?: import('@/lib/eagle1/hudPack').Eagle1HudPack | null;
+  eagle1Quality?: unknown;
+  eagle1Repaint?: unknown;
+  eagle1CandleSource?: unknown;
+  eagle1MainPlan?: unknown;
+  eagle1ChartUx?: unknown;
+  eagle1Snapshot?: unknown;
+  eagle1SnapshotStats?: unknown;
+  eagle1MoneyPressure?: unknown;
+  eagle1SmartPath?: unknown;
+  eagle1WalkForward?: unknown;
+  eagle1StatsDashboard?: unknown;
+  eagle1Consensus?: unknown;
+  eagle1Acceptance?: unknown;
+  eagle1FalseBreak?: unknown;
+  eagle1HistoricalOutcome?: unknown;
+  eagle1PremiumDiscount?: unknown;
+  eagle1UnifiedZones?: unknown;
+  eagle1Combination?: unknown;
+  eagle1Structure?: unknown;
+  /** MTF compass frames (detectStructure per TF) */
+  eagle1CompassFrames?: Array<{ tf: string; regime: string; state: string; bias: 'bullish' | 'bearish' | null }>;
+  eagle1SparkCandles?: Array<{ time: number; open: number; high: number; low: number; close: number }>;
+  eagle1Zones?: unknown;
+  eagle1Risk?: unknown;
+  /** Bitget mark/index (없으면 null — HUD 핵심 정보) */
+  eagle1LiveQuotes?: { mark: number | null; index: number | null };
+  /** REAL CANDLE BATTLE — 실캔들 전투 분석 (가짜/목 금지) */
+  candleBattle?: import('@/lib/candleBattle').CandleBattlePack | null;
 }
 
 export type {
