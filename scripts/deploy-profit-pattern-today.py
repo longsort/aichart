@@ -33,9 +33,8 @@ FILES = [
     "lib/profitPattern15m/serverPersist.ts",
     "lib/profitPattern15m/serverRunner.ts",
     "lib/profitPattern15m/index.ts",
-    # VPS bitgetFuturesMarket.ts(663줄) · MixOrder 미사용 — 덮어쓰지 않음
+    # VPS bitgetFuturesMarket / chartSignals / DeskView — 덮어쓰지 않음
     "lib/mergedDeskServerArmClient.ts",
-    "lib/eagle1Tapoint/chartSignals.ts",
     # API
     "app/api/profit-pattern/arm/route.ts",
     "app/api/profit-pattern/journal/route.ts",
