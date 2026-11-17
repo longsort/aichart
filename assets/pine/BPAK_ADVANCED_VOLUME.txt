@@ -1,0 +1,279 @@
+//@version=6
+// B팩(독수리 B 폭락·거래량·밴드)에서 선진거래량만 분리한 단독 패널 지표.
+// 매수/매도 스택·혼조 노랑·분류 글자·1차하락/1차상승. 폭락존·밴드·스윕·캔들오버레이 없음. 주문 아님.
+indicator("독수리 선진거래량", "선진거래량", overlay = false, max_labels_count = 200, max_boxes_count = 50, max_bars_back = 2000)
+max_bars_back(close, 2000)
+max_bars_back(open, 2000)
+max_bars_back(high, 2000)
+max_bars_back(low, 2000)
+max_bars_back(time, 2000)
+max_bars_back(volume, 2000)
+
+grpV = "선진거래량"
+showVol = input.bool(true, "거래량 막대", group = grpV)
+showLbl = input.bool(true, "분류 글자", group = grpV)
+showMark = input.bool(true, "1차 글자", group = grpV)
+showMix = input.bool(true, "혼조 노랑", group = grpV)
+cBuy = input.color(#22c55e, "매수", group = grpV)
+cSell = input.color(#ef4444, "매도", group = grpV)
+
+float rng = high - low
+float pos = rng > 0 ? (close - low) / rng : 0.5
+float upW = rng > 0 ? (high - math.max(open, close)) / rng : 0.0
+float dnW = rng > 0 ? (math.min(open, close) - low) / rng : 0.0
+float buyPct = math.max(0.14, math.min(0.86, 0.18 + pos * 0.64))
+if upW >= 0.28 and pos <= 0.62
+    buyPct := math.max(0.14, buyPct - math.max(0.08, math.min(0.32, upW * 0.55)))
+if dnW >= 0.28 and pos >= 0.38
+    buyPct := math.min(0.86, buyPct + math.max(0.08, math.min(0.32, dnW * 0.55)))
+if close < open and pos > 0.55
+    buyPct := math.max(0.14, buyPct - 0.08)
+if close > open and pos < 0.45
+    buyPct := math.min(0.86, buyPct + 0.06)
+buyPct := volume > 0 ? math.max(0.14, math.min(0.86, buyPct)) : 0.5
+float volSma = ta.sma(volume, 20)
+float rvol = volSma > 0 ? volume / volSma : 1.0
+max_bars_back(rvol, 500)
+max_bars_back(buyPct, 500)
+
+f_atr() =>
+    float tr = math.max(high - low, math.abs(high - nz(close[1], close)), math.abs(low - nz(close[1], close)))
+    float s = ta.sma(tr, 14)
+    s > 0 ? s : close * 0.006
+
+f_volTxt(float rv, float bp, float bodyR, float chg, float slope) =>
+    float sp = 1.0 - bp
+    string t = "약함"
+    if rv >= 2.35 and bodyR < 0.4
+        t := "흡수"
+    else if rv >= 2.55 and bodyR >= 0.55
+        t := chg >= 0 ? "매수절정" : "매도절정"
+    else if rv >= 1.55 and bodyR >= 0.52 and math.abs(chg) >= 0.08
+        t := chg >= 0 ? "돌파량" : "이탈량"
+    else if rv < 0.68 and chg > 0.02
+        t := "수요없음"
+    else if rv < 0.68 and chg < -0.02
+        t := "공급없음"
+    else if slope > 0.06 and sp >= 0.56
+        t := "수급괴리"
+    else if slope < -0.06 and bp >= 0.56
+        t := "수급괴리"
+    else if slope > 0.05 and bp >= 0.56 and rv >= 1.05
+        t := "수급동의↑"
+    else if slope < -0.05 and sp >= 0.56 and rv >= 1.05
+        t := "수급동의↓"
+    else if bp >= 0.56
+        t := "매수우세"
+    else if sp >= 0.56
+        t := "매도우세"
+    int bn = math.round(bp * 100)
+    int sn = math.round(sp * 100)
+    string mv = math.abs(chg) >= 0.35 ? (chg >= 0 ? "↑" : "↓") + str.tostring(math.abs(chg), "#.#") : ""
+    string flow = sp >= 0.56 ? "매도" + str.tostring(sn) + mv : "매" + str.tostring(bn) + mv
+    string txt = t == "약함" ? flow : t + " " + flow
+    bool hot = (t != "약함" and t != "매수우세" and t != "매도우세") or rv >= 1.65
+    hot ? txt : ""
+
+f_sellC(float rv, float upA, float dnA, float bp) =>
+    float sp = 1.0 - bp
+    color c = color.new(cSell, rv >= 1.85 ? 10 : rv >= 1.25 ? 22 : 38)
+    if upA >= 0.32 and sp >= 0.52
+        c := color.new(#ef4444, 6)
+    else if dnA >= 0.32 and bp >= 0.52
+        c := color.new(#166534, 58)
+    c
+
+f_buyC(float rv, float upA, float dnA, float bp) =>
+    float sp = 1.0 - bp
+    color c = color.new(cBuy, rv >= 1.85 ? 4 : rv >= 1.25 ? 12 : 26)
+    if upA >= 0.32 and sp >= 0.52
+        c := color.new(#7f1d1d, 58)
+    else if dnA >= 0.32 and bp >= 0.52
+        c := color.new(#22c55e, 2)
+    c
+
+f_isSwing(int ago, bool useLow) =>
+    bool ok = ago >= 2 and bar_index > ago + 2
+    float p = ok ? (useLow ? low[ago] : high[ago]) : na
+    if ok
+        float n1 = useLow ? low[ago - 1] : high[ago - 1]
+        float n2 = useLow ? low[ago - 2] : high[ago - 2]
+        float o1 = useLow ? low[ago + 1] : high[ago + 1]
+        float o2 = useLow ? low[ago + 2] : high[ago + 2]
+        ok := p > 0 and (useLow ? (n1 >= p and n2 >= p and o1 >= p and o2 >= p) : (n1 <= p and n2 <= p and o1 <= p and o2 <= p))
+    ok
+
+f_atrAgo(int ago) =>
+    float s = 0.0
+    for k = 0 to 13
+        int g = ago + k
+        float tr = math.max(high[g] - low[g], math.abs(high[g] - close[g + 1]), math.abs(low[g] - close[g + 1]))
+        s += tr
+    s / 14.0
+
+var array<label> volLabs = array.new_label()
+var label yDumpL = na
+var label yRallyL = na
+var box yDumpBx = na
+var box yRallyBx = na
+f_yelCol(box b, int ago) =>
+    box o = b
+    int g = math.max(ago, 0)
+    float top = volume[g]
+    bool ok = showVol and showMix and ago >= 0 and top > 0
+    if not ok
+        if not na(o)
+            box.delete(o)
+        o := na
+    else
+        int x = bar_index - ago
+        color yc = color.new(#FBBF24, 0)
+        if na(o)
+            o := box.new(x, top, x + 1, 0, bgcolor = yc, border_color = yc)
+        else
+            box.set_left(o, x)
+            box.set_right(o, x + 1)
+            box.set_top(o, top)
+            box.set_bottom(o, 0)
+            box.set_bgcolor(o, yc)
+            box.set_border_color(o, yc)
+    o
+
+int dumpAgo = -1
+int rallyAgo = -1
+if barstate.islast and showVol and bar_index > 20
+    for a2 = 2 to 60
+        if dumpAgo >= 0
+            break
+        if not f_isSwing(a2, true)
+            continue
+        for shift = 3 to 36
+            int a1 = a2 + shift
+            if a1 > 70 or not f_isSwing(a1, true)
+                continue
+            float tol = math.max(f_atrAgo(a2) * 0.55, low[a1] * 0.0038)
+            if math.abs(low[a2] - low[a1]) > tol
+                continue
+            int pick = a1
+            float bestRv = -1.0
+            for k = 0 to 2
+                int g = a1 + k
+                bool bear = close[g] <= open[g] or close[g] < close[g + 1]
+                float rv = na(rvol[g]) ? 1.0 : rvol[g]
+                if bear and rv > bestRv
+                    bestRv := rv
+                    pick := g
+            if bestRv < 0
+                bestRv := na(rvol[a1]) ? 1.0 : rvol[a1]
+                pick := a1
+            float rv2 = na(rvol[a2]) ? 1.0 : rvol[a2]
+            if bestRv < 1.32 and rv2 < 1.28
+                continue
+            if math.max(bestRv, rv2) < 1.45
+                continue
+            dumpAgo := pick
+            break
+    if dumpAgo < 0
+        for ago = 0 to 70
+            float rvAgo = na(rvol[ago]) ? 1.0 : rvol[ago]
+            if rvAgo < 1.55 or close[ago] >= open[ago]
+                continue
+            if ago < 4 or f_isSwing(ago, true)
+                dumpAgo := ago
+                break
+    for a2 = 2 to 60
+        if rallyAgo >= 0
+            break
+        if not f_isSwing(a2, false)
+            continue
+        for shift = 3 to 36
+            int a1 = a2 + shift
+            if a1 > 70 or not f_isSwing(a1, false)
+                continue
+            float tolH = math.max(f_atrAgo(a2) * 0.55, high[a1] * 0.0038)
+            if math.abs(high[a2] - high[a1]) > tolH
+                continue
+            int pickH = a1
+            float bestH = -1.0
+            for k = 0 to 2
+                int g = a1 + k
+                bool bull = close[g] >= open[g] or close[g] > close[g + 1]
+                float rv = na(rvol[g]) ? 1.0 : rvol[g]
+                if bull and rv > bestH
+                    bestH := rv
+                    pickH := g
+            if bestH < 0
+                bestH := na(rvol[a1]) ? 1.0 : rvol[a1]
+                pickH := a1
+            float rv2h = na(rvol[a2]) ? 1.0 : rvol[a2]
+            if bestH < 1.32 and rv2h < 1.28
+                continue
+            if math.max(bestH, rv2h) < 1.45
+                continue
+            rallyAgo := pickH
+            break
+
+color sellCol = f_sellC(rvol, upW, dnW, buyPct)
+color buyCol = f_buyC(rvol, upW, dnW, buyPct)
+bool mixBar = showMix and buyPct > 0.45 and buyPct < 0.55
+color mixTot = color.new(buyPct >= 0.5 ? #FBBF24 : #F59E0B, rvol >= 1.85 ? 0 : rvol >= 1.25 ? 18 : 32)
+color mixBuy = color.new(#FACC15, rvol >= 1.85 ? 0 : 12)
+plot(showVol ? volume : na, "총량", mixBar ? mixTot : sellCol, style = plot.style_columns, display = display.pane)
+plot(showVol ? volume * buyPct : na, "매수", mixBar ? mixBuy : buyCol, style = plot.style_columns, display = display.pane)
+plot(showVol ? ta.highest(volume, 300) * 1.35 : na, "여백", color.new(color.white, 100), display = display.none)
+
+int labN = 0
+if barstate.islast
+    if showLbl and showVol
+        int lim = math.min(bar_index, 200)
+        for i = 0 to lim
+            if labN >= 14
+                break
+            float rv = na(rvol[i]) ? 1.0 : rvol[i]
+            float bp = na(buyPct[i]) ? 0.5 : buyPct[i]
+            float hi = high[i]
+            float lo = low[i]
+            float op = open[i]
+            float cl = close[i]
+            float rngA = hi - lo
+            float bodyA = rngA > 0 ? math.abs(cl - op) / rngA : 0.0
+            float chgA = i + 1 <= bar_index and close[i + 1] > 0 ? (cl - close[i + 1]) / close[i + 1] * 100.0 : 0.0
+            float slopeA = i + 3 <= bar_index and close[i + 3] > 0 ? (cl - close[i + 3]) / close[i + 3] * 100.0 : 0.0
+            string vt = f_volTxt(rv, bp, bodyA, chgA, slopeA)
+            if vt != ""
+                float y = volume[i]
+                int x = bar_index - i
+                color labCol = bp >= 0.56 ? cBuy : (1.0 - bp) >= 0.56 ? cSell : color.gray
+                if labN < array.size(volLabs)
+                    label lb = array.get(volLabs, labN)
+                    label.set_xy(lb, x, y)
+                    label.set_text(lb, vt)
+                    label.set_textcolor(lb, labCol)
+                    label.set_style(lb, label.style_label_down)
+                else
+                    array.push(volLabs, label.new(x, y, vt, style = label.style_label_down, textcolor = labCol, color = color.new(labCol, 100), size = size.tiny))
+                labN += 1
+    yDumpBx := f_yelCol(yDumpBx, dumpAgo)
+    yRallyBx := f_yelCol(yRallyBx, rallyAgo)
+    if showMark and dumpAgo >= 0
+        float dumpY = volume[dumpAgo]
+        if na(yDumpL)
+            yDumpL := label.new(bar_index - dumpAgo, dumpY, "1차하락", style = label.style_label_down, color = color.new(#FBBF24, 100), textcolor = color.new(#CA8A04, 0), size = size.tiny)
+        else
+            label.set_xy(yDumpL, bar_index - dumpAgo, dumpY)
+            label.set_text(yDumpL, "1차하락")
+    else if not na(yDumpL)
+        label.delete(yDumpL)
+        yDumpL := na
+    if showMark and rallyAgo >= 0
+        float yR = volume[rallyAgo]
+        if na(yRallyL)
+            yRallyL := label.new(bar_index - rallyAgo, yR, "1차상승", style = label.style_label_down, color = color.new(#FBBF24, 100), textcolor = color.new(#CA8A04, 0), size = size.tiny)
+        else
+            label.set_xy(yRallyL, bar_index - rallyAgo, yR)
+            label.set_text(yRallyL, "1차상승")
+    else if not na(yRallyL)
+        label.delete(yRallyL)
+        yRallyL := na
+while array.size(volLabs) > labN
+    label.delete(array.pop(volLabs))
