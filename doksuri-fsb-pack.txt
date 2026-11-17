@@ -1,4 +1,5 @@
 //@version=6
+// BPAK_BODY_REV=fill-2 · bodyClear=false · bodyPlain=true · overlay 몸통 불투명(점수색)
 // 전체화면 B 한 지표. 폭락 1세·2세 + 선진거래량 + 기관밴드1·2 + 상위시간 스윕 + 캔들색.
 // 거래량 막대와 거래량 글자는 아래 칸. 가격 그림만 캔들 위. 혼조 막대는 노랑.
 // 캔들 V2. 몸통은 0~100 추진력 점수. 꼬리는 거절이 강할 때만 분홍·청록. 약한 꼬리는 몸통색. 점수는 승률이 아님. 주문 아님.
@@ -100,7 +101,7 @@ cWickDn = input.color(#EF4444, "꼬리 매도", group = grpC)
 cWickWait = input.color(#FACC15, "꼬리 대기", group = grpC)
 grpBody = "캔들 몸통"
 bodyClear = input.bool(false, "무색 · 꼬리만", group = grpBody, tooltip = "몸통을 비웁니다. 아래에서 켠 색만 남습니다. 주문 아님.")
-bodyPlain = input.bool(false, "일반색상", group = grpBody, tooltip = "점수·구조 몸통색. 무색보다 우선하고, 아래 개별 색이 다시 덮습니다.")
+bodyPlain = input.bool(true, "일반색상", group = grpBody, tooltip = "점수·구조 몸통색. 무색보다 우선하고, 아래 개별 색이 다시 덮습니다.")
 bodyRise = input.bool(false, "강상승", group = grpBody, tooltip = "상승 점수가 강한 봉. 주문 아님.")
 bodyStart = input.bool(true, "상승시작", group = grpBody, tooltip = "강상승이 시작된 뒤 그 저가를 종가가 지키는 봉. 주문 아님.")
 bodyEnd = input.bool(true, "상승종료", group = grpBody, tooltip = "시작 저가를 종가가 깨는 봉. 주문 아님.")
@@ -1406,12 +1407,17 @@ if endHit
     chipBody := cBodyEnd
     chipEdge := cBodyEnd
 color wickBaseCol = bodyWick ? paintedBody : chipBody
-barcolor(useOverlay ? color.new(paintedBody, 100) : chipBody, title="기본봉 색")
+bool hollowNow = bodyClear and not bodyPlain and not startHit and not endHit and not riseHit and not fallEndHit
+// 4층: 예전엔 barcolor 완전투명 → 차트 네이티브만 테두리로 남음. 채울 때는 점수색 그대로.
+barcolor(useOverlay and hollowNow ? color.new(paintedBody, 100) : chipBody, title="기본봉 색")
 plotcandle(useOverlay ? open : na, useOverlay ? high : na, useOverlay ? low : na, useOverlay ? close : na,
      title="몸통과 기본꼬리", color=chipBody, wickcolor=wickBaseCol, bordercolor=chipEdge, force_overlay=true)
-plotcandle(bodyWick and showUpper ? open : na, bodyWick and showUpper ? high : na, bodyWick and showUpper ? math.min(open, close) : na, bodyWick and showUpper ? close : na,
+// 꼬리 전용 plotcandle 몸통 높이를 0으로 — 투명 몸통이 아래 채운 몸통을 덮지 않게
+float bodyHi = math.max(open, close)
+float bodyLo = math.min(open, close)
+plotcandle(bodyWick and showUpper ? bodyHi : na, bodyWick and showUpper ? high : na, bodyWick and showUpper ? bodyHi : na, bodyWick and showUpper ? bodyHi : na,
      title="위꼬리", color=invisible, wickcolor=upWickCol, bordercolor=invisible, force_overlay=true)
-plotcandle(bodyWick and showLower ? open : na, bodyWick and showLower ? math.max(open, close) : na, bodyWick and showLower ? low : na, bodyWick and showLower ? close : na,
+plotcandle(bodyWick and showLower ? bodyLo : na, bodyWick and showLower ? bodyLo : na, bodyWick and showLower ? low : na, bodyWick and showLower ? bodyLo : na,
      title="아래꼬리", color=invisible, wickcolor=dnWickCol, bordercolor=invisible, force_overlay=true)
 
 f_biasText(int direction) =>
