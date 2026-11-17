@@ -1,0 +1,2068 @@
+//@version=6
+// 전체화면 B 한 지표. 폭락 1세·2세 + 선진거래량 + 기관밴드1·2 + 상위시간 스윕 + 캔들색.
+// 거래량 막대와 거래량 글자는 아래 칸. 가격 그림만 캔들 위. 혼조 막대는 노랑.
+// 캔들 V2. 몸통은 0~100 추진력 점수. 꼬리는 거절이 강할 때만 분홍·청록. 약한 꼬리는 몸통색. 점수는 승률이 아님. 주문 아님.
+indicator("독수리 B 폭락·거래량·밴드", "B팩", overlay = false, max_boxes_count = 120, max_labels_count = 200, max_lines_count = 500, max_polylines_count = 100, max_bars_back = 2000)
+max_bars_back(close, 2000)
+max_bars_back(open, 2000)
+max_bars_back(high, 2000)
+max_bars_back(low, 2000)
+max_bars_back(time, 2000)
+max_bars_back(volume, 2000)
+
+grpD = "폭락존"
+grpV = "선진거래량"
+grpB = "기관밴드"
+grpS = "스윕"
+grpU = "화면"
+show1 = input.bool(true, "1세", group = grpD)
+show2 = input.bool(true, "2세", group = grpD)
+cFloor = input.color(#047857, "1세 지지색", group = grpD)
+cCeil = input.color(#E11D48, "1세 감시색", group = grpD)
+cTxt1 = input.color(#1F2937, "1세 글자색", group = grpD)
+c2Down = input.color(#DB2777, "2세 아래색", group = grpD)
+c2Dump = input.color(#9D174D, "2세 폭락색", group = grpD)
+c2Deep = input.color(#831843, "2세 폭락하락색", group = grpD)
+c2Up = input.color(#2563EB, "2세 위색", group = grpD)
+c2Rise = input.color(#1D4ED8, "2세 상승색", group = grpD)
+c2Spike = input.color(#1E3A8A, "2세 상승급등색", group = grpD)
+cTxt2 = input.color(#1F2937, "2세 글자색", group = grpD)
+zoneW = input.int(1, "존 테두리", minval = 1, maxval = 4, group = grpD)
+showPx = input.bool(true, "존 위아래 가격", group = grpD)
+cPx = input.color(#334155, "가격 글자색", group = grpD)
+pxSz = input.string("작게", "가격 글자 크기", options = ["작게", "보통", "크게"], group = grpD)
+showVol = input.bool(true, "거래량 막대", group = grpV)
+showWick = input.bool(true, "꼬리색", group = grpV)
+showLbl = input.bool(true, "분류 글자", group = grpV)
+showMark = input.bool(true, "1차 글자", group = grpV)
+showMix = input.bool(true, "혼조 노랑", group = grpV)
+cBuy = input.color(#22c55e, "매수", group = grpV)
+cSell = input.color(#ef4444, "매도", group = grpV)
+showSw = input.bool(true, "스윕", group = grpS)
+showSw15 = input.bool(true, "15분", group = grpS)
+showSw1h = input.bool(true, "1시간", group = grpS)
+showSw4h = input.bool(true, "4시간", group = grpS)
+showSwD = input.bool(true, "1일", group = grpS)
+showSwW = input.bool(true, "1주", group = grpS)
+showSwM = input.bool(true, "1달", group = grpS)
+cSwLong = input.color(#166534, "스윕 롱색", group = grpS)
+cSwShort = input.color(#C2410C, "스윕 숏색", group = grpS)
+swSz = input.string("작게", "스윕 글자 크기", options = ["작게", "보통", "크게"], group = grpS)
+swKeep = input.int(3, "유지 상위봉", minval = 1, maxval = 8, group = grpS)
+swLeft = input.int(8, "피벗 왼쪽", minval = 3, maxval = 20, group = grpS)
+swRight = input.int(3, "피벗 오른쪽", minval = 1, maxval = 8, group = grpS)
+swAtr = input.float(0.12, "관통 평균진폭", minval = 0.04, maxval = 0.6, step = 0.01, group = grpS)
+labPos = input.string("왼쪽", "존 글자 위치", options = ["왼쪽", "가운데", "오른쪽"], group = grpU)
+txtSz = input.string("작게", "존 글자 크기", options = ["작게", "보통", "크게"], group = grpU)
+chipA = input.int(42, "라벨 투명도", minval = 0, maxval = 85, group = grpU)
+zoneOpac = input.int(78, "존 면 투명도", minval = 40, maxval = 92, group = grpU)
+boxLeft = input.int(30, "존 왼쪽 봉", minval = 8, maxval = 80, group = grpU)
+boxRight = input.int(20, "존 오른쪽 봉", minval = 4, maxval = 40, group = grpU)
+showB1 = input.bool(true, "기관밴드1", group = grpB)
+b1Len = input.int(10, "밴드1 평균진폭", minval = 2, maxval = 50, group = grpB)
+b1Mult = input.float(3.0, "밴드1 배수", minval = 0.5, maxval = 12, step = 0.05, group = grpB)
+showB2 = input.bool(true, "기관밴드2", group = grpB)
+b2Auto = input.bool(true, "밴드2 주기 자동", group = grpB)
+b2LenIn = input.int(10, "밴드2 평균진폭", minval = 2, maxval = 50, group = grpB)
+b2MultIn = input.float(3.0, "밴드2 배수", minval = 0.5, maxval = 12, step = 0.05, group = grpB)
+cLong = input.color(#22c55e, "밴드 롱", group = grpB)
+cShort = input.color(#ef4444, "밴드 숏", group = grpB)
+wBand = input.int(2, "밴드 굵기", minval = 1, maxval = 4, group = grpB)
+grpF = "FVG"
+showFvg = input.bool(true, "FVG", group = grpF, tooltip = "지금 보는 봉만. 다른 시간은 안 겹칩니다. 주문 아님.")
+showIfvg = input.bool(true, "역FVG", group = grpF, tooltip = "지금 보는 봉만. 종가가 몸통으로 뒤집은 갭. 주문 아님.")
+showBpr = input.bool(true, "BPR", group = grpF, tooltip = "지금 보는 봉만. 겹치면 칸 하나로 봅니다. 주문 아님.")
+cFvgUp = input.color(#0284C7, "상승FVG", group = grpF)
+cFvgDn = input.color(#7C3AED, "하락FVG", group = grpF)
+cIfvgL = input.color(#047857, "역FVG롱", group = grpF)
+cIfvgS = input.color(#BE123C, "역FVG숏", group = grpF)
+cBpr = input.color(#D97706, "BPR", group = grpF)
+grpC = "캔들색"
+showStruct = input.bool(true, "구조색", group = grpC)
+pivL = input.int(8, "구조 왼쪽", minval = 3, maxval = 30, group = grpC)
+pivR = input.int(5, "구조 오른쪽", minval = 2, maxval = 15, group = grpC)
+cBigLong = input.color(#14532D, "빅롱", group = grpC)
+cUpBody = input.color(#16A34A, "상승", group = grpC)
+cBounce = input.color(#D97706, "반등", group = grpC)
+cPull = input.color(#FB7185, "되돌림", group = grpC)
+cDownBody = input.color(#DC2626, "하락", group = grpC)
+cBigShort = input.color(#881337, "빅숏", group = grpC)
+showCandle = input.bool(false, "국면색", group = grpC)
+cRise = input.color(#16A34A, "강상승", group = grpC)
+cRiseEnd = input.color(#F97316, "상승종료", group = grpC)
+cFall = input.color(#DC2626, "강하락", group = grpC)
+cFallEnd = input.color(#06B6D4, "하락종료", group = grpC)
+cSide = input.color(#FACC15, "횡보", group = grpC)
+cFlowBuy = input.color(#22C55E, "수급매수", group = grpC)
+cFlowSell = input.color(#EF4444, "수급매도", group = grpC)
+cWickUp = input.color(#22C55E, "꼬리 매수", group = grpC)
+cWickDn = input.color(#EF4444, "꼬리 매도", group = grpC)
+cWickWait = input.color(#FACC15, "꼬리 대기", group = grpC)
+grpBody = "캔들 몸통"
+bodyClear = input.bool(false, "무색 · 꼬리만", group = grpBody, tooltip = "몸통을 비웁니다. 아래에서 켠 색만 남습니다. 주문 아님.")
+bodyPlain = input.bool(false, "일반색상", group = grpBody, tooltip = "점수·구조 몸통색. 무색보다 우선하고, 아래 개별 색이 다시 덮습니다.")
+bodyRise = input.bool(false, "강상승", group = grpBody, tooltip = "상승 점수가 강한 봉. 주문 아님.")
+bodyStart = input.bool(true, "상승시작", group = grpBody, tooltip = "강상승이 시작된 뒤 그 저가를 종가가 지키는 봉. 주문 아님.")
+bodyEnd = input.bool(true, "상승종료", group = grpBody, tooltip = "시작 저가를 종가가 깨는 봉. 주문 아님.")
+bodyFallEnd = input.bool(false, "하락종료", group = grpBody, tooltip = "강하락 고가를 종가가 넘는 봉. 주문 아님.")
+bodyWick = input.bool(true, "꼬리색상", group = grpBody, tooltip = "끄면 꼬리는 몸통색만 따릅니다.")
+cBodyRise = input.color(#16A34A, "강상승색", group = grpBody)
+cBodyStart = input.color(#16A34A, "상승시작색", group = grpBody)
+cBodyEnd = input.color(#F97316, "상승종료색", group = grpBody)
+cBodyFallEnd = input.color(#06B6D4, "하락종료색", group = grpBody)
+gDisplay = "01. 표시"
+intentMode = input.string("스윙", "분석 모드", options=["단타", "스윙", "중투"], group=gDisplay, tooltip="몸통·꼬리 민감도는 이 모드 하나만 씁니다. 표의 세 줄은 같이 보이지만 한 봉을 두 색으로 칠하지 않습니다. 점수는 승률이 아닙니다.")
+mode = input.string("4층 캔들", "색상 모드", options=["4층 캔들", "기본 봉 색상", "사용 안 함"], group=gDisplay)
+preview = input.bool(false, "미완성 봉 색상 미리보기 (변경 가능)", group=gDisplay)
+showMarkers = input.bool(true, "스윕/돌파 실패 라벨", group=gDisplay)
+showEntries = input.bool(false, "조건부 롱/숏 표시", group=gDisplay)
+dashPlace = input.string("아래가운데", "판정표 위치", options=["끄기", "위왼쪽", "위가운데", "위오른쪽", "가운데왼쪽", "정중앙", "가운데오른쪽", "아래왼쪽", "아래가운데", "아래오른쪽"], group=gDisplay, tooltip="가로 판정표를 화면에서 옮깁니다. 점수는 승률이 아니고 주문도 아닙니다.")
+showLowerTF = input.bool(true, "1시간 이하 차트에서 하위봉 방향 표시", group=gDisplay, tooltip="1분/5분의 최근 완료 봉 상태를 가져옵니다. 데이터 양과 구독 등급에 따라 값이 없을 수 있습니다.")
+shadeRange = input.bool(false, "횡보 배경 약하게 표시", group=gDisplay)
+
+// --- 02. LOGIC --------------------------------------------------------------
+gLogic = "02. 판단 기준"
+atrLen = input.int(14, "평균진폭 기간", minval=2, group=gLogic)
+volLen = input.int(20, "평균 거래량 기간", minval=5, group=gLogic)
+boxLen = input.int(20, "저항/지지 탐색 봉 수", minval=5, group=gLogic)
+rangeLen = input.int(12, "횡보 폭 측정 봉 수", minval=5, group=gLogic)
+emaFastLen = input.int(21, "단기 이평", minval=3, group=gLogic)
+emaSlowLen = input.int(55, "장기 이평", minval=5, group=gLogic)
+bodyMin = input.float(0.50, "강한 몸통 / 전체 봉 비율", minval=0.20, maxval=0.95, step=0.05, group=gLogic)
+volMin = input.float(1.15, "강세 거래량 / 평균 거래량", minval=0.50, maxval=5.00, step=0.05, group=gLogic)
+wickMin = input.float(0.38, "긴 꼬리 / 전체 봉 비율", minval=0.20, maxval=0.80, step=0.02, group=gLogic)
+adxMax = input.float(20.0, "횡보 추세강도 상한", minval=8.0, maxval=35.0, step=1.0, group=gLogic)
+breakAtr = input.float(0.08, "돌파 완충 / 평균진폭", minval=0.00, maxval=1.00, step=0.02, group=gLogic)
+failBars = input.int(3, "돌파 실패 확인 제한 봉 수", minval=1, maxval=10, group=gLogic)
+
+// --- 03. COLORS -------------------------------------------------------------
+gColor = "03. 색상"
+cUp = input.color(#00E676, "강한 상승", group=gColor)
+cUpSoft = input.color(#86EFAC, "약한 상승", group=gColor)
+cUpRisk = input.color(#F4D03F, "상방 함정 후보", group=gColor)
+cDown = input.color(#FF405D, "강한 하락", group=gColor)
+cDownSoft = input.color(#C97B90, "약한 하락", group=gColor)
+cDownRisk = input.color(#FF942E, "하방 함정 후보", group=gColor)
+cRange = input.color(#8295B5, "횡보/양방향 거절", group=gColor)
+cUpper = input.color(#FF4FD8, "강한 위꼬리", group=gColor)
+cLower = input.color(#3DF0FF, "강한 아래꼬리", group=gColor)
+cGold = input.color(#EAB308, "동조 테두리", group=gColor)
+f_kind() =>
+    string per = timeframe.period
+    per == "W" or per == "M" ? "WM" : per == "D" ? "D" : per == "240" ? "4H" : per == "60" ? "1H" : per == "15" ? "15" : per == "5" ? "5" : per == "3" ? "3" : per == "1" ? "1m" : "LTF"
+
+f_ko() =>
+    string k = f_kind()
+    k == "WM" ? (timeframe.period == "M" ? "1월" : "1주") : k == "D" ? "1일" : k == "4H" ? "4시간" : k == "1H" ? "1시간" : k == "15" ? "15분" : k == "5" ? "5분" : k == "3" ? "3분" : k == "1m" ? "1분" : timeframe.period
+
+f_look() =>
+    int n = bar_index + 1
+    string k = f_kind()
+    int cap = k == "WM" ? 24 : k == "D" ? 32 : k == "4H" ? 40 : k == "1H" ? 48 : 36
+    math.max(4, math.min(math.max(1, n - 2), cap))
+
+f_atr() =>
+    float tr = math.max(high - low, math.abs(high - nz(close[1], close)), math.abs(low - nz(close[1], close)))
+    float s = ta.sma(tr, 14)
+    s > 0 ? s : close * 0.006
+
+f_band(float mid, float atr) =>
+    string k = f_kind()
+    float mult = k == "WM" ? 0.06 : k == "D" ? 0.07 : k == "4H" ? 0.09 : k == "1H" ? 0.10 : k == "15" ? 0.11 : k == "1m" or k == "3" ? 0.14 : 0.12
+    float cap = k == "WM" ? 0.0032 : k == "D" ? 0.003 : k == "4H" ? 0.0036 : k == "1H" ? 0.004 : k == "15" ? 0.0045 : k == "1m" or k == "3" ? 0.006 : 0.0055
+    float raw = math.max(atr * mult, math.abs(mid) * 0.0005, 18.0)
+    math.min(raw, math.abs(mid) * cap)
+
+f_scan(int look, float last) =>
+    float deep = na
+    float below1 = na
+    float below2 = na
+    for i = 1 to look
+        float b = low[i]
+        float a = low[i + 1]
+        float c = nz(low[i - 1], b)
+        if b > 0 and b <= a and b <= c
+            deep := na(deep) ? b : math.min(deep, b)
+            if b < last * 0.998
+                if na(below1) or b < below1
+                    below2 := below1
+                    below1 := b
+                else if na(below2) or b < below2
+                    below2 := b
+    float slo = ta.lowest(low[1], math.max(2, look - 1))
+    if slo > 0
+        deep := na(deep) ? slo : math.min(deep, slo)
+        if slo < last * 0.998
+            if na(below1) or slo < below1
+                below2 := below1
+                below1 := slo
+            else if na(below2) or slo < below2
+                below2 := slo
+    [deep, below1, below2]
+
+f_floor() =>
+    string k = f_kind()
+    int n = bar_index + 1
+    int need = k == "WM" or k == "D" ? 8 : k == "4H" or k == "1H" ? 12 : 16
+    float lo = na
+    float hi = na
+    float atr = f_atr()
+    int look = f_look()
+    float last = close
+    int swingLen = math.max(2, look - 1)
+    float swingHi = ta.highest(high[1], swingLen)
+    [deep, below1, below2] = f_scan(look, last)
+    float rangeLo = ta.lowest(low[1], swingLen)
+    if na(deep)
+        deep := rangeLo
+    if n >= need and close > 0
+        float prefer = na
+        if k == "WM"
+            prefer := deep > 0 and deep < last * 0.9995 ? deep : na
+        else if k == "D"
+            float d2 = na
+            for i = 1 to look
+                float b = low[i]
+                float a = low[i + 1]
+                float c = nz(low[i - 1], b)
+                if b > 0 and b <= a and b <= c and b < last * 0.997 and deep > 0 and b > deep * 1.01
+                    d2 := na(d2) ? b : math.min(d2, b)
+            prefer := d2
+            if na(prefer) and deep > 0 and deep < last - atr * 1.5
+                prefer := math.min(last - atr * 1.15, deep + math.max(atr * 1.6, last * 0.014))
+        else if k == "4H"
+            prefer := below2
+        else
+            prefer := below1
+        if na(prefer) or prefer <= 0 or prefer >= last * 0.9995
+            float kk = k == "D" ? 1.35 : k == "4H" ? 1.0 : k == "WM" ? 0.7 : 0.55
+            prefer := last - math.max(atr * kk, last * 0.008)
+        if prefer > last - math.max(atr * 0.25, last * 0.0025)
+            prefer := last - math.max(atr * 0.55, last * 0.006)
+        bool distant = prefer < last - math.max(atr * 0.35, last * 0.004)
+        bool allow = k == "D" or k == "4H" or k == "WM" or k == "1m"
+        bool ok = true
+        if not distant
+            float dropMin = k == "WM" or k == "D" or k == "4H" ? 0.01 : k == "1H" ? 0.015 : 0.02
+            float drop = swingHi > 0 ? (swingHi - last) / swingHi : 0.0
+            if drop < dropMin
+                ok := allow
+            float resist = prefer + atr * 0.65
+            if ok and last > resist + atr * 0.2
+                ok := allow
+        if ok and prefer > 0
+            float half = f_band(prefer, atr)
+            lo := prefer - half / 2.0
+            hi := prefer + half / 2.0
+    [lo, hi]
+
+f_ceil() =>
+    string k = f_kind()
+    int n = bar_index + 1
+    int need = k == "WM" or k == "D" ? 8 : k == "4H" or k == "1H" ? 12 : 16
+    float lo = na
+    float hi = na
+    float atr = f_atr()
+    float last = close
+    int look = k == "WM" ? math.min(math.max(n - 2, 2), 24) : math.min(math.max(n - 2, 2), 60)
+    float swingHi = ta.highest(high[1], math.max(2, look))
+    if n >= need and close > 0
+        float ceil = swingHi > last * 1.001 ? swingHi : last + atr * 0.55
+        bool allow = k == "D" or k == "4H" or k == "WM" or k == "1H" or k == "15" or k == "1m"
+        if ceil <= last and allow
+            ceil := last + math.max(atr * 0.55, last * 0.008)
+        float maxDist = math.max(atr * (k == "WM" ? 8.0 : k == "D" ? 6.0 : 4.5), last * 0.08)
+        if ceil > last + maxDist
+            ceil := last + maxDist * 0.85
+        if ceil <= last * 1.0003 and allow
+            ceil := swingHi > last * 1.0005 ? swingHi : last + math.max(atr * 0.55, last * 0.008)
+        if ceil > last
+            float half = f_band(ceil, atr)
+            lo := ceil - half / 2.0
+            hi := ceil + half / 2.0
+    [lo, hi]
+
+[cFlo, cFhi] = f_floor()
+[cClo, cChi] = f_ceil()
+
+f_quad() =>
+    [a, b] = f_floor()
+    [c, d] = f_ceil()
+    [a, b, c, d]
+
+[f5a, f5b, c5a, c5b] = request.security(syminfo.tickerid, "5", f_quad(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[f15a, f15b, c15a, c15b] = request.security(syminfo.tickerid, "15", f_quad(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[f1a, f1b, c1a, c1b] = request.security(syminfo.tickerid, "60", f_quad(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[f4a, f4b, c4a, c4b] = request.security(syminfo.tickerid, "240", f_quad(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[fda, fdb, cda, cdb] = request.security(syminfo.tickerid, "D", f_quad(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[fwa, fwb, cwa, cwb] = request.security(syminfo.tickerid, "W", f_quad(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[fma, fmb, cma, cmb] = request.security(syminfo.tickerid, "M", f_quad(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+
+f_box(box face, bool on, float lo, float hi, color bd, string txt, color ink) =>
+    box f = face
+    if not on or na(lo) or na(hi) or hi <= lo
+        if not na(f)
+            box.delete(f)
+        f := na
+    else
+        int xL = bar_index - boxLeft
+        int xR = bar_index + boxRight
+        if na(f)
+            f := box.new(xL, hi, xR, lo, border_color = bd, bgcolor = color.new(bd, zoneOpac), border_width = zoneW, text = txt, text_color = ink, text_halign = text.align_left, text_valign = text.align_center, text_size = size.tiny, force_overlay = true)
+        else
+            box.set_left(f, xL)
+            box.set_right(f, xR)
+            box.set_top(f, hi)
+            box.set_bottom(f, lo)
+            box.set_border_color(f, bd)
+            box.set_bgcolor(f, color.new(bd, zoneOpac))
+            box.set_border_width(f, zoneW)
+            box.set_text(f, txt)
+            box.set_text_color(f, ink)
+            box.set_text_valign(f, text.align_center)
+        if labPos == "오른쪽"
+            box.set_text_halign(f, text.align_right)
+        else if labPos == "가운데"
+            box.set_text_halign(f, text.align_center)
+        else
+            box.set_text_halign(f, text.align_left)
+        if txtSz == "크게"
+            box.set_text_size(f, size.normal)
+        else if txtSz == "보통"
+            box.set_text_size(f, size.small)
+        else
+            box.set_text_size(f, size.tiny)
+    f
+
+f_shade(box shade, bool on, float lo, float hi, color bd) =>
+    box s = shade
+    if not na(s)
+        box.delete(s)
+    s := na
+    s
+
+f_tag(label tag, bool on, float lo, float hi, color bd, string txt, color ink) =>
+    label lb = tag
+    if not na(lb)
+        label.delete(lb)
+    lb := na
+    lb
+
+f_px(label tag, bool on, float y, bool top) =>
+    label lb = tag
+    if not showPx or not on or na(y)
+        if not na(lb)
+            label.delete(lb)
+        lb := na
+    else
+        int x = labPos == "오른쪽" ? bar_index + boxRight : labPos == "가운데" ? bar_index : bar_index - boxLeft
+        string tx = str.tostring(y, format.mintick)
+        if na(lb)
+            lb := label.new(x, y, tx, color = color.new(cPx, 100), textcolor = cPx, size = size.tiny, style = label.style_label_left, force_overlay = true)
+        else
+            label.set_xy(lb, x, y)
+            label.set_text(lb, tx)
+            label.set_textcolor(lb, cPx)
+        if top
+            label.set_style(lb, label.style_label_down)
+        else
+            label.set_style(lb, label.style_label_up)
+        if pxSz == "크게"
+            label.set_size(lb, size.normal)
+        else if pxSz == "보통"
+            label.set_size(lb, size.small)
+        else
+            label.set_size(lb, size.tiny)
+    lb
+
+var box z5f = na
+var box z5c = na
+var box z15f = na
+var box z15c = na
+var box z1f = na
+var box z1c = na
+var box z4f = na
+var box z4c = na
+var box zdf = na
+var box zdc = na
+var box zwf = na
+var box zwc = na
+var box zmf = na
+var box zmc = na
+var box zcf = na
+var box zcc = na
+var box g2d = na
+var box g2u = na
+var box z5fS = na
+var box z5cS = na
+var box z15fS = na
+var box z15cS = na
+var box z1fS = na
+var box z1cS = na
+var box z4fS = na
+var box z4cS = na
+var box zdfS = na
+var box zdcS = na
+var box zwfS = na
+var box zwcS = na
+var box zmfS = na
+var box zmcS = na
+var box zcfS = na
+var box zccS = na
+var box g2dS = na
+var box g2uS = na
+var label z5fT = na
+var label z5cT = na
+var label z15fT = na
+var label z15cT = na
+var label z1fT = na
+var label z1cT = na
+var label z4fT = na
+var label z4cT = na
+var label zdfT = na
+var label zdcT = na
+var label zwfT = na
+var label zwcT = na
+var label zmfT = na
+var label zmcT = na
+var label zcfT = na
+var label zccT = na
+var label g2dT = na
+var label g2uT = na
+var label zcfH = na
+var label zcfL = na
+var label zccH = na
+var label zccL = na
+var label z5fH = na
+var label z5fL = na
+var label z5cH = na
+var label z5cL = na
+var label z15fH = na
+var label z15fL = na
+var label z15cH = na
+var label z15cL = na
+var label z1fH = na
+var label z1fL = na
+var label z1cH = na
+var label z1cL = na
+var label z4fH = na
+var label z4fL = na
+var label z4cH = na
+var label z4cL = na
+var label zdfH = na
+var label zdfL = na
+var label zdcH = na
+var label zdcL = na
+var label zwfH = na
+var label zwfL = na
+var label zwcH = na
+var label zwcL = na
+var label zmfH = na
+var label zmfL = na
+var label zmcH = na
+var label zmcL = na
+var label g2dH = na
+var label g2dL = na
+var label g2uH = na
+var label g2uL = na
+var box g5d = na
+var box g5u = na
+var box g15d = na
+var box g15u = na
+var box g1d = na
+var box g1u = na
+var box g4d = na
+var box g4u = na
+var box gDd = na
+var box gDu = na
+var box gWd = na
+var box gWu = na
+var box gMd = na
+var box gMu = na
+var label g5dH = na
+var label g5dL = na
+var label g5uH = na
+var label g5uL = na
+var label g15dH = na
+var label g15dL = na
+var label g15uH = na
+var label g15uL = na
+var label g1dH = na
+var label g1dL = na
+var label g1uH = na
+var label g1uL = na
+var label g4dH = na
+var label g4dL = na
+var label g4uH = na
+var label g4uL = na
+var label gDdH = na
+var label gDdL = na
+var label gDuH = na
+var label gDuL = na
+var label gWdH = na
+var label gWdL = na
+var label gWuH = na
+var label gWuL = na
+var label gMdH = na
+var label gMdL = na
+var label gMuH = na
+var label gMuL = na
+var float dLo = na
+var float dHi = na
+var int dPh = 0
+var float uLo = na
+var float uHi = na
+var int uPh = 0
+
+f_paint2(box bd, box bu, label dh, label dl, label uh, label ul, bool on, float flo, float fhi, float clo, float chi, string name) =>
+    float cl = nz(close[1], close)
+    int dPh2 = 0
+    int uPh2 = 0
+    if on and not na(flo) and not na(fhi) and fhi > flo and cl > 0
+        float thick = fhi - flo
+        dPh2 := cl < flo - thick ? 2 : cl < flo ? 1 : 0
+    if on and not na(clo) and not na(chi) and chi > clo and cl > 0
+        float thickU = chi - clo
+        uPh2 := cl > chi + thickU ? 2 : cl > chi ? 1 : 0
+    color dCol = dPh2 == 2 ? c2Deep : dPh2 == 1 ? c2Dump : c2Down
+    color uCol = uPh2 == 2 ? c2Spike : uPh2 == 1 ? c2Rise : c2Up
+    string dTxt = name + (dPh2 == 2 ? " 폭락하락" : dPh2 == 1 ? " 폭락" : " 아래구간")
+    string uTxt = name + (uPh2 == 2 ? " 상승급등" : uPh2 == 1 ? " 상승" : " 위구간")
+    box o1 = f_box(bd, on, flo, fhi, dCol, dTxt, cTxt2)
+    box o2 = f_box(bu, on, clo, chi, uCol, uTxt, cTxt2)
+    label o3 = f_px(dh, on, fhi, true)
+    label o4 = f_px(dl, on, flo, false)
+    label o5 = f_px(uh, on, chi, true)
+    label o6 = f_px(ul, on, clo, false)
+    [o1, o2, o3, o4, o5, o6]
+
+f_oneName(box a, box b, label hi, label lo) =>
+    label h = hi
+    label l = lo
+    if not na(a) and not na(b)
+        float bot = box.get_bottom(a)
+        float top = box.get_top(a)
+        float tol = math.max(syminfo.mintick * 4, math.abs(bot) * 0.0004)
+        if math.abs(bot - box.get_bottom(b)) <= tol and math.abs(top - box.get_top(b)) <= tol
+            box.set_text(a, "")
+            if not na(h)
+                label.delete(h)
+                h := na
+            if not na(l)
+                label.delete(l)
+                l := na
+    [h, l]
+
+if barstate.islast
+    string here = f_kind()
+    bool drawChart = here == "1m" or here == "3" or here == "LTF"
+    zcf := f_box(zcf, show1 and drawChart, drawChart ? cFlo : na, drawChart ? cFhi : na, cFloor, f_ko() + " 폭락", cTxt1)
+    zcfS := f_shade(zcfS, show1 and drawChart, drawChart ? cFlo : na, drawChart ? cFhi : na, cFloor)
+    zcfT := f_tag(zcfT, show1 and drawChart, drawChart ? cFlo : na, drawChart ? cFhi : na, cFloor, f_ko() + " 폭락", cTxt1)
+    zcc := f_box(zcc, show1 and drawChart, drawChart ? cClo : na, drawChart ? cChi : na, cCeil, f_ko() + " 폭락감시", cTxt1)
+    zccS := f_shade(zccS, show1 and drawChart, drawChart ? cClo : na, drawChart ? cChi : na, cCeil)
+    zccT := f_tag(zccT, show1 and drawChart, drawChart ? cClo : na, drawChart ? cChi : na, cCeil, f_ko() + " 폭락감시", cTxt1)
+    z5f := f_box(z5f, show1, here == "5" ? cFlo : f5a, here == "5" ? cFhi : f5b, cFloor, "5분 폭락", cTxt1)
+    z5fS := f_shade(z5fS, show1, here == "5" ? cFlo : f5a, here == "5" ? cFhi : f5b, cFloor)
+    z5fT := f_tag(z5fT, show1, here == "5" ? cFlo : f5a, here == "5" ? cFhi : f5b, cFloor, "5분 폭락", cTxt1)
+    z5c := f_box(z5c, show1, here == "5" ? cClo : c5a, here == "5" ? cChi : c5b, cCeil, "5분 폭락감시", cTxt1)
+    z5cS := f_shade(z5cS, show1, here == "5" ? cClo : c5a, here == "5" ? cChi : c5b, cCeil)
+    z5cT := f_tag(z5cT, show1, here == "5" ? cClo : c5a, here == "5" ? cChi : c5b, cCeil, "5분 폭락감시", cTxt1)
+    z15f := f_box(z15f, show1, here == "15" ? cFlo : f15a, here == "15" ? cFhi : f15b, cFloor, "15분 폭락", cTxt1)
+    z15fS := f_shade(z15fS, show1, here == "15" ? cFlo : f15a, here == "15" ? cFhi : f15b, cFloor)
+    z15fT := f_tag(z15fT, show1, here == "15" ? cFlo : f15a, here == "15" ? cFhi : f15b, cFloor, "15분 폭락", cTxt1)
+    z15c := f_box(z15c, show1, here == "15" ? cClo : c15a, here == "15" ? cChi : c15b, cCeil, "15분 폭락감시", cTxt1)
+    z15cS := f_shade(z15cS, show1, here == "15" ? cClo : c15a, here == "15" ? cChi : c15b, cCeil)
+    z15cT := f_tag(z15cT, show1, here == "15" ? cClo : c15a, here == "15" ? cChi : c15b, cCeil, "15분 폭락감시", cTxt1)
+    z1f := f_box(z1f, show1, here == "1H" ? cFlo : f1a, here == "1H" ? cFhi : f1b, cFloor, "1시간 폭락", cTxt1)
+    z1fS := f_shade(z1fS, show1, here == "1H" ? cFlo : f1a, here == "1H" ? cFhi : f1b, cFloor)
+    z1fT := f_tag(z1fT, show1, here == "1H" ? cFlo : f1a, here == "1H" ? cFhi : f1b, cFloor, "1시간 폭락", cTxt1)
+    z1c := f_box(z1c, show1, here == "1H" ? cClo : c1a, here == "1H" ? cChi : c1b, cCeil, "1시간 폭락감시", cTxt1)
+    z1cS := f_shade(z1cS, show1, here == "1H" ? cClo : c1a, here == "1H" ? cChi : c1b, cCeil)
+    z1cT := f_tag(z1cT, show1, here == "1H" ? cClo : c1a, here == "1H" ? cChi : c1b, cCeil, "1시간 폭락감시", cTxt1)
+    z4f := f_box(z4f, show1, here == "4H" ? cFlo : f4a, here == "4H" ? cFhi : f4b, cFloor, "4시간 폭락", cTxt1)
+    z4fS := f_shade(z4fS, show1, here == "4H" ? cFlo : f4a, here == "4H" ? cFhi : f4b, cFloor)
+    z4fT := f_tag(z4fT, show1, here == "4H" ? cFlo : f4a, here == "4H" ? cFhi : f4b, cFloor, "4시간 폭락", cTxt1)
+    z4c := f_box(z4c, show1, here == "4H" ? cClo : c4a, here == "4H" ? cChi : c4b, cCeil, "4시간 폭락감시", cTxt1)
+    z4cS := f_shade(z4cS, show1, here == "4H" ? cClo : c4a, here == "4H" ? cChi : c4b, cCeil)
+    z4cT := f_tag(z4cT, show1, here == "4H" ? cClo : c4a, here == "4H" ? cChi : c4b, cCeil, "4시간 폭락감시", cTxt1)
+    zdf := f_box(zdf, show1, here == "D" ? cFlo : fda, here == "D" ? cFhi : fdb, cFloor, "1일 폭락", cTxt1)
+    zdfS := f_shade(zdfS, show1, here == "D" ? cFlo : fda, here == "D" ? cFhi : fdb, cFloor)
+    zdfT := f_tag(zdfT, show1, here == "D" ? cFlo : fda, here == "D" ? cFhi : fdb, cFloor, "1일 폭락", cTxt1)
+    zdc := f_box(zdc, show1, here == "D" ? cClo : cda, here == "D" ? cChi : cdb, cCeil, "1일 폭락감시", cTxt1)
+    zdcS := f_shade(zdcS, show1, here == "D" ? cClo : cda, here == "D" ? cChi : cdb, cCeil)
+    zdcT := f_tag(zdcT, show1, here == "D" ? cClo : cda, here == "D" ? cChi : cdb, cCeil, "1일 폭락감시", cTxt1)
+    zwf := f_box(zwf, show1, here == "WM" and timeframe.period == "W" ? cFlo : fwa, here == "WM" and timeframe.period == "W" ? cFhi : fwb, cFloor, "1주 폭락", cTxt1)
+    zwfS := f_shade(zwfS, show1, here == "WM" and timeframe.period == "W" ? cFlo : fwa, here == "WM" and timeframe.period == "W" ? cFhi : fwb, cFloor)
+    zwfT := f_tag(zwfT, show1, here == "WM" and timeframe.period == "W" ? cFlo : fwa, here == "WM" and timeframe.period == "W" ? cFhi : fwb, cFloor, "1주 폭락", cTxt1)
+    zwc := f_box(zwc, show1, here == "WM" and timeframe.period == "W" ? cClo : cwa, here == "WM" and timeframe.period == "W" ? cChi : cwb, cCeil, "1주 폭락감시", cTxt1)
+    zwcS := f_shade(zwcS, show1, here == "WM" and timeframe.period == "W" ? cClo : cwa, here == "WM" and timeframe.period == "W" ? cChi : cwb, cCeil)
+    zwcT := f_tag(zwcT, show1, here == "WM" and timeframe.period == "W" ? cClo : cwa, here == "WM" and timeframe.period == "W" ? cChi : cwb, cCeil, "1주 폭락감시", cTxt1)
+    zmf := f_box(zmf, show1, here == "WM" and timeframe.period == "M" ? cFlo : fma, here == "WM" and timeframe.period == "M" ? cFhi : fmb, cFloor, "1월 폭락", cTxt1)
+    zmfS := f_shade(zmfS, show1, here == "WM" and timeframe.period == "M" ? cFlo : fma, here == "WM" and timeframe.period == "M" ? cFhi : fmb, cFloor)
+    zmfT := f_tag(zmfT, show1, here == "WM" and timeframe.period == "M" ? cFlo : fma, here == "WM" and timeframe.period == "M" ? cFhi : fmb, cFloor, "1월 폭락", cTxt1)
+    zmc := f_box(zmc, show1, here == "WM" and timeframe.period == "M" ? cClo : cma, here == "WM" and timeframe.period == "M" ? cChi : cmb, cCeil, "1월 폭락감시", cTxt1)
+    zmcS := f_shade(zmcS, show1, here == "WM" and timeframe.period == "M" ? cClo : cma, here == "WM" and timeframe.period == "M" ? cChi : cmb, cCeil)
+    zmcT := f_tag(zmcT, show1, here == "WM" and timeframe.period == "M" ? cClo : cma, here == "WM" and timeframe.period == "M" ? cChi : cmb, cCeil, "1월 폭락감시", cTxt1)
+    if show2
+        if na(dLo) and not na(cFlo)
+            dLo := cFlo
+            dHi := cFhi
+        if na(uLo) and not na(cClo)
+            uLo := cClo
+            uHi := cChi
+        float cl = nz(close[1], close)
+        if not na(dLo) and dHi > dLo and cl > 0
+            float thick = dHi - dLo
+            int nxt = cl < dLo - thick ? 2 : cl < dLo ? 1 : 0
+            dPh := math.max(dPh, nxt)
+        if not na(uLo) and uHi > uLo and cl > 0
+            float thick2 = uHi - uLo
+            int nxt2 = cl > uHi + thick2 ? 2 : cl > uHi ? 1 : 0
+            uPh := math.max(uPh, nxt2)
+        color dCol = dPh == 2 ? c2Deep : dPh == 1 ? c2Dump : c2Down
+        color uCol = uPh == 2 ? c2Spike : uPh == 1 ? c2Rise : c2Up
+        string dTxt = f_ko() + (dPh == 2 ? " 폭락하락" : dPh == 1 ? " 폭락" : " 아래구간")
+        string uTxt = f_ko() + (uPh == 2 ? " 상승급등" : uPh == 1 ? " 상승" : " 위구간")
+        g2d := f_box(g2d, true, dLo, dHi, dCol, dTxt, cTxt2)
+        g2dS := f_shade(g2dS, true, dLo, dHi, dCol)
+        g2dT := f_tag(g2dT, true, dLo, dHi, dCol, dTxt, cTxt2)
+        g2u := f_box(g2u, true, uLo, uHi, uCol, uTxt, cTxt2)
+        g2uS := f_shade(g2uS, true, uLo, uHi, uCol)
+        g2uT := f_tag(g2uT, true, uLo, uHi, uCol, uTxt, cTxt2)
+    else
+        g2d := f_box(g2d, false, na, na, cFloor, "", cTxt2)
+        g2dS := f_shade(g2dS, false, na, na, cFloor)
+        g2dT := f_tag(g2dT, false, na, na, cFloor, "", cTxt2)
+        g2u := f_box(g2u, false, na, na, cCeil, "", cTxt2)
+        g2uS := f_shade(g2uS, false, na, na, cCeil)
+        g2uT := f_tag(g2uT, false, na, na, cCeil, "", cTxt2)
+    bool on5 = show1
+    float p5fL = here == "5" ? cFlo : f5a
+    float p5fH = here == "5" ? cFhi : f5b
+    float p5cL = here == "5" ? cClo : c5a
+    float p5cH = here == "5" ? cChi : c5b
+    float p15fL = here == "15" ? cFlo : f15a
+    float p15fH = here == "15" ? cFhi : f15b
+    float p15cL = here == "15" ? cClo : c15a
+    float p15cH = here == "15" ? cChi : c15b
+    float p1fL = here == "1H" ? cFlo : f1a
+    float p1fH = here == "1H" ? cFhi : f1b
+    float p1cL = here == "1H" ? cClo : c1a
+    float p1cH = here == "1H" ? cChi : c1b
+    float p4fL = here == "4H" ? cFlo : f4a
+    float p4fH = here == "4H" ? cFhi : f4b
+    float p4cL = here == "4H" ? cClo : c4a
+    float p4cH = here == "4H" ? cChi : c4b
+    float pdfL = here == "D" ? cFlo : fda
+    float pdfH = here == "D" ? cFhi : fdb
+    float pdcL = here == "D" ? cClo : cda
+    float pdcH = here == "D" ? cChi : cdb
+    bool onW = here == "WM" and timeframe.period == "W"
+    bool onM = here == "WM" and timeframe.period == "M"
+    float pwfL = onW ? cFlo : fwa
+    float pwfH = onW ? cFhi : fwb
+    float pwcL = onW ? cClo : cwa
+    float pwcH = onW ? cChi : cwb
+    float pmfL = onM ? cFlo : fma
+    float pmfH = onM ? cFhi : fmb
+    float pmcL = onM ? cClo : cma
+    float pmcH = onM ? cChi : cmb
+    zcfH := f_px(zcfH, show1 and drawChart, drawChart ? cFhi : na, true)
+    zcfL := f_px(zcfL, show1 and drawChart, drawChart ? cFlo : na, false)
+    zccH := f_px(zccH, show1 and drawChart, drawChart ? cChi : na, true)
+    zccL := f_px(zccL, show1 and drawChart, drawChart ? cClo : na, false)
+    z5fH := f_px(z5fH, on5, p5fH, true)
+    z5fL := f_px(z5fL, on5, p5fL, false)
+    z5cH := f_px(z5cH, on5, p5cH, true)
+    z5cL := f_px(z5cL, on5, p5cL, false)
+    z15fH := f_px(z15fH, on5, p15fH, true)
+    z15fL := f_px(z15fL, on5, p15fL, false)
+    z15cH := f_px(z15cH, on5, p15cH, true)
+    z15cL := f_px(z15cL, on5, p15cL, false)
+    z1fH := f_px(z1fH, on5, p1fH, true)
+    z1fL := f_px(z1fL, on5, p1fL, false)
+    z1cH := f_px(z1cH, on5, p1cH, true)
+    z1cL := f_px(z1cL, on5, p1cL, false)
+    z4fH := f_px(z4fH, on5, p4fH, true)
+    z4fL := f_px(z4fL, on5, p4fL, false)
+    z4cH := f_px(z4cH, on5, p4cH, true)
+    z4cL := f_px(z4cL, on5, p4cL, false)
+    zdfH := f_px(zdfH, on5, pdfH, true)
+    zdfL := f_px(zdfL, on5, pdfL, false)
+    zdcH := f_px(zdcH, on5, pdcH, true)
+    zdcL := f_px(zdcL, on5, pdcL, false)
+    zwfH := f_px(zwfH, on5, pwfH, true)
+    zwfL := f_px(zwfL, on5, pwfL, false)
+    zwcH := f_px(zwcH, on5, pwcH, true)
+    zwcL := f_px(zwcL, on5, pwcL, false)
+    zmfH := f_px(zmfH, on5, pmfH, true)
+    zmfL := f_px(zmfL, on5, pmfL, false)
+    zmcH := f_px(zmcH, on5, pmcH, true)
+    zmcL := f_px(zmcL, on5, pmcL, false)
+    g2dH := f_px(g2dH, show2, dHi, true)
+    g2dL := f_px(g2dL, show2, dLo, false)
+    g2uH := f_px(g2uH, show2, uHi, true)
+    g2uL := f_px(g2uL, show2, uLo, false)
+    bool g5on = show2 and here != "5"
+    bool g15on = show2 and here != "15"
+    bool g1on = show2 and here != "1H"
+    bool g4on = show2 and here != "4H"
+    bool gDon = show2 and here != "D"
+    bool gWon = show2 and not (here == "WM" and timeframe.period == "W")
+    bool gMon = show2 and not (here == "WM" and timeframe.period == "M")
+    [b5d, b5u, l5dH, l5dL, l5uH, l5uL] = f_paint2(g5d, g5u, g5dH, g5dL, g5uH, g5uL, g5on, p5fL, p5fH, p5cL, p5cH, "5분")
+    g5d := b5d
+    g5u := b5u
+    g5dH := l5dH
+    g5dL := l5dL
+    g5uH := l5uH
+    g5uL := l5uL
+    [b15d, b15u, l15dH, l15dL, l15uH, l15uL] = f_paint2(g15d, g15u, g15dH, g15dL, g15uH, g15uL, g15on, p15fL, p15fH, p15cL, p15cH, "15분")
+    g15d := b15d
+    g15u := b15u
+    g15dH := l15dH
+    g15dL := l15dL
+    g15uH := l15uH
+    g15uL := l15uL
+    [b1d, b1u, l1dH, l1dL, l1uH, l1uL] = f_paint2(g1d, g1u, g1dH, g1dL, g1uH, g1uL, g1on, p1fL, p1fH, p1cL, p1cH, "1시간")
+    g1d := b1d
+    g1u := b1u
+    g1dH := l1dH
+    g1dL := l1dL
+    g1uH := l1uH
+    g1uL := l1uL
+    [b4d, b4u, l4dH, l4dL, l4uH, l4uL] = f_paint2(g4d, g4u, g4dH, g4dL, g4uH, g4uL, g4on, p4fL, p4fH, p4cL, p4cH, "4시간")
+    g4d := b4d
+    g4u := b4u
+    g4dH := l4dH
+    g4dL := l4dL
+    g4uH := l4uH
+    g4uL := l4uL
+    [bDd, bDu, lDdH, lDdL, lDuH, lDuL] = f_paint2(gDd, gDu, gDdH, gDdL, gDuH, gDuL, gDon, pdfL, pdfH, pdcL, pdcH, "1일")
+    gDd := bDd
+    gDu := bDu
+    gDdH := lDdH
+    gDdL := lDdL
+    gDuH := lDuH
+    gDuL := lDuL
+    [bWd, bWu, lWdH, lWdL, lWuH, lWuL] = f_paint2(gWd, gWu, gWdH, gWdL, gWuH, gWuL, gWon, pwfL, pwfH, pwcL, pwcH, "1주")
+    gWd := bWd
+    gWu := bWu
+    gWdH := lWdH
+    gWdL := lWdL
+    gWuH := lWuH
+    gWuL := lWuL
+    [bMd, bMu, lMdH, lMdL, lMuH, lMuL] = f_paint2(gMd, gMu, gMdH, gMdL, gMuH, gMuL, gMon, pmfL, pmfH, pmcL, pmcH, "1월")
+    gMd := bMd
+    gMu := bMu
+    gMdH := lMdH
+    gMdL := lMdL
+    gMuH := lMuH
+    gMuL := lMuL
+    box nHereD = show2 ? g2d : na
+    box nHereU = show2 ? g2u : na
+    [qcfH, qcfL] = f_oneName(zcf, drawChart ? nHereD : na, zcfH, zcfL)
+    zcfH := qcfH
+    zcfL := qcfL
+    [qccH, qccL] = f_oneName(zcc, drawChart ? nHereU : na, zccH, zccL)
+    zccH := qccH
+    zccL := qccL
+    [q5fH, q5fL] = f_oneName(z5f, g5on ? g5d : here == "5" ? nHereD : na, z5fH, z5fL)
+    z5fH := q5fH
+    z5fL := q5fL
+    [q5cH, q5cL] = f_oneName(z5c, g5on ? g5u : here == "5" ? nHereU : na, z5cH, z5cL)
+    z5cH := q5cH
+    z5cL := q5cL
+    [q15fH, q15fL] = f_oneName(z15f, g15on ? g15d : here == "15" ? nHereD : na, z15fH, z15fL)
+    z15fH := q15fH
+    z15fL := q15fL
+    [q15cH, q15cL] = f_oneName(z15c, g15on ? g15u : here == "15" ? nHereU : na, z15cH, z15cL)
+    z15cH := q15cH
+    z15cL := q15cL
+    [q1fH, q1fL] = f_oneName(z1f, g1on ? g1d : here == "1H" ? nHereD : na, z1fH, z1fL)
+    z1fH := q1fH
+    z1fL := q1fL
+    [q1cH, q1cL] = f_oneName(z1c, g1on ? g1u : here == "1H" ? nHereU : na, z1cH, z1cL)
+    z1cH := q1cH
+    z1cL := q1cL
+    [q4fH, q4fL] = f_oneName(z4f, g4on ? g4d : here == "4H" ? nHereD : na, z4fH, z4fL)
+    z4fH := q4fH
+    z4fL := q4fL
+    [q4cH, q4cL] = f_oneName(z4c, g4on ? g4u : here == "4H" ? nHereU : na, z4cH, z4cL)
+    z4cH := q4cH
+    z4cL := q4cL
+    [qdfH, qdfL] = f_oneName(zdf, gDon ? gDd : here == "D" ? nHereD : na, zdfH, zdfL)
+    zdfH := qdfH
+    zdfL := qdfL
+    [qdcH, qdcL] = f_oneName(zdc, gDon ? gDu : here == "D" ? nHereU : na, zdcH, zdcL)
+    zdcH := qdcH
+    zdcL := qdcL
+    [qwfH, qwfL] = f_oneName(zwf, gWon ? gWd : onW ? nHereD : na, zwfH, zwfL)
+    zwfH := qwfH
+    zwfL := qwfL
+    [qwcH, qwcL] = f_oneName(zwc, gWon ? gWu : onW ? nHereU : na, zwcH, zwcL)
+    zwcH := qwcH
+    zwcL := qwcL
+    [qmfH, qmfL] = f_oneName(zmf, gMon ? gMd : onM ? nHereD : na, zmfH, zmfL)
+    zmfH := qmfH
+    zmfL := qmfL
+    [qmcH, qmcL] = f_oneName(zmc, gMon ? gMu : onM ? nHereU : na, zmcH, zmcL)
+    zmcH := qmcH
+    zmcL := qmcL
+
+// 스윕. 확정 스윙을 꼬리가 넘고 종가가 다시 들어온 그 봉에만 한글 라벨.
+f_sw() =>
+    float ph = ta.pivothigh(high, swLeft, swRight)
+    float pl = ta.pivotlow(low, swLeft, swRight)
+    var float hiP = na
+    var float loP = na
+    if not na(ph)
+        hiP := ph
+    if not na(pl)
+        loP := pl
+    float a = ta.atr(14)
+    float vs = ta.sma(volume, 20)
+    float rv = vs > 0 ? volume / vs : 1.0
+    float pierce = math.max(nz(a, close * 0.006) * swAtr, close * 0.0004)
+    bool bear = not na(hiP) and high > hiP + pierce and close < hiP and close < open and nz(close[1], close) <= hiP and rv >= 0.9
+    bool bull = not na(loP) and low < loP - pierce and close > loP and close > open and nz(close[1], close) >= loP and rv >= 0.9
+    int dir = bear and not bull ? -1 : bull and not bear ? 1 : 0
+    float y = dir < 0 ? high : dir > 0 ? low : na
+    var int mem = 0
+    var float memY = na
+    var int memT = na
+    if dir != 0
+        mem := dir
+        memY := y
+        memT := time
+    int age = ta.barssince(dir != 0)
+    [mem, memY, age, memT]
+
+[d15, y15, a15, t15] = request.security(syminfo.tickerid, "15", f_sw(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[d60, y60, a60, t60] = request.security(syminfo.tickerid, "60", f_sw(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[d240, y240, a240, t240] = request.security(syminfo.tickerid, "240", f_sw(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[dD, yD, aD, tD] = request.security(syminfo.tickerid, "D", f_sw(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[dW, yW, aW, tW] = request.security(syminfo.tickerid, "W", f_sw(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[dM, yM, aM, tM] = request.security(syminfo.tickerid, "M", f_sw(), gaps = barmerge.gaps_off, lookahead = barmerge.lookahead_off)
+[dHere, yHere, aHere, tHere] = f_sw()
+
+f_barAt(int tms, float y, int dir) =>
+    int hit = bar_index
+    if not na(tms) and not na(y) and dir != 0
+        float best = 1000000000.0
+        int n = math.min(bar_index, 480)
+        for i = 0 to n
+            if time[i] < tms
+                break
+            float py = dir > 0 ? low[i] : high[i]
+            float dist = math.abs(py - y)
+            if dist < best
+                best := dist
+                hit := bar_index - i
+    hit
+
+f_swLab(label lb, bool on, int dir, float y, int age, int x, string name) =>
+    label out = lb
+    bool ok = showSw and on and dir != 0 and not na(y) and not na(age) and age >= 0 and age <= swKeep
+    if not ok
+        if not na(out)
+            label.delete(out)
+        out := na
+    else
+        string tx = name + (dir > 0 ? " 스윕롱" : " 스윕숏")
+        color tc = dir > 0 ? cSwLong : cSwShort
+        color bg = color.new(tc, chipA)
+        if na(out)
+            out := label.new(x, y, tx, color = bg, textcolor = tc, size = size.tiny, style = label.style_label_up, force_overlay = true)
+        else
+            label.set_xy(out, x, y)
+            label.set_text(out, tx)
+            label.set_color(out, bg)
+            label.set_textcolor(out, tc)
+        if dir > 0
+            label.set_style(out, label.style_label_up)
+        else
+            label.set_style(out, label.style_label_down)
+        if swSz == "크게"
+            label.set_size(out, size.normal)
+        else if swSz == "보통"
+            label.set_size(out, size.small)
+        else
+            label.set_size(out, size.tiny)
+    out
+
+var label sw15 = na
+var label sw60 = na
+var label sw240 = na
+var label swD = na
+var label swW = na
+var label swM = na
+var label swHere = na
+string perNow = timeframe.period
+if barstate.islast
+    sw15 := f_swLab(sw15, showSw15 and perNow != "15", d15, y15, a15, f_barAt(t15, y15, d15), "15분")
+    sw60 := f_swLab(sw60, showSw1h and perNow != "60", d60, y60, a60, f_barAt(t60, y60, d60), "1시간")
+    sw240 := f_swLab(sw240, showSw4h and perNow != "240", d240, y240, a240, f_barAt(t240, y240, d240), "4시간")
+    swD := f_swLab(swD, showSwD and perNow != "D", dD, yD, aD, f_barAt(tD, yD, dD), "1일")
+    swW := f_swLab(swW, showSwW and perNow != "W", dW, yW, aW, f_barAt(tW, yW, dW), "1주")
+    swM := f_swLab(swM, showSwM and perNow != "M", dM, yM, aM, f_barAt(tM, yM, dM), "1달")
+    string hereName = perNow == "15" ? "15분" : perNow == "60" ? "1시간" : perNow == "240" ? "4시간" : perNow == "D" ? "1일" : perNow == "W" ? "1주" : perNow == "M" ? "1달" : perNow == "5" ? "5분" : perNow == "3" ? "3분" : perNow == "1" ? "1분" : "현재"
+    bool hereOn = perNow == "15" ? showSw15 : perNow == "60" ? showSw1h : perNow == "240" ? showSw4h : perNow == "D" ? showSwD : perNow == "W" ? showSwW : perNow == "M" ? showSwM : true
+    swHere := f_swLab(swHere, hereOn, dHere, yHere, aHere, f_barAt(tHere, yHere, dHere), hereName)
+
+// 기관밴드. 밴드2 길이는 분·시·일·주에 따라 자동.
+int secTf = timeframe.in_seconds()
+int b2LenAuto = secTf <= 60 ? 8 : secTf <= 180 ? 9 : secTf <= 300 ? 9 : secTf <= 1800 ? 10 : secTf <= 3600 ? 10 : secTf <= 7200 ? 11 : secTf <= 14400 ? 12 : secTf <= 21600 ? 12 : secTf <= 43200 ? 13 : timeframe.isweekly ? 14 : timeframe.ismonthly ? 12 : timeframe.isdaily ? 14 : 10
+float b2MultAuto = secTf <= 60 ? 2.7 : secTf <= 180 ? 2.8 : secTf <= 300 ? 2.85 : secTf <= 1800 ? 3.0 : secTf <= 3600 ? 3.0 : secTf <= 7200 ? 3.05 : secTf <= 14400 ? 3.1 : secTf <= 21600 ? 3.15 : secTf <= 43200 ? 3.2 : timeframe.isweekly ? 3.35 : timeframe.ismonthly ? 3.4 : timeframe.isdaily ? 3.25 : 3.0
+int b2Len = b2Auto ? b2LenAuto : b2LenIn
+float b2Mult = b2Auto ? b2MultAuto : b2MultIn
+float b1Atr = ta.atr(b1Len)
+float b1UpB = (high + low) / 2.0 + b1Mult * b1Atr
+float b1DnB = (high + low) / 2.0 - b1Mult * b1Atr
+float b1Fu = b1UpB
+float b1Fl = b1DnB
+int b1Tr = 1
+b1Fu := na(b1Fu[1]) ? b1UpB : (b1UpB < b1Fu[1] or close[1] > b1Fu[1] ? b1UpB : b1Fu[1])
+b1Fl := na(b1Fl[1]) ? b1DnB : (b1DnB > b1Fl[1] or close[1] < b1Fl[1] ? b1DnB : b1Fl[1])
+int b1Prev = nz(b1Tr[1], 1)
+b1Tr := b1Prev == 1 and close < nz(b1Fl[1], b1DnB) ? -1 : (b1Prev == -1 and close > nz(b1Fu[1], b1UpB) ? 1 : b1Prev)
+float b2Atr = ta.atr(b2Len)
+float b2UpB = (high + low) / 2.0 + b2Mult * b2Atr
+float b2DnB = (high + low) / 2.0 - b2Mult * b2Atr
+float b2Fu = b2UpB
+float b2Fl = b2DnB
+int b2Tr = 1
+b2Fu := na(b2Fu[1]) ? b2UpB : (b2UpB < b2Fu[1] or close[1] > b2Fu[1] ? b2UpB : b2Fu[1])
+b2Fl := na(b2Fl[1]) ? b2DnB : (b2DnB > b2Fl[1] or close[1] < b2Fl[1] ? b2DnB : b2Fl[1])
+int b2Prev = nz(b2Tr[1], 1)
+b2Tr := b2Prev == 1 and close < nz(b2Fl[1], b2DnB) ? -1 : (b2Prev == -1 and close > nz(b2Fu[1], b2UpB) ? 1 : b2Prev)
+color col1 = b1Tr == 1 ? cLong : cShort
+color col2 = b2Tr == 1 ? color.new(#38BDF8, 0) : color.new(#F97316, 0)
+max_bars_back(b1Fu, 1500)
+max_bars_back(b1Fl, 1500)
+max_bars_back(b2Fu, 1500)
+max_bars_back(b2Fl, 1500)
+max_bars_back(b1Tr, 1500)
+max_bars_back(b2Tr, 1500)
+f_addPoly(array<polyline> bucket, array<chart.point> pts, color c, int width) =>
+    if array.size(pts) >= 2
+        if array.size(bucket) >= 90
+            polyline.delete(array.shift(bucket))
+        array.push(bucket, polyline.new(pts, line_color = c, line_width = width, force_overlay = true))
+var array<polyline> bandPolys = array.new<polyline>()
+if barstate.islast
+    if array.size(bandPolys) > 0
+        for j = 0 to array.size(bandPolys) - 1
+            polyline.delete(array.get(bandPolys, j))
+        array.clear(bandPolys)
+    int nBand = math.min(bar_index, 1200)
+    if showB1 and nBand > 2
+        array<chart.point> upPts = array.new<chart.point>()
+        array<chart.point> dnPts = array.new<chart.point>()
+        int runU = b1Tr[nBand]
+        int runD = runU
+        for i = nBand to 0
+            int tr = b1Tr[i]
+            int x = bar_index - i
+            float yu = b1Fu[i]
+            float yd = b1Fl[i]
+            if tr != runU
+                f_addPoly(bandPolys, upPts, runU == 1 ? cLong : cShort, wBand)
+                upPts := array.new<chart.point>()
+                runU := tr
+            if tr != runD
+                f_addPoly(bandPolys, dnPts, runD == 1 ? cLong : cShort, wBand)
+                dnPts := array.new<chart.point>()
+                runD := tr
+            if not na(yu)
+                array.push(upPts, chart.point.from_index(x, yu))
+                array.push(upPts, chart.point.from_index(x + 1, yu))
+            if not na(yd)
+                array.push(dnPts, chart.point.from_index(x, yd))
+                array.push(dnPts, chart.point.from_index(x + 1, yd))
+        f_addPoly(bandPolys, upPts, runU == 1 ? cLong : cShort, wBand)
+        f_addPoly(bandPolys, dnPts, runD == 1 ? cLong : cShort, wBand)
+    if showB2 and nBand > 2
+        array<chart.point> b2Pts = array.new<chart.point>()
+        int run2 = b2Tr[nBand]
+        for i = nBand to 0
+            int tr2 = b2Tr[i]
+            int x2 = bar_index - i
+            float y2 = tr2 == 1 ? b2Fl[i] : b2Fu[i]
+            if tr2 != run2
+                f_addPoly(bandPolys, b2Pts, run2 == 1 ? color.new(#38BDF8, 0) : color.new(#F97316, 0), wBand)
+                b2Pts := array.new<chart.point>()
+                run2 := tr2
+            if not na(y2)
+                array.push(b2Pts, chart.point.from_index(x2, y2))
+                array.push(b2Pts, chart.point.from_index(x2 + 1, y2))
+        f_addPoly(bandPolys, b2Pts, run2 == 1 ? color.new(#38BDF8, 0) : color.new(#F97316, 0), wBand)
+bool touchSup = showB1 and b1Tr == 1 and low <= b1Fl and close >= b1Fl and not (low[1] <= nz(b1Fl[1], b1Fl))
+bool touchRes = showB1 and b1Tr == -1 and high >= b1Fu and close <= b1Fu and not (high[1] >= nz(b1Fu[1], b1Fu))
+plotshape(touchSup, "밴드1 지지터치", shape.triangleup, location.belowbar, cLong, size = size.tiny, text = "지지", force_overlay = true)
+plotshape(touchRes, "밴드1 저항터치", shape.triangledown, location.abovebar, cShort, size = size.tiny, text = "저항", force_overlay = true)
+var label bandLb = na
+if barstate.islast
+    float bandY = b1Tr == 1 ? b1Fl : b1Fu
+    string bt = (b1Tr == 1 ? "밴드1 지지" : "밴드1 저항") + (showB2 ? (b2Tr == 1 ? " · 밴드2 롱" : " · 밴드2 숏") : "")
+    if na(bandLb)
+        bandLb := label.new(bar_index, bandY, bt, style = label.style_label_left, color = color.new(col1, 20), textcolor = color.white, size = size.small, force_overlay = true)
+    else
+        label.set_xy(bandLb, bar_index, bandY)
+        label.set_text(bandLb, bt)
+        label.set_color(bandLb, color.new(col1, 20))
+
+// 선진거래량. 막대는 차트 맨 아래. 캔들색은 강상승·강하락·횡보·수급.
+float rng = high - low
+float pos = rng > 0 ? (close - low) / rng : 0.5
+float upW = rng > 0 ? (high - math.max(open, close)) / rng : 0.0
+float dnW = rng > 0 ? (math.min(open, close) - low) / rng : 0.0
+float buyPct = math.max(0.14, math.min(0.86, 0.18 + pos * 0.64))
+if upW >= 0.28 and pos <= 0.62
+    buyPct := math.max(0.14, buyPct - math.max(0.08, math.min(0.32, upW * 0.55)))
+if dnW >= 0.28 and pos >= 0.38
+    buyPct := math.min(0.86, buyPct + math.max(0.08, math.min(0.32, dnW * 0.55)))
+if close < open and pos > 0.55
+    buyPct := math.max(0.14, buyPct - 0.08)
+if close > open and pos < 0.45
+    buyPct := math.min(0.86, buyPct + 0.06)
+buyPct := volume > 0 ? math.max(0.14, math.min(0.86, buyPct)) : 0.5
+float volSma = ta.sma(volume, 20)
+float rvol = volSma > 0 ? volume / volSma : 1.0
+max_bars_back(rvol, 500)
+max_bars_back(buyPct, 500)
+float bodyR = rng > 0 ? math.abs(close - open) / rng : 0.0
+float moveP = open > 0 ? (close - open) / open * 100.0 : 0.0
+float rangeP = close > 0 ? rng / close * 100.0 : 0.0
+float atrPx = f_atr()
+float atrP = close > 0 ? atrPx / close * 100.0 : 0.0
+bool upBar = close >= open
+float sellPct = 1.0 - buyPct
+int phaseC = 0
+if bodyR < 0.28 and rangeP < math.max(0.35, atrP * 0.85)
+    phaseC := 1
+else if not upBar and (buyPct >= 0.56 or dnW >= 0.38) and (rvol >= 1.05 or dnW >= 0.32)
+    phaseC := 2
+else if upBar and (sellPct >= 0.56 or upW >= 0.38) and (rvol >= 1.05 or upW >= 0.32)
+    phaseC := 3
+else if moveP <= -math.max(0.55, atrP * 1.15) and bodyR >= 0.45 and (rvol >= 1.25 or buyPct <= 0.42)
+    phaseC := 4
+else if moveP >= math.max(0.55, atrP * 1.15) and bodyR >= 0.45 and (rvol >= 1.25 or buyPct >= 0.58)
+    phaseC := 5
+var float riseFloor = na
+var float dnCeil = na
+int paintK = 0
+if bar_index >= 14
+    if not na(riseFloor)
+        float bufR = math.max(math.max(riseFloor, close) * 0.0008, math.max(0.15, atrP) / 100.0 * math.max(riseFloor, close) * 0.2)
+        if phaseC == 4 or close < riseFloor - bufR
+            paintK := 5
+            riseFloor := na
+        else
+            paintK := phaseC == 2 ? 2 : phaseC == 3 ? 3 : phaseC == 1 ? 4 : 1
+    else if not na(dnCeil)
+        float bufD = math.max(math.max(dnCeil, close) * 0.0008, math.max(0.15, atrP) / 100.0 * math.max(dnCeil, close) * 0.2)
+        if phaseC == 5 or close > dnCeil + bufD
+            paintK := 7
+            dnCeil := na
+        else
+            paintK := phaseC == 3 ? 3 : phaseC == 2 ? 2 : phaseC == 1 ? 4 : 6
+    else if phaseC == 5 and low > 0 and (barstate.isconfirmed or (moveP >= math.max(0.65, atrP * 1.25) and bodyR >= 0.48))
+        riseFloor := low
+        paintK := 1
+    else if phaseC == 4 and high > 0 and (barstate.isconfirmed or (moveP <= -math.max(0.65, atrP * 1.25) and bodyR >= 0.48))
+        dnCeil := high
+        paintK := 6
+    else if phaseC == 1
+        paintK := 4
+    else if phaseC == 2
+        paintK := 2
+    else if phaseC == 3
+        paintK := 3
+float phS = ta.pivothigh(high, pivL, pivR)
+float plS = ta.pivotlow(low, pivL, pivR)
+var float hi1 = na
+var float hi2 = na
+var float lo1 = na
+var float lo2 = na
+var int legDir = 0
+if not na(phS)
+    hi2 := hi1
+    hi1 := phS
+if not na(plS)
+    lo2 := lo1
+    lo1 := plS
+bool hh = not na(hi1) and not na(hi2) and hi1 > hi2
+bool hl = not na(lo1) and not na(lo2) and lo1 > lo2
+bool lh = not na(hi1) and not na(hi2) and hi1 < hi2
+bool ll = not na(lo1) and not na(lo2) and lo1 < lo2
+if hh and hl
+    legDir := 1
+else if lh and ll
+    legDir := -1
+else if not na(hi1) and close > hi1 + atrPx * 0.35 and upBar and bodyR >= 0.5
+    legDir := 1
+else if not na(lo1) and close < lo1 - atrPx * 0.35 and not upBar and bodyR >= 0.5
+    legDir := -1
+bool tiny = bodyR < 0.28 and rangeP < math.max(0.35, atrP * 0.85)
+bool bigUp = upBar and bodyR >= 0.52 and moveP >= math.max(0.65, atrP * 1.2) and (rvol >= 1.4 or (not na(hi1) and close > hi1))
+bool bigDn = not upBar and bodyR >= 0.52 and moveP <= -math.max(0.65, atrP * 1.2) and (rvol >= 1.4 or (not na(lo1) and close < lo1))
+bool upImp = upBar and bodyR >= 0.36 and moveP >= math.max(0.18, atrP * 0.4)
+bool dnImp = not upBar and bodyR >= 0.36 and moveP <= -math.max(0.18, atrP * 0.4)
+int bodyK = 4
+if tiny
+    bodyK := 4
+else if legDir == -1
+    bodyK := bigDn ? 6 : dnImp ? 5 : upBar ? 3 : 5
+else if legDir == 1
+    bodyK := bigUp ? 1 : upImp ? 2 : not upBar ? 7 : 2
+else
+    bodyK := bigUp ? 1 : bigDn ? 6 : upImp ? 3 : dnImp ? 5 : 4
+color phaseBody = paintK == 1 ? (upBar ? cRise : color.new(cRise, 55)) : paintK == 2 ? cFlowBuy : paintK == 3 ? cFlowSell : paintK == 4 ? cSide : paintK == 5 ? cRiseEnd : paintK == 6 ? (upBar ? color.new(cFall, 45) : cFall) : paintK == 7 ? cFallEnd : na
+color structBody = bodyK == 1 ? cBigLong : bodyK == 2 ? cUpBody : bodyK == 3 ? cBounce : bodyK == 4 ? cSide : bodyK == 5 ? cDownBody : bodyK == 6 ? cBigShort : cPull
+// --- 04. CORE FEATURES (fully evaluated every bar) --------------------------
+float atr = ta.atr(atrLen)
+float barSpan = math.max(high - low, syminfo.mintick)
+float body = math.abs(close - open)
+float bodyFrac = body / barSpan
+float upperWick = high - math.max(open, close)
+float lowerWick = math.min(open, close) - low
+float upperFrac = upperWick / barSpan
+float lowerFrac = lowerWick / barSpan
+float closeFromLow = (close - low) / barSpan
+float closeFromHigh = (high - close) / barSpan
+float emaFast = ta.ema(close, emaFastLen)
+float emaSlow = ta.ema(close, emaSlowLen)
+float rsi = ta.rsi(close, 14)
+[plusDi, minusDi, adx] = ta.dmi(14, 14)
+float volAvg = ta.sma(volume, volLen)
+bool hasVolume = not na(volume) and not na(volAvg) and volAvg > 0
+float volRatio = hasVolume ? volume / volAvg : na
+float resistance = ta.highest(high[1], boxLen)
+float support = ta.lowest(low[1], boxLen)
+float width = ta.highest(high, rangeLen) - ta.lowest(low, rangeLen)
+float buffer = nz(atr, 0.0) * breakAtr
+
+bool isScalp = intentMode == "단타"
+bool isMid = intentMode == "중투"
+int structN = isScalp ? 12 : isMid ? 45 : 26
+float wickBase = isScalp ? 0.27 : isMid ? 0.34 : 0.31
+float volMul = isScalp ? 1.25 : isMid ? 1.10 : 1.15
+float brkBuf = isScalp ? 0.08 : isMid ? 0.16 : 0.12
+int rangeN = isScalp ? 12 : isMid ? 30 : 20
+float adxCut = isScalp ? 24.0 : isMid ? 16.0 : 20.0
+float modeRes = ta.highest(high[1], structN)
+float modeSup = ta.lowest(low[1], structN)
+float modeWidth = ta.highest(high, rangeN) - ta.lowest(low, rangeN)
+float modeBuf = nz(atr, 0.0) * brkBuf
+bool bullish = close > open
+bool bearish = close < open
+bool closeBreakUp = not na(modeRes) and close > modeRes
+bool closeBreakDown = not na(modeSup) and close < modeSup
+bool sweepUp = not na(modeRes) and high > modeRes + modeBuf and close < modeRes
+bool sweepDown = not na(modeSup) and low < modeSup - modeBuf and close > modeSup
+float volPts = not hasVolume ? 0.0 : volRatio >= volMul ? 12.0 : volRatio >= 1.0 ? 6.0 : 0.0
+float bodyPts = bodyFrac >= 0.50 ? 12.0 : bodyFrac >= 0.32 ? 6.0 : 0.0
+float upClosePts = closeFromLow >= 0.70 ? 12.0 : closeFromLow >= 0.50 ? 6.0 : 0.0
+float dnClosePts = closeFromHigh >= 0.70 ? 12.0 : closeFromHigh >= 0.50 ? 6.0 : 0.0
+float upScore = (bullish ? 15.0 : 0.0) + (close > emaFast ? 12.0 : 0.0) + (emaFast > emaSlow ? 10.0 : 0.0) + (rsi > 53 ? 10.0 : 0.0) + bodyPts + upClosePts + volPts + (closeBreakUp ? 17.0 : 0.0)
+float dnScore = (bearish ? 15.0 : 0.0) + (close < emaFast ? 12.0 : 0.0) + (emaFast < emaSlow ? 10.0 : 0.0) + (rsi < 47 ? 10.0 : 0.0) + bodyPts + dnClosePts + volPts + (closeBreakDown ? 17.0 : 0.0)
+float upFracPts = upperFrac >= wickBase + 0.15 ? 40.0 : upperFrac >= wickBase ? 25.0 : upperFrac >= wickBase * 0.6 ? 12.0 : 0.0
+float dnFracPts = lowerFrac >= wickBase + 0.15 ? 40.0 : lowerFrac >= wickBase ? 25.0 : lowerFrac >= wickBase * 0.6 ? 12.0 : 0.0
+float upBodyPts = body > 0 and upperWick >= body * 1.6 ? 25.0 : body > 0 and upperWick >= body ? 15.0 : 0.0
+float dnBodyPts = body > 0 and lowerWick >= body * 1.6 ? 25.0 : body > 0 and lowerWick >= body ? 15.0 : 0.0
+float upNear = not na(modeRes) and high >= modeRes - modeBuf ? 15.0 : 0.0
+float dnNear = not na(modeSup) and low <= modeSup + modeBuf ? 15.0 : 0.0
+float upRejectPts = closeFromLow <= 0.45 ? 15.0 : closeFromLow <= 0.62 ? 8.0 : 0.0
+float dnRejectPts = closeFromHigh <= 0.45 ? 15.0 : closeFromHigh <= 0.62 ? 8.0 : 0.0
+float wickVolPts = not hasVolume ? 0.0 : volRatio >= volMul ? 12.0 : volRatio >= 1.0 ? 6.0 : 0.0
+float upperScore = math.min(100.0, upFracPts + upBodyPts + upNear + wickVolPts + upRejectPts)
+float lowerScore = math.min(100.0, dnFracPts + dnBodyPts + dnNear + wickVolPts + dnRejectPts)
+bool weakAdx = not na(adx) and adx < adxCut
+bool emaCompressed = not na(atr) and math.abs(emaFast - emaSlow) <= atr * 0.50
+bool narrowBox = not na(atr) and modeWidth <= atr * 4.5
+int sideVotes = (weakAdx ? 1 : 0) + (emaCompressed ? 1 : 0) + (narrowBox ? 1 : 0)
+bool sideways = sideVotes >= 2 and not closeBreakUp and not closeBreakDown
+bool bothReject = bodyFrac < 0.28 and upperFrac >= wickBase and lowerFrac >= wickBase
+bool trapUp = sweepUp or (upperScore >= 70 and upNear > 0)
+bool trapDn = sweepDown or (lowerScore >= 70 and dnNear > 0)
+bool strongUp = upScore >= 70 and upScore >= dnScore + 18 and not sideways and not trapUp and not bothReject
+bool strongDn = dnScore >= 70 and dnScore >= upScore + 18 and not sideways and not trapDn and not bothReject
+color bodyColor = bothReject or sideways ? cRange : trapUp and not trapDn ? cUpRisk : trapDn and not trapUp ? cDownRisk : trapUp and trapDn ? cRange : strongUp ? cUp : strongDn ? cDown : bullish ? cUpSoft : bearish ? cDownSoft : cRange
+bool paintReady = barstate.isconfirmed or preview
+color paintedBody = paintReady ? bodyColor : color.new(cRange, 55)
+bool useOverlay = mode == "4층 캔들"
+bool useNative = mode == "기본 봉 색상"
+
+bool upExtreme = upperScore >= 75
+bool dnExtreme = lowerScore >= 75
+bool showUpper = useOverlay and paintReady and upperScore >= 55
+bool showLower = useOverlay and paintReady and lowerScore >= 55
+color upWickCol = upExtreme ? cUpper : color.new(cUpper, 35)
+color dnWickCol = dnExtreme ? cLower : color.new(cLower, 35)
+color invisible = color.new(color.white, 100)
+
+bgcolor(shadeRange and sideways ? color.new(cRange, 94) : na, title="횡보 배경", force_overlay=true)
+
+// 돌파 실패와 리테스트는 확인된 이번 봉에만 표시한다. 과거 돌파봉은 다시 칠하지 않는다.
+var int pendingUpIndex = na
+var float pendingUpLevel = na
+var int pendingDownIndex = na
+var float pendingDownLevel = na
+bool failedUp = false
+bool failedDown = false
+bool retestUp = false
+bool retestDown = false
+if barstate.isconfirmed
+    if not na(pendingUpIndex)
+        if bar_index - pendingUpIndex > failBars
+            pendingUpIndex := na
+            pendingUpLevel := na
+        else if bar_index > pendingUpIndex and close < pendingUpLevel - modeBuf
+            failedUp := true
+            pendingUpIndex := na
+            pendingUpLevel := na
+        else if bar_index > pendingUpIndex and low <= pendingUpLevel + modeBuf and close > pendingUpLevel and upScore >= 55
+            retestUp := true
+            pendingUpIndex := na
+            pendingUpLevel := na
+    if not na(pendingDownIndex)
+        if bar_index - pendingDownIndex > failBars
+            pendingDownIndex := na
+            pendingDownLevel := na
+        else if bar_index > pendingDownIndex and close > pendingDownLevel + modeBuf
+            failedDown := true
+            pendingDownIndex := na
+            pendingDownLevel := na
+        else if bar_index > pendingDownIndex and high >= pendingDownLevel - modeBuf and close < pendingDownLevel and dnScore >= 55
+            retestDown := true
+            pendingDownIndex := na
+            pendingDownLevel := na
+    if closeBreakUp and bullish and bodyFrac >= 0.25 and not failedUp and not retestUp
+        pendingUpIndex := bar_index
+        pendingUpLevel := modeRes
+    if closeBreakDown and bearish and bodyFrac >= 0.25 and not failedDown and not retestDown
+        pendingDownIndex := bar_index
+        pendingDownLevel := modeSup
+
+f_scalpDir() =>
+    float ef = ta.ema(close, 21)
+    float es = ta.ema(close, 55)
+    float rr = ta.rsi(close, 14)
+    float a = ta.atr(14)
+    float vs = ta.sma(volume, 20)
+    float vr = vs > 0 ? volume / vs : 0.0
+    float span = math.max(high - low, syminfo.mintick)
+    float bf = math.abs(close - open) / span
+    float res = ta.highest(high[1], 12)
+    float sup = ta.lowest(low[1], 12)
+    float bw = ta.highest(high, 12) - ta.lowest(low, 12)
+    [pdi, mdi, ax] = ta.dmi(14, 14)
+    float vp = vs > 0 ? vr >= 1.25 ? 12.0 : vr >= 1.0 ? 6.0 : 0.0 : 0.0
+    float bp = bf >= 0.50 ? 12.0 : bf >= 0.32 ? 6.0 : 0.0
+    float cu = (close - low) / span
+    float cd = (high - close) / span
+    float up = (close > open ? 15.0 : 0.0) + (close > ef ? 12.0 : 0.0) + (ef > es ? 10.0 : 0.0) + (rr > 53 ? 10.0 : 0.0) + bp + (cu >= 0.70 ? 12.0 : cu >= 0.50 ? 6.0 : 0.0) + vp + (close > res ? 17.0 : 0.0)
+    float dn = (close < open ? 15.0 : 0.0) + (close < ef ? 12.0 : 0.0) + (ef < es ? 10.0 : 0.0) + (rr < 47 ? 10.0 : 0.0) + bp + (cd >= 0.70 ? 12.0 : cd >= 0.50 ? 6.0 : 0.0) + vp + (close < sup ? 17.0 : 0.0)
+    int votes = (ax < 24 ? 1 : 0) + (math.abs(ef - es) <= a * 0.50 ? 1 : 0) + (bw <= a * 4.5 ? 1 : 0)
+    bool side = votes >= 2 and close <= res and close >= sup
+    int dir = side ? 0 : up >= 55 and up > dn ? 1 : dn >= 55 and dn > up ? -1 : 0
+    dir
+
+f_swingDir() =>
+    float ef = ta.ema(close, 21)
+    float es = ta.ema(close, 55)
+    float rr = ta.rsi(close, 14)
+    float a = ta.atr(14)
+    float vs = ta.sma(volume, 20)
+    float vr = vs > 0 ? volume / vs : 0.0
+    float span = math.max(high - low, syminfo.mintick)
+    float bf = math.abs(close - open) / span
+    float res = ta.highest(high[1], 26)
+    float sup = ta.lowest(low[1], 26)
+    float bw = ta.highest(high, 20) - ta.lowest(low, 20)
+    [pdi, mdi, ax] = ta.dmi(14, 14)
+    float vp = vs > 0 ? vr >= 1.15 ? 12.0 : vr >= 1.0 ? 6.0 : 0.0 : 0.0
+    float bp = bf >= 0.50 ? 12.0 : bf >= 0.32 ? 6.0 : 0.0
+    float cu = (close - low) / span
+    float cd = (high - close) / span
+    float up = (close > open ? 15.0 : 0.0) + (close > ef ? 12.0 : 0.0) + (ef > es ? 10.0 : 0.0) + (rr > 53 ? 10.0 : 0.0) + bp + (cu >= 0.70 ? 12.0 : cu >= 0.50 ? 6.0 : 0.0) + vp + (close > res ? 17.0 : 0.0)
+    float dn = (close < open ? 15.0 : 0.0) + (close < ef ? 12.0 : 0.0) + (ef < es ? 10.0 : 0.0) + (rr < 47 ? 10.0 : 0.0) + bp + (cd >= 0.70 ? 12.0 : cd >= 0.50 ? 6.0 : 0.0) + vp + (close < sup ? 17.0 : 0.0)
+    int votes = (ax < 20 ? 1 : 0) + (math.abs(ef - es) <= a * 0.50 ? 1 : 0) + (bw <= a * 4.5 ? 1 : 0)
+    bool side = votes >= 2 and close <= res and close >= sup
+    int dir = side ? 0 : up >= 55 and up > dn ? 1 : dn >= 55 and dn > up ? -1 : 0
+    dir
+
+f_midDir() =>
+    float ef = ta.ema(close, 21)
+    float es = ta.ema(close, 55)
+    float rr = ta.rsi(close, 14)
+    float a = ta.atr(14)
+    float vs = ta.sma(volume, 20)
+    float vr = vs > 0 ? volume / vs : 0.0
+    float span = math.max(high - low, syminfo.mintick)
+    float bf = math.abs(close - open) / span
+    float res = ta.highest(high[1], 45)
+    float sup = ta.lowest(low[1], 45)
+    float bw = ta.highest(high, 30) - ta.lowest(low, 30)
+    [pdi, mdi, ax] = ta.dmi(14, 14)
+    float vp = vs > 0 ? vr >= 1.10 ? 12.0 : vr >= 1.0 ? 6.0 : 0.0 : 0.0
+    float bp = bf >= 0.50 ? 12.0 : bf >= 0.32 ? 6.0 : 0.0
+    float cu = (close - low) / span
+    float cd = (high - close) / span
+    float up = (close > open ? 15.0 : 0.0) + (close > ef ? 12.0 : 0.0) + (ef > es ? 10.0 : 0.0) + (rr > 53 ? 10.0 : 0.0) + bp + (cu >= 0.70 ? 12.0 : cu >= 0.50 ? 6.0 : 0.0) + vp + (close > res ? 17.0 : 0.0)
+    float dn = (close < open ? 15.0 : 0.0) + (close < ef ? 12.0 : 0.0) + (ef < es ? 10.0 : 0.0) + (rr < 47 ? 10.0 : 0.0) + bp + (cd >= 0.70 ? 12.0 : cd >= 0.50 ? 6.0 : 0.0) + vp + (close < sup ? 17.0 : 0.0)
+    int votes = (ax < 16 ? 1 : 0) + (math.abs(ef - es) <= a * 0.50 ? 1 : 0) + (bw <= a * 4.5 ? 1 : 0)
+    bool side = votes >= 2 and close <= res and close >= sup
+    int dir = side ? 0 : up >= 55 and up > dn ? 1 : dn >= 55 and dn > up ? -1 : 0
+    dir
+
+int scalpHere = f_scalpDir()
+int swingHere = f_swingDir()
+int midHere = f_midDir()
+int scalpSame = barstate.isconfirmed ? scalpHere : nz(scalpHere[1], 0)
+int swingSame = barstate.isconfirmed ? swingHere : nz(swingHere[1], 0)
+int midSame = barstate.isconfirmed ? midHere : nz(midHere[1], 0)
+int req1 = request.security(syminfo.tickerid, "1", f_scalpDir()[1], lookahead=barmerge.lookahead_on)
+int req5 = request.security(syminfo.tickerid, "5", f_scalpDir()[1], lookahead=barmerge.lookahead_on)
+int req15 = request.security(syminfo.tickerid, "15", f_swingDir()[1], lookahead=barmerge.lookahead_on)
+int req60 = request.security(syminfo.tickerid, "60", f_swingDir()[1], lookahead=barmerge.lookahead_on)
+int req240 = request.security(syminfo.tickerid, "240", f_midDir()[1], lookahead=barmerge.lookahead_on)
+int reqD = request.security(syminfo.tickerid, "1D", f_midDir()[1], lookahead=barmerge.lookahead_on)
+
+f_safeBias(string tf, int remote, int sameTf) =>
+    int requestedSec = timeframe.in_seconds(tf)
+    int chartSec = timeframe.in_seconds(timeframe.period)
+    int result = requestedSec < chartSec ? 99 : requestedSec == chartSec ? sameTf : remote
+    result
+
+f_low1() =>
+    array<int> values = request.security_lower_tf(syminfo.tickerid, "1", f_scalpDir()[1], calc_bars_count=200)
+    int value = array.size(values) > 0 ? array.get(values, array.size(values) - 1) : 99
+    value
+
+f_low5() =>
+    array<int> values = request.security_lower_tf(syminfo.tickerid, "5", f_scalpDir()[1], calc_bars_count=200)
+    int value = array.size(values) > 0 ? array.get(values, array.size(values) - 1) : 99
+    value
+
+f_low15() =>
+    array<int> values = request.security_lower_tf(syminfo.tickerid, "15", f_swingDir()[1], calc_bars_count=200)
+    int value = array.size(values) > 0 ? array.get(values, array.size(values) - 1) : 99
+    value
+
+f_low240() =>
+    array<int> values = request.security_lower_tf(syminfo.tickerid, "240", f_midDir()[1], calc_bars_count=200)
+    int value = array.size(values) > 0 ? array.get(values, array.size(values) - 1) : 99
+    value
+
+int b1 = f_safeBias("1", req1, scalpSame)
+int b5 = f_safeBias("5", req5, scalpSame)
+int chartSeconds = timeframe.in_seconds(timeframe.period)
+if showLowerTF
+    if chartSeconds > timeframe.in_seconds("1")
+        b1 := f_low1()
+    if chartSeconds > timeframe.in_seconds("5")
+        b5 := f_low5()
+int b15 = f_safeBias("15", req15, swingSame)
+int b60 = f_safeBias("60", req60, swingSame)
+if showLowerTF and chartSeconds > timeframe.in_seconds("15")
+    b15 := f_low15()
+int b240 = f_safeBias("240", req240, midSame)
+int bD = f_safeBias("1D", reqD, midSame)
+if showLowerTF and chartSeconds > timeframe.in_seconds("240")
+    b240 := f_low240()
+
+f_pair(int a, int b) =>
+    int result = a == 99 or b == 99 ? 99 : a == 1 and b == 1 ? 1 : a == -1 and b == -1 ? -1 : 0
+    result
+
+int scalpBias = f_pair(b1, b5)
+int swingBias = f_pair(b15, b60)
+int mediumBias = f_pair(b240, bD)
+int activePair = isScalp ? scalpBias : isMid ? mediumBias : swingBias
+bool goldEdge = paintReady and (strongUp or strongDn) and ((strongUp and activePair == 1) or (strongDn and activePair == -1)) and math.max(upScore, dnScore) >= 80
+color borderCol = goldEdge ? cGold : paintedBody
+bool startHit = bodyStart and paintK == 1
+bool endHit = bodyEnd and paintK == 5
+bool riseHit = bodyRise and strongUp
+bool fallEndHit = bodyFallEnd and paintK == 7
+color chipBody = useNative or useOverlay ? paintedBody : showStruct ? structBody : showCandle ? phaseBody : na
+color chipEdge = borderCol
+if bodyClear and not bodyPlain and not startHit and not endHit and not riseHit and not fallEndHit
+    chipBody := color.new(color.white, 100)
+    chipEdge := color.new(color.white, 100)
+if riseHit
+    chipBody := cBodyRise
+    chipEdge := cBodyRise
+if fallEndHit
+    chipBody := cBodyFallEnd
+    chipEdge := cBodyFallEnd
+if startHit
+    chipBody := cBodyStart
+    chipEdge := cBodyStart
+if endHit
+    chipBody := cBodyEnd
+    chipEdge := cBodyEnd
+color wickBaseCol = bodyWick ? paintedBody : chipBody
+barcolor(useOverlay ? color.new(paintedBody, 100) : chipBody, title="기본봉 색")
+plotcandle(useOverlay ? open : na, useOverlay ? high : na, useOverlay ? low : na, useOverlay ? close : na,
+     title="몸통과 기본꼬리", color=chipBody, wickcolor=wickBaseCol, bordercolor=chipEdge, force_overlay=true)
+plotcandle(bodyWick and showUpper ? open : na, bodyWick and showUpper ? high : na, bodyWick and showUpper ? math.min(open, close) : na, bodyWick and showUpper ? close : na,
+     title="위꼬리", color=invisible, wickcolor=upWickCol, bordercolor=invisible, force_overlay=true)
+plotcandle(bodyWick and showLower ? open : na, bodyWick and showLower ? math.max(open, close) : na, bodyWick and showLower ? low : na, bodyWick and showLower ? close : na,
+     title="아래꼬리", color=invisible, wickcolor=dnWickCol, bordercolor=invisible, force_overlay=true)
+
+f_biasText(int direction) =>
+    string result = direction == 1 ? "롱" : direction == -1 ? "숏" : direction == 99 ? "하위없음" : "대기"
+    result
+
+f_biasColor(int direction) =>
+    color result = direction == 1 ? color.new(cUp, 78) : direction == -1 ? color.new(cDown, 78) : color.new(cRange, 78)
+    result
+
+f_oneSide(int direction) =>
+    string result = direction == 1 ? "롱" : direction == -1 ? "숏" : direction == 99 ? "없음" : "대기"
+    result
+
+f_split(int a, int b, string an, string bn) =>
+    string result = a == 99 or b == 99 ? "하위없음" : a == 1 and b == 1 ? "둘다 롱" : a == -1 and b == -1 ? "둘다 숏" : a == 0 and b == 0 ? "방향없음" : an + f_oneSide(a) + "·" + bn + f_oneSide(b)
+    result
+
+f_zoneHit(float lo, float hi, bool floorSide) =>
+    bool hit = false
+    if not na(lo) and not na(hi) and hi > lo and close > 0
+        float thick = hi - lo
+        hit := floorSide ? close <= hi and close >= lo - thick : close >= lo and close <= hi + thick
+    hit
+
+// --- 07. CONSERVATIVE CANDIDATE SETUPS --------------------------------------
+// Conditions: confirmed strong breakout AND 15m/1h agree for swing bias.
+// They are only setup markers; stop/TP and actual performance are NOT modeled.
+bool candidateLong = barstate.isconfirmed and strongUp and closeBreakUp and activePair == 1 and not sweepUp
+bool candidateShort = barstate.isconfirmed and strongDn and closeBreakDown and activePair == -1 and not sweepDown
+bool newLong = candidateLong and not candidateLong[1]
+bool newShort = candidateShort and not candidateShort[1]
+plotshape(showEntries and newLong, title="롱 후보", style=shape.labelup,
+     location=location.belowbar, color=cUp, text="롱?", textcolor=color.black, size=size.tiny, force_overlay=true)
+plotshape(showEntries and newShort, title="숏 후보", style=shape.labeldown,
+     location=location.abovebar, color=cDown, text="숏?", textcolor=color.white, size=size.tiny, force_overlay=true)
+
+// --- 08. MOBILE-FRIENDLY DASHBOARD ------------------------------------------
+var table dash = table.new(position.bottom_center, 6, 3, bgcolor=color.new(#0B1222, 5),
+     frame_color=color.new(#6373A4, 30), frame_width=1, border_color=color.new(#6373A4, 78), border_width=1, force_overlay=true)
+if barstate.islast
+    if dashPlace == "끄기"
+        table.clear(dash, 0, 0, 5, 2)
+    else
+        table.set_position(dash, dashPlace == "위왼쪽" ? position.top_left : dashPlace == "위가운데" ? position.top_center : dashPlace == "위오른쪽" ? position.top_right : dashPlace == "가운데왼쪽" ? position.middle_left : dashPlace == "정중앙" ? position.middle_center : dashPlace == "가운데오른쪽" ? position.middle_right : dashPlace == "아래왼쪽" ? position.bottom_left : dashPlace == "아래오른쪽" ? position.bottom_right : position.bottom_center)
+        int longSeats = (f_zoneHit(cFlo, cFhi, true) ? 1 : 0) + (f_zoneHit(f5a, f5b, true) ? 1 : 0) + (f_zoneHit(f15a, f15b, true) ? 1 : 0) + (f_zoneHit(f1a, f1b, true) ? 1 : 0) + (f_zoneHit(f4a, f4b, true) ? 1 : 0) + (f_zoneHit(fda, fdb, true) ? 1 : 0) + (f_zoneHit(fwa, fwb, true) ? 1 : 0) + (f_zoneHit(fma, fmb, true) ? 1 : 0)
+        int shortSeats = (f_zoneHit(cClo, cChi, false) ? 1 : 0) + (f_zoneHit(c5a, c5b, false) ? 1 : 0) + (f_zoneHit(c15a, c15b, false) ? 1 : 0) + (f_zoneHit(c1a, c1b, false) ? 1 : 0) + (f_zoneHit(c4a, c4b, false) ? 1 : 0) + (f_zoneHit(cda, cdb, false) ? 1 : 0) + (f_zoneHit(cwa, cwb, false) ? 1 : 0) + (f_zoneHit(cma, cmb, false) ? 1 : 0)
+        bool bandLong = b1Tr == 1
+        bool bandShort = b1Tr == -1
+        bool band2Long = b2Tr == 1
+        int seatDir = 0
+        string seatWhy = "자리 없음"
+        if longSeats >= 2 and shortSeats == 0 and activePair != -1 and not bandShort and not trapUp and not sweepUp
+            seatDir := 1
+            seatWhy := "아래 " + str.tostring(longSeats) + "개" + (bandLong ? "·밴드지지" : "") + (band2Long ? "·밴드2롱" : "")
+        else if shortSeats >= 2 and longSeats == 0 and activePair != 1 and not bandLong and not trapDn and not sweepDown
+            seatDir := -1
+            seatWhy := "위 " + str.tostring(shortSeats) + "개" + (bandShort ? "·밴드저항" : "") + (not band2Long ? "·밴드2숏" : "")
+        else if longSeats > 0 and shortSeats > 0
+            seatWhy := "롱" + str.tostring(longSeats) + "·숏" + str.tostring(shortSeats) + " 겹침"
+        else if longSeats > 0 and (activePair == -1 or bandShort or trapUp or sweepUp)
+            seatWhy := "아래는 롱" + (activePair == -1 ? "·상위숏" : bandShort ? "·밴드숏" : trapUp or sweepUp ? "·위함정" : "")
+        else if shortSeats > 0 and (activePair == 1 or bandLong or trapDn or sweepDown)
+            seatWhy := "위는 숏" + (activePair == 1 ? "·상위롱" : bandLong ? "·밴드롱" : trapDn or sweepDown ? "·아래함정" : "")
+        else if activePair == 1 and dnScore > upScore
+            seatWhy := "상위롱·점수숏"
+        else if activePair == -1 and upScore > dnScore
+            seatWhy := "상위숏·점수롱"
+        string flowTxt = buyPct >= 0.56 ? "매수 " + str.tostring(math.round(buyPct * 100)) : (1.0 - buyPct) >= 0.56 ? "매도 " + str.tostring(math.round((1.0 - buyPct) * 100)) : "혼조 " + str.tostring(math.round(buyPct * 100))
+        if seatDir == 1 and (1.0 - buyPct) >= 0.56
+            seatWhy := seatWhy + "·매도"
+        if seatDir == -1 and buyPct >= 0.56
+            seatWhy := seatWhy + "·매수"
+        string candleState = not paintReady ? "봉 마감 대기" : failedUp ? "상방실패" : failedDown ? "하방실패" : retestUp ? "상방재시험" : retestDown ? "하방재시험" : sweepUp ? "상방스윕" : sweepDown ? "하방스윕" : bothReject ? "양방향 거절" : sideways ? "횡보" : strongUp ? "상승 강함" : strongDn ? "하락 강함" : trapUp ? "상방 함정" : trapDn ? "하방 함정" : bullish ? "상승 검증" : bearish ? "하락 검증" : "중립"
+        table.cell(dash, 0, 0, "단타 1분/5분", text_color=color.silver, bgcolor=#172344, text_size=size.tiny)
+        table.cell(dash, 0, 1, f_biasText(scalpBias), text_color=color.white, bgcolor=f_biasColor(scalpBias), text_size=size.tiny)
+        table.cell(dash, 0, 2, f_split(b1, b5, "1분", "5분"), text_color=color.white, text_size=size.tiny)
+        table.cell(dash, 1, 0, "스윙 15분/1시간", text_color=color.silver, bgcolor=#172344, text_size=size.tiny)
+        table.cell(dash, 1, 1, f_biasText(swingBias), text_color=color.white, bgcolor=f_biasColor(swingBias), text_size=size.tiny)
+        table.cell(dash, 1, 2, f_split(b15, b60, "15분", "1시간"), text_color=color.white, text_size=size.tiny)
+        table.cell(dash, 2, 0, "중투 4시간/1일", text_color=color.silver, bgcolor=#172344, text_size=size.tiny)
+        table.cell(dash, 2, 1, f_biasText(mediumBias), text_color=color.white, bgcolor=f_biasColor(mediumBias), text_size=size.tiny)
+        table.cell(dash, 2, 2, f_split(b240, bD, "4시간", "1일"), text_color=color.white, text_size=size.tiny)
+        table.cell(dash, 3, 0, "자리 " + intentMode, text_color=color.silver, bgcolor=#172344, text_size=size.tiny)
+        table.cell(dash, 3, 1, seatDir == 1 ? "롱자리" : seatDir == -1 ? "숏자리" : "관망", text_color=color.white, bgcolor=f_biasColor(seatDir), text_size=size.tiny)
+        table.cell(dash, 3, 2, seatWhy, text_color=color.white, text_size=size.tiny)
+        table.cell(dash, 4, 0, "현재봉", text_color=color.silver, bgcolor=#172344, text_size=size.tiny)
+        table.cell(dash, 4, 1, candleState, text_color=color.white, bgcolor=color.new(paintedBody, 82), text_size=size.tiny)
+        table.cell(dash, 4, 2, str.tostring(upScore, "#") + "/" + str.tostring(dnScore, "#"), text_color=color.white, text_size=size.tiny)
+        table.cell(dash, 5, 0, "수급", text_color=color.silver, bgcolor=#172344, text_size=size.tiny)
+        table.cell(dash, 5, 1, flowTxt, text_color=color.white, bgcolor=buyPct >= 0.56 ? color.new(cBuy, 70) : (1.0 - buyPct) >= 0.56 ? color.new(cSell, 70) : color.new(#FBBF24, 70), text_size=size.tiny)
+        table.cell(dash, 5, 2, hasVolume ? str.tostring(volRatio, "#.##") + "배" : "거래량없음", text_color=color.white, text_size=size.tiny)
+
+// --- 09. CLOSED-BAR ALERTS ---------------------------------------------------
+bool confirmedSweepUp = barstate.isconfirmed and sweepUp
+bool confirmedSweepDown = barstate.isconfirmed and sweepDown
+bool warnUp = barstate.isconfirmed and upExtreme and upNear > 0 and not sweepUp
+bool warnDn = barstate.isconfirmed and dnExtreme and dnNear > 0 and not sweepDown
+plotshape(showMarkers and confirmedSweepUp, title="상방 스윕", style=shape.triangledown, location=location.abovebar, color=cUpper, text="상방스윕", textcolor=color.white, size=size.tiny, force_overlay=true)
+plotshape(showMarkers and confirmedSweepDown, title="하방 스윕", style=shape.triangleup, location=location.belowbar, color=cLower, text="하방스윕", textcolor=color.white, size=size.tiny, force_overlay=true)
+plotshape(showMarkers and warnUp, title="위꼬리 거절", style=shape.triangledown, location=location.abovebar, color=color.new(cUpper, 0), text="위꼬리", textcolor=color.white, size=size.tiny, force_overlay=true)
+plotshape(showMarkers and warnDn, title="아래꼬리 거절", style=shape.triangleup, location=location.belowbar, color=color.new(cLower, 0), text="아래꼬리", textcolor=color.black, size=size.tiny, force_overlay=true)
+plotshape(showMarkers and failedUp, title="상방 돌파 실패", style=shape.labeldown, location=location.abovebar, color=cUpper, text="상방실패", textcolor=color.white, size=size.tiny, force_overlay=true)
+plotshape(showMarkers and failedDown, title="하방 돌파 실패", style=shape.labelup, location=location.belowbar, color=cLower, text="하방실패", textcolor=color.black, size=size.tiny, force_overlay=true)
+plotshape(showMarkers and retestUp, title="상방 재시험", style=shape.circle, location=location.belowbar, color=cGold, text="상방재시험", textcolor=color.black, size=size.tiny, force_overlay=true)
+plotshape(showMarkers and retestDown, title="하방 재시험", style=shape.circle, location=location.abovebar, color=cGold, text="하방재시험", textcolor=color.black, size=size.tiny, force_overlay=true)
+alertcondition(newLong, "롱 후보", "{{ticker}} {{interval}}: 상승 점수 후보. 주문 아님.")
+alertcondition(newShort, "숏 후보", "{{ticker}} {{interval}}: 하락 점수 후보. 주문 아님.")
+alertcondition(confirmedSweepUp, "상방 스윕", "{{ticker}} {{interval}}: 저항 위 고가 후 저항 아래 마감. 주문 아님.")
+alertcondition(confirmedSweepDown, "하방 스윕", "{{ticker}} {{interval}}: 지지 아래 저가 후 지지 위 마감. 주문 아님.")
+alertcondition(failedUp, "상방 돌파 실패", "{{ticker}} {{interval}}: 이번 봉에서 상방 돌파 실패. 주문 아님.")
+alertcondition(failedDown, "하방 돌파 실패", "{{ticker}} {{interval}}: 이번 봉에서 하방 돌파 실패. 주문 아님.")
+f_volTxt(float rv, float bp, float bodyR, float chg, float slope) =>
+    float sp = 1.0 - bp
+    string t = "약함"
+    if rv >= 2.35 and bodyR < 0.4
+        t := "흡수"
+    else if rv >= 2.55 and bodyR >= 0.55
+        t := chg >= 0 ? "매수절정" : "매도절정"
+    else if rv >= 1.55 and bodyR >= 0.52 and math.abs(chg) >= 0.08
+        t := chg >= 0 ? "돌파량" : "이탈량"
+    else if rv < 0.68 and chg > 0.02
+        t := "수요없음"
+    else if rv < 0.68 and chg < -0.02
+        t := "공급없음"
+    else if slope > 0.06 and sp >= 0.56
+        t := "수급괴리"
+    else if slope < -0.06 and bp >= 0.56
+        t := "수급괴리"
+    else if slope > 0.05 and bp >= 0.56 and rv >= 1.05
+        t := "수급동의↑"
+    else if slope < -0.05 and sp >= 0.56 and rv >= 1.05
+        t := "수급동의↓"
+    else if bp >= 0.56
+        t := "매수우세"
+    else if sp >= 0.56
+        t := "매도우세"
+    int bn = math.round(bp * 100)
+    int sn = math.round(sp * 100)
+    string mv = math.abs(chg) >= 0.35 ? (chg >= 0 ? "↑" : "↓") + str.tostring(math.abs(chg), "#.#") : ""
+    string flow = sp >= 0.56 ? "매도" + str.tostring(sn) + mv : "매" + str.tostring(bn) + mv
+    string txt = t == "약함" ? flow : t + " " + flow
+    bool hot = (t != "약함" and t != "매수우세" and t != "매도우세") or rv >= 1.65
+    hot ? txt : ""
+
+f_sellC(float rv, float upA, float dnA, float bp) =>
+    float sp = 1.0 - bp
+    color c = color.new(cSell, rv >= 1.85 ? 10 : rv >= 1.25 ? 22 : 38)
+    if upA >= 0.32 and sp >= 0.52
+        c := color.new(#ef4444, 6)
+    else if dnA >= 0.32 and bp >= 0.52
+        c := color.new(#166534, 58)
+    c
+
+f_buyC(float rv, float upA, float dnA, float bp) =>
+    float sp = 1.0 - bp
+    color c = color.new(cBuy, rv >= 1.85 ? 4 : rv >= 1.25 ? 12 : 26)
+    if upA >= 0.32 and sp >= 0.52
+        c := color.new(#7f1d1d, 58)
+    else if dnA >= 0.32 and bp >= 0.52
+        c := color.new(#22c55e, 2)
+    c
+
+// 앱 1차하락·1차상승. 막대색과 글자는 거래량 칸.
+f_isSwing(int ago, bool useLow) =>
+    bool ok = ago >= 2 and bar_index > ago + 2
+    float p = ok ? (useLow ? low[ago] : high[ago]) : na
+    if ok
+        float n1 = useLow ? low[ago - 1] : high[ago - 1]
+        float n2 = useLow ? low[ago - 2] : high[ago - 2]
+        float o1 = useLow ? low[ago + 1] : high[ago + 1]
+        float o2 = useLow ? low[ago + 2] : high[ago + 2]
+        ok := p > 0 and (useLow ? (n1 >= p and n2 >= p and o1 >= p and o2 >= p) : (n1 <= p and n2 <= p and o1 <= p and o2 <= p))
+    ok
+
+f_atrAgo(int ago) =>
+    float s = 0.0
+    for k = 0 to 13
+        int g = ago + k
+        float tr = math.max(high[g] - low[g], math.abs(high[g] - close[g + 1]), math.abs(low[g] - close[g + 1]))
+        s += tr
+    s / 14.0
+
+var array<label> volLabs = array.new_label()
+var label yDumpL = na
+var label yRallyL = na
+var box yDumpBx = na
+var box yRallyBx = na
+f_yelCol(box b, int ago) =>
+    box o = b
+    int g = math.max(ago, 0)
+    float top = volume[g]
+    bool ok = showVol and showMix and ago >= 0 and top > 0
+    if not ok
+        if not na(o)
+            box.delete(o)
+        o := na
+    else
+        int x = bar_index - ago
+        color yc = color.new(#FBBF24, 0)
+        if na(o)
+            o := box.new(x, top, x + 1, 0, bgcolor = yc, border_color = yc)
+        else
+            box.set_left(o, x)
+            box.set_right(o, x + 1)
+            box.set_top(o, top)
+            box.set_bottom(o, 0)
+            box.set_bgcolor(o, yc)
+            box.set_border_color(o, yc)
+    o
+int dumpAgo = -1
+int rallyAgo = -1
+if barstate.islast and showVol and bar_index > 20
+    for a2 = 2 to 60
+        if dumpAgo >= 0
+            break
+        if not f_isSwing(a2, true)
+            continue
+        for shift = 3 to 36
+            int a1 = a2 + shift
+            if a1 > 70 or not f_isSwing(a1, true)
+                continue
+            float tol = math.max(f_atrAgo(a2) * 0.55, low[a1] * 0.0038)
+            if math.abs(low[a2] - low[a1]) > tol
+                continue
+            int pick = a1
+            float bestRv = -1.0
+            for k = 0 to 2
+                int g = a1 + k
+                bool bear = close[g] <= open[g] or close[g] < close[g + 1]
+                float rv = na(rvol[g]) ? 1.0 : rvol[g]
+                if bear and rv > bestRv
+                    bestRv := rv
+                    pick := g
+            if bestRv < 0
+                bestRv := na(rvol[a1]) ? 1.0 : rvol[a1]
+                pick := a1
+            float rv2 = na(rvol[a2]) ? 1.0 : rvol[a2]
+            if bestRv < 1.32 and rv2 < 1.28
+                continue
+            if math.max(bestRv, rv2) < 1.45
+                continue
+            dumpAgo := pick
+            break
+    if dumpAgo < 0
+        for ago = 0 to 70
+            float rvAgo = na(rvol[ago]) ? 1.0 : rvol[ago]
+            if rvAgo < 1.55 or close[ago] >= open[ago]
+                continue
+            if ago < 4 or f_isSwing(ago, true)
+                dumpAgo := ago
+                break
+    for a2 = 2 to 60
+        if rallyAgo >= 0
+            break
+        if not f_isSwing(a2, false)
+            continue
+        for shift = 3 to 36
+            int a1 = a2 + shift
+            if a1 > 70 or not f_isSwing(a1, false)
+                continue
+            float tolH = math.max(f_atrAgo(a2) * 0.55, high[a1] * 0.0038)
+            if math.abs(high[a2] - high[a1]) > tolH
+                continue
+            int pickH = a1
+            float bestH = -1.0
+            for k = 0 to 2
+                int g = a1 + k
+                bool bull = close[g] >= open[g] or close[g] > close[g + 1]
+                float rv = na(rvol[g]) ? 1.0 : rvol[g]
+                if bull and rv > bestH
+                    bestH := rv
+                    pickH := g
+            if bestH < 0
+                bestH := na(rvol[a1]) ? 1.0 : rvol[a1]
+                pickH := a1
+            float rv2h = na(rvol[a2]) ? 1.0 : rvol[a2]
+            if bestH < 1.32 and rv2h < 1.28
+                continue
+            if math.max(bestH, rv2h) < 1.45
+                continue
+            rallyAgo := pickH
+            break
+color sellCol = f_sellC(rvol, upW, dnW, buyPct)
+color buyCol = f_buyC(rvol, upW, dnW, buyPct)
+bool mixBar = showMix and buyPct > 0.45 and buyPct < 0.55
+color mixTot = color.new(buyPct >= 0.5 ? #FBBF24 : #F59E0B, rvol >= 1.85 ? 0 : rvol >= 1.25 ? 18 : 32)
+color mixBuy = color.new(#FACC15, rvol >= 1.85 ? 0 : 12)
+plot(showVol ? volume : na, "총량", mixBar ? mixTot : sellCol, style = plot.style_columns, display = display.pane)
+plot(showVol ? volume * buyPct : na, "매수", mixBar ? mixBuy : buyCol, style = plot.style_columns, display = display.pane)
+plot(showVol ? ta.highest(volume, 300) * 1.35 : na, "여백", color.new(color.white, 100), display = display.none)
+int labN = 0
+if barstate.islast
+    if showLbl and showVol
+        int lim = math.min(bar_index, 200)
+        for i = 0 to lim
+            if labN >= 14
+                break
+            float rv = na(rvol[i]) ? 1.0 : rvol[i]
+            float bp = na(buyPct[i]) ? 0.5 : buyPct[i]
+            float hi = high[i]
+            float lo = low[i]
+            float op = open[i]
+            float cl = close[i]
+            float rngA = hi - lo
+            float bodyA = rngA > 0 ? math.abs(cl - op) / rngA : 0.0
+            float chgA = i + 1 <= bar_index and close[i + 1] > 0 ? (cl - close[i + 1]) / close[i + 1] * 100.0 : 0.0
+            float slopeA = i + 3 <= bar_index and close[i + 3] > 0 ? (cl - close[i + 3]) / close[i + 3] * 100.0 : 0.0
+            string vt = f_volTxt(rv, bp, bodyA, chgA, slopeA)
+            if vt != ""
+                float y = volume[i]
+                int x = bar_index - i
+                color labCol = bp >= 0.56 ? cBuy : (1.0 - bp) >= 0.56 ? cSell : color.gray
+                if labN < array.size(volLabs)
+                    label lb = array.get(volLabs, labN)
+                    label.set_xy(lb, x, y)
+                    label.set_text(lb, vt)
+                    label.set_textcolor(lb, labCol)
+                    label.set_style(lb, label.style_label_down)
+                else
+                    array.push(volLabs, label.new(x, y, vt, style = label.style_label_down, textcolor = labCol, color = color.new(labCol, 100), size = size.tiny))
+                labN += 1
+    yDumpBx := f_yelCol(yDumpBx, dumpAgo)
+    yRallyBx := f_yelCol(yRallyBx, rallyAgo)
+    if showMark and dumpAgo >= 0
+        float dumpY = volume[dumpAgo]
+        if na(yDumpL)
+            yDumpL := label.new(bar_index - dumpAgo, dumpY, "1차하락", style = label.style_label_down, color = color.new(#FBBF24, 100), textcolor = color.new(#CA8A04, 0), size = size.tiny)
+        else
+            label.set_xy(yDumpL, bar_index - dumpAgo, dumpY)
+            label.set_text(yDumpL, "1차하락")
+    else if not na(yDumpL)
+        label.delete(yDumpL)
+        yDumpL := na
+    if showMark and rallyAgo >= 0
+        float yR = volume[rallyAgo]
+        if na(yRallyL)
+            yRallyL := label.new(bar_index - rallyAgo, yR, "1차상승", style = label.style_label_down, color = color.new(#FBBF24, 100), textcolor = color.new(#CA8A04, 0), size = size.tiny)
+        else
+            label.set_xy(yRallyL, bar_index - rallyAgo, yR)
+            label.set_text(yRallyL, "1차상승")
+    else if not na(yRallyL)
+        label.delete(yRallyL)
+        yRallyL := na
+while array.size(volLabs) > labN
+    label.delete(array.pop(volLabs))
+f_fvgPack() =>
+    int n = math.min(64, math.max(0, bar_index - 3))
+    float bodySum = 0.0
+    int bodyN = 0
+    if n >= 14
+        for k = 1 to 14
+            bodySum += math.abs(close[k] - open[k])
+            bodyN += 1
+    float bodyAvg = bodyN > 0 ? bodySum / bodyN : 0.0
+    float atrNow = ta.atr(14)
+    float bullLo = na
+    float bullHi = na
+    float bullD = 1000000000.0
+    int bullAgo = 100000
+    float bearLo = na
+    float bearHi = na
+    float bearD = 1000000000.0
+    int bearAgo = 100000
+    float ilLo = na
+    float ilHi = na
+    float ilD = 1000000000.0
+    int ilAgo = 100000
+    float isLo = na
+    float isHi = na
+    float isD = 1000000000.0
+    int isAgo = 100000
+    array<float> upLo = array.new_float()
+    array<float> upHi = array.new_float()
+    array<int> upIx = array.new_int()
+    array<float> dnLo = array.new_float()
+    array<float> dnHi = array.new_float()
+    array<int> dnIx = array.new_int()
+    if n >= 6 and atrNow > 0
+        for i = n to 2
+            float c3h = high[i]
+            float c3l = low[i]
+            float c1h = high[i + 2]
+            float c1l = low[i + 2]
+            int jStop = math.max(1, i - 36)
+            if c1h < c3l
+                float glo = c1h
+                float ghi = c3l
+                float gh = ghi - glo
+                if gh >= syminfo.mintick * 2 and gh <= math.max(atrNow * 3.0, close * 0.02)
+                    bool mit = false
+                    if i > 1
+                        for j = i - 1 to jStop
+                            if low[j] <= ghi and high[j] >= glo
+                                mit := true
+                                break
+                    if not mit
+                        float dist = math.abs((glo + ghi) / 2.0 - close)
+                        if dist < bullD or (dist == bullD and i < bullAgo)
+                            bullD := dist
+                            bullAgo := i
+                            bullLo := glo
+                            bullHi := ghi
+                    if i <= 36 and array.size(upLo) < 8
+                        array.push(upLo, glo)
+                        array.push(upHi, ghi)
+                        array.push(upIx, i)
+            if c1l > c3h
+                float glo2 = c3h
+                float ghi2 = c1l
+                float gh2 = ghi2 - glo2
+                if gh2 >= syminfo.mintick * 2 and gh2 <= math.max(atrNow * 3.0, close * 0.02)
+                    bool mit2 = false
+                    if i > 1
+                        for j2 = i - 1 to jStop
+                            if low[j2] <= ghi2 and high[j2] >= glo2
+                                mit2 := true
+                                break
+                    if not mit2
+                        float dist2 = math.abs((glo2 + ghi2) / 2.0 - close)
+                        if dist2 < bearD or (dist2 == bearD and i < bearAgo)
+                            bearD := dist2
+                            bearAgo := i
+                            bearLo := glo2
+                            bearHi := ghi2
+                    if i <= 36 and array.size(dnLo) < 8
+                        array.push(dnLo, glo2)
+                        array.push(dnHi, ghi2)
+                        array.push(dnIx, i)
+                    int inv = -1
+                    if i > 1 and bodyAvg > 0
+                        for j3 = i - 1 to jStop
+                            float bd = math.abs(close[j3] - open[j3])
+                            if bd >= bodyAvg * 0.55 and close[j3] > ghi2
+                                inv := j3
+                                break
+                    if inv > 0
+                        bool dead = false
+                        int kStop = math.max(1, inv - 36)
+                        if inv > 1
+                            for k = inv - 1 to kStop
+                                if low[k] <= ghi2 and high[k] >= glo2 and close[k] < glo2
+                                    dead := true
+                                    break
+                        if not dead
+                            float distL = math.abs((glo2 + ghi2) / 2.0 - close)
+                            if distL < ilD or (distL == ilD and i < ilAgo)
+                                ilD := distL
+                                ilAgo := i
+                                ilLo := glo2
+                                ilHi := ghi2
+            if c1h < c3l
+                float glo3 = c1h
+                float ghi3 = c3l
+                float gh3 = ghi3 - glo3
+                if gh3 >= syminfo.mintick * 2 and gh3 <= math.max(atrNow * 3.0, close * 0.02) and i > 1 and bodyAvg > 0
+                    int invS = -1
+                    for j4 = i - 1 to jStop
+                        float bdS = math.abs(close[j4] - open[j4])
+                        if bdS >= bodyAvg * 0.55 and close[j4] < glo3
+                            invS := j4
+                            break
+                    if invS > 0
+                        bool deadS = false
+                        int kStopS = math.max(1, invS - 36)
+                        if invS > 1
+                            for ks = invS - 1 to kStopS
+                                if low[ks] <= ghi3 and high[ks] >= glo3 and close[ks] > ghi3
+                                    deadS := true
+                                    break
+                        if not deadS
+                            float distS = math.abs((glo3 + ghi3) / 2.0 - close)
+                            if distS < isD or (distS == isD and i < isAgo)
+                                isD := distS
+                                isAgo := i
+                                isLo := glo3
+                                isHi := ghi3
+    float bpLo = na
+    float bpHi = na
+    float bpD = 1000000000.0
+    if array.size(upLo) > 0 and array.size(dnLo) > 0
+        for a = 0 to array.size(upLo) - 1
+            for b = 0 to array.size(dnLo) - 1
+                if math.abs(array.get(upIx, a) - array.get(dnIx, b)) > 20
+                    continue
+                float top = math.min(array.get(upHi, a), array.get(dnHi, b))
+                float bot = math.max(array.get(upLo, a), array.get(dnLo, b))
+                float hh = top - bot
+                if hh >= atrNow * 0.04 and hh <= atrNow * 2.2
+                    float distB = math.abs((top + bot) / 2.0 - close)
+                    if distB < bpD
+                        bpD := distB
+                        bpLo := bot
+                        bpHi := top
+    [bullLo, bullHi, bearLo, bearHi, ilLo, ilHi, isLo, isHi, bpLo, bpHi]
+
+[gBuL, gBuH, gBeL, gBeH, gIlL, gIlH, gIsL, gIsH, gBpL, gBpH] = f_fvgPack()
+
+f_gapPick(bool on, float lo, float hi, bool wantBelow) =>
+    float outLo = na
+    float outHi = na
+    float best = 1000000000.0
+    bool ok = on and not na(lo) and not na(hi) and hi > lo
+    if ok
+        float mid = (lo + hi) / 2.0
+        bool side = wantBelow ? mid <= close : mid > close
+        if side
+            best := math.abs(mid - close)
+            outLo := lo
+            outHi := hi
+    [outLo, outHi, best]
+
+var box bxGapDn = na
+var box bxGapUp = na
+if barstate.islast
+    float dnLo = na
+    float dnHi = na
+    float dnBest = 1000000000.0
+    color dnCol = cFvgUp
+    string dnTxt = ""
+    float upLo = na
+    float upHi = na
+    float upBest = 1000000000.0
+    color upCol = cFvgDn
+    string upTxt = ""
+    [aL, aH, aD] = f_gapPick(showFvg, gBuL, gBuH, true)
+    if not na(aD) and aD < dnBest
+        dnBest := aD
+        dnLo := aL
+        dnHi := aH
+        dnCol := cFvgUp
+        dnTxt := "상승FVG"
+    [bL, bH, bD] = f_gapPick(showIfvg, gIlL, gIlH, true)
+    if not na(bD) and bD < dnBest
+        dnBest := bD
+        dnLo := bL
+        dnHi := bH
+        dnCol := cIfvgL
+        dnTxt := "역FVG롱"
+    [cL, cH, cD] = f_gapPick(showBpr, gBpL, gBpH, true)
+    if not na(cD) and cD < dnBest
+        dnBest := cD
+        dnLo := cL
+        dnHi := cH
+        dnCol := cBpr
+        dnTxt := "BPR"
+    [dL, dH, dD] = f_gapPick(showFvg, gBeL, gBeH, false)
+    if not na(dD) and dD < upBest
+        upBest := dD
+        upLo := dL
+        upHi := dH
+        upCol := cFvgDn
+        upTxt := "하락FVG"
+    [eL, eH, eD] = f_gapPick(showIfvg, gIsL, gIsH, false)
+    if not na(eD) and eD < upBest
+        upBest := eD
+        upLo := eL
+        upHi := eH
+        upCol := cIfvgS
+        upTxt := "역FVG숏"
+    [fL, fH, fD] = f_gapPick(showBpr, gBpL, gBpH, false)
+    if not na(fD) and fD < upBest
+        upBest := fD
+        upLo := fL
+        upHi := fH
+        upCol := cBpr
+        upTxt := "BPR"
+    bool inBu = showFvg and not na(gBuL) and close >= gBuL and close <= gBuH
+    bool inBe = showFvg and not na(gBeL) and close >= gBeL and close <= gBeH
+    bool inIl = showIfvg and not na(gIlL) and close >= gIlL and close <= gIlH
+    bool inIs = showIfvg and not na(gIsL) and close >= gIsL and close <= gIsH
+    bool inBp = showBpr and not na(gBpL) and close >= gBpL and close <= gBpH
+    if inBp or inBu or inBe or inIl or inIs
+        upLo := na
+        upHi := na
+        if inBp
+            dnLo := gBpL
+            dnHi := gBpH
+            dnCol := cBpr
+            dnTxt := "BPR"
+        else if inIl
+            dnLo := gIlL
+            dnHi := gIlH
+            dnCol := cIfvgL
+            dnTxt := "역FVG롱"
+        else if inIs
+            dnLo := gIsL
+            dnHi := gIsH
+            dnCol := cIfvgS
+            dnTxt := "역FVG숏"
+        else if inBu
+            dnLo := gBuL
+            dnHi := gBuH
+            dnCol := cFvgUp
+            dnTxt := "상승FVG"
+        else
+            dnLo := gBeL
+            dnHi := gBeH
+            dnCol := cFvgDn
+            dnTxt := "하락FVG"
+    bxGapDn := f_box(bxGapDn, true, dnLo, dnHi, dnCol, dnTxt, cTxt1)
+    bxGapUp := f_box(bxGapUp, true, upLo, upHi, upCol, upTxt, cTxt1)
+
+var array<line> wkUp = array.new_line()
+var array<line> wkDn = array.new_line()
+if barstate.islast
+    int vis = 1
+    int cap = math.min(bar_index, 160)
+    if not na(chart.left_visible_bar_time)
+        for i = 1 to cap
+            if time[i] < chart.left_visible_bar_time
+                break
+            vis += 1
+    else
+        vis := math.min(cap + 1, 80)
+    while array.size(wkUp) < vis
+        array.push(wkUp, line.new(bar_index, high, bar_index, high, color = na, width = 3, force_overlay = true))
+        array.push(wkDn, line.new(bar_index, low, bar_index, low, color = na, width = 3, force_overlay = true))
+    while array.size(wkUp) > vis
+        line.delete(array.pop(wkUp))
+        line.delete(array.pop(wkDn))
+    for i = 0 to vis - 1
+        line lu = array.get(wkUp, i)
+        line ld = array.get(wkDn, i)
+        float hi = high[i]
+        float lo = low[i]
+        float op = open[i]
+        float cl = close[i]
+        float rngA = hi - lo
+        float bodyA = rngA > 0 ? math.abs(cl - op) / rngA : 0.0
+        float upA = rngA > 0 ? (hi - math.max(op, cl)) / rngA : 0.0
+        float dnA = rngA > 0 ? (math.min(op, cl) - lo) / rngA : 0.0
+        float bodyTop = math.max(op, cl)
+        float bodyBot = math.min(op, cl)
+        int x = bar_index - i
+        line.set_xy1(lu, x, hi)
+        line.set_xy2(lu, x, bodyTop)
+        line.set_xy1(ld, x, bodyBot)
+        line.set_xy2(ld, x, lo)
+        line.set_width(lu, 3)
+        line.set_width(ld, 3)
+        if not showWick or not bodyWick
+            line.set_color(lu, na)
+            line.set_color(ld, na)
+        else if useOverlay
+            line.set_color(lu, na)
+            line.set_color(ld, na)
+        else
+            bool wait = rngA <= 0 or bodyA < 0.25 or (upA >= 0.30 and dnA >= 0.30)
+            bool sRej = upA >= dnA * 1.5 and upA >= 0.35
+            bool bRej = dnA >= upA * 1.5 and dnA >= 0.35
+            color wc = wait ? cWickWait : sRej ? cWickDn : bRej ? cWickUp : cl >= op ? cWickUp : cWickDn
+            line.set_color(lu, hi > bodyTop ? wc : na)
+            line.set_color(ld, lo < bodyBot ? wc : na)
