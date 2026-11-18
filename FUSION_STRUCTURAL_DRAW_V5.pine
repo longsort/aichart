@@ -1,17 +1,17 @@
 //@version=6
 // FUSION STRUCTURAL DRAW V5 - SMC / CONFIRMED HTF / OHLCV VOLUME ZONES / PAPER ONLY
-// Terms: 湲곗큹 洹쇨굅 / 珥덇린 ?⑸쪟 / ?ㅼ쨷 ?⑸쪟 / 媛뺥븳 ?⑸쪟 / 理쒖긽???⑸쪟.
+// Terms: 기초 근거 / 초기 합류 / 다중 합류 / 강한 합류 / 최상위 합류.
 // These are RULE-BASED corroboration stages, never win rates or calibrated probabilities.
 // SCOPE: selective 7 evidence families and proxy volume linkage, NOT a complete
 // algorithm-by-algorithm import of all original 10 source sections.
 // No orderbook/true trades/CVD/OI; no external AI. TV compile/replay NOT verified.
-// Original B??volume remains an independent, byte-identical script.
+// Original B팩 volume remains an independent, byte-identical script.
 strategy("FUSION STRUCTURAL DRAW V5 | CLEAN SMC", shorttitle = "FUSION-S5", overlay = true, pyramiding = 0, initial_capital = 10000, default_qty_type = strategy.fixed, default_qty_value = 1, commission_type = strategy.commission.percent, commission_value = 0.06, slippage = 2, calc_on_every_tick = false, calc_on_order_fills = false, process_orders_on_close = false, use_bar_magnifier = false, margin_long = 10, margin_short = 10, max_bars_back = 500, max_lines_count = 240, max_boxes_count = 64, max_labels_count = 180)
 
 // ============================================================================
 // FUSION PRECISION ENGINE | MASTER UNIFIED | Pine Script v6
-// FUSION_REV = 2.1.1-WARNFIX ??MTF top-level security; secondBest; islastconfirmedhistory
-// 2PACK: 01 original B??VOL unchanged, 02 THIS fusion strategy.
+// FUSION_REV = 2.1.1-WARNFIX — MTF top-level security; secondBest; islastconfirmedhistory
+// 2PACK: 01 original B팩 VOL unchanged, 02 THIS fusion strategy.
 // USER SOURCES CHECKED: 1003-line FUSION original and 12494-line multi-indicator bundle.
 // This is a reasoned merge of DISTINCT evidence FAMILIES, not a 1:1 reproduction
 // of every drawing/algorithm from all bundled indicators.
@@ -24,7 +24,7 @@ strategy("FUSION STRUCTURAL DRAW V5 | CLEAN SMC", shorttitle = "FUSION-S5", over
 // regression/VP/HTF/structure. This prevents obvious same-signal double-count.
 // 01 outputs total and estimated buy (NOT real aggressive order-flow).
 // A strategy is for TradingView broker-emulator PAPER/backtest, not exchange orders.
-// Only original B??VOL input.source links are MANUAL; without selection, leave VOL switch OFF.
+// Only original B팩 VOL input.source links are MANUAL; without selection, leave VOL switch OFF.
 // ============================================================================
 // STANDALONE PINE SCRIPT. COPY FROM //@version=6 TO THE END.
 // Contains all implemented components retained from V1, V2, V2.1 and FINAL:
@@ -48,11 +48,11 @@ strategy("FUSION STRUCTURAL DRAW V5 | CLEAN SMC", shorttitle = "FUSION-S5", over
 // Visualization: gold=center/core confluence; red=resistance/SHORT;
 // green=support/LONG; aqua=liquidity sweep; grey X=canceled setup.
 // CIRCLE = candidate only. TRIANGLE = confirmed order signal, NOT a fill.
-// '濡깆쭊???륁쭊?? = confirmed strategy-emulator fill, not exchange live fill.
+// '롱진입/숏진입' = confirmed strategy-emulator fill, not exchange live fill.
 //
 // IMPORTANT LIMITS: TradingView manual drawings cannot be accessed by Pine.
 // Pine cannot inspect or clone private/protected indicator internals.
-// Shared B??volume buy/sell allocation is a CANDLE-ESTIMATE, not true trades.
+// Shared B팩 volume buy/sell allocation is a CANDLE-ESTIMATE, not true trades.
 // This script does not access live order books, true exchange tick CVD or OI.
 // Profile is an OHLCV proxy; OB is a structural proxy, not institutional flow.
 // Gann/pattern/partial ABCD+wave evidence is internal; full wave/harmonic taxonomy is NOT claimed.
@@ -153,49 +153,49 @@ targetMinGapATR = input.float(0.18, "Minimum separation between targets (ATR)", 
 mtfRangeBars = input.int(18, "MTF close: previous confirmed range bars", minval = 5, maxval = 80, group = gFuture)
 mtfCloseBufferATR = input.float(0.08, "MTF close: breakout buffer (ATR)", minval = 0.0, maxval = 0.8, step = 0.02, group = gFuture)
 // -------------------------------------------------------------
-// 2PACK CONNECTION (01 ORIGINAL B??VOLUME PLOTS)
-// In TradingView Settings > Inputs, choose B??[珥앸웾] and [留ㅼ닔].
+// 2PACK CONNECTION (01 ORIGINAL B팩 VOLUME PLOTS)
+// In TradingView Settings > Inputs, choose B팩 [총량] and [매수].
 // Do not enable `useAdvancedVolume` before the 2 sources are chosen.
 // -------------------------------------------------------------
-gEq = "08 | 吏吏????⑸쪟 遺꾩꽍 + 嫄곕옒???곌껐"
-useConfluence = input.bool(true, "?낅┰ 遺꾩꽍 洹쇨굅 ?⑸쪟 ?ъ슜", group=gEq)
-minExtraConfirm = input.int(0,"?뺤젙吏꾩엯 理쒖냼 異붽?利앷굅 洹몃９",minval=0,maxval=4,group=gEq)
-extraNearATR = input.float(0.70,"02 Zone怨?CORE Zone 媛寃??⑸쪟 ATR",minval=0.15,maxval=2.0,step=0.05,group=gEq)
-useAdvancedVolume = input.bool(false, "01 ?좎쭊嫄곕옒???곌껐 ON (?ㅼ젙 ?꾨즺 ??", group=gEq)
-originalTotalSource = input.source(volume, "01 ??珥앸웾", group=gEq)
-originalBuySource = input.source(close, "01 ??留ㅼ닔", group=gEq)
-requireBuyBias = input.bool(false, "吏꾩엯???좎쭊嫄곕옒??諛⑺뼢 ?숈쓽 ?꾩닔",group=gEq)
-minConfluenceTier = input.int(2, "吏꾩엯 ?꾨낫 理쒖냼 ?⑸쪟 ?④퀎", minval=1, maxval=5, group=gEq)
-showConfluenceHistory = input.bool(false, "?⑸쪟 洹쇨굅 媛뺥솕/?쏀솕 ?쒖떆", group=gEq)
-showConfluenceWhy = input.bool(false, "Zone 洹쇨굅 ?곸꽭 ?쒖떆", group=gEq)
-showConfluenceHUD = input.bool(false, "?곸꽭 ?⑸쪟 遺꾩꽍??, group=gEq)
-showConfluenceRoute3 = input.bool(false, "紐⑺몴 T3/D3 ?쒖떆", group=gEq)
+gEq = "08 | 지지저항 합류 분석 + 거래량 연결"
+useConfluence = input.bool(true, "독립 분석 근거 합류 사용", group=gEq)
+minExtraConfirm = input.int(0,"확정진입 최소 추가증거 그룹",minval=0,maxval=4,group=gEq)
+extraNearATR = input.float(0.70,"02 Zone과 CORE Zone 가격 합류 ATR",minval=0.15,maxval=2.0,step=0.05,group=gEq)
+useAdvancedVolume = input.bool(false, "01 선진거래량 연결 ON (설정 완료 후)", group=gEq)
+originalTotalSource = input.source(volume, "01 → 총량", group=gEq)
+originalBuySource = input.source(close, "01 → 매수", group=gEq)
+requireBuyBias = input.bool(false, "진입에 선진거래량 방향 동의 필수",group=gEq)
+minConfluenceTier = input.int(2, "진입 후보 최소 합류 단계", minval=1, maxval=5, group=gEq)
+showConfluenceHistory = input.bool(false, "합류 근거 강화/약화 표시", group=gEq)
+showConfluenceWhy = input.bool(false, "Zone 근거 상세 표시", group=gEq)
+showConfluenceHUD = input.bool(false, "상세 합류 분석표", group=gEq)
+showConfluenceRoute3 = input.bool(false, "목표 T3/D3 표시", group=gEq)
 
 // V3: real drawing layers instead of long text labels.
-gDraw = "09 | ?먮룞 ?묐룄 (梨꾨꼸 / 異붿꽭 / 諛대뱶)"
-showDrawTrend = input.bool(true, "?뺤젙 ?ㅼ쐷 異붿꽭??, group=gDraw)
-showParallelChannel = input.bool(true, "?먮룞 ?됲뻾 梨꾨꼸", group=gDraw)
-showRegressionBand = input.bool(true, "?뚭? 諛대뱶", group=gDraw)
-showCenterBand = input.bool(true, "?뚭? 以묒븰??, group=gDraw)
-showChannelFill = input.bool(true, "梨꾨꼸 ?곸뿭 梨꾩슦湲?, group=gDraw)
-channelLookBars = input.int(55, "梨꾨꼸 ???먯깋 遊?, minval=20, maxval=180, group=gDraw)
-channelExtend = input.int(18, "?ㅻⅨ履??곗옣 遊?, minval=5, maxval=35, group=gDraw)
-showChannelCaption = input.bool(false, "梨꾨꼸 ?ㅻ챸 ?쇰꺼", group=gDraw)
+gDraw = "09 | 자동 작도 (채널 / 추세 / 밴드)"
+showDrawTrend = input.bool(true, "확정 스윙 추세선", group=gDraw)
+showParallelChannel = input.bool(true, "자동 평행 채널", group=gDraw)
+showRegressionBand = input.bool(true, "회귀 밴드", group=gDraw)
+showCenterBand = input.bool(true, "회귀 중앙선", group=gDraw)
+showChannelFill = input.bool(true, "채널 영역 채우기", group=gDraw)
+channelLookBars = input.int(55, "채널 폭 탐색 봉", minval=20, maxval=180, group=gDraw)
+channelExtend = input.int(18, "오른쪽 연장 봉", minval=5, maxval=35, group=gDraw)
+showChannelCaption = input.bool(false, "채널 설명 라벨", group=gDraw)
 
 // V4: confirmation is on the actual chart timeframe and original price Zone.
 // The review E/SL/TP are planned references, NEVER claimed executed fills.
-gBreak = "10 | ?좊Ъ ?뚰뙆 / ?덉갑 / ?ъ떆??
-showBreakLines = input.bool(false, "?뚰뙆 湲곗???以묐났 ?쒖떆 (Zone 諛뺤뒪 ?곗꽑)", group=gBreak)
-showBreakMarks = input.bool(false, "?뚰뙆 / ?덉갑 / ?ъ떆??/ ?ㅽ뙣 留덉빱 (湲곕낯 ?④?)", group=gBreak)
-showReviewPlan = input.bool(false, "吏꾩엯 寃??E/SL/TP (二쇰Ц ?꾨떂, 湲곕낯 ?④?)", group=gBreak)
-breakBufferATR = input.float(0.10, "?뚰뙆 留덇컧 踰꾪띁 ATR", minval=0.02,maxval=0.50,step=0.02,group=gBreak)
-retestAllowanceATR = input.float(0.25, "?ъ떆???묒큺 ?덉슜 ATR", minval=0.05,maxval=0.70,step=0.05,group=gBreak)
-breakMaxBars = input.int(16, "?뚰뙆/?ъ떆???좏슚 遊?, minval=3,maxval=40,group=gBreak)
-minPlanRR = input.float(1.3, "吏꾩엯 寃??理쒖냼 紐⑺몴?먯씡鍮?, minval=1.0,maxval=4.0,step=0.1,group=gBreak)
-reviewLeverage = input.int(10, "泥?궛嫄곕━ 蹂댁닔???꾪꽣 諛곗쑉 (?ㅼ젣 ?덈쾭 蹂寃??꾨떂)",minval=1,maxval=125,group=gBreak)
-reviewSlipPct = input.float(0.02,"異붿젙 ?뺣났 ?щ━?쇱? %",minval=0.0,maxval=0.5,step=0.01,group=gBreak)
-reviewMinRVOL = input.float(1.05,"留ㅻℓ 寃??理쒖냼 ?곷?嫄곕옒??,minval=0.5,maxval=3.0,step=0.05,group=gBreak)
-showBandMode = input.bool(true,"諛대뱶 媛뺣룄 ?쒖떆 (?곸듅/?섎씫/?뺤옣/?〓낫)",group=gBreak)
+gBreak = "10 | 선물 돌파 / 안착 / 재시험"
+showBreakLines = input.bool(false, "돌파 기준선 중복 표시 (Zone 박스 우선)", group=gBreak)
+showBreakMarks = input.bool(false, "돌파 / 안착 / 재시험 / 실패 마커 (기본 숨김)", group=gBreak)
+showReviewPlan = input.bool(false, "진입 검토 E/SL/TP (주문 아님, 기본 숨김)", group=gBreak)
+breakBufferATR = input.float(0.10, "돌파 마감 버퍼 ATR", minval=0.02,maxval=0.50,step=0.02,group=gBreak)
+retestAllowanceATR = input.float(0.25, "재시험 접촉 허용 ATR", minval=0.05,maxval=0.70,step=0.05,group=gBreak)
+breakMaxBars = input.int(16, "돌파/재시험 유효 봉", minval=3,maxval=40,group=gBreak)
+minPlanRR = input.float(1.3, "진입 검토 최소 목표손익비", minval=1.0,maxval=4.0,step=0.1,group=gBreak)
+reviewLeverage = input.int(10, "청산거리 보수적 필터 배율 (실제 레버 변경 아님)",minval=1,maxval=125,group=gBreak)
+reviewSlipPct = input.float(0.02,"추정 왕복 슬리피지 %",minval=0.0,maxval=0.5,step=0.01,group=gBreak)
+reviewMinRVOL = input.float(1.05,"매매 검토 최소 상대거래량",minval=0.5,maxval=3.0,step=0.05,group=gBreak)
+showBandMode = input.bool(true,"밴드 강도 표시 (상승/하락/확장/횡보)",group=gBreak)
 
 
 // Setting requireBuyBias true makes unavailable/not-connected volume block trading.
@@ -204,17 +204,17 @@ showBandMode = input.bool(true,"諛대뱶 媛뺣룄 ?쒖떆 (?곸듅/?섎씫/?�
 
 
 // V5 visual-only modules. They do not submit additional broker-emulator orders.
-gSMC5 = "11 | SMC 援ъ“??쨌 HTF ?먮룞 ?묐룄 쨌 嫄곕옒??諛섏쓳 Zone"
-showStructureLines5 = input.bool(true, "BOS / CHoCH 吏㏃? 援ъ“??, group=gSMC5)
-structureLineCount5 = input.int(6, "?④만 援ъ“????, minval=2, maxval=12, group=gSMC5)
-showMtfZones5 = input.bool(true, "1遺꾨큺?먯꽌???곸쐞遊?吏吏쨌???(理쒓렐 ?뺤젙 ?쇰쿁)", group=gSMC5)
-mtfPerSide5 = input.int(1, "?곸쐞遊?吏吏/???媛??쒖떆 ??, minval=1, maxval=2, group=gSMC5)
-showMtfZoneNames5 = input.bool(true, "?곸쐞遊?理쒖냼 移?(1H/4H/D/W)", group=gSMC5)
-showDayClose5 = input.bool(true, "理쒓렐 ?쇰큺 ?뺤젙 醫낃???(09??KST ?대떦 ???쒖떆)", group=gSMC5)
-showVolumeZones5 = input.bool(true, "?곷?嫄곕옒??湲됱쬆 諛섏쓳 Zone (OHLCV 異붿젙)", group=gSMC5)
-volSpikeMin5 = input.float(1.8, "嫄곕옒??湲됱쬆 湲곗? RVOL", minval=1.2, maxval=4, step=0.1, group=gSMC5)
-showPullback5 = input.bool(true, "Zone ?뚮┝쨌?섎룎由??뺤씤??, group=gSMC5)
-showLiveBreakZone5 = input.bool(true, "?뚰뙆 Zone ?곹깭瑜??됱긽?쇰줈 ?쒖떆", group=gSMC5)
+gSMC5 = "11 | SMC 구조선 · HTF 자동 작도 · 거래량 반응 Zone"
+showStructureLines5 = input.bool(true, "BOS / CHoCH 짧은 구조선", group=gSMC5)
+structureLineCount5 = input.int(6, "남길 구조선 수", minval=2, maxval=12, group=gSMC5)
+showMtfZones5 = input.bool(true, "1분봉에서도 상위봉 지지·저항 (최근 확정 피벗)", group=gSMC5)
+mtfPerSide5 = input.int(1, "상위봉 지지/저항 각 표시 수", minval=1, maxval=2, group=gSMC5)
+showMtfZoneNames5 = input.bool(true, "상위봉 최소 칩 (1H/4H/D/W)", group=gSMC5)
+showDayClose5 = input.bool(true, "최근 일봉 확정 종가선 (09시 KST 해당 시 표시)", group=gSMC5)
+showVolumeZones5 = input.bool(true, "상대거래량 급증 반응 Zone (OHLCV 추정)", group=gSMC5)
+volSpikeMin5 = input.float(1.8, "거래량 급증 기준 RVOL", minval=1.2, maxval=4, step=0.1, group=gSMC5)
+showPullback5 = input.bool(true, "Zone 눌림·되돌림 확인선", group=gSMC5)
+showLiveBreakZone5 = input.bool(true, "돌파 Zone 상태를 색상으로 표시", group=gSMC5)
 
 strategy.risk.max_intraday_loss(dailyLossLimit, strategy.percent_of_equity)
 
@@ -222,7 +222,7 @@ if endDate <= startDate
     runtime.error("Backtest end date must be later than start date.")
 
 // HTF / VWAP anchor: never hard-fail. If input <= chart TF, bump to next higher ladder step.
-// Example: 4H chart + defaults 240/1D ??effective 1D / 1W (anchor stays if already above).
+// Example: 4H chart + defaults 240/1D → effective 1D / 1W (anchor stays if already above).
 f_tfAbove(int minSecExclusive) =>
     string picked = "12M"
     array<string> ladder = array.from("60", "240", "1D", "1W", "1M", "3M", "12M")
@@ -248,21 +248,21 @@ if na(timeframe.in_seconds(useHtf2)) or timeframe.in_seconds(useHtf2) <= chartSe
 if na(timeframe.in_seconds(useAnchor)) or timeframe.in_seconds(useAnchor) <= chartSec
     useAnchor := timeframe.in_seconds(useHtf2) > chartSec ? useHtf2 : f_tfAbove(chartSec)
     tfAuto := true
-string tfAutoNote = tfAuto ? "?먮룞 " + useHtf1 + "/" + useHtf2 + " A:" + useAnchor : useHtf1 + "/" + useHtf2 + " A:" + useAnchor
+string tfAutoNote = tfAuto ? "자동 " + useHtf1 + "/" + useHtf2 + " A:" + useAnchor : useHtf1 + "/" + useHtf2 + " A:" + useAnchor
 
-// FUSION INTEGRATED UNIQUE CONFLUENCE EVIDENCE (B??original VOL remains separate)
-eq_gA = "01 | 怨꾩궛"
-eq_pLen = input.int(5, "?뺤젙 ?쇰쿁 醫???, minval=2, maxval=15, group=eq_gA)
+// FUSION INTEGRATED UNIQUE CONFLUENCE EVIDENCE (B팩 original VOL remains separate)
+eq_gA = "01 | 계산"
+eq_pLen = input.int(5, "확정 피벗 좌/우", minval=2, maxval=15, group=eq_gA)
 eq_aLen = input.int(14, "ATR", minval=5, maxval=50, group=eq_gA)
-eq_nearATR = input.float(0.35, "利앷굅 媛寃?寃뱀묠 ?덉슜 ATR", minval=0.10, maxval=1.5, step=0.05, group=eq_gA)
-eq_rangeMaxATR = input.float(4.0, "?꾩옱媛 二쇰? ?꾨낫 ?쒗븳 ATR", minval=1.0, maxval=20.0, group=eq_gA)
-eq_patternTol = input.float(0.25, "?섎え??AB=CD ?ㅼ감", minval=0.08, maxval=0.5, step=0.01, group=eq_gA)
-eq_useGann = input.bool(true, "媛?媛寃??쒓컙 鍮꾩쑉", group=eq_gA)
-eq_useHarm = input.bool(true, "ABCD/XABCD ?뚮룞 湲고븯 ?꾨낫", group=eq_gA)
-eq_usePattern = input.bool(true, "?먭린/?쇨컖??援ъ“", group=eq_gA)
-eq_useElliott = input.bool(true, "5?쇰쿁 ?뚮룞 援ъ“", group=eq_gA)
-eq_useGapState = input.bool(true, "IFVG/BPR ?곹깭", group=eq_gA)
-eq_useTime = input.bool(true, "?쒓컙 二쇨린 ?뺤씤", group=eq_gA)
+eq_nearATR = input.float(0.35, "증거 가격 겹침 허용 ATR", minval=0.10, maxval=1.5, step=0.05, group=eq_gA)
+eq_rangeMaxATR = input.float(4.0, "현재가 주변 후보 제한 ATR", minval=1.0, maxval=20.0, group=eq_gA)
+eq_patternTol = input.float(0.25, "하모닉 AB=CD 오차", minval=0.08, maxval=0.5, step=0.01, group=eq_gA)
+eq_useGann = input.bool(true, "갠 가격/시간 비율", group=eq_gA)
+eq_useHarm = input.bool(true, "ABCD/XABCD 파동 기하 후보", group=eq_gA)
+eq_usePattern = input.bool(true, "쐐기/삼각형 구조", group=eq_gA)
+eq_useElliott = input.bool(true, "5피벗 파동 구조", group=eq_gA)
+eq_useGapState = input.bool(true, "IFVG/BPR 상태", group=eq_gA)
+eq_useTime = input.bool(true, "시간 주기 확인", group=eq_gA)
 
 eq_atr = ta.atr(eq_aLen)
 float eq_tol = eq_atr * eq_nearATR
@@ -544,7 +544,7 @@ f_mtfConfirmed() =>
 [rWs, rWl, rWt] = request.security(syminfo.tickerid, "1W", f_mtfConfirmed(), lookahead = barmerge.lookahead_on)
 [rMs, rMl, rMt] = request.security(syminfo.tickerid, "1M", f_mtfConfirmed(), lookahead = barmerge.lookahead_on)
 
-// Same TF ??global series; higher TF ??remote; lower TF ??chart switch (99).
+// Same TF → global series; higher TF → remote; lower TF → chart switch (99).
 f_pickMtf(string tf, int chartSeconds, int remS, float remL, int remT) =>
     int outState = 99
     float outLevel = na
@@ -561,18 +561,18 @@ f_pickMtf(string tf, int chartSeconds, int remS, float remL, int remT) =>
     [outState, outLevel, outClosedAt]
 
 f_mtfStateText(int state) =>
-    state == 1 ? "?곹뼢 ?뚰뙆쨌?湲? :
-     state == 2 ? "?곹뼢 2遊??덉갑" :
-     state == 3 ? "?곹뼢 ?ъ떆??吏吏" :
-     state == -1 ? "?섑뼢 ?댄깉쨌?湲? :
-     state == -2 ? "?섑뼢 2遊??덉갑" :
-     state == -3 ? "?섑뼢 ?ъ떆????? :
-     state == 4 ? "?곹뼢 ?덉갑 ?ㅽ뙣" :
-     state == -4 ? "?섑뼢 ?덉갑 ?ㅽ뙣" :
-     state == 5 ? "吏吏 媛吏쒖씠?? :
-     state == -5 ? "???媛吏쒕룎?? :
-     state == 98 ? "遊??곗씠??遺議? :
-     state == 99 ? "?섏쐞TF: 李⑦듃 ?꾪솚" : "以묐┰쨌?湲?
+    state == 1 ? "상향 돌파·대기" :
+     state == 2 ? "상향 2봉 안착" :
+     state == 3 ? "상향 재시험 지지" :
+     state == -1 ? "하향 이탈·대기" :
+     state == -2 ? "하향 2봉 안착" :
+     state == -3 ? "하향 재시험 저항" :
+     state == 4 ? "상향 안착 실패" :
+     state == -4 ? "하향 안착 실패" :
+     state == 5 ? "지지 가짜이탈" :
+     state == -5 ? "저항 가짜돌파" :
+     state == 98 ? "봉 데이터 부족" :
+     state == 99 ? "하위TF: 차트 전환" : "중립·대기"
 
 f_mtfStateColor(int state) =>
     state == 2 or state == 3 or state == 5 ? color.rgb(68,216,151) :
@@ -648,12 +648,12 @@ f_sourceCount(int sourceMask) =>
     n
 
 // Grade is descriptive, never win probability. Price-family components
-// add at most TWO levels beyond the verified source count. 5?④퀎 is reachable.
+// add at most TWO levels beyond the verified source count. 5단계 is reachable.
 f_grade(int nSources, int nPriceFamilies) =>
     math.max(1, math.min(5, nSources + (nPriceFamilies >= 2 ? 1 : 0) + (nPriceFamilies >= 3 ? 1 : 0)))
 
 f_gradeName(int grade) =>
-    grade >= 5 ? "理쒖긽???⑸쪟" : grade == 4 ? "媛뺥븳 ?⑸쪟" : grade == 3 ? "?ㅼ쨷 ?⑸쪟" : grade == 2 ? "珥덇린 ?⑸쪟" : "湲곗큹 洹쇨굅"
+    grade >= 5 ? "최상위 합류" : grade == 4 ? "강한 합류" : grade == 3 ? "다중 합류" : grade == 2 ? "초기 합류" : "기초 근거"
 
 f_sourcePoints(int nSources) =>
     nSources >= 3 ? 10 : nSources == 2 ? 7 : nSources == 1 ? 4 : 0
@@ -757,7 +757,7 @@ float range20 = ta.highest(high,20) - ta.lowest(low,20)
 bool isCompressed = not na(atr) and atr > 0 and range20 < atr*4.5
 bool isExpansion = not na(atrBaseline) and atr > atrBaseline*1.35
 bool isTrending = not na(atr) and math.abs(ema21-ema55) > atr*0.55
-string regime = isExpansion ? "?뺤옣" : isCompressed ? "?뺤텞" : isTrending ? "異붿꽭" : "?〓낫"
+string regime = isExpansion ? "확장" : isCompressed ? "압축" : isTrending ? "추세" : "횡보"
 
 [htf1C, htf1EMA] = request.security(syminfo.tickerid, useHtf1, [close[1], ta.ema(close, 55)[1]], lookahead = barmerge.lookahead_on)
 [htf2C, htf2EMA] = request.security(syminfo.tickerid, useHtf2, [close[1], ta.ema(close, 55)[1]], lookahead = barmerge.lookahead_on)
@@ -947,23 +947,23 @@ f_confluenceTier(int mask) =>
     bool highGate = f_confluenceHas(mask,8) and f_confluenceHas(mask,16) and f_confluenceHas(mask,64)
     cnt >= 6 and highGate ? 5 : cnt >= 4 ? 4 : cnt >= 3 ? 3 : cnt >= 2 ? 2 : 1
 f_confluenceName(int rank) =>
-    rank == 5 ? "理쒖긽???⑸쪟" : rank == 4 ? "媛뺥븳 ?⑸쪟" : rank == 3 ? "?ㅼ쨷 ?⑸쪟" : rank == 2 ? "珥덇린 ?⑸쪟" : "湲곗큹 洹쇨굅"
+    rank == 5 ? "최상위 합류" : rank == 4 ? "강한 합류" : rank == 3 ? "다중 합류" : rank == 2 ? "초기 합류" : "기초 근거"
 f_confluenceExplain(int mask) =>
     string t = ""
-    t += f_confluenceHas(mask,1) ? "援ъ“ " : ""
-    t += f_confluenceHas(mask,2) ? "?쇰낫/媛?" : ""
-    t += f_confluenceHas(mask,4) ? "異붿꽭 " : ""
+    t += f_confluenceHas(mask,1) ? "구조 " : ""
+    t += f_confluenceHas(mask,2) ? "피보/갠 " : ""
+    t += f_confluenceHas(mask,4) ? "추세 " : ""
     t += f_confluenceHas(mask,8) ? "VOL/VP " : ""
-    t += f_confluenceHas(mask,16) ? "?셋룹＜遊?" : ""
-    t += f_confluenceHas(mask,32) ? "?⑦꽩 " : ""
-    t += f_confluenceHas(mask,64) ? "?덉갑 " : ""
-    t == "" ? "?⑸쪟 洹쇨굅 遺議? : t
+    t += f_confluenceHas(mask,16) ? "일·주봉 " : ""
+    t += f_confluenceHas(mask,32) ? "패턴 " : ""
+    t += f_confluenceHas(mask,64) ? "안착 " : ""
+    t == "" ? "합류 근거 부족" : t
 
 var map<int,int> confluenceProofByUID = map.new<int,int>()
 var map<int,int> confluenceTierByUID = map.new<int,int>()
 var array<label> confluenceEvents = array.new_label()
 var int lastConfluenceEventBar = na
-var string lastConfluenceEvent = "?대젰 ?놁쓬"
+var string lastConfluenceEvent = "이력 없음"
 
 if barstate.isconfirmed and goodBars and array.size(zTop)>0
     for gi = 0 to array.size(zTop)-1
@@ -1018,8 +1018,8 @@ if barstate.isconfirmed and goodBars and array.size(zTop)>0
         map.put(confluenceProofByUID,zKey,nextMask)
         map.put(confluenceTierByUID,zKey,newTier)
         if showConfluenceHistory and oldTier>0 and oldTier!=newTier and math.abs(zMid-close)<atr*5 and (na(lastConfluenceEventBar) or lastConfluenceEventBar<bar_index)
-            string eventTitle = newTier==0 ? "議?臾댄슚?? : (newTier>oldTier ? "?⑸쪟 媛뺥솕" : "?⑸쪟 ?쏀솕")
-            string evt = eventTitle+" "+str.tostring(oldTier)+"??+str.tostring(newTier)+" "+(dir0==1?"吏吏 ":"???")+str.tostring(zMid,format.mintick)
+            string eventTitle = newTier==0 ? "존 무효화" : (newTier>oldTier ? "합류 강화" : "합류 약화")
+            string evt = eventTitle+" "+str.tostring(oldTier)+"→"+str.tostring(newTier)+" "+(dir0==1?"지지 ":"저항 ")+str.tostring(zMid,format.mintick)
             color evtCol = newTier==0 ? color.gray : newTier>oldTier ? color.rgb(218,173,65) : color.rgb(226,88,88)
             label gl = label.new(bar_index,zMid,evt,xloc=xloc.bar_index,yloc=yloc.price,style=label.style_label_left,color=color.new(color.black,15),textcolor=evtCol,size=size.tiny)
             array.push(confluenceEvents,gl)
@@ -1118,7 +1118,7 @@ bool lRiskOK = not na(lR) and lR >= minStopATR*atr and lR <= maxStopATR*atr and 
 bool sRiskOK = not na(sR) and sR >= minStopATR*atr and sR <= maxStopATR*atr and close < sStop
 int lTrend = h1up and h2up and localUp ? 15 : h1up and localUp ? 8 : h1up ? 4 : 0
 int sTrend = h1dn and h2dn and localDn ? 15 : h1dn and localDn ? 8 : h1dn ? 4 : 0
-// VOL B??s `留ㅼ닔` is estimated from candle geometry, not exchange trade ticks.
+// VOL B팩's `매수` is estimated from candle geometry, not exchange trade ticks.
 // Use it INSTEAD of the local candle-color volume proxy (never add both).
 float originalBuyRatio = useAdvancedVolume and not na(originalTotalSource) and originalTotalSource>0 and not na(originalBuySource) ? math.max(0.0,math.min(1.0,originalBuySource/originalTotalSource)) : na
 bool advancedBull = useAdvancedVolume and not na(originalBuyRatio) and originalBuyRatio>=0.58
@@ -1347,7 +1347,7 @@ float dnT3 = na
 float routeSupport = na
 float routeSupportTop = na
 float routeSupportBottom = na
-string routeState = "吏吏 ?뺤씤 ?湲?
+string routeState = "지지 확인 대기"
 
 if barstate.isconfirmed and goodBars
     array<float> upLevels = array.new_float()
@@ -1392,7 +1392,7 @@ if barstate.isconfirmed and goodBars
     dnT2 := lower2
     dnT3 := lower3
     bool defended = not na(routeSupportTop) and close > routeSupportTop and low <= routeSupportTop + atr*contactATR and close > open
-    routeState := na(routeSupport) ? "洹쇱젒 ?좏슚 吏吏 ?놁쓬" : defended ? "吏吏 諛섏쓳遊됀룻썑???뺤씤" : "吏吏 議곌굔遺쨌?뺤젙 ?꾨떂"
+    routeState := na(routeSupport) ? "근접 유효 지지 없음" : defended ? "지지 반응봉·후속 확인" : "지지 조건부·확정 아님"
 
 // Overlay only current observable route, never backpaint lines onto pivots.
 var array<line> routeLines = array.new_line(6, na)
@@ -1447,7 +1447,7 @@ bool riseStrongV4 = riseNormalV4 and bandPosV4>=0.77 and h1up and vRatio>=1.05
 bool fallStrongV4 = fallNormalV4 and bandPosV4<=0.23 and h1dn and vRatio>=1.05
 bool riseExpansionV4 = riseStrongV4 and bandExpandV4 and close>regUp and vRatio>=1.25
 bool fallExpansionV4 = fallStrongV4 and bandExpandV4 and close<regDn and vRatio>=1.25
-string bandModeV4 = riseExpansionV4?"?곸듅 ?뺤옣":fallExpansionV4?"?섎씫 ?뺤옣":riseStrongV4?"媛뺥븳 ?곸듅":fallStrongV4?"媛뺥븳 ?섎씫":riseNormalV4?"?쇰컲 ?곸듅":fallNormalV4?"?쇰컲 ?섎씫":"?〓낫/?꾪솚"
+string bandModeV4 = riseExpansionV4?"상승 확장":fallExpansionV4?"하락 확장":riseStrongV4?"강한 상승":fallStrongV4?"강한 하락":riseNormalV4?"일반 상승":fallNormalV4?"일반 하락":"횡보/전환"
 color bandModeColorV4 = riseExpansionV4 or riseStrongV4 or riseNormalV4 ? color.rgb(41,204,146) : fallExpansionV4 or fallStrongV4 or fallNormalV4 ? color.rgb(237,97,114) : color.silver
 
 var int bxPhase = 0
@@ -1460,7 +1460,7 @@ var float bxPlanEntry = na
 var float bxPlanStop = na
 var float bxPlanTarget = na
 var bool bxPlanValid = false
-var string bxPlanReason = "吏꾩엯 ?좏샇 ?湲?
+var string bxPlanReason = "진입 신호 대기"
 bool bxUpBreakEvent = false
 bool bxDnBreakEvent = false
 bool bxUpHoldEvent = false
@@ -1483,7 +1483,7 @@ if barstate.isconfirmed and goodBars
             bxPhase := 4
             bxFailEvent := true
             bxPlanValid := false
-            bxPlanReason := reverseClose?"?덉갑 ?ㅽ뙣":deadPlan?"?먯젅 臾댄슚??:"?ъ떆??湲곌컙 留뚮즺"
+            bxPlanReason := reverseClose?"안착 실패":deadPlan?"손절 무효화":"재시험 기간 만료"
         else if bxPhase==1 and age>=1
             bool accepted = bxDir==1 ? close>bxHi+bxPad : close<bxLo-bxPad
             if accepted
@@ -1517,7 +1517,7 @@ if barstate.isconfirmed and goodBars
                 bxPlanEntry := entryPx
                 bxPlanStop := stopPx
                 bxPlanTarget := targetOK ? firstObstacle : na
-                bxPlanReason := not targetOK?"紐⑺몴媛 ?놁쓬":planRR<minPlanRR?"紐⑺몴源뚯? RR 遺議?:netRewardPct<=0?"?섏닔猷??щ━?쇱? 遺덈━":not liquidationApproxOK?"泥?궛嫄곕━ 洹쇱궗 ?꾪뿕":not volumeOK?"嫄곕옒???뺤씤 遺議?:not trendOK?"?곸쐞 諛⑺뼢 遺덉씪移?:not proofOK?"?⑸쪟 洹쇨굅 遺議?:"援ъ“/鍮꾩슜 寃???듦낵쨌?ㅺ굅???꾨떂"
+                bxPlanReason := not targetOK?"목표가 없음":planRR<minPlanRR?"목표까지 RR 부족":netRewardPct<=0?"수수료/슬리피지 불리":not liquidationApproxOK?"청산거리 근사 위험":not volumeOK?"거래량 확인 부족":not trendOK?"상위 방향 불일치":not proofOK?"합류 근거 부족":"구조/비용 검토 통과·실거래 아님"
     // A previous event is retained briefly, then eligible for a new zone.
     if bxPhase==4 and bar_index-nz(bxAt,bar_index)>4
         bxPhase := 0
@@ -1559,12 +1559,12 @@ if barstate.isconfirmed and goodBars
             bxPlanStop := na
             bxPlanTarget := na
             bxPlanValid := false
-            bxPlanReason := "?뚰뙆 留덇컧쨌?덉갑 ?湲?
+            bxPlanReason := "돌파 마감·안착 대기"
             bxUpBreakEvent := foundDir==1
             bxDnBreakEvent := foundDir==-1
 
-string bxStageText = bxPhase==1 ? (bxDir==1?"?곹뼢?뚰뙆쨌?덉갑?湲?:"?섑뼢?댄깉쨌?덉갑?湲?) : bxPhase==2 ? (bxDir==1?"?곹뼢2遊됱븞李㈑룹옱?쒗뿕?湲?:"?섑뼢2遊됱븞李㈑룹옱?쒗뿕?湲?) : bxPhase==3 ? (bxDir==1?"?ъ떆?섏?吏 ?뺤씤":"?ъ떆?섏????뺤씤") : bxPhase==4 ? "?뚰뙆/?덉갑 ?ㅽ뙣" : "?뚰뙆 議곌굔 ?湲?
-string bxDecisionText = strategy.position_size>0?"PAPER LONG 蹂댁쑀":strategy.position_size<0?"PAPER SHORT 蹂댁쑀":bxPhase==3 and bxPlanValid ? (bxDir==1?"LONG 寃??:"SHORT 寃??) : "WAIT"
+string bxStageText = bxPhase==1 ? (bxDir==1?"상향돌파·안착대기":"하향이탈·안착대기") : bxPhase==2 ? (bxDir==1?"상향2봉안착·재시험대기":"하향2봉안착·재시험대기") : bxPhase==3 ? (bxDir==1?"재시험지지 확인":"재시험저항 확인") : bxPhase==4 ? "돌파/안착 실패" : "돌파 조건 대기"
+string bxDecisionText = strategy.position_size>0?"PAPER LONG 보유":strategy.position_size<0?"PAPER SHORT 보유":bxPhase==3 and bxPlanValid ? (bxDir==1?"LONG 검토":"SHORT 검토") : "WAIT"
 color bxEventColor = bxPhase==4?color.rgb(146,154,164):bxDir==1?color.rgb(38,209,141):color.rgb(233,87,104)
 
 // Horizontal DRAWN level starts at actual confirmation event and never migrates
@@ -1630,12 +1630,12 @@ if barstate.islastconfirmedhistory
 
 // Compact event signs only: NOT buy/sell orders. Long/short fills still use
 // original strategy markers, and only follow actual emulator entry.
-plotshape(showBreakMarks and bxUpBreakEvent,title="Resistance break close",style=shape.triangleup,location=location.belowbar,color=color.rgb(223,176,70),text="?뚰뙆",textcolor=color.white,size=size.tiny)
-plotshape(showBreakMarks and bxDnBreakEvent,title="Support loss close",style=shape.triangledown,location=location.abovebar,color=color.rgb(223,176,70),text="?댄깉",textcolor=color.white,size=size.tiny)
-plotshape(showBreakMarks and bxUpHoldEvent,title="2-close hold above",style=shape.circle,location=location.belowbar,color=color.rgb(39,207,139),text="?덉갑",textcolor=color.white,size=size.tiny)
-plotshape(showBreakMarks and bxDnHoldEvent,title="2-close hold below",style=shape.circle,location=location.abovebar,color=color.rgb(235,80,95),text="?덉갑",textcolor=color.white,size=size.tiny)
-plotshape(showBreakMarks and bxUpRetestEvent,title="Support retest confirmed",style=shape.square,location=location.belowbar,color=color.rgb(30,202,127),text="?ъ떆??,textcolor=color.white,size=size.tiny)
-plotshape(showBreakMarks and bxDnRetestEvent,title="Resistance retest confirmed",style=shape.square,location=location.abovebar,color=color.rgb(230,77,99),text="?ъ떆??,textcolor=color.white,size=size.tiny)
+plotshape(showBreakMarks and bxUpBreakEvent,title="Resistance break close",style=shape.triangleup,location=location.belowbar,color=color.rgb(223,176,70),text="돌파",textcolor=color.white,size=size.tiny)
+plotshape(showBreakMarks and bxDnBreakEvent,title="Support loss close",style=shape.triangledown,location=location.abovebar,color=color.rgb(223,176,70),text="이탈",textcolor=color.white,size=size.tiny)
+plotshape(showBreakMarks and bxUpHoldEvent,title="2-close hold above",style=shape.circle,location=location.belowbar,color=color.rgb(39,207,139),text="안착",textcolor=color.white,size=size.tiny)
+plotshape(showBreakMarks and bxDnHoldEvent,title="2-close hold below",style=shape.circle,location=location.abovebar,color=color.rgb(235,80,95),text="안착",textcolor=color.white,size=size.tiny)
+plotshape(showBreakMarks and bxUpRetestEvent,title="Support retest confirmed",style=shape.square,location=location.belowbar,color=color.rgb(30,202,127),text="재시험",textcolor=color.white,size=size.tiny)
+plotshape(showBreakMarks and bxDnRetestEvent,title="Resistance retest confirmed",style=shape.square,location=location.abovebar,color=color.rgb(230,77,99),text="재시험",textcolor=color.white,size=size.tiny)
 plotshape(showBreakMarks and bxFailEvent,title="Breakout acceptance failed",style=shape.xcross,location=location.abovebar,color=color.gray,size=size.tiny)
 
 // --------------------------------------------------------------------------
@@ -1705,8 +1705,8 @@ if barstate.islastconfirmedhistory and showZones
                 box.set_rightbottom(b, right, bottom)
                 box.set_border_color(b, border)
                 box.set_bgcolor(b, fill)
-            string sideName = requestedSide == 1 ? "吏吏" : "???
-            string flipText = array.get(zFlip, bestId) == 1 ? " | ?ъ떆???湲? : ""
+            string sideName = requestedSide == 1 ? "지지" : "저항"
+            string flipText = array.get(zFlip, bestId) == 1 ? " | 재시험 대기" : ""
             string zoneText = (requestedSide == 1 ? "S" : "R") + str.tostring(liveGrade) + " " + str.tostring(middle, format.mintick)
             string zoneTip = sideName + " " + str.tostring(middle, format.mintick) + " | " + f_confluenceName(liveGrade) + " | " + f_confluenceExplain(visibleProof)
             if na(lb)
@@ -1833,7 +1833,7 @@ if barstate.islastconfirmedhistory
                 box.set_border_color(bx5,color.new(col5,20))
                 box.set_bgcolor(bx5,color.new(col5,90))
             string tiny5 = (isSup5?array.get(namesLow5,bestIdx5):array.get(names5,bestIdx5))+(isSup5?" S":" R")
-            string tool5 = "?뺤젙 ?곸쐞遊??ㅼ쐷(理쒓렐 ?쇰쿁), " + tiny5 + " / " + str.tostring(bestPx5,format.mintick) + " | ?쇰쿁 ?뺤젙 4遊?吏?? 留ㅻℓ ?좏샇 ?꾨떂"
+            string tool5 = "확정 상위봉 스윙(최근 피벗), " + tiny5 + " / " + str.tostring(bestPx5,format.mintick) + " | 피벗 확정 4봉 지연, 매매 신호 아님"
             if showMtfZoneNames5
                 if na(lb5)
                     lb5 := label.new(bar_index+19,bestPx5,tiny5,xloc=xloc.bar_index,style=label.style_label_left,color=color.new(color.black,12),textcolor=col5,size=size.tiny,tooltip=tool5)
@@ -1869,7 +1869,7 @@ float dBody5 = math.abs(dCl5-dOp5)/dRange5
 float dRvol5 = not na(dAvg5) and dAvg5>0?dVol5/dAvg5:na
 bool dStrongBull5 = dCl5>dPrevH5 or (dCl5>dOp5 and dLocation5>=0.70 and dBody5>=0.40 and dRvol5>=1.0)
 bool dStrongBear5 = dCl5<dPrevL5 or (dCl5<dOp5 and dLocation5<=0.30 and dBody5>=0.40 and dRvol5>=1.0)
-string dQuality5 = dStrongBull5?"媛뺤꽭 留덇컧 援ъ“":dStrongBear5?"?쎌꽭 留덇컧 援ъ“":"以묐┰/?쇱“ 留덇컧 援ъ“"
+string dQuality5 = dStrongBull5?"강세 마감 구조":dStrongBear5?"약세 마감 구조":"중립/혼조 마감 구조"
 bool d09Seoul5 = not na(dEnd5) and hour(dEnd5,"Asia/Seoul")==9 and minute(dEnd5,"Asia/Seoul")==0
 var line dCloseLine5 = na
 var label dCloseChip5 = na
@@ -1882,8 +1882,8 @@ if barstate.islastconfirmedhistory
             line.set_xy1(dCloseLine5,math.max(0,bar_index-5),dCl5)
             line.set_xy2(dCloseLine5,bar_index+14,dCl5)
             line.set_color(dCloseLine5,dColor5)
-        string short5 = (d09Seoul5?"D09":"D")+(dStrongBull5?"??:dStrongBear5?"??:"=")
-        string full5 = "理쒓렐 ?뺤젙 ?쇰큺 " + (d09Seoul5?"09:00 KST 留덇컧":"留덇컧") + " | " + dQuality5 + " | 醫낃? "+str.tostring(dCl5,format.mintick)+" | OHLCV, 誘몃옒 諛⑺뼢 ?덉륫 ?꾨떂"
+        string short5 = (d09Seoul5?"D09":"D")+(dStrongBull5?"↑":dStrongBear5?"↓":"=")
+        string full5 = "최근 확정 일봉 " + (d09Seoul5?"09:00 KST 마감":"마감") + " | " + dQuality5 + " | 종가 "+str.tostring(dCl5,format.mintick)+" | OHLCV, 미래 방향 예측 아님"
         if na(dCloseChip5)
             dCloseChip5 := label.new(bar_index+15,dCl5,short5,style=label.style_label_left,color=color.new(color.black,10),textcolor=dColor5,size=size.tiny,tooltip=full5)
         else
@@ -1901,7 +1901,7 @@ if barstate.islastconfirmedhistory
 
 // --------------------------------------------------------------------------
 // V5. OHLCV-based impulse-reaction Zone. Not L2 order book or aggressive
-// bid/ask trade volume. B??'留ㅼ닔' remains a candle-derived estimate.
+// bid/ask trade volume. B팩 '매수' remains a candle-derived estimate.
 // --------------------------------------------------------------------------
 var float buyVolHi5 = na
 var float buyVolLo5 = na
@@ -1968,7 +1968,7 @@ if barstate.islastconfirmedhistory
             box.set_border_color(breakStateBox5,stateColor5)
             box.set_bgcolor(breakStateBox5,color.new(stateColor5,90))
             box.set_border_width(breakStateBox5,bxPhase==3?2:1)
-        string stateChip5 = bxPhase==1?"BR?":bxPhase==2?"HOLD":bxPhase==3?"RT??:"FAIL"
+        string stateChip5 = bxPhase==1?"BR?":bxPhase==2?"HOLD":bxPhase==3?"RT✓":"FAIL"
         if na(breakStateLabel5)
             breakStateLabel5 := label.new(bar_index+channelExtend+1,(bxHi+bxLo)*0.5,stateChip5,style=label.style_label_left,color=color.new(color.black,12),textcolor=stateColor5,size=size.tiny)
         else
@@ -1997,7 +1997,7 @@ if barstate.isconfirmed and (pbLong5 or pbShort5) and (na(pbLast5) or bar_index-
     float pbPrice5 = pbLong5?supportTop:resistBot
     color pbColor5 = pbLong5?color.rgb(39,202,140):color.rgb(218,76,94)
     line pbLine5 = line.new(bar_index,pbPrice5,bar_index+9,pbPrice5,color=pbColor5,style=line.style_dotted,width=2)
-    label pbTag5 = label.new(bar_index+10,pbPrice5,"PB",style=label.style_label_left,color=color.new(color.black,25),textcolor=pbColor5,size=size.tiny,tooltip="?뚮┝/?섎룎由?援ъ“ 諛섏쓳 ?꾨낫. ?ъ긽???ы븯??諛?泥닿껐 ?뺤젙 ?좏샇 ?꾨떂")
+    label pbTag5 = label.new(bar_index+10,pbPrice5,"PB",style=label.style_label_left,color=color.new(color.black,25),textcolor=pbColor5,size=size.tiny,tooltip="눌림/되돌림 구조 반응 후보. 재상승/재하락 및 체결 확정 신호 아님")
     array.push(pbLines5,pbLine5)
     array.push(pbLabels5,pbTag5)
     pbLast5 := bar_index
@@ -2064,7 +2064,7 @@ if barstate.islastconfirmedhistory
                 linefill.set_color(drawParFill,showChannelFill ? color.new(color.rgb(24,152,141),92) : color.new(color.rgb(24,152,141),100))
         if showChannelCaption
             if na(drawParCaption)
-                drawParCaption := label.new(bar_index+channelExtend,upperEnd,"?됲뻾 梨꾨꼸",style=label.style_label_left,color=color.new(color.black,75),textcolor=color.aqua,size=size.tiny)
+                drawParCaption := label.new(bar_index+channelExtend,upperEnd,"평행 채널",style=label.style_label_left,color=color.new(color.black,75),textcolor=color.aqua,size=size.tiny)
             else
                 label.set_xy(drawParCaption,bar_index+channelExtend,upperEnd)
         else if not na(drawParCaption)
@@ -2090,7 +2090,7 @@ if barstate.islastconfirmedhistory
 var array<label> eventLabels = array.new_label()
 var array<line> eventLines = array.new_line()
 if barstate.isconfirmed and showWhyEvents and (tradeLong or tradeShort)
-    string whyText = (tradeLong ? "LONG" : "SHORT") + " ?⑸쪟" + str.tostring(lastSignalGrade) + " " + f_gradeName(lastSignalGrade) + " " + lastSignalStyle + " " + str.tostring(lastSignalScore) + "/100"
+    string whyText = (tradeLong ? "LONG" : "SHORT") + " 합류" + str.tostring(lastSignalGrade) + " " + f_gradeName(lastSignalGrade) + " " + lastSignalStyle + " " + str.tostring(lastSignalScore) + "/100"
     label auditLbl = label.new(bar_index,close,whyText,style=tradeLong ? label.style_label_up : label.style_label_down,color=color.new(color.black,10),textcolor=tradeLong ? color.lime : color.red,size=size.tiny)
     array.push(eventLabels,auditLbl)
     if array.size(eventLabels) > 35
@@ -2128,7 +2128,7 @@ if (justFilledLong or justFilledShort) and not na(lastActualEntry)
     eLine := line.new(bar_index, lastActualEntry, bar_index + 12, lastActualEntry, color = color.rgb(222, 174, 62), width = 2, style = line.style_dashed)
     slLine := line.new(bar_index, lastSL, bar_index + 12, lastSL, color = color.rgb(237, 70, 83), width = 2, style = line.style_dashed)
     tpLine := line.new(bar_index, lastTP, bar_index + 12, lastTP, color = color.rgb(38, 200, 126), width = 2, style = line.style_dashed)
-    eLabel := label.new(bar_index + 13, lastActualEntry, "E紐⑥쓽泥닿껐 " + str.tostring(lastActualEntry, format.mintick), style = label.style_label_left, color = color.black, textcolor = color.rgb(222, 174, 62), size = size.tiny)
+    eLabel := label.new(bar_index + 13, lastActualEntry, "E모의체결 " + str.tostring(lastActualEntry, format.mintick), style = label.style_label_left, color = color.black, textcolor = color.rgb(222, 174, 62), size = size.tiny)
     slLabel := label.new(bar_index + 13, lastSL, "SL " + str.tostring(lastSL, format.mintick), style = label.style_label_left, color = color.black, textcolor = color.rgb(237, 70, 83), size = size.tiny)
     tpLabel := label.new(bar_index + 13, lastTP, "TP " + str.tostring(lastTP, format.mintick), style = label.style_label_left, color = color.black, textcolor = color.rgb(38, 200, 126), size = size.tiny)
 
@@ -2171,10 +2171,10 @@ plotshape(showSweeps and barstate.isconfirmed and bearSweep, title = "Confirmed 
 plotshape(showCandles and freshLong, title = "Pending LONG (not entry)", style = shape.circle, location = location.belowbar, color = color.lime, size = size.tiny)
 plotshape(showCandles and freshShort, title = "Pending SHORT (not entry)", style = shape.circle, location = location.abovebar, color = color.red, size = size.tiny)
 plotshape(showCandles and canceled, title = "Candidate failed / expired", style = shape.xcross, location = location.abovebar, color = color.gray, size = size.tiny)
-plotshape(showCandles and tradeLong, title = "LONG confirmation / order sent (NOT FILLED)", style = shape.triangleup, location = location.belowbar, color = color.green, text = "濡깊솗??, textcolor = color.white, size = size.tiny)
-plotshape(showCandles and tradeShort, title = "SHORT confirmation / order sent (NOT FILLED)", style = shape.triangledown, location = location.abovebar, color = color.red, text = "?륂솗??, textcolor = color.white, size = size.tiny)
-plotshape(justFilledLong, title = "Simulated LONG fill detected", style = shape.labelup, location = location.belowbar, color = color.lime, text = "濡깆쭊??, textcolor = color.black, size = size.tiny)
-plotshape(justFilledShort, title = "Simulated SHORT fill detected", style = shape.labeldown, location = location.abovebar, color = color.red, text = "?륁쭊??, textcolor = color.white, size = size.tiny)
+plotshape(showCandles and tradeLong, title = "LONG confirmation / order sent (NOT FILLED)", style = shape.triangleup, location = location.belowbar, color = color.green, text = "롱확인", textcolor = color.white, size = size.tiny)
+plotshape(showCandles and tradeShort, title = "SHORT confirmation / order sent (NOT FILLED)", style = shape.triangledown, location = location.abovebar, color = color.red, text = "숏확인", textcolor = color.white, size = size.tiny)
+plotshape(justFilledLong, title = "Simulated LONG fill detected", style = shape.labelup, location = location.belowbar, color = color.lime, text = "롱진입", textcolor = color.black, size = size.tiny)
+plotshape(justFilledShort, title = "Simulated SHORT fill detected", style = shape.labeldown, location = location.abovebar, color = color.red, text = "숏진입", textcolor = color.white, size = size.tiny)
 
 // HUD: choose visible grades for nearby active zones independently of entry.
 int panelSupTier = 0
@@ -2222,28 +2222,28 @@ var table dashboard = table.new(position.top_right,2,9,border_width=1,bgcolor=co
 if barstate.islastconfirmedhistory
     table.clear(dashboard,0,0,1,8)
     if showPanel
-        string htfStatus = h1up and h2up ? "?곸듅 ?곗꽭" : h1dn and h2dn ? "?섎씫 ?곗꽭" : "?곸쐞 異⑸룎"
+        string htfStatus = h1up and h2up ? "상승 우세" : h1dn and h2dn ? "하락 우세" : "상위 충돌"
         string decision = bxDecisionText
-        string reason = bxPhase==3 ? bxPlanReason : bxPhase==4?bxPlanReason:bxPhase==1?"2遊?留덇컧 ?湲?:bxPhase==2?"?ъ떆???湲?:"吏꾩엯 洹쇨굅 誘몄땐議?
-        color dc = decision=="LONG 寃???color.lime:decision=="SHORT 寃???color.red:color.silver
+        string reason = bxPhase==3 ? bxPlanReason : bxPhase==4?bxPlanReason:bxPhase==1?"2봉 마감 대기":bxPhase==2?"재시험 대기":"진입 근거 미충족"
+        color dc = decision=="LONG 검토"?color.lime:decision=="SHORT 검토"?color.red:color.silver
         table.cell(dashboard,0,0,"FUSION FUTURES V4",text_color=color.rgb(224,177,68),text_size=size.tiny,bgcolor=color.new(color.black,0))
         table.cell(dashboard,1,0,"PAPER ONLY",text_color=color.orange,text_size=size.tiny,bgcolor=color.new(color.black,0))
-        f_confluenceRow(dashboard,1,"?쒖옣 / ?곸쐞",(showBandMode?bandModeV4:"諛대뱶 OFF")+" 쨌 "+htfStatus,bandModeColorV4)
-        f_confluenceRow(dashboard,2,"?뚰뙆쨌?덉갑",bxStageText,bxEventColor)
-        f_confluenceRow(dashboard,3,"留ㅻℓ 寃??,decision,dc)
-        f_confluenceRow(dashboard,4,"李멸퀬 E",bxPhase==3?f_confluencePrice(bxPlanEntry):"--",color.rgb(226,182,72))
-        f_confluenceRow(dashboard,5,"李멸퀬 SL",bxPhase==3?f_confluencePrice(bxPlanStop):"--",color.rgb(234,93,108))
-        f_confluenceRow(dashboard,6,"李멸퀬 TP",bxPhase==3?f_confluencePrice(bxPlanTarget):"--",color.rgb(36,202,134))
-        f_confluenceRow(dashboard,7,"Zone ?⑸쪟",bxEvidenceTier>0?str.tostring(bxEvidenceTier)+"?④퀎":"--",color.rgb(220,173,66))
-        f_confluenceRow(dashboard,8,"李⑤떒/?湲?,reason,color.orange)
+        f_confluenceRow(dashboard,1,"시장 / 상위",(showBandMode?bandModeV4:"밴드 OFF")+" · "+htfStatus,bandModeColorV4)
+        f_confluenceRow(dashboard,2,"돌파·안착",bxStageText,bxEventColor)
+        f_confluenceRow(dashboard,3,"매매 검토",decision,dc)
+        f_confluenceRow(dashboard,4,"참고 E",bxPhase==3?f_confluencePrice(bxPlanEntry):"--",color.rgb(226,182,72))
+        f_confluenceRow(dashboard,5,"참고 SL",bxPhase==3?f_confluencePrice(bxPlanStop):"--",color.rgb(234,93,108))
+        f_confluenceRow(dashboard,6,"참고 TP",bxPhase==3?f_confluencePrice(bxPlanTarget):"--",color.rgb(36,202,134))
+        f_confluenceRow(dashboard,7,"Zone 합류",bxEvidenceTier>0?str.tostring(bxEvidenceTier)+"단계":"--",color.rgb(220,173,66))
+        f_confluenceRow(dashboard,8,"차단/대기",reason,color.orange)
 
 // Compact table of confirmed MTF closes. Higher timeframes use previous CLOSED
 // candle only, lower timeframes correctly require a chart timeframe switch.
 var table closeTable = table.new(position.bottom_right, 3, 12, border_width = 1, bgcolor = color.new(color.black, 14))
 if barstate.islastconfirmedhistory and showMtfCloseTable
     table.cell(closeTable, 0, 0, "TF", text_color=color.aqua, bgcolor=color.new(color.black,0),text_size=size.tiny)
-    table.cell(closeTable, 1, 0, "留덇컧/?덉갑 ?먯젙", text_color=color.aqua, bgcolor=color.new(color.black,0),text_size=size.tiny)
-    table.cell(closeTable, 2, 0, "?먯젙 湲곗???, text_color=color.aqua, bgcolor=color.new(color.black,0),text_size=size.tiny)
+    table.cell(closeTable, 1, 0, "마감/안착 판정", text_color=color.aqua, bgcolor=color.new(color.black,0),text_size=size.tiny)
+    table.cell(closeTable, 2, 0, "판정 기준선", text_color=color.aqua, bgcolor=color.new(color.black,0),text_size=size.tiny)
     array<string> tfNames = array.from("1m","3m","5m","15m","30m","1H","4H","1D","1W","1M")
     array<int> tfStates = array.from(st1,st3,st5,st15,st30,st60,st240,stD,stW,stM)
     array<float> tfLevels = array.from(lv1,lv3,lv5,lv15,lv30,lv60,lv240,lvD,lvW,lvM)
@@ -2254,8 +2254,8 @@ if barstate.islastconfirmedhistory and showMtfCloseTable
         table.cell(closeTable, 0, ti+1, array.get(tfNames,ti), text_color=color.white,text_size=size.tiny)
         table.cell(closeTable, 1, ti+1, f_mtfStateText(tState), text_color=tc,text_size=size.tiny)
         table.cell(closeTable, 2, ti+1, na(tPrice) ? "--" : str.tostring(tPrice,format.mintick), text_color=color.silver,text_size=size.tiny)
-    table.cell(closeTable, 0, 11, "二쇱쓽", text_color=color.orange,text_size=size.tiny)
-    table.cell(closeTable, 1, 11, "?뺤젙遊?湲곗? / ?뺣쪧 ?꾨떂", text_color=color.orange,text_size=size.tiny)
+    table.cell(closeTable, 0, 11, "주의", text_color=color.orange,text_size=size.tiny)
+    table.cell(closeTable, 1, 11, "확정봉 기준 / 확률 아님", text_color=color.orange,text_size=size.tiny)
     table.cell(closeTable, 2, 11, "",text_size=size.tiny)
 else if barstate.islastconfirmedhistory
     table.clear(closeTable,0,0,2,11)
@@ -2317,7 +2317,7 @@ else if barstate.islastconfirmedhistory
 // ============================================================================
 
 // ============================================================================
-// V1.1.0 TARGET/MTF ADDENDUM ??IMPLEMENTED VS NOT IMPLEMENTED
+// V1.1.0 TARGET/MTF ADDENDUM — IMPLEMENTED VS NOT IMPLEMENTED
 // ============================================================================
 // INCLUDED: conditional 3-level obstacle targets (up & down), route summary,
 // chart target overlays, 1m/3m/5m/15m/30m/1H/4H/1D/1W/1M closed-bar MTF
@@ -2345,7 +2345,7 @@ else if barstate.islastconfirmedhistory
 
 // 2PACK instructions: add FUSION_01_BPACK_VOL_ORIGINAL.txt first,
 // then THIS file in a separate TradingView Pine Editor script.
-// In THIS strategy inputs choose B??/ 珥앸웾, B??/ 留ㅼ닔, enable advanced volume.
+// In THIS strategy inputs choose B팩 / 총량, B팩 / 매수, enable advanced volume.
 // Gate is based on volume estimate only (not live market order-flow).
 
 // FUSION CONFLUENCE V2 HONESTY NOTE:
@@ -2353,7 +2353,7 @@ else if barstate.islastconfirmedhistory
 // - This module performs ONE risk/grade decision with representative unique families.
 // - Pine compilation & backtesting inside TradingView are NOT verified here.
 // - No live orders, raw trades/orderbook, future-probability estimates or AI training.
-// - Default advanced volume input stays OFF until actual [B??珥앸웾/留ㅼ닔] are chosen.
+// - Default advanced volume input stays OFF until actual [B팩 총량/매수] are chosen.
 
 // V5 display-layer changes: cards/wordy labels OFF; SMC price lines, latest confirmed HTF pivots, last daily close, OHLCV high-RVOL reaction zones, pullback lines.
 // TradingView compilation and replay have NOT been executed in this environment; these are rule-based observations, NOT predictive odds.
