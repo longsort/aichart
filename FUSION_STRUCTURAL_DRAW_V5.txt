@@ -1407,7 +1407,7 @@ if barstate.islastconfirmedhistory
         bool displayIt = showTargetRoute and routeN < showTargetCount and not na(price)
         if displayIt
             color routeColor = upside ? color.rgb(65,198,148) : color.rgb(237,116,126)
-            string tag = (upside ? "T" : "D") + str.tostring(routeN+1) + " " + str.tostring(price,format.mintick)
+            string tag = (upside ? "상" : "하") + str.tostring(routeN+1) + " " + str.tostring(price,format.mintick)
             if na(targetLine)
                 targetLine := line.new(bar_index,price,bar_index+22,price,xloc=xloc.bar_index,color=color.new(routeColor,20),width=1,style=line.style_dashed)
                 array.set(routeLines,r,targetLine)
@@ -1707,7 +1707,7 @@ if barstate.islastconfirmedhistory and showZones
                 box.set_bgcolor(b, fill)
             string sideName = requestedSide == 1 ? "지지" : "저항"
             string flipText = array.get(zFlip, bestId) == 1 ? " | 재시험 대기" : ""
-            string zoneText = (requestedSide == 1 ? "S" : "R") + str.tostring(liveGrade) + " " + str.tostring(middle, format.mintick)
+            string zoneText = (requestedSide == 1 ? "지지" : "저항") + str.tostring(liveGrade) + " " + str.tostring(middle, format.mintick)
             string zoneTip = sideName + " " + str.tostring(middle, format.mintick) + " | " + f_confluenceName(liveGrade) + " | " + f_confluenceExplain(visibleProof)
             if na(lb)
                 lb := label.new(bar_index + 13, middle, zoneText, xloc = xloc.bar_index, style = label.style_label_left, color = color.new(color.black, 0), textcolor = border, size = size.tiny, tooltip = zoneTip)
@@ -1779,8 +1779,8 @@ if barstate.islastconfirmedhistory
     array<float> highList5 = array.from(h3_5,h5_5,h15_5,h60_5,h240_5,hD_5,hW_5,hM_5,pdh,pwh)
     array<float> lowList5 = array.from(l3_5,l5_5,l15_5,l60_5,l240_5,lD_5,lW_5,lM_5,pdl,pwl)
     array<float> atrList5 = array.from(a3_5,a5_5,a15_5,a60_5,a240_5,aD_5,aW_5,aM_5,aD_5,aW_5)
-    array<string> names5 = array.from("3m","5m","15m","1H","4H","D","W","M","PDH","PWH")
-    array<string> namesLow5 = array.from("3m","5m","15m","1H","4H","D","W","M","PDL","PWL")
+    array<string> names5 = array.from("3m","5m","15m","1H","4H","일","주","M","전일고","전주고")
+    array<string> namesLow5 = array.from("3m","5m","15m","1H","4H","일","주","M","전일저","전주저")
     array<int> secs5 = array.from(180,300,900,3600,14400,86400,604800,2592000,86400,604800)
     array<int> chosenSup5 = array.new_int()
     array<int> chosenRes5 = array.new_int()
@@ -1832,7 +1832,7 @@ if barstate.islastconfirmedhistory
                 box.set_rightbottom(bx5,bar_index+18,zBot5)
                 box.set_border_color(bx5,color.new(col5,20))
                 box.set_bgcolor(bx5,color.new(col5,90))
-            string tiny5 = (isSup5?array.get(namesLow5,bestIdx5):array.get(names5,bestIdx5))+(isSup5?" S":" R")
+            string tiny5 = (isSup5?array.get(namesLow5,bestIdx5):array.get(names5,bestIdx5))+(isSup5?" 지지":" 저항")
             string tool5 = "확정 상위봉 스윙(최근 피벗), " + tiny5 + " / " + str.tostring(bestPx5,format.mintick) + " | 피벗 확정 4봉 지연, 매매 신호 아님"
             if showMtfZoneNames5
                 if na(lb5)
@@ -1882,7 +1882,7 @@ if barstate.islastconfirmedhistory
             line.set_xy1(dCloseLine5,math.max(0,bar_index-5),dCl5)
             line.set_xy2(dCloseLine5,bar_index+14,dCl5)
             line.set_color(dCloseLine5,dColor5)
-        string short5 = (d09Seoul5?"D09":"D")+(dStrongBull5?"↑":dStrongBear5?"↓":"=")
+        string short5 = (d09Seoul5?"일09":"일")+(dStrongBull5?"↑":dStrongBear5?"↓":"=")
         string full5 = "최근 확정 일봉 " + (d09Seoul5?"09:00 KST 마감":"마감") + " | " + dQuality5 + " | 종가 "+str.tostring(dCl5,format.mintick)+" | OHLCV, 미래 방향 예측 아님"
         if na(dCloseChip5)
             dCloseChip5 := label.new(bar_index+15,dCl5,short5,style=label.style_label_left,color=color.new(color.black,10),textcolor=dColor5,size=size.tiny,tooltip=full5)
@@ -1968,7 +1968,7 @@ if barstate.islastconfirmedhistory
             box.set_border_color(breakStateBox5,stateColor5)
             box.set_bgcolor(breakStateBox5,color.new(stateColor5,90))
             box.set_border_width(breakStateBox5,bxPhase==3?2:1)
-        string stateChip5 = bxPhase==1?"BR?":bxPhase==2?"HOLD":bxPhase==3?"RT✓":"FAIL"
+        string stateChip5 = bxPhase==1?"돌파?":bxPhase==2?"안착":bxPhase==3?"재시험":"실패"
         if na(breakStateLabel5)
             breakStateLabel5 := label.new(bar_index+channelExtend+1,(bxHi+bxLo)*0.5,stateChip5,style=label.style_label_left,color=color.new(color.black,12),textcolor=stateColor5,size=size.tiny)
         else
@@ -1997,7 +1997,7 @@ if barstate.isconfirmed and (pbLong5 or pbShort5) and (na(pbLast5) or bar_index-
     float pbPrice5 = pbLong5?supportTop:resistBot
     color pbColor5 = pbLong5?color.rgb(39,202,140):color.rgb(218,76,94)
     line pbLine5 = line.new(bar_index,pbPrice5,bar_index+9,pbPrice5,color=pbColor5,style=line.style_dotted,width=2)
-    label pbTag5 = label.new(bar_index+10,pbPrice5,"PB",style=label.style_label_left,color=color.new(color.black,25),textcolor=pbColor5,size=size.tiny,tooltip="눌림/되돌림 구조 반응 후보. 재상승/재하락 및 체결 확정 신호 아님")
+    label pbTag5 = label.new(bar_index+10,pbPrice5,"눌림",style=label.style_label_left,color=color.new(color.black,25),textcolor=pbColor5,size=size.tiny,tooltip="눌림/되돌림 구조 반응 후보. 재상승/재하락 및 체결 확정 신호 아님")
     array.push(pbLines5,pbLine5)
     array.push(pbLabels5,pbTag5)
     pbLast5 := bar_index
