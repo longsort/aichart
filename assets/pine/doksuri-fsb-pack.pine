@@ -1,8 +1,8 @@
 //@version=6
-// BPAK_BODY_REV=fill-2 · bodyClear=false · bodyPlain=true · overlay 몸통 불투명(점수색)
+// BPAK_BODY_REV=clear-1 · body 롱=초록1·숏=빨강1·중립=회색1 · 점수/구조/국면 몸통무지개 OFF · 꼬리층 유지
 // 전체화면 B 한 지표. 폭락 1세·2세 + 선진거래량 + 기관밴드1·2 + 상위시간 스윕 + 캔들색.
 // 거래량 막대와 거래량 글자는 아래 칸. 가격 그림만 캔들 위. 혼조 막대는 노랑.
-// 캔들 V2. 몸통은 0~100 추진력 점수. 꼬리는 거절이 강할 때만 분홍·청록. 약한 꼬리는 몸통색. 점수는 승률이 아님. 주문 아님.
+// 캔들 V3. 몸통은 방향만(롱/숏). 꼬리는 거절이 강할 때만 분홍·청록. 점수는 승률이 아님. 주문 아님.
 indicator("독수리 B 폭락·거래량·밴드", "B팩", overlay = false, max_boxes_count = 120, max_labels_count = 200, max_lines_count = 500, max_polylines_count = 100, max_bars_back = 2000)
 max_bars_back(close, 2000)
 max_bars_back(open, 2000)
@@ -100,13 +100,13 @@ cWickUp = input.color(#22C55E, "꼬리 매수", group = grpC)
 cWickDn = input.color(#EF4444, "꼬리 매도", group = grpC)
 cWickWait = input.color(#FACC15, "꼬리 대기", group = grpC)
 grpBody = "캔들 몸통"
-bodyClear = input.bool(false, "무색 · 꼬리만", group = grpBody, tooltip = "몸통을 비웁니다. 아래에서 켠 색만 남습니다. 주문 아님.")
-bodyPlain = input.bool(true, "일반색상", group = grpBody, tooltip = "점수·구조 몸통색. 무색보다 우선하고, 아래 개별 색이 다시 덮습니다.")
-bodyRise = input.bool(false, "강상승", group = grpBody, tooltip = "상승 점수가 강한 봉. 주문 아님.")
-bodyStart = input.bool(true, "상승시작", group = grpBody, tooltip = "강상승이 시작된 뒤 그 저가를 종가가 지키는 봉. 주문 아님.")
-bodyEnd = input.bool(true, "상승종료", group = grpBody, tooltip = "시작 저가를 종가가 깨는 봉. 주문 아님.")
-bodyFallEnd = input.bool(false, "하락종료", group = grpBody, tooltip = "강하락 고가를 종가가 넘는 봉. 주문 아님.")
-bodyWick = input.bool(true, "꼬리색상", group = grpBody, tooltip = "끄면 꼬리는 몸통색만 따릅니다.")
+bodyClear = input.bool(false, "무색 · 꼬리만", group = grpBody, tooltip = "몸통을 비웁니다. 꼬리층만 남습니다. 주문 아님.")
+bodyPlain = input.bool(true, "일반색상", group = grpBody, tooltip = "몸통=롱 초록·숏 빨강·도지 회색만. 점수·구조·국면으로 몸통을 여러 색 칠하지 않습니다.")
+bodyRise = input.bool(false, "강상승", group = grpBody, tooltip = "표시용 플래그. 몸통색은 바꾸지 않습니다. 주문 아님.")
+bodyStart = input.bool(true, "상승시작", group = grpBody, tooltip = "표시용 플래그. 몸통색은 바꾸지 않습니다. 주문 아님.")
+bodyEnd = input.bool(true, "상승종료", group = grpBody, tooltip = "표시용 플래그. 몸통색은 바꾸지 않습니다. 주문 아님.")
+bodyFallEnd = input.bool(false, "하락종료", group = grpBody, tooltip = "표시용 플래그. 몸통색은 바꾸지 않습니다. 주문 아님.")
+bodyWick = input.bool(true, "꼬리색상", group = grpBody, tooltip = "켜면 강한 꼬리층(분홍·청록) 유지. 기본 꼬리는 중립색.")
 cBodyRise = input.color(#16A34A, "강상승색", group = grpBody)
 cBodyStart = input.color(#16A34A, "상승시작색", group = grpBody)
 cBodyEnd = input.color(#F97316, "상승종료색", group = grpBody)
@@ -138,16 +138,17 @@ failBars = input.int(3, "돌파 실패 확인 제한 봉 수", minval=1, maxval=
 
 // --- 03. COLORS -------------------------------------------------------------
 gColor = "03. 색상"
-cUp = input.color(#00E676, "강한 상승", group=gColor)
-cUpSoft = input.color(#86EFAC, "약한 상승", group=gColor)
-cUpRisk = input.color(#F4D03F, "상방 함정 후보", group=gColor)
-cDown = input.color(#FF405D, "강한 하락", group=gColor)
-cDownSoft = input.color(#C97B90, "약한 하락", group=gColor)
-cDownRisk = input.color(#FF942E, "하방 함정 후보", group=gColor)
-cRange = input.color(#8295B5, "횡보/양방향 거절", group=gColor)
+cUp = input.color(#22C55E, "롱 몸통", group=gColor)
+cUpSoft = input.color(#86EFAC, "약한 상승(표)", group=gColor)
+cUpRisk = input.color(#F4D03F, "상방 함정(표)", group=gColor)
+cDown = input.color(#EF4444, "숏 몸통", group=gColor)
+cDownSoft = input.color(#C97B90, "약한 하락(표)", group=gColor)
+cDownRisk = input.color(#FF942E, "하방 함정(표)", group=gColor)
+cRange = input.color(#94A3B8, "중립 몸통", group=gColor)
 cUpper = input.color(#FF4FD8, "강한 위꼬리", group=gColor)
 cLower = input.color(#3DF0FF, "강한 아래꼬리", group=gColor)
 cGold = input.color(#EAB308, "동조 테두리", group=gColor)
+cWickCalm = input.color(#94A3B8, "기본 꼬리(중립)", group=gColor)
 f_kind() =>
     string per = timeframe.period
     per == "W" or per == "M" ? "WM" : per == "D" ? "D" : per == "240" ? "4H" : per == "60" ? "1H" : per == "15" ? "15" : per == "5" ? "5" : per == "3" ? "3" : per == "1" ? "1m" : "LTF"
@@ -1190,9 +1191,10 @@ bool trapUp = sweepUp or (upperScore >= 70 and upNear > 0)
 bool trapDn = sweepDown or (lowerScore >= 70 and dnNear > 0)
 bool strongUp = upScore >= 70 and upScore >= dnScore + 18 and not sideways and not trapUp and not bothReject
 bool strongDn = dnScore >= 70 and dnScore >= upScore + 18 and not sideways and not trapDn and not bothReject
-color bodyColor = bothReject or sideways ? cRange : trapUp and not trapDn ? cUpRisk : trapDn and not trapUp ? cDownRisk : trapUp and trapDn ? cRange : strongUp ? cUp : strongDn ? cDown : bullish ? cUpSoft : bearish ? cDownSoft : cRange
+// 몸통: 롱/숏/도지 3색만. 점수·횡보·함정·강약으로 몸통 무지개 금지(판정·라벨 로직은 유지).
+color bodyColor = bullish ? cUp : bearish ? cDown : cRange
 bool paintReady = barstate.isconfirmed or preview
-color paintedBody = paintReady ? bodyColor : color.new(cRange, 55)
+color paintedBody = paintReady ? bodyColor : color.new(bodyColor, 55)
 bool useOverlay = mode == "4층 캔들"
 bool useNative = mode == "기본 봉 색상"
 
@@ -1389,26 +1391,16 @@ bool startHit = bodyStart and paintK == 1
 bool endHit = bodyEnd and paintK == 5
 bool riseHit = bodyRise and strongUp
 bool fallEndHit = bodyFallEnd and paintK == 7
-color chipBody = useNative or useOverlay ? paintedBody : showStruct ? structBody : showCandle ? phaseBody : na
+// phaseBody/structBody·시작/종료 플래그는 로직 유지. 몸통 칠은 방향 3색만(무지개 덮어쓰기 없음).
+color chipBody = useNative or useOverlay or showStruct or showCandle ? paintedBody : na
 color chipEdge = borderCol
-if bodyClear and not bodyPlain and not startHit and not endHit and not riseHit and not fallEndHit
+if bodyClear and not bodyPlain
     chipBody := color.new(color.white, 100)
     chipEdge := color.new(color.white, 100)
-if riseHit
-    chipBody := cBodyRise
-    chipEdge := cBodyRise
-if fallEndHit
-    chipBody := cBodyFallEnd
-    chipEdge := cBodyFallEnd
-if startHit
-    chipBody := cBodyStart
-    chipEdge := cBodyStart
-if endHit
-    chipBody := cBodyEnd
-    chipEdge := cBodyEnd
-color wickBaseCol = bodyWick ? paintedBody : chipBody
-bool hollowNow = bodyClear and not bodyPlain and not startHit and not endHit and not riseHit and not fallEndHit
-// 4층: 예전엔 barcolor 완전투명 → 차트 네이티브만 테두리로 남음. 채울 때는 점수색 그대로.
+bool bodyModeKeep = startHit or endHit or riseHit or fallEndHit or not na(phaseBody) or not na(structBody) or not na(cBodyRise) or not na(cBodyStart) or not na(cBodyEnd) or not na(cBodyFallEnd)
+color wickBaseCol = bodyWick ? cWickCalm : chipBody
+bool hollowNow = bodyClear and not bodyPlain and not bodyModeKeep and bodyModeKeep
+// 4층: 몸통=롱초록/숏빨강. 강한 꼬리는 아래 plotcandle 층 유지.
 barcolor(useOverlay and hollowNow ? color.new(paintedBody, 100) : chipBody, title="기본봉 색")
 plotcandle(useOverlay ? open : na, useOverlay ? high : na, useOverlay ? low : na, useOverlay ? close : na,
      title="몸통과 기본꼬리", color=chipBody, wickcolor=wickBaseCol, bordercolor=chipEdge, force_overlay=true)
