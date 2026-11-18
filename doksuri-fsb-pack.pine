@@ -1398,8 +1398,8 @@ if bodyClear and not bodyPlain
     chipBody := color.new(color.white, 100)
     chipEdge := color.new(color.white, 100)
 bool bodyModeKeep = startHit or endHit or riseHit or fallEndHit or not na(phaseBody) or not na(structBody) or not na(cBodyRise) or not na(cBodyStart) or not na(cBodyEnd) or not na(cBodyFallEnd)
-color wickBaseCol = bodyWick ? cWickCalm : chipBody
-bool hollowNow = bodyClear and not bodyPlain and not bodyModeKeep and bodyModeKeep
+color wickBaseCol = bodyWick ? cWickCalm : (bodyModeKeep ? chipBody : chipBody)
+bool hollowNow = bodyClear and not bodyPlain
 // 4층: 몸통=롱초록/숏빨강. 강한 꼬리는 아래 plotcandle 층 유지.
 barcolor(useOverlay and hollowNow ? color.new(paintedBody, 100) : chipBody, title="기본봉 색")
 plotcandle(useOverlay ? open : na, useOverlay ? high : na, useOverlay ? low : na, useOverlay ? close : na,
