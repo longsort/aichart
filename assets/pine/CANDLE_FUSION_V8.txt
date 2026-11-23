@@ -1,7 +1,7 @@
 //@version=6
 // ============================================================================
-// CANDLE FUSION V8.2.0 | SMC+CANDLE | CHART-FIRST / LAST BAR + 10 BARS LABELS | TRENDLINE EXACTLY PRESERVED
-// V8.2: wait markers OFF; showDetail default OFF; GMMA fast vs HTF MTF-blue cross (장기롱/숏)
+// CANDLE FUSION V8.2.1 | SMC+CANDLE | CHART-FIRST / LAST BAR + 10 BARS LABELS | TRENDLINE EXACTLY PRESERVED
+// V8.2.1: rename reserved `by` → crossY (TV CE). V8.2: wait OFF; GMMA↔MTF-blue 장기롱/숏
 // NEW causal research engine. Functions reconstructed and cross-linked from:
 // BPACK MTF BLUE, BPACK trend/fill/iFVG, BPACK V4 sweep/SMC/Zone,
 // BPACK futures risk, FIB GANN reaction, 4STO, causal NWE, VP Dynamic S/R,
@@ -16,7 +16,7 @@
 // OHLCV proxy volume is NEVER genuine tick delta, CVD, tape or order-book data.
 // Confirmed-bar signals only; HTF data offset [1] + lookahead_on; PAPER ONLY.
 // ============================================================================
-indicator("캔들 합성승급 V8.2 | SMC·캔들가격작도", "캔들SMC V8", overlay=true,
+indicator("캔들 합성승급 V8.2.1 | SMC·캔들가격작도", "캔들SMC V8", overlay=true,
      max_bars_back=2500, max_lines_count=500, max_labels_count=500,
      max_boxes_count=500, dynamic_requests=true)
 
@@ -2294,9 +2294,9 @@ if barstate.isconfirmed and showEventText and (enterL or enterS)
 var array<label> blueCrossNotes=array.new_label()
 if barstate.isconfirmed and showBlueCross and (blueCrossL or blueCrossS) and blueCrossName!=""
     bool isUp=blueCrossL
-    float by=isUp?low-atr*0.22:high+atr*0.22
+    float crossY=isUp?low-atr*0.22:high+atr*0.22
     string btxt=(isUp?"장기롱 · 파랑상향 · ":"장기숏 · 파랑하향 · ")+blueCrossName
-    label bln=label.new(bar_index,by,btxt,xloc=xloc.bar_index,yloc=yloc.price,
+    label bln=label.new(bar_index,crossY,btxt,xloc=xloc.bar_index,yloc=yloc.price,
          style=isUp?label.style_label_up:label.style_label_down,
          color=color.new(color.black,28),textcolor=BLUE,size=size.tiny)
     array.push(blueCrossNotes,bln)
