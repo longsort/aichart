@@ -1,0 +1,2367 @@
+//@version=6
+// ============================================================================
+// CANDLE FUSION V8.2.0 | SMC+CANDLE | CHART-FIRST / LAST BAR + 10 BARS LABELS | TRENDLINE EXACTLY PRESERVED
+// V8.2: wait markers OFF; showDetail default OFF; GMMA fast vs HTF MTF-blue cross (장기롱/숏)
+// NEW causal research engine. Functions reconstructed and cross-linked from:
+// BPACK MTF BLUE, BPACK trend/fill/iFVG, BPACK V4 sweep/SMC/Zone,
+// BPACK futures risk, FIB GANN reaction, 4STO, causal NWE, VP Dynamic S/R,
+// RSI+BB and Deviation trend. NOT a verbatim concatenation of source scripts.
+// Some supplied 9,365-line sources have missing Pine operators / quotes; this
+// script re-implements their methods rather than pretending they can compile.
+// LuxAlgo NWE / Smart Money Concepts: original works CC BY-NC-SA 4.0.
+// Functional ideas (internal/swing BOS·CHoCH, EQH/EQL, OB, FVG, premium/discount)
+// independently re-implemented; LuxAlgo source is NOT copied.
+// Zeiierman dynamic profile, BigBeluga Deviation: ideas credited, not source copied.
+// Bitcoin Power Law [Polaris] MPL 2.0 is NOT a candle-entry input.
+// OHLCV proxy volume is NEVER genuine tick delta, CVD, tape or order-book data.
+// Confirmed-bar signals only; HTF data offset [1] + lookahead_on; PAPER ONLY.
+// ============================================================================
+indicator("캔들 합성승급 V8.2 | SMC·캔들가격작도", "캔들SMC V8", overlay=true,
+     max_bars_back=2500, max_lines_count=500, max_labels_count=500,
+     max_boxes_count=500, dynamic_requests=true)
+
+// 00 — Display / execution guard
+G0="00 · 화면 / 신호"
+profile=input.string("정밀", "진입 민감도", options=["균형","정밀","엄격"],group=G0)
+showS=input.bool(true,"확정 진입 / 실패 / 스윕 (대기 표시 없음)",group=G0)
+showMap=input.bool(true,"실제 가격 Zone 지지·저항 2+2",group=G0)
+showBlue=input.bool(true,"MTF 합성 파랑선 (확정 HTF)",group=G0)
+showBlueCross=input.bool(true,"줄선↔MTF파랑 교차 · 장기롱/숏",group=G0)
+showTrend=input.bool(true,"확정 피벗 기점 추세선 + 추세띠",group=G0)
+showVwap=input.bool(false,"세션 VWAP",group=G0)
+showGMMA=input.bool(false,"GMMA 빠른·느린 평균",group=G0)
+showBands=input.bool(false,"NWE·BB200 밴드 상세",group=G0)
+showVPBars=input.bool(false,"VP 가격대별 추정 매수·매도 히스토그램",group=G0)
+showPower=input.bool(false,"BTC 일봉 이상 Power Law 장기선 (진입 분리)",group=G0)
+showPlan=input.bool(true,"PAPER E / SL / TP",group=G0)
+showStats=input.bool(true,"과거 같은 환경 1·3·5봉 방향 통계",group=G0)
+showCandles=input.bool(false,"캔들 색상 압력 강조 (기본 OFF)",group=G0)
+showDetail=input.bool(false,"현재 상태 한 줄 (기본 끔 · 대기문구 없음)",group=G0)
+showEventText=input.bool(false,"과거 확정진입 장문 라벨 (기본 끔 · 대기 제외)",group=G0)
+lineAhead=input.int(13,"가격 라벨 거리(봉)",minval=5,maxval=35,group=G0)
+visibleAtr=input.float(18,"현재가 주변 표시 범위(ATR)",minval=3,maxval=65,group=G0)
+showNextSR=input.bool(true,"S2 / R2 보조선 표시",group=G0)
+
+G1="01 · 캔들 · 구조 해석"
+pivL=input.int(4,"피벗 왼쪽",minval=2,maxval=12,group=G1)
+pivR=input.int(4,"피벗 확정 오른쪽",minval=2,maxval=12,group=G1)
+minWick=input.float(0.40,"의미 있는 꼬리 비율",minval=0.25,maxval=0.7,step=0.02,group=G1)
+minBody=input.float(0.53,"추진 몸통 비율",minval=0.3,maxval=0.9,step=0.01,group=G1)
+life=input.int(3,"후속 확인 유효봉",minval=1,maxval=5,group=G1)
+mergeTol=input.float(0.32,"서로 다른 증거 합류 거리(ATR)",minval=0.12,maxval=0.7,step=0.02,group=G1)
+
+G2="02 · VP / 가격 분포"
+vpLen=input.int(180,"VP 과거 봉수",minval=80,maxval=420,group=G2)
+vpRows=input.int(28,"VP 가격칸",minval=16,maxval=44,group=G2)
+vpRefresh=input.int(8,"VP 봉마감 재계산 주기",minval=2,maxval=20,group=G2)
+minVol=input.float(0.90,"후보 최소 RVOL",minval=0.6,maxval=2.0,step=0.05,group=G2)
+confirmVol=input.float(1.05,"확정 최소 RVOL",minval=0.65,maxval=2.5,step=0.05,group=G2)
+
+G3="03 · 추세 / NWE / 4STO"
+nweH=input.float(8,"NWE 가우시안 폭",minval=3,maxval=24,group=G3)
+nweMult=input.float(3,"NWE 편차배수",minval=1,maxval=6,group=G3)
+strongHtf=input.bool(true,"상위 확정봉 반대 진입 제한",group=G3)
+chartBlue=input.bool(true,"상위봉 합성 파랑선 터치 기억",group=G3)
+
+G4="04 · PAPER 위험 심사"
+account=input.float(1000,"가상 계좌 USDT",minval=10,step=50,group=G4)
+marginPercent=input.float(5,"계좌 중 사용 증거금 %",minval=0.5,maxval=20,step=0.5,group=G4)
+leverage=input.int(20,"가상 레버리지",minval=1,maxval=50,group=G4)
+costPercent=input.float(0.18,"왕복 수수료+미끄러짐 %",minval=0.01,maxval=1.0,step=0.01,group=G4)
+fundingPercent=input.float(0.00,"불리한 펀딩비 추정 %",minval=0.0,maxval=0.50,step=0.01,group=G4)
+minNetDollar=input.float(0.0,"최소 예상 순수익 USDT (0=해제)",minval=0,maxval=100,step=0.5,group=G4)
+maxLossPercent=input.float(1.0,"계좌 손실 한도 %",minval=0.1,maxval=5,step=0.1,group=G4)
+minRR=input.float(1.20,"비용 후 최소 손익비",minval=0.5,maxval=4,step=0.05,group=G4)
+rewardR=input.float(2.0,"목표 R",minval=1,maxval=5,step=0.1,group=G4)
+cooldown=input.int(5,"확정 후 재진입 제한(봉)",minval=1,maxval=50,group=G4)
+
+G5="05 · 지표다운 실제 작도"
+showActiveZones=input.bool(true,"OB / FVG / 역FVG 발생시점 Zone 유지",group=G5)
+showZoneBadges=input.bool(true,"가장 가까운 활성 Zone 출처 한글 표시",group=G5)
+showMtfAll=input.bool(true,"5분~연봉 확정 MTF 파랑선 개별 표시",group=G5)
+showBlueRibbon=input.bool(false,"대표 MTF 파랑곡선도 추가",group=G5)
+maxMtfLines=input.int(2,"현재가 주변 MTF 선 최대 개수",minval=1,maxval=8,group=G5)
+showStructureEvents=input.bool(true,"BOS / CHoCH 구조마크 (SMC)",group=G5)
+
+GSMC="07B · SMC 구조 (독립재현)"
+smcKeepHistory=input.bool(true,"구조선 역사 유지",group=GSMC)
+showInternalSmc=input.bool(true,"내부구조 점선",group=GSMC)
+showSwingSmc=input.bool(true,"스윙구조 실선",group=GSMC)
+smcSwingLen=input.int(50,"스윙 피벗 길이",minval=10,maxval=120,group=GSMC)
+smcShowAll=input.string("전체","표시 종류",options=["전체","BOS만","CHoCH만"],group=GSMC)
+showEqhl=input.bool(true,"EQH / EQL",group=GSMC)
+eqhlBars=input.int(3,"EQ 확인봉",minval=1,maxval=12,group=GSMC)
+eqhlThr=input.float(0.1,"EQ 민감(ATR)",minval=0.0,maxval=0.5,step=0.05,group=GSMC)
+showStrongWeak=input.bool(true,"Strong / Weak High·Low",group=GSMC)
+showPremDisc=input.bool(false,"Premium·Discount·Equilibrium",group=GSMC)
+smcColorCandles=input.bool(false,"SMC 내부추세 캔들색",group=GSMC)
+cSmcBull=input.color(#089981,"상승구조색",group=GSMC)
+cSmcBear=input.color(#F23645,"하락구조색",group=GSMC)
+showCandleNames=input.bool(false,"과거 캔들패턴 장문 라벨 (기본 끔)",group=G5)
+showTrendBand=input.bool(true,"피벗 추세띠 / 수렴 채우기",group=G5)
+zoneMaxAge=input.int(160,"Zone 최장 활성기간 (봉)",minval=30,maxval=400,group=G5)
+zoneMaxObjects=input.int(32,"분석용 Zone 저장 개수 (화면 개수 별도)",minval=8,maxval=38,group=G5)
+zonePerSide=input.int(2,"표시 Zone 방향별 최대 개수",minval=1,maxval=2,group=G5)
+zoneDisplayAtr=input.float(65.0,"표시 Zone 현재가 최대 거리 ATR",minval=2,maxval=120,step=0.5,group=G5)
+zoneDupAtr=input.float(0.48,"같은 방향 중복 Zone 간격 ATR",minval=0.10,maxval=1.5,step=0.02,group=G5)
+showZoneHistory=input.bool(false,"종료된 역사 Zone도 표시 (기본 꺼짐)",group=G5)
+showReactions=input.bool(true,"지지확인·저항확인 한글 상태",group=G5)
+showPrevLevels=input.bool(true,"전일·전주·전월 고저를 분석에 포함",group=G5)
+showCandleStats=input.bool(true,"큰 캔들·거래량 후 1·3·5봉 실측 통계",group=G5)
+
+// 06 · ChartArt RSI(6)+BB(200,2): v2 strategy idea reimplemented as v6 INDICATOR.
+// 50 is an RSI MIDLINE, not the classic 30/70 overbought/oversold thresholds.
+// Never copy strategy.entry/cancel to this indicator. Only this indicator's
+// following-bar PAPER state machine may confirm an entry after all hard gates.
+G6="06 · RSI6 + BB200 · 합성 복귀 엔진"
+caEnable=input.bool(true,"RSI·BB 복귀 엔진 활성화",group=G6)
+caMode=input.string("동시+2봉", "RSI·밴드 복귀 연결 방식", options=["원본 동시봉","동시+2봉"],group=G6,
+     tooltip="원본 동시봉: RSI50 교차+BB밴드 재진입을 같은 마감봉에 요구. 동시+2봉: 두 교차의 순서가 2봉 이내이고 마지막 교차가 현재 봉에서 발생할 때만 인정")
+caSync=input.int(2,"이격 교차 허용 봉",minval=1,maxval=3,group=G6)
+caMinRvol=input.float(0.9,"RSI·BB 후보 최소 RVOL",minval=0.6,maxval=2.5,step=0.05,group=G6)
+caBlockTriple=input.bool(true,"AVWAP·일목·GMMA 3중 역방향일 때 RSI·BB 후보 차단",group=G6)
+caShowBB=input.bool(false,"RSI·BB 전용 200밴드 표시",group=G6)
+caShowAVWAP=input.bool(false,"확정 피벗 AVWAP 표시",group=G6)
+caRegLen=input.int(100,"회귀채널 탐색 봉",minval=40,maxval=220,group=G6)
+caRegWidth=input.float(2.0,"회귀잔차 표준편차 배수",minval=1,maxval=4,step=0.25,group=G6)
+caShowReg=input.bool(false,"회귀채널 표시 (기존 피벗 추세선과 별개)",group=G6)
+caVolumeFast=input.int(5,"거래량 가속 단기 평균",minval=2,maxval=12,group=G6)
+caVolumeAccel=input.float(0.95,"RSI·BB 재진입 거래량 가속 최소",minval=0.70,maxval=2.50,step=0.05,group=G6)
+
+// 07 — V7: zone results, actual upper/lower label, and futures preview.
+G7="07 · V7 지지저항 실측 / 선물 가격지도"
+v7ZoneLabels=input.bool(true,"선택 Zone 전부 상단·하단·생성일 가격 라벨",group=G7)
+v7ShowStats=input.bool(true,"과거 Zone 반등/붕괴 통계",group=G7)
+v7MinSamples=input.int(30,"통계 표시 최소 독립 표본",minval=10,maxval=100,group=G7)
+v7EventBars=input.int(5,"Zone 접촉 결과 관측 봉",minval=3,maxval=12,group=G7)
+v7BreakPad=input.float(0.25,"붕괴·돌파 판정 여유 ATR",minval=0.05,maxval=0.7,step=0.05,group=G7)
+v7BounceATR=input.float(1.0,"반등·거부 목표 ATR",minval=0.3,maxval=3.0,step=0.1,group=G7)
+v7ShowPreview=input.bool(true,"대기 중 예상 E·SL·TP 선과 위험수치",group=G7)
+v7ShowPath=input.bool(false,"원거리 S/R 경로 점선 추가 (기본 끔 · 화면 과밀 방지)",group=G7)
+v7MicroGate=input.bool(true,"1분/5분 선물진입 시 상위 확정봉 2개 방향 확인",group=G7)
+v7LabelOffset=input.int(10,"차트 가격·상태 라벨 위치 (마지막봉 + 봉)",minval=8,maxval=25,group=G7)
+v7DailyStop=input.float(3.0,"분봉 PAPER 일일 순손실 상한 (계좌 %)",minval=0.5,maxval=10,step=0.5,group=G7)
+// Estimates never claim a Bitget liquidation price or calibrated forecast.
+
+// Utility functions
+f_clip(float x,float a,float b)=>math.max(a,math.min(b,x))
+f_absproximity(float p,float q,float a)=>not na(p) and not na(q) and a>0?f_clip(1.0-math.abs(p-q)/a,0.0,1.0):0.0
+f_positive(float v)=>not na(v) and v>0
+f_k(int n,int s)=>ta.sma(ta.stoch(close,high,low,n),s)
+f_family(array<float> pp,array<int> ss,array<int> ff,array<float> ww,array<string> names,float p,int side,int fam,float weight,string labelText)=>
+    if not na(p) and p>0
+        array.push(pp,p)
+        array.push(ss,side)
+        array.push(ff,fam)
+        array.push(ww,weight)
+        array.push(names,labelText)
+    0
+
+// 01 — 20 candlestick patterns combined with normalized candle anatomy.
+float atr=ta.atr(14)
+float rangeC=math.max(high-low,syminfo.mintick)
+float bodyC=math.abs(close-open)
+float bodyQ=bodyC/rangeC
+float upWick=(high-math.max(open,close))/rangeC
+float dnWick=(math.min(open,close)-low)/rangeC
+float closeQ=(close-low)/rangeC
+bool bull=close>open
+bool bear=close<open
+bool strongBull=bull and bodyQ>=minBody and closeQ>=0.72
+bool strongBear=bear and bodyQ>=minBody and closeQ<=0.28
+float prevBody=math.abs(close[1]-open[1])
+float prevQ=prevBody/math.max(high[1]-low[1],syminfo.mintick)
+bool doji=bodyQ<=0.12
+bool engulfL=bull and close[1]<open[1] and open<=close[1] and close>=open[1]
+bool engulfS=bear and close[1]>open[1] and open>=close[1] and close<=open[1]
+bool hammer=dnWick>=minWick and dnWick>=2.0*bodyQ and upWick<=0.20
+bool shooting=upWick>=minWick and upWick>=2.0*bodyQ and dnWick<=0.20
+bool morning=close[2]<open[2] and (open[2]-close[2])>atr[2]*0.40 and prevQ<=0.35 and bull and close>(open[2]+close[2])/2
+bool evening=close[2]>open[2] and (close[2]-open[2])>atr[2]*0.40 and prevQ<=0.35 and bear and close<(open[2]+close[2])/2
+bool invHammer=bull and upWick>=0.44 and dnWick<=0.17 and bodyQ<0.36
+bool hanging=bear and dnWick>=0.44 and upWick<=0.17 and bodyQ<0.36
+bool piercing=close[1]<open[1] and bull and open<=close[1] and close>(open[1]+close[1])/2 and close<open[1]
+bool darkCloud=close[1]>open[1] and bear and open>=close[1] and close<(open[1]+close[1])/2 and close>open[1]
+bool tweezL=close[1]<open[1] and bull and math.abs(low-low[1])<=atr*0.10
+bool tweezS=close[1]>open[1] and bear and math.abs(high-high[1])<=atr*0.10
+bool haramiL=close[1]<open[1] and bull and open>=close[1] and close<=open[1] and bodyC<prevBody*0.8
+bool haramiS=close[1]>open[1] and bear and open<=close[1] and close>=open[1] and bodyC<prevBody*0.8
+bool soldiers=strongBull and close[1]>open[1] and close[2]>open[2] and close>close[1] and close[1]>close[2]
+bool crows=strongBear and close[1]<open[1] and close[2]<open[2] and close<close[1] and close[1]<close[2]
+bool dragonfly=doji and dnWick>=0.65 and upWick<=0.12
+bool gravestone=doji and upWick>=0.65 and dnWick<=0.12
+float threeLo=ta.lowest(low[1],3)
+float threeHi=ta.highest(high[1],3)
+bool riseThree=close[4]>open[4] and close[3]<open[3] and close[2]<open[2] and close[1]<open[1] and threeLo>low[4] and bull and close>high[4]
+bool fallThree=close[4]<open[4] and close[3]>open[3] and close[2]>open[2] and close[1]>open[1] and threeHi<high[4] and bear and close<low[4]
+int patL=engulfL?4:morning?4:riseThree?4:soldiers?3:hammer?3:piercing?3:dragonfly?3:tweezL?2:haramiL?2:invHammer?1:0
+int patS=engulfS?4:evening?4:fallThree?4:crows?3:shooting?3:darkCloud?3:gravestone?3:tweezS?2:haramiS?2:hanging?1:0
+string patternL=engulfL?"상승장악":morning?"샛별":riseThree?"상승삼법":soldiers?"적삼병":hammer?"망치":piercing?"관통":dragonfly?"잠자리":tweezL?"집게바닥":haramiL?"상승잉태":invHammer?"역망치":"아래꼬리"
+string patternS=engulfS?"하락장악":evening?"석별":fallThree?"하락삼법":crows?"흑삼병":shooting?"유성":darkCloud?"흑운":gravestone?"묘비":tweezS?"집게천장":haramiS?"하락잉태":hanging?"교수형":"위꼬리"
+
+// 02 — VOLUME vs candle progress: pressure, exhaustion and absorption.
+float volumeMA=ta.sma(volume,20)
+float rvol=volumeMA>0?volume/volumeMA:na
+float upFrac=f_clip(closeQ,0.0,1.0)
+float buyProxy=nz(volume,0)*upFrac
+float sellProxy=nz(volume,0)*(1-upFrac)
+float deltaProxy=buyProxy-sellProxy // rough candle-position proxy, NOT true CVD
+float cvdProxy=math.sum(deltaProxy,34)
+float velocity=(close-nz(close[1],close))/math.max(atr,syminfo.mintick)
+float pressure=f_clip(0.42*(2*closeQ-1)+0.35*(bull?bodyQ:bear?-bodyQ:0)+0.23*(dnWick-upWick),-1,1)
+float effort=math.max(nz(rvol,1),0.1)
+float efficiency=math.abs(velocity)/effort
+bool absorbL=not na(rvol) and rvol>=1.35 and (dnWick>=0.31 or closeQ>0.68) and efficiency<0.38 and closeQ>0.55
+bool absorbS=not na(rvol) and rvol>=1.35 and (upWick>=0.31 or closeQ<0.32) and efficiency<0.38 and closeQ<0.45
+bool progressFailureL=not na(rvol) and rvol>1.35 and low<low[1] and close>low[1] and closeQ>0.60
+bool progressFailureS=not na(rvol) and rvol>1.35 and high>high[1] and close<high[1] and closeQ<0.40
+bool volumeL=not na(rvol) and rvol>=minVol and (pressure>0.12 or absorbL or progressFailureL)
+bool volumeS=not na(rvol) and rvol>=minVol and (pressure< -0.12 or absorbS or progressFailureS)
+
+// 03 — 4STO + confirmed divergence, treated as ONE timing family.
+float k1=f_k(9,3)
+float k2=f_k(14,3)
+float k3=f_k(40,4)
+float k4=f_k(60,10)
+bool crossKUp=ta.crossover(k1,k2)
+bool crossKDown=ta.crossunder(k1,k2)
+bool allLow=k1<20 and k2<20 and k3<20 and k4<20
+bool allHigh=k1>80 and k2>80 and k3>80 and k4>80
+int sinceLow=ta.barssince(allLow)
+int sinceHigh=ta.barssince(allHigh)
+bool stoL=(crossKUp or (k1>k2 and k1>k1[1] and k2>=k2[1])) and k3>=k3[1] and k4>=k4[1]
+bool stoS=(crossKDown or (k1<k2 and k1<k1[1] and k2<=k2[1])) and k3<=k3[1] and k4<=k4[1]
+
+// 04 — GMMA, RSI+BB, causal NWE, Deviation and regime. Envelopes only ONE family.
+float fastG=(ta.ema(close,3)+ta.ema(close,5)+ta.ema(close,8)+ta.ema(close,10)+ta.ema(close,12)+ta.ema(close,15))/6.0
+float slowG=(ta.ema(close,30)+ta.ema(close,35)+ta.ema(close,40)+ta.ema(close,45)+ta.ema(close,50)+ta.ema(close,60))/6.0
+float ema20=ta.ema(close,20)
+float ema50=ta.ema(close,50)
+float trendMean=ta.sma(close,50)
+float trendATR=ta.atr(200)
+float trendSlope=(trendMean-trendMean[5])/math.max(atr,syminfo.mintick)
+bool trendUp=fastG>slowG and ema20>ema50 and trendSlope>0.08
+bool trendDown=fastG<slowG and ema20<ema50 and trendSlope< -0.08
+bool rangeMode=math.abs(trendSlope)<0.28 and math.abs(fastG-slowG)<atr*0.85
+float vwap=ta.vwap(hlc3)
+float bbBasis=ta.sma(close,200)
+float bbWidth=2*ta.stdev(close,200)
+float bbUpper=bbBasis+bbWidth
+float bbLower=bbBasis-bbWidth
+float rsi6=ta.rsi(close,6)
+bool rsiAbove=ta.crossover(rsi6,50)
+bool rsiBelow=ta.crossunder(rsi6,50)
+bool bbRecoverL=ta.crossover(close,bbLower)
+bool bbRecoverS=ta.crossunder(close,bbUpper)
+bool rsiBbL=rsiAbove and bbRecoverL
+bool rsiBbS=rsiBelow and bbRecoverS
+// The 2015 ChartArt v1.1 condition (the two crosses must occur on ONE bar).
+// Global cross calculations above execute on every bar, avoiding conditional
+// ta.crossover historical-state warnings.
+bool caClassicL=rsiBbL
+bool caClassicS=rsiBbS
+int caRsiUpAge=ta.barssince(rsiAbove)
+int caRsiDnAge=ta.barssince(rsiBelow)
+int caBandUpAge=ta.barssince(bbRecoverL)
+int caBandDnAge=ta.barssince(bbRecoverS)
+int caOutsideLAge=ta.barssince(close<bbLower)
+int caOutsideSAge=ta.barssince(close>bbUpper)
+// Two-stage variant means SAME SETUP in either 2-bar order, not two independent
+// signals or a cross that occurred long before the candidate candle.
+bool caSyncL=not na(caRsiUpAge) and not na(caBandUpAge) and
+     caRsiUpAge<=caSync and caBandUpAge<=caSync and (rsiAbove or bbRecoverL) and
+     rsi6>50 and close>bbLower and not na(caOutsideLAge) and caOutsideLAge<=12
+bool caSyncS=not na(caRsiDnAge) and not na(caBandDnAge) and
+     caRsiDnAge<=caSync and caBandDnAge<=caSync and (rsiBelow or bbRecoverS) and
+     rsi6<50 and close<bbUpper and not na(caOutsideSAge) and caOutsideSAge<=12
+bool caPulseL=caEnable and barstate.isconfirmed and not na(bbBasis) and
+     (caMode=="원본 동시봉"?caClassicL:(caClassicL or caSyncL))
+bool caPulseS=caEnable and barstate.isconfirmed and not na(bbBasis) and
+     (caMode=="원본 동시봉"?caClassicS:(caClassicS or caSyncS))
+// Independent context from the user's FUSION VISUAL V3: regression residual
+// and volume acceleration; never duplicate a vote for multiple BB/NWE envelopes.
+float caRegMid=ta.linreg(close,caRegLen,0)
+float caRegPrior=ta.linreg(close,caRegLen,1)
+float caRegSlope=caRegMid-caRegPrior
+float caRegResidual=ta.stdev(close-caRegMid,caRegLen)
+float caRegUpper=caRegMid+caRegWidth*caRegResidual
+float caRegLower=caRegMid-caRegWidth*caRegResidual
+float caVolFast=ta.sma(volume,caVolumeFast)
+float caVolSlow=ta.sma(volume,20)
+float caVolAcceleration=caVolSlow>0?caVolFast/caVolSlow:na
+bool caVolumeOK=not na(rvol) and rvol>=caMinRvol and not na(caVolAcceleration) and
+     (caVolAcceleration>=caVolumeAccel or rvol>=1.5)
+// R13 source: Ichimoku reference is the historically shifted existing cloud,
+// not a projected future cloud. It is a context VETO, not a spurious BUY/SELL.
+float caTenkan=(ta.highest(high,9)+ta.lowest(low,9))*0.5
+float caKijun=(ta.highest(high,26)+ta.lowest(low,26))*0.5
+float caSpanA=(caTenkan+caKijun)*0.5
+float caSpanB=(ta.highest(high,52)+ta.lowest(low,52))*0.5
+float caCloudTop=math.max(caSpanA[26],caSpanB[26])
+float caCloudBottom=math.min(caSpanA[26],caSpanB[26])
+int taps=int(math.ceil(nweH*8))
+var array<float> gaussW=array.new_float()
+if barstate.isfirst
+    for i=0 to taps-1
+        array.push(gaussW,math.exp(-0.5*math.pow(i/nweH,2)))
+float nweN=0.0
+float nweD=0.0
+if bar_index>=taps-1
+    for i=0 to taps-1
+        float w=array.get(gaussW,i)
+        nweN+=close[i]*w
+        nweD+=w
+float nweMid=nweD>0?nweN/nweD:na
+float nweMAE=ta.sma(math.abs(close-nweMid),499)*nweMult
+float nweUpper=nweMid+nweMAE
+float nweLower=nweMid-nweMAE
+float devPlus2=trendMean+2*trendATR
+float devMinus2=trendMean-2*trendATR
+bool envelopeL=(not na(nweLower) and low<=nweLower+atr*0.18) or (not na(bbLower) and low<=bbLower+atr*0.18) or (not na(devMinus2) and low<=devMinus2+atr*0.18)
+bool envelopeS=(not na(nweUpper) and high>=nweUpper-atr*0.18) or (not na(bbUpper) and high>=bbUpper-atr*0.18) or (not na(devPlus2) and high>=devPlus2-atr*0.18)
+
+// 05 — REAL rolling OHLCV overlap VP, profile node strength, buy/sell PROXY.
+// Persist one snapshot between refreshes. A VP price node helps validate pivots.
+float profileHigh=ta.highest(high,vpLen)
+float profileLow=ta.lowest(low,vpLen)
+var float vpBottom=na
+var float vpStep=na
+var float vpPOC=na
+var float vpVAH=na
+var float vpVAL=na
+var float vpPeak2=na
+var string vpKind="자료부족"
+var array<float> vpVolumes=array.new_float()
+var array<float> vpBuys=array.new_float()
+if barstate.isconfirmed and bar_index>vpLen and (na(vpPOC) or bar_index%vpRefresh==0) and profileHigh>profileLow
+    vpBottom:=profileLow
+    vpStep:=(profileHigh-profileLow)/vpRows
+    array<float> hist=array.new_float(vpRows,0.0)
+    array<float> histBuy=array.new_float(vpRows,0.0)
+    for i=0 to vpLen-1
+        float cRange=math.max(high[i]-low[i],syminfo.mintick)
+        float v=math.max(nz(volume[i],0.0),0.0)
+        float assumedBuy=f_clip((close[i]-low[i])/cRange,0.0,1.0)
+        int first=int(f_clip(math.floor((low[i]-vpBottom)/vpStep),0,vpRows-1))
+        int last=int(f_clip(math.floor((high[i]-vpBottom)/vpStep),0,vpRows-1))
+        for j=first to last
+            float binBottom=vpBottom+j*vpStep
+            float overlap=math.max(0.0,math.min(high[i],binBottom+vpStep)-math.max(low[i],binBottom))
+            float share=high[i]>low[i]?overlap/cRange:(j==first?1.0:0.0)
+            float vv=v*share
+            array.set(hist,j,array.get(hist,j)+vv)
+            array.set(histBuy,j,array.get(histBuy,j)+vv*assumedBuy)
+    // Smoothed shape classification; raw profile kept for levels.
+    array<float> smooth=array.copy(hist)
+    for j=1 to vpRows-2
+        array.set(smooth,j,(array.get(hist,j-1)+2*array.get(hist,j)+array.get(hist,j+1))/4)
+    int pocRow=array.indexof(smooth,array.max(smooth))
+    int lowRow=pocRow
+    int highRow=pocRow
+    float cum=array.get(hist,pocRow)
+    float all=array.sum(hist)
+    while cum<all*0.70 and (lowRow>0 or highRow<vpRows-1)
+        float above=highRow<vpRows-1?array.get(hist,highRow+1):-1.0
+        float below=lowRow>0?array.get(hist,lowRow-1):-1.0
+        if above>=below
+            highRow+=1
+            cum+=above
+        else
+            lowRow-=1
+            cum+=below
+    vpPOC:=vpBottom+(pocRow+0.5)*vpStep
+    vpVAH:=vpBottom+(highRow+1)*vpStep
+    vpVAL:=vpBottom+lowRow*vpStep
+    int p2=-1
+    float p2Vol=0.0
+    for j=1 to vpRows-2
+        float vj=array.get(smooth,j)
+        if math.abs(j-pocRow)>=math.max(3,int(vpRows*0.2)) and vj>=array.get(smooth,j-1) and vj>=array.get(smooth,j+1) and vj>p2Vol
+            p2:=j
+            p2Vol:=vj
+    bool doubleZone=false
+    if p2>=0 and p2Vol>=array.get(smooth,pocRow)*0.6
+        float valley=array.get(smooth,pocRow)
+        for j=math.min(p2,pocRow) to math.max(p2,pocRow)
+            valley:=math.min(valley,array.get(smooth,j))
+        doubleZone:=valley<=p2Vol*0.7
+    vpPeak2:=p2>=0?vpBottom+(p2+0.5)*vpStep:na
+    vpKind:=doubleZone?"Double Zone":pocRow>=vpRows*0.66?"P-shape":pocRow<=vpRows*0.34?"B-shape":"D-shape"
+    vpVolumes:=hist
+    vpBuys:=histBuy
+
+// Query actual profile density of a price in this snapshot. NO moving a pivot.
+f_node(float p,bool support,float bottom,float step,array<float> volBins,array<float> buyBins)=>
+    float density=0.0
+    float directional=0.5
+    if not na(p) and not na(bottom) and not na(step) and step>0 and array.size(volBins)>0 and p>=bottom and p<=bottom+step*array.size(volBins)
+        int ix=int(f_clip(math.floor((p-bottom)/step),0,array.size(volBins)-1))
+        float local=array.get(volBins,ix)
+        float vmax=math.max(array.max(volBins),0.000001)
+        density:=f_clip(local/vmax,0.0,1.0)
+        directional:=local>0?f_clip(array.get(buyBins,ix)/local,0,1):0.5
+    [density, support?directional:1.0-directional]
+
+// 06 — Static pivot memory + history of role flips; strength from profile+wick+RVOL.
+float pHigh=ta.pivothigh(high,pivL,pivR)
+float pLow=ta.pivotlow(low,pivL,pivR)
+var float swingHigh=na
+var float swingLow=na
+var float oldSwingHigh=na
+var float oldSwingLow=na
+var int swingHighAt=na
+var int swingLowAt=na
+var int oldHighAt=na
+var int oldLowAt=na
+var float oldKHigh=na
+var float oldKLow=na
+var int marketDir=0
+var array<float> levelP=array.new_float()
+var array<int> levelSide=array.new_int()
+var array<float> levelQuality=array.new_float()
+var array<int> levelBorn=array.new_int()
+var array<int> levelFlips=array.new_int()
+var array<int> levelReactions=array.new_int()
+var array<int> levelLastTouch=array.new_int()
+
+f_storeLevel(float px,int side,float quality,array<float> vals,array<int> dirs,array<float> scores,array<int> born,array<int> flipped,array<int> reactions,array<int> lastTouch,float tolerance)=>
+    int found=-1
+    if array.size(vals)>0
+        for i=0 to array.size(vals)-1
+            if array.get(dirs,i)==side and math.abs(array.get(vals,i)-px)<tolerance
+                found:=i
+                break
+    if found>=0
+        array.set(scores,found,math.max(quality,array.get(scores,found)))
+    else
+        array.push(vals,px)
+        array.push(dirs,side)
+        array.push(scores,quality)
+        array.push(born,bar_index-pivR)
+        array.push(flipped,0)
+        array.push(reactions,0)
+        array.push(lastTouch,bar_index)
+    if array.size(vals)>22
+        array.shift(vals)
+        array.shift(dirs)
+        array.shift(scores)
+        array.shift(born)
+        array.shift(flipped)
+        array.shift(reactions)
+        array.shift(lastTouch)
+    0
+bool divL=false
+bool divS=false
+if barstate.isconfirmed
+    if not na(pLow)
+        divL:=not na(swingLow) and pLow<swingLow-atr[pivR]*0.03 and not na(oldKLow) and k1[pivR]>oldKLow+2.5
+        oldSwingLow:=swingLow
+        oldLowAt:=swingLowAt
+        swingLow:=pLow
+        swingLowAt:=bar_index-pivR
+        oldKLow:=k1[pivR]
+        [density,dirShare]=f_node(pLow,true,vpBottom,vpStep,vpVolumes,vpBuys)
+        float levelScore=f_clip(100*(0.46*density+0.19*dirShare+0.18*f_clip(nz(rvol[pivR],1)/2,0,1)+0.17*f_clip(dnWick[pivR]/0.6,0,1)),0,100)
+        if density>=0.08 and levelScore>=28
+            f_storeLevel(pLow,1,levelScore,levelP,levelSide,levelQuality,levelBorn,levelFlips,levelReactions,levelLastTouch,atr*0.20)
+    if not na(pHigh)
+        divS:=not na(swingHigh) and pHigh>swingHigh+atr[pivR]*0.03 and not na(oldKHigh) and k1[pivR]<oldKHigh-2.5
+        oldSwingHigh:=swingHigh
+        oldHighAt:=swingHighAt
+        swingHigh:=pHigh
+        swingHighAt:=bar_index-pivR
+        oldKHigh:=k1[pivR]
+        [density,dirShare]=f_node(pHigh,false,vpBottom,vpStep,vpVolumes,vpBuys)
+        float levelScore=f_clip(100*(0.46*density+0.19*dirShare+0.18*f_clip(nz(rvol[pivR],1)/2,0,1)+0.17*f_clip(upWick[pivR]/0.6,0,1)),0,100)
+        if density>=0.08 and levelScore>=28
+            f_storeLevel(pHigh,-1,levelScore,levelP,levelSide,levelQuality,levelBorn,levelFlips,levelReactions,levelLastTouch,atr*0.20)
+    // One role flip, then retired on next contrary break; no endless levels.
+    if array.size(levelP)>0
+        for j=array.size(levelP)-1 to 0
+            float lp=array.get(levelP,j)
+            int side=array.get(levelSide,j)
+            int wasFlip=array.get(levelFlips,j)
+            bool broken=side==1?close<lp-atr*0.12:close>lp+atr*0.12
+            if broken and wasFlip==0
+                array.set(levelSide,j,-side)
+                array.set(levelFlips,j,1)
+            else if broken and wasFlip==1
+                array.remove(levelP,j)
+                array.remove(levelSide,j)
+                array.remove(levelQuality,j)
+                array.remove(levelBorn,j)
+                array.remove(levelFlips,j)
+                array.remove(levelReactions,j)
+                array.remove(levelLastTouch,j)
+    // A validated rebound increases strength without ever moving the price.
+    // Repeated weak touches weaken it; response counting is rate-limited.
+    if array.size(levelP)>0
+        for j=0 to array.size(levelP)-1
+            float lp=array.get(levelP,j)
+            int side=array.get(levelSide,j)
+            int lastAt=array.get(levelLastTouch,j)
+            bool touching=low<=lp+atr*0.12 and high>=lp-atr*0.12
+            if touching and bar_index-lastAt>=3
+                bool held=side==1?(close>lp+atr*0.12 and pressure>0.08):(close<lp-atr*0.12 and pressure< -0.08)
+                float before=array.get(levelQuality,j)
+                float upgraded=held?math.min(100.0,before+4.0+math.min(3.0,nz(rvol,0))):math.max(0.0,before-2.0)
+                array.set(levelQuality,j,upgraded)
+                array.set(levelLastTouch,j,bar_index)
+                if held
+                    array.set(levelReactions,j,array.get(levelReactions,j)+1)
+
+// R13 source: swing-anchored VWAP. A confirmed pivot starts the anchor here;
+// the pivot is NEVER retroactively stamped as a signal. The pivot-to-confirm
+// volume is included in the newly available anchor at confirmation.
+var float caAVNumerator=na
+var float caAVDenominator=na
+var int caAVAnchor=na
+if barstate.isconfirmed
+    if not na(pLow) or not na(pHigh)
+        float num=0.0
+        float den=0.0
+        for cai=0 to pivR
+            float v=nz(volume[cai],0.0)
+            num+=hlc3[cai]*v
+            den+=v
+        caAVNumerator:=num
+        caAVDenominator:=den
+        caAVAnchor:=bar_index
+    else if not na(caAVNumerator)
+        caAVNumerator+=hlc3*nz(volume,0.0)
+        caAVDenominator+=nz(volume,0.0)
+float caAVWAP=not na(caAVDenominator) and caAVDenominator>0?caAVNumerator/caAVDenominator:na
+bool caContextOppL=not na(caAVWAP) and not na(caCloudBottom) and
+     close<caAVWAP and close<caCloudBottom and fastG<slowG and caRegSlope<0
+bool caContextOppS=not na(caAVWAP) and not na(caCloudTop) and
+     close>caAVWAP and close>caCloudTop and fastG>slowG and caRegSlope>0
+bool caContextPassL=not caBlockTriple or not caContextOppL
+bool caContextPassS=not caBlockTriple or not caContextOppS
+
+// 07 — SMC structure (independent reimplementation of public SMC methods).
+// LuxAlgo Smart Money Concepts is CC BY-NC-SA 4.0 — ideas only, source NOT copied.
+// Break = close cross of last uncrossed swing; CHoCH when prior bias opposite; else BOS.
+type SmcPv
+    float lvl
+    float prev
+    bool crossed
+    int t0
+    int i0
+var SmcPv shPv=SmcPv.new(na,na,false,time,bar_index)
+var SmcPv slPv=SmcPv.new(na,na,false,time,bar_index)
+var SmcPv ihPv=SmcPv.new(na,na,false,time,bar_index)
+var SmcPv ilPv=SmcPv.new(na,na,false,time,bar_index)
+var int smcSwingBias=0
+var int smcIntBias=0
+var float smcTrailHi=na
+var float smcTrailLo=na
+var int smcTrailHiT=na
+var int smcTrailLoT=na
+var array<line> smcLines=array.new_line()
+var array<label> smcLabels=array.new_label()
+var line smcEqHLine=na
+var line smcEqLLine=na
+var label smcEqHLb=na
+var label smcEqLLb=na
+var line smcSWHi=na
+var line smcSWLo=na
+var label smcSWHiLb=na
+var label smcSWLoLb=na
+var box smcPrem=na
+var box smcDisc=na
+var box smcEqz=na
+var label smcPremLb=na
+var label smcDiscLb=na
+var label smcEqzLb=na
+
+f_smcLeg(int size) =>
+    var int leg=0
+    bool newH=high[size]>ta.highest(high,size)
+    bool newL=low[size]<ta.lowest(low,size)
+    if newH
+        leg:=0
+    else if newL
+        leg:=1
+    leg
+
+f_smcPushDraw(line ln,label lb) =>
+    array.push(smcLines,ln)
+    array.push(smcLabels,lb)
+    while array.size(smcLines)>180
+        line.delete(array.shift(smcLines))
+        label.delete(array.shift(smcLabels))
+    0
+
+f_smcDrawBreak(SmcPv pv,string tag,color col,string lstyle,string labStyle) =>
+    line ln=line.new(pv.i0,pv.lvl,bar_index,pv.lvl,xloc=xloc.bar_index,color=col,width=tag=="CHoCH" or tag=="iCHoCH"?2:1,style=lstyle=="dash"?line.style_dashed:line.style_solid)
+    label lb=label.new(int(math.round(0.5*(pv.i0+bar_index))),pv.lvl,tag,xloc=xloc.bar_index,yloc=yloc.price,style=labStyle,color=color(na),textcolor=col,size=size.tiny)
+    f_smcPushDraw(ln,lb)
+
+f_smcAllow(string tag) =>
+    bool isCh=tag=="CHoCH" or tag=="iCHoCH"
+    bool isBo=tag=="BOS" or tag=="iBOS"
+    smcShowAll=="전체" or (smcShowAll=="BOS만" and isBo) or (smcShowAll=="CHoCH만" and isCh)
+
+f_smcUpdatePivot(SmcPv pv,float price,int size) =>
+    pv.prev:=pv.lvl
+    pv.lvl:=price
+    pv.crossed:=false
+    pv.t0:=time[size]
+    pv.i0:=bar_index[size]
+    pv
+
+int swingLeg=f_smcLeg(smcSwingLen)
+int intLeg=f_smcLeg(5)
+bool swingNew=ta.change(swingLeg)!=0
+bool intNew=ta.change(intLeg)!=0
+if swingNew
+    if swingLeg==1
+        // bullish leg start = pivot low
+        slPv:=f_smcUpdatePivot(slPv,low[smcSwingLen],smcSwingLen)
+        if not na(slPv.lvl)
+            swingLow:=slPv.lvl
+            oldSwingLow:=slPv.prev
+            oldLowAt:=swingLowAt
+            swingLowAt:=slPv.i0
+            smcTrailLo:=slPv.lvl
+            smcTrailLoT:=slPv.t0
+    else
+        // bearish leg start = pivot high
+        shPv:=f_smcUpdatePivot(shPv,high[smcSwingLen],smcSwingLen)
+        if not na(shPv.lvl)
+            swingHigh:=shPv.lvl
+            oldSwingHigh:=shPv.prev
+            oldHighAt:=swingHighAt
+            swingHighAt:=shPv.i0
+            smcTrailHi:=shPv.lvl
+            smcTrailHiT:=shPv.t0
+if intNew
+    if intLeg==1
+        ilPv:=f_smcUpdatePivot(ilPv,low[5],5)
+    else
+        ihPv:=f_smcUpdatePivot(ihPv,high[5],5)
+
+bool eqHigh=false
+bool eqLow=false
+int eqLeg=f_smcLeg(eqhlBars)
+bool eqNew=ta.change(eqLeg)!=0
+var SmcPv eqH=SmcPv.new(na,na,false,time,bar_index)
+var SmcPv eqL=SmcPv.new(na,na,false,time,bar_index)
+if showEqhl and eqNew
+    if eqLeg==1
+        // pivot low → EQL check
+        float lx=low[eqhlBars]
+        if not na(eqL.lvl) and math.abs(eqL.lvl-lx)<=eqhlThr*atr
+            eqLow:=true
+            if not na(smcEqLLine)
+                line.delete(smcEqLLine)
+            if not na(smcEqLLb)
+                label.delete(smcEqLLb)
+            smcEqLLine:=line.new(eqL.i0,eqL.lvl,bar_index[eqhlBars],lx,xloc=xloc.bar_index,color=cSmcBull,style=line.style_dotted,width=1)
+            smcEqLLb:=label.new(int(math.round(0.5*(eqL.i0+bar_index[eqhlBars]))),lx,"EQL",xloc=xloc.bar_index,style=label.style_label_up,color=color(na),textcolor=cSmcBull,size=size.tiny)
+        eqL:=f_smcUpdatePivot(eqL,lx,eqhlBars)
+    else
+        float hx=high[eqhlBars]
+        if not na(eqH.lvl) and math.abs(eqH.lvl-hx)<=eqhlThr*atr
+            eqHigh:=true
+            if not na(smcEqHLine)
+                line.delete(smcEqHLine)
+            if not na(smcEqHLb)
+                label.delete(smcEqHLb)
+            smcEqHLine:=line.new(eqH.i0,eqH.lvl,bar_index[eqhlBars],hx,xloc=xloc.bar_index,color=cSmcBear,style=line.style_dotted,width=1)
+            smcEqHLb:=label.new(int(math.round(0.5*(eqH.i0+bar_index[eqhlBars]))),hx,"EQH",xloc=xloc.bar_index,style=label.style_label_down,color=color(na),textcolor=cSmcBear,size=size.tiny)
+        eqH:=f_smcUpdatePivot(eqH,hx,eqhlBars)
+
+bool bosL=false
+bool bosS=false
+bool chochL=false
+bool chochS=false
+bool iBosL=false
+bool iBosS=false
+bool iChochL=false
+bool iChochS=false
+bool bullWickDom=high-math.max(close,open)>math.min(close,open)-low
+bool bearWickDom=high-math.max(close,open)<math.min(close,open)-low
+// crossover/crossunder always evaluated (TV consistency; na→close so no false cross)
+bool xSh=ta.crossover(close,nz(shPv.lvl,close))
+bool xSl=ta.crossunder(close,nz(slPv.lvl,close))
+bool xIh=ta.crossover(close,nz(ihPv.lvl,close))
+bool xIl=ta.crossunder(close,nz(ilPv.lvl,close))
+
+if barstate.isconfirmed and not na(shPv.lvl) and xSh and not shPv.crossed
+    string tagUp=smcSwingBias==-1?"CHoCH":"BOS"
+    chochL:=tagUp=="CHoCH"
+    bosL:=tagUp=="BOS"
+    shPv.crossed:=true
+    smcSwingBias:=1
+    marketDir:=1
+    if showSwingSmc and showStructureEvents and f_smcAllow(tagUp)
+        f_smcDrawBreak(shPv,tagUp,cSmcBull,"solid",label.style_label_down)
+
+if barstate.isconfirmed and not na(slPv.lvl) and xSl and not slPv.crossed
+    string tagDn=smcSwingBias==1?"CHoCH":"BOS"
+    chochS:=tagDn=="CHoCH"
+    bosS:=tagDn=="BOS"
+    slPv.crossed:=true
+    smcSwingBias:=-1
+    marketDir:=-1
+    if showSwingSmc and showStructureEvents and f_smcAllow(tagDn)
+        f_smcDrawBreak(slPv,tagDn,cSmcBear,"solid",label.style_label_up)
+
+if barstate.isconfirmed and not na(ihPv.lvl) and xIh and not ihPv.crossed and (na(shPv.lvl) or ihPv.lvl!=shPv.lvl) and bullWickDom
+    string tagIUp=smcIntBias==-1?"CHoCH":"BOS"
+    iChochL:=tagIUp=="CHoCH"
+    iBosL:=tagIUp=="BOS"
+    ihPv.crossed:=true
+    smcIntBias:=1
+    if showInternalSmc and showStructureEvents and f_smcAllow(tagIUp)
+        f_smcDrawBreak(ihPv,"i"+tagIUp,cSmcBull,"dash",label.style_label_down)
+
+if barstate.isconfirmed and not na(ilPv.lvl) and xIl and not ilPv.crossed and (na(slPv.lvl) or ilPv.lvl!=slPv.lvl) and bearWickDom
+    string tagIDn=smcIntBias==1?"CHoCH":"BOS"
+    iChochS:=tagIDn=="CHoCH"
+    iBosS:=tagIDn=="BOS"
+    ilPv.crossed:=true
+    smcIntBias:=-1
+    if showInternalSmc and showStructureEvents and f_smcAllow(tagIDn)
+        f_smcDrawBreak(ilPv,"i"+tagIDn,cSmcBear,"dash",label.style_label_up)
+
+bosL:=bosL or iBosL
+bosS:=bosS or iBosS
+chochL:=chochL or iChochL
+chochS:=chochS or iChochS
+
+bool sweepL=barstate.isconfirmed and not na(swingLow) and low<swingLow-atr*0.04 and close>swingLow and (dnWick>=0.30 or engulfL)
+bool sweepS=barstate.isconfirmed and not na(swingHigh) and high>swingHigh+atr*0.04 and close<swingHigh and (upWick>=0.30 or engulfS)
+
+if not na(smcTrailHi)
+    smcTrailHi:=math.max(high,smcTrailHi)
+    smcTrailHiT:=smcTrailHi==high?time:smcTrailHiT
+else
+    smcTrailHi:=high
+    smcTrailHiT:=time
+if not na(smcTrailLo)
+    smcTrailLo:=math.min(low,smcTrailLo)
+    smcTrailLoT:=smcTrailLo==low?time:smcTrailLoT
+else
+    smcTrailLo:=low
+    smcTrailLoT:=time
+
+if barstate.islast
+    int rightSmc=bar_index+lineAhead
+    if showStrongWeak and not na(smcTrailHi) and not na(smcTrailLo)
+        if not na(smcSWHi)
+            line.delete(smcSWHi)
+        if not na(smcSWLo)
+            line.delete(smcSWLo)
+        if not na(smcSWHiLb)
+            label.delete(smcSWHiLb)
+        if not na(smcSWLoLb)
+            label.delete(smcSWLoLb)
+        smcSWHi:=line.new(bar_index-8,smcTrailHi,rightSmc,smcTrailHi,color=cSmcBear,width=1)
+        smcSWLo:=line.new(bar_index-8,smcTrailLo,rightSmc,smcTrailLo,color=cSmcBull,width=1)
+        smcSWHiLb:=label.new(rightSmc,smcTrailHi,smcSwingBias==-1?"Strong High":"Weak High",style=label.style_label_left,color=color(na),textcolor=cSmcBear,size=size.tiny)
+        smcSWLoLb:=label.new(rightSmc,smcTrailLo,smcSwingBias==1?"Strong Low":"Weak Low",style=label.style_label_left,color=color(na),textcolor=cSmcBull,size=size.tiny)
+    if showPremDisc and not na(smcTrailHi) and not na(smcTrailLo) and smcTrailHi>smcTrailLo
+        if not na(smcPrem)
+            box.delete(smcPrem)
+        if not na(smcDisc)
+            box.delete(smcDisc)
+        if not na(smcEqz)
+            box.delete(smcEqz)
+        if not na(smcPremLb)
+            label.delete(smcPremLb)
+        if not na(smcDiscLb)
+            label.delete(smcDiscLb)
+        if not na(smcEqzLb)
+            label.delete(smcEqzLb)
+        float eqMid=math.avg(smcTrailHi,smcTrailLo)
+        smcPrem:=box.new(bar_index-20,smcTrailHi,rightSmc,0.95*smcTrailHi+0.05*smcTrailLo,bgcolor=color.new(cSmcBear,88),border_color=color(na))
+        smcDisc:=box.new(bar_index-20,0.95*smcTrailLo+0.05*smcTrailHi,rightSmc,smcTrailLo,bgcolor=color.new(cSmcBull,88),border_color=color(na))
+        smcEqz:=box.new(bar_index-20,0.525*smcTrailHi+0.475*smcTrailLo,rightSmc,0.525*smcTrailLo+0.475*smcTrailHi,bgcolor=color.new(#878b94,88),border_color=color(na))
+        smcPremLb:=label.new(rightSmc,smcTrailHi,"Premium",style=label.style_label_left,color=color(na),textcolor=cSmcBear,size=size.tiny)
+        smcDiscLb:=label.new(rightSmc,smcTrailLo,"Discount",style=label.style_label_left,color=color(na),textcolor=cSmcBull,size=size.tiny)
+        smcEqzLb:=label.new(rightSmc,eqMid,"Equilibrium",style=label.style_label_left,color=color(na),textcolor=#878b94,size=size.tiny)
+
+
+if barstate.islast and not smcKeepHistory and array.size(smcLines)>4
+    while array.size(smcLines)>4
+        line.delete(array.shift(smcLines))
+        label.delete(array.shift(smcLabels))
+
+plotcandle(smcColorCandles?open:na,smcColorCandles?high:na,smcColorCandles?low:na,smcColorCandles?close:na,title="SMC 추세캔들",color=smcIntBias==1?cSmcBull:cSmcBear,wickcolor=smcIntBias==1?cSmcBull:cSmcBear,bordercolor=smcIntBias==1?cSmcBull:cSmcBear)
+
+var float bullOBTop=na
+var float bullOBLow=na
+var float bearOBTop=na
+var float bearOBLow=na
+var int bullOBAt=na
+var int bearOBAt=na
+var float fvgTopL=na
+var float fvgLowL=na
+var float fvgTopS=na
+var float fvgLowS=na
+var float ifvgL=na
+var float ifvgS=na
+var float bprLow=na
+var float bprTop=na
+if barstate.isconfirmed
+    if bosL and close[1]<open[1]
+        bullOBTop:=high[1]
+        bullOBLow:=low[1]
+        bullOBAt:=bar_index
+    if bosS and close[1]>open[1]
+        bearOBTop:=high[1]
+        bearOBLow:=low[1]
+        bearOBAt:=bar_index
+    if not na(bullOBLow) and (close<bullOBLow-atr*0.12 or bar_index-nz(bullOBAt,bar_index)>140)
+        bullOBTop:=na
+        bullOBLow:=na
+    if not na(bearOBTop) and (close>bearOBTop+atr*0.12 or bar_index-nz(bearOBAt,bar_index)>140)
+        bearOBTop:=na
+        bearOBLow:=na
+    if low>high[2] and low-high[2]>atr*0.10
+        fvgTopL:=low
+        fvgLowL:=high[2]
+    if high<low[2] and low[2]-high>atr*0.10
+        fvgTopS:=low[2]
+        fvgLowS:=high
+    if not na(fvgLowL) and close<fvgLowL-atr*0.06
+        ifvgS:=(fvgTopL+fvgLowL)/2
+        fvgTopL:=na
+        fvgLowL:=na
+    if not na(fvgTopS) and close>fvgTopS+atr*0.06
+        ifvgL:=(fvgTopS+fvgLowS)/2
+        fvgTopS:=na
+        fvgLowS:=na
+    if not na(ifvgL) and close<ifvgL-atr*0.25
+        ifvgL:=na
+    if not na(ifvgS) and close>ifvgS+atr*0.25
+        ifvgS:=na
+    bprLow:=not na(fvgLowL) and not na(fvgLowS)?math.max(fvgLowL,fvgLowS):na
+    bprTop:=not na(fvgTopL) and not na(fvgTopS)?math.min(fvgTopL,fvgTopS):na
+    if not na(bprLow) and not na(bprTop) and bprLow>=bprTop
+        bprLow:=na
+        bprTop:=na
+float bprMid=not na(bprLow) and not na(bprTop)?(bprLow+bprTop)/2:na
+
+// 07B — Event-origin persistent OB/FVG/iFVG zones (NOT last-bar decorations).
+// New zones originate only on a CONFIRMED event bar. The original price and
+// left edge never migrate. Touch changes border; invalidation freezes right edge.
+type FusionZone
+    box draw
+    float top
+    float bot
+    int side
+    int src
+    int born
+    int state
+    int touches
+    int lastTouchAt
+    float quality
+    int bornTime
+    int lastStudyAt
+var array<FusionZone> fusionZones=array.new<FusionZone>()
+f_zoneAdd(array<FusionZone> store,float top,float bot,int direction,int source,float strength,int beginX,int objectLimit)=>
+    if not na(top) and not na(bot) and top>bot+syminfo.mintick
+        bool exists=false
+        if array.size(store)>0
+            for i=0 to array.size(store)-1
+                FusionZone old=array.get(store,i)
+                if old.state==0 and old.src==source and old.side==direction and math.abs(old.top-top)<=syminfo.mintick*2 and math.abs(old.bot-bot)<=syminfo.mintick*2
+                    exists:=true
+                    break
+        if not exists
+            color zc=direction==1?color.rgb(22,199,116):color.rgb(242,70,87)
+            box b=box.new(left=beginX,top=top,right=bar_index+2,bottom=bot,xloc=xloc.bar_index,
+                 border_color=color.new(zc,100),
+                 bgcolor=color.new(zc,100),border_width=1)
+            array.push(store,FusionZone.new(b,top,bot,direction,source,bar_index,0,0,bar_index,strength,time,-100000))
+        while array.size(store)>objectLimit
+            // Preserve active structural zones before obsolete history.
+            int dropId=0
+            if array.size(store)>0
+                for q=0 to array.size(store)-1
+                    FusionZone candidate=array.get(store,q)
+                    if candidate.state!=0
+                        dropId:=q
+                        break
+            FusionZone rem=array.get(store,dropId)
+            box.delete(rem.draw)
+            array.remove(store,dropId)
+    0
+// Refresh live zones and convert a BROKEN FVG to an inverse FVG once.
+if barstate.isconfirmed
+    array<float> flipTops=array.new_float()
+    array<float> flipBots=array.new_float()
+    array<int> flipSides=array.new_int()
+    array<float> flipQuality=array.new_float()
+    if array.size(fusionZones)>0
+        int priorCount=array.size(fusionZones)
+        for zi=priorCount-1 to 0
+            FusionZone z=array.get(fusionZones,zi)
+            if z.state==0 and bar_index>z.born
+                bool touch=high>=z.bot and low<=z.top
+                bool lost=z.side==1?close<z.bot-atr*0.08:close>z.top+atr*0.08
+                bool old=bar_index-z.born>zoneMaxAge
+                if lost or old
+                    z.state:=2
+                    box.set_right(z.draw,bar_index)
+                    box.set_bgcolor(z.draw,color.new(z.side==1?color.rgb(22,199,116):color.rgb(242,70,87),96))
+                    if lost and z.src==2 // Defer insertion until AFTER the indexed scan.
+                        array.push(flipTops,z.top)
+                        array.push(flipBots,z.bot)
+                        array.push(flipSides,-z.side)
+                        array.push(flipQuality,z.quality*0.82)
+                else
+                    box.set_right(z.draw,bar_index+2)
+                    bool held=z.side==1?close>z.top:close<z.bot
+                    if touch and bar_index-z.lastTouchAt>=3
+                        z.lastTouchAt:=bar_index
+                        if held
+                            z.touches:=math.min(5,z.touches+1)
+                            // First defended retests strengthen; many retests wear out.
+                            z.quality:=f_clip(z.quality+(z.touches<=2?0.020:-0.022),0.0,1.0)
+                        else
+                            z.quality:=f_clip(z.quality-0.045,0.0,1.0)
+                    color liveColor=z.side==1?color.rgb(22,199,116):color.rgb(242,70,87)
+                    box.set_border_color(z.draw,color.new(z.touches>=2?color.rgb(239,191,77):liveColor,showActiveZones?18:100))
+                    box.set_bgcolor(z.draw,color.new(liveColor,showActiveZones?92:100))
+                array.set(fusionZones,zi,z)
+    if array.size(flipTops)>0
+        for f=0 to array.size(flipTops)-1
+            f_zoneAdd(fusionZones,array.get(flipTops,f),array.get(flipBots,f),array.get(flipSides,f),3,array.get(flipQuality,f),bar_index,zoneMaxObjects)
+    // OB: last opposite candle only; zone STARTS at confirmation, never retro-painted.
+    if bosL and close[1]<open[1] and not na(bullOBTop)
+        f_zoneAdd(fusionZones,bullOBTop,bullOBLow,1,1,0.95,bar_index,zoneMaxObjects)
+    if bosS and close[1]>open[1] and not na(bearOBTop)
+        f_zoneAdd(fusionZones,bearOBTop,bearOBLow,-1,1,0.95,bar_index,zoneMaxObjects)
+    if low>high[2] and low-high[2]>atr*0.10
+        f_zoneAdd(fusionZones,low,high[2],1,2,0.76,bar_index,zoneMaxObjects)
+    if high<low[2] and low[2]-high>atr*0.10
+        f_zoneAdd(fusionZones,low[2],high,-1,2,0.76,bar_index,zoneMaxObjects)
+    // BPR: register once per new overlap, not once every candle.
+    if not na(bprLow) and not na(bprTop) and bprTop>bprLow
+        bool bprDuplicate=false
+        if array.size(fusionZones)>0
+            for i=0 to array.size(fusionZones)-1
+                FusionZone z=array.get(fusionZones,i)
+                if z.src==4 and math.abs(z.top-bprTop)<atr*0.05 and math.abs(z.bot-bprLow)<atr*0.05
+                    bprDuplicate:=true
+                    break
+        if not bprDuplicate
+            f_zoneAdd(fusionZones,bprTop,bprLow,close<(bprTop+bprLow)/2?-1:1,4,0.81,bar_index,zoneMaxObjects)
+
+// 07C — V7 zone event study. Events start ONLY on a pre-existing zone
+// and settle 3..12 CLOSED bars later. Type+direction buckets are independent
+// of the current indicator score: historical observed frequencies, not forecasts.
+// Classification: target first, confirmed-close boundary first, ambiguous if
+// both on the same bar; timeouts not forced into wins or losses.
+type V7ZoneEvent
+    int key
+    int ctx
+    int startBar
+    int side
+    float target
+    float breach
+var array<V7ZoneEvent> v7Events=array.new<V7ZoneEvent>()
+var array<int> v7Win=array.new_int(8,0)
+var array<int> v7Break=array.new_int(8,0)
+var array<int> v7Timeout=array.new_int(8,0)
+var array<int> v7Ambig=array.new_int(8,0)
+var array<int> v7CtxWin=array.new_int(32,0)
+var array<int> v7CtxBreak=array.new_int(32,0)
+var array<int> v7CtxTimeout=array.new_int(32,0)
+var array<int> v7LastBucketStart=array.new_int(8,-100000)
+if barstate.isconfirmed and not na(atr) and atr>0
+    // Mature existing events first; no same-bar outcomes from an event's creation.
+    if array.size(v7Events)>0
+        for ei=array.size(v7Events)-1 to 0
+            V7ZoneEvent ev=array.get(v7Events,ei)
+            int age=bar_index-ev.startBar
+            if age>0
+                bool targetHit=ev.side==1?high>=ev.target:low<=ev.target
+                bool boundaryHit=ev.side==1?close<ev.breach:close>ev.breach
+                if targetHit and boundaryHit
+                    array.set(v7Ambig,ev.key,array.get(v7Ambig,ev.key)+1)
+                    array.remove(v7Events,ei)
+                else if targetHit
+                    array.set(v7Win,ev.key,array.get(v7Win,ev.key)+1)
+                    array.set(v7CtxWin,ev.ctx,array.get(v7CtxWin,ev.ctx)+1)
+                    array.remove(v7Events,ei)
+                else if boundaryHit
+                    array.set(v7Break,ev.key,array.get(v7Break,ev.key)+1)
+                    array.set(v7CtxBreak,ev.ctx,array.get(v7CtxBreak,ev.ctx)+1)
+                    array.remove(v7Events,ei)
+                else if age>=v7EventBars
+                    array.set(v7Timeout,ev.key,array.get(v7Timeout,ev.key)+1)
+                    array.set(v7CtxTimeout,ev.ctx,array.get(v7CtxTimeout,ev.ctx)+1)
+                    array.remove(v7Events,ei)
+    // One nonoverlapping contact per type/direction over the observation window.
+    if array.size(fusionZones)>0
+        for zi=0 to array.size(fusionZones)-1
+            FusionZone z=array.get(fusionZones,zi)
+            int key=(z.src-1)*2+(z.side==1?0:1)
+            bool oldZone=z.born<bar_index and z.state==0
+            bool contact=high>=z.bot and low<=z.top
+            bool onCorrectSide=z.side==1?close>=z.bot:close<=z.top
+            bool newEpisode=bar_index-z.lastStudyAt>v7EventBars and bar_index-array.get(v7LastBucketStart,key)>v7EventBars
+            if oldZone and contact and onCorrectSide and newEpisode and array.size(v7Events)<20
+                float target=close+z.side*atr*v7BounceATR
+                float breach=z.side==1?z.bot-atr*v7BreakPad:z.top+atr*v7BreakPad
+                bool trendAligned=z.side==1?trendUp:trendDown
+                bool highRvol=nz(rvol,0)>=1.2
+                int ctx=key*4+(trendAligned?2:0)+(highRvol?1:0)
+                array.push(v7Events,V7ZoneEvent.new(key,ctx,bar_index,z.side,target,breach))
+                z.lastStudyAt:=bar_index
+                array.set(fusionZones,zi,z)
+                array.set(v7LastBucketStart,key,bar_index)
+
+f_v7Wilson(int successes,int n) =>
+    float lo=na
+    float hi=na
+    if n>0
+        float z=1.96
+        float p=float(successes)/n
+        float d=1.0+z*z/n
+        float mid=(p+z*z/(2.0*n))/d
+        float delta=z*math.sqrt((p*(1.0-p)+z*z/(4.0*n))/n)/d
+        lo:=100.0*math.max(0.0,mid-delta)
+        hi:=100.0*math.min(1.0,mid+delta)
+    [lo,hi]
+f_v7StudyText(int src,int side) =>
+    int key=(src-1)*2+(side==1?0:1)
+    int success=array.get(v7Win,key)
+    int failure=array.get(v7Break,key)
+    int timeout=array.get(v7Timeout,key)
+    int ambiguous=array.get(v7Ambig,key)
+    int total=success+failure+timeout
+    string name=side==1?"반등":"거부"
+    string opposite=side==1?"붕괴":"돌파"
+    string result="표본 부족 "+str.tostring(total)+"/"+str.tostring(v7MinSamples)
+    if total>=v7MinSamples
+        [wl,wh]=f_v7Wilson(success,total)
+        result:=name+" "+str.tostring(100.0*success/total,"#.0")+"% · "+opposite+" "+str.tostring(100.0*failure/total,"#.0")+"% · N="+str.tostring(total)+"\n95%구간 "+str.tostring(wl,"#.0")+"~"+str.tostring(wh,"#.0")+"% · 미결정 "+str.tostring(timeout)+"회"
+    result+" · 동시모호 "+str.tostring(ambiguous)
+f_v7ShortRate(int src,int side) =>
+    int key=(src-1)*2+(side==1?0:1)
+    int a=array.get(v7Win,key)
+    int b=array.get(v7Break,key)
+    int t=array.get(v7Timeout,key)
+    int n=a+b+t
+    string outcome=side==1?"반등":"거부"
+    n>=v7MinSamples?"유형실측 "+outcome+" "+str.tostring(100.0*a/n,"#.0")+"% · "+(side==1?"붕괴":"돌파")+" "+str.tostring(100.0*b/n,"#.0")+"% (N="+str.tostring(n)+")":"반응자료 "+str.tostring(n)+"/"+str.tostring(v7MinSamples)
+f_v7ContextRate(int src,int side,bool aligned,bool volumeHigh) =>
+    int key=(src-1)*2+(side==1?0:1)
+    int ctx=key*4+(aligned?2:0)+(volumeHigh?1:0)
+    int a=array.get(v7CtxWin,ctx)
+    int b=array.get(v7CtxBreak,ctx)
+    int t=array.get(v7CtxTimeout,ctx)
+    int n=a+b+t
+    n>=v7MinSamples?"유사 추세·RVOL 관측 "+str.tostring(100.0*a/n,"#.0")+"% · N="+str.tostring(n):"유사 추세·RVOL 표본 "+str.tostring(n)+"/"+str.tostring(v7MinSamples)
+
+// Fibonacci Golden Pocket, Gann 1:1 swing slope and confirmed trend geometry.
+float swingSpan=not na(swingHigh) and not na(swingLow)?math.max(swingHigh-swingLow,0):na
+bool fibReady=not na(swingSpan) and swingSpan>atr*1.0
+float fibLong=fibReady?swingHigh-swingSpan*0.6615:na  // 0.618..0.705 mid
+float fibShort=fibReady?swingLow+swingSpan*0.6615:na
+bool lineReadyL=not na(swingLow) and not na(oldSwingLow) and not na(swingLowAt) and not na(oldLowAt) and swingLowAt>oldLowAt
+bool lineReadyS=not na(swingHigh) and not na(oldSwingHigh) and not na(swingHighAt) and not na(oldHighAt) and swingHighAt>oldHighAt
+float slopeL=lineReadyL?(swingLow-oldSwingLow)/(swingLowAt-oldLowAt):na
+float slopeS=lineReadyS?(swingHigh-oldSwingHigh)/(swingHighAt-oldHighAt):na
+float trendlineL=lineReadyL?swingLow+slopeL*(bar_index-swingLowAt):na
+float trendlineS=lineReadyS?swingHigh+slopeS*(bar_index-swingHighAt):na
+float gannSupport=fibReady and lineReadyL?swingLow+swingSpan/math.max(8.0,swingLowAt-oldLowAt)*(bar_index-swingLowAt):na
+float gannResistance=fibReady and lineReadyS?swingHigh-swingSpan/math.max(8.0,swingHighAt-oldHighAt)*(bar_index-swingHighAt):na
+// Two confirmed-pivot lines: geometric compression / wedge / triangle.
+float gapNow=lineReadyL and lineReadyS?trendlineS-trendlineL:na
+float gap8=not na(gapNow)?(trendlineS-slopeS*8)-(trendlineL-slopeL*8):na
+bool compression=not na(gapNow) and gapNow>atr*0.2 and gap8>gapNow*1.14 and
+     bar_index-math.max(swingHighAt,swingLowAt)<90
+bool fallingWedge=compression and slopeL<0 and slopeS<0 and slopeS<slopeL
+bool risingWedge=compression and slopeL>0 and slopeS>0 and slopeL>slopeS
+bool triangle=compression and slopeL>=0 and slopeS<=0
+bool patternBreakL=barstate.isconfirmed and (fallingWedge or triangle) and close>trendlineS+atr*0.06 and close[1]<=trendlineS[1]
+bool patternBreakS=barstate.isconfirmed and (risingWedge or triangle) and close<trendlineL-atr*0.06 and close[1]>=trendlineL[1]
+
+// 08 — Confirmed HTF pack: true pivots / OB / FVG / composite blue reference.
+// No same- or lower-TF request ever treated as a confirmed HTF signal.
+f_htf() =>
+    float a=ta.atr(14)
+    float ph=ta.pivothigh(high,4,4)
+    float pl=ta.pivotlow(low,4,4)
+    float hh=ta.valuewhen(not na(ph),ph,0)
+    float ll=ta.valuewhen(not na(pl),pl,0)
+    float vm=ta.vwma(hlc3,48)
+    float vv=ta.vwap(hlc3)
+    float blue=na(vv)?vm:0.4*vv+0.6*vm  // VWMA proxy, not a true VP POC
+    float em=ta.ema(close,50)
+    bool breakingL=not na(hh) and close[1]<=hh and close>hh+a*0.07 and close>open and close[1]<open[1]
+    bool breakingS=not na(ll) and close[1]>=ll and close<ll-a*0.07 and close<open and close[1]>open[1]
+    var float obL=na
+    var float obS=na
+    var float gapL=na
+    var float gapS=na
+    if breakingL
+        obL:=(high[1]+low[1])/2
+    if breakingS
+        obS:=(high[1]+low[1])/2
+    if low>high[2] and low-high[2]>a*0.08
+        gapL:=(low+high[2])/2
+    if high<low[2] and low[2]-high>a*0.08
+        gapS:=(high+low[2])/2
+    if not na(obL) and close<obL-a*0.35
+        obL:=na
+    if not na(obS) and close>obS+a*0.35
+        obS:=na
+    if not na(gapL) and close<gapL-a*0.30
+        gapL:=na
+    if not na(gapS) and close>gapS+a*0.30
+        gapS:=na
+    [hh[1],ll[1],blue[1],close[1],em[1],obL[1],obS[1],gapL[1],gapS[1]]
+int sec=timeframe.in_seconds()
+[h5,l5,b5,c5,e5,o5L,o5S,g5L,g5S]=request.security(syminfo.tickerid,"5",f_htf(),lookahead=barmerge.lookahead_on)
+[h15,l15,b15,c15,e15,o15L,o15S,g15L,g15S]=request.security(syminfo.tickerid,"15",f_htf(),lookahead=barmerge.lookahead_on)
+[h60,l60,b60,c60,e60,o60L,o60S,g60L,g60S]=request.security(syminfo.tickerid,"60",f_htf(),lookahead=barmerge.lookahead_on)
+[h240,l240,b240,c240,e240,o240L,o240S,g240L,g240S]=request.security(syminfo.tickerid,"240",f_htf(),lookahead=barmerge.lookahead_on)
+[hD,lD,bD,cD,eD,oDL,oDS,gDL,gDS]=request.security(syminfo.tickerid,"D",f_htf(),lookahead=barmerge.lookahead_on)
+[hW,lW,bW,cW,eW,oWL,oWS,gWL,gWS]=request.security(syminfo.tickerid,"W",f_htf(),lookahead=barmerge.lookahead_on)
+[hM,lM,bM,cM,eM,oML,oMS,gML,gMS]=request.security(syminfo.tickerid,"M",f_htf(),lookahead=barmerge.lookahead_on)
+[hY,lY,bY,cY,eY,oYL,oYS,gYL,gYS]=request.security(syminfo.tickerid,"12M",f_htf(),lookahead=barmerge.lookahead_on)
+// Fixed previous-period highs/lows. [1] with lookahead_on = fully closed period only.
+[pdh,pdl]=request.security(syminfo.tickerid,"D",[high[1],low[1]],lookahead=barmerge.lookahead_on)
+[pwh,pwl]=request.security(syminfo.tickerid,"W",[high[1],low[1]],lookahead=barmerge.lookahead_on)
+[pmh,pml]=request.security(syminfo.tickerid,"M",[high[1],low[1]],lookahead=barmerge.lookahead_on)
+
+float biasClose=sec<300?c5:sec<900?c15:sec<3600?c60:sec<14400?c240:sec<86400?cD:sec<604800?cW:sec<2592000?cM:cY
+float biasEMA=sec<300?e5:sec<900?e15:sec<3600?e60:sec<14400?e240:sec<86400?eD:sec<604800?eW:sec<2592000?eM:eY
+bool biasValid=sec<31536000 and not na(biasClose) and not na(biasEMA)
+bool biasL=not strongHtf or (biasValid and biasClose>=biasEMA)
+bool biasS=not strongHtf or (biasValid and biasClose<=biasEMA)
+float blue=sec<300?b5:sec<900?b15:sec<3600?b60:sec<14400?b240:sec<86400?bD:sec<604800?bW:sec<2592000?bM:bY
+var float priorBlue=na
+var bool blueHit=false
+if barstate.isconfirmed and chartBlue and not na(blue)
+    if na(priorBlue) or math.abs(blue-priorBlue)>atr*0.10
+        blueHit:=false
+        priorBlue:=blue
+    if low<=blue and high>=blue
+        blueHit:=true
+
+// V7 chart-lower-TF execution gate: 1m requires closed 5m+15m;
+// 5m requires closed 15m+1h. On weekly/monthly charts we never fabricate
+// 1m/5m confirmation; the trader switches to the lower chart.
+bool v7Intraday=sec<=300
+bool v7MicroLong=not v7MicroGate or not v7Intraday or (sec<300?
+     (not na(c5) and not na(e5) and not na(c15) and not na(e15) and c5>=e5 and c15>=e15):
+     (not na(c15) and not na(e15) and not na(c60) and not na(e60) and c15>=e15 and c60>=e60))
+bool v7MicroShort=not v7MicroGate or not v7Intraday or (sec<300?
+     (not na(c5) and not na(e5) and not na(c15) and not na(e15) and c5<=e5 and c15<=e15):
+     (not na(c15) and not na(e15) and not na(c60) and not na(e60) and c15<=e15 and c60<=e60))
+
+// MTF BLUE original-family restoration: independently confirmed, tracked, and labeled.
+// The previously single blue value remains available as a compact optional ribbon.
+array<float> mtfBlueVals=array.from(b5,b15,b60,b240,bD,bW,bM,bY)
+var array<string> mtfBlueNames=array.from("5분","15분","1시간","4시간","일봉","주봉","월봉","연봉")
+var array<int> mtfBlueSecs=array.from(300,900,3600,14400,86400,604800,2592000,31536000)
+var array<float> mtfBlueRemember=array.new_float(8,na)
+var array<bool> mtfBlueTouched=array.new_bool(8,false)
+if barstate.isconfirmed
+    for mt=0 to 7
+        float val=array.get(mtfBlueVals,mt)
+        bool valid=sec<array.get(mtfBlueSecs,mt) and not na(val)
+        if valid
+            float was=array.get(mtfBlueRemember,mt)
+            if na(was) or math.abs(val-was)>atr*0.1
+                array.set(mtfBlueTouched,mt,false)
+                array.set(mtfBlueRemember,mt,val)
+            if high>=val and low<=val
+                array.set(mtfBlueTouched,mt,true)
+
+// V8.2 — GMMA fast ribbon vs higher-TF MTF blue cross (visual/alert only; PAPER machine untouched).
+// Confirmed bar only. Prefer nearest higher TF (sec < mtf sec). One sparse signal per event.
+f_blueXUp(float ribbon,float blueLine)=>
+    not na(ribbon) and not na(blueLine) and not na(ribbon[1]) and not na(blueLine[1]) and ribbon>blueLine and ribbon[1]<=blueLine[1]
+f_blueXDn(float ribbon,float blueLine)=>
+    not na(ribbon) and not na(blueLine) and not na(ribbon[1]) and not na(blueLine[1]) and ribbon<blueLine and ribbon[1]>=blueLine[1]
+bool blueCrossL=false
+bool blueCrossS=false
+string blueCrossName=""
+var int lastBlueCrossAt=na
+var int lastBlueCrossDir=0
+if barstate.isconfirmed and showBlueCross and (na(lastBlueCrossAt) or bar_index-lastBlueCrossAt>=4)
+    // Nearest higher TF first (5m→year); first match wins — no multi-TF spam.
+    if sec<300 and f_blueXUp(fastG,b5)
+        blueCrossL:=true
+        blueCrossName:="5분"
+    else if sec<900 and f_blueXUp(fastG,b15)
+        blueCrossL:=true
+        blueCrossName:="15분"
+    else if sec<3600 and f_blueXUp(fastG,b60)
+        blueCrossL:=true
+        blueCrossName:="1시간"
+    else if sec<14400 and f_blueXUp(fastG,b240)
+        blueCrossL:=true
+        blueCrossName:="4시간"
+    else if sec<86400 and f_blueXUp(fastG,bD)
+        blueCrossL:=true
+        blueCrossName:="일봉"
+    else if sec<604800 and f_blueXUp(fastG,bW)
+        blueCrossL:=true
+        blueCrossName:="주봉"
+    else if sec<2592000 and f_blueXUp(fastG,bM)
+        blueCrossL:=true
+        blueCrossName:="월봉"
+    else if sec<31536000 and f_blueXUp(fastG,bY)
+        blueCrossL:=true
+        blueCrossName:="연봉"
+    if not blueCrossL
+        if sec<300 and f_blueXDn(fastG,b5)
+            blueCrossS:=true
+            blueCrossName:="5분"
+        else if sec<900 and f_blueXDn(fastG,b15)
+            blueCrossS:=true
+            blueCrossName:="15분"
+        else if sec<3600 and f_blueXDn(fastG,b60)
+            blueCrossS:=true
+            blueCrossName:="1시간"
+        else if sec<14400 and f_blueXDn(fastG,b240)
+            blueCrossS:=true
+            blueCrossName:="4시간"
+        else if sec<86400 and f_blueXDn(fastG,bD)
+            blueCrossS:=true
+            blueCrossName:="일봉"
+        else if sec<604800 and f_blueXDn(fastG,bW)
+            blueCrossS:=true
+            blueCrossName:="주봉"
+        else if sec<2592000 and f_blueXDn(fastG,bM)
+            blueCrossS:=true
+            blueCrossName:="월봉"
+        else if sec<31536000 and f_blueXDn(fastG,bY)
+            blueCrossS:=true
+            blueCrossName:="연봉"
+    // Same-direction cooldown: skip if identical dir fired last signal window.
+    if (blueCrossL or blueCrossS) and not na(lastBlueCrossDir) and lastBlueCrossDir==(blueCrossL?1:-1) and not na(lastBlueCrossAt) and bar_index-lastBlueCrossAt<8
+        blueCrossL:=false
+        blueCrossS:=false
+        blueCrossName:=""
+    if blueCrossL or blueCrossS
+        lastBlueCrossAt:=bar_index
+        lastBlueCrossDir:=blueCrossL?1:-1
+
+// 09 — One price map. Each source family is retained once per price cluster.
+// Family ID: 1 local profile-pivot, 2 MTF pivot, 3 OB, 4 FVG/iFVG/BPR,
+// 5 VP, 6 VWAP/blue, 7 Fib/Gann/trendline, 8 NWE/BB/Deviation.
+array<float> mp=array.new_float()
+array<int> ms=array.new_int()
+array<int> mf=array.new_int()
+array<float> mw=array.new_float()
+array<string> mn=array.new_string()
+// Persistent zones feed the location engine; not merely painted decorations.
+if array.size(fusionZones)>0
+    for i=0 to array.size(fusionZones)-1
+        FusionZone z=array.get(fusionZones,i)
+        if z.state==0
+            float mid=(z.top+z.bot)/2
+            string name=z.src==1?"OB":z.src==2?"FVG":z.src==3?"역FVG":"BPR"
+            float strength=f_clip(z.quality+math.min(z.touches,3)*0.025,0,1)
+            f_family(mp,ms,mf,mw,mn,mid,z.side,z.src==1?3:4,strength,name+" · 실존Zone")
+if array.size(levelP)>0
+    for i=0 to array.size(levelP)-1
+        float q=array.get(levelQuality,i)
+        f_family(mp,ms,mf,mw,mn,array.get(levelP,i),array.get(levelSide,i),1,0.65+q/300,"강도"+str.tostring(q,"#")+" S/R")
+f_family(mp,ms,mf,mw,mn,swingLow,1,1,0.63,"피벗 지지")
+f_family(mp,ms,mf,mw,mn,swingHigh,-1,1,0.63,"피벗 저항")
+f_family(mp,ms,mf,mw,mn,bullOBTop,1,3,0.96,"OB 매수")
+f_family(mp,ms,mf,mw,mn,bearOBLow,-1,3,0.96,"OB 매도")
+f_family(mp,ms,mf,mw,mn,fvgTopL,1,4,0.83,"FVG 매수")
+f_family(mp,ms,mf,mw,mn,fvgLowS,-1,4,0.83,"FVG 매도")
+f_family(mp,ms,mf,mw,mn,ifvgL,1,4,0.74,"역FVG 매수")
+f_family(mp,ms,mf,mw,mn,ifvgS,-1,4,0.74,"역FVG 매도")
+f_family(mp,ms,mf,mw,mn,bprMid,0,4,0.85,"BPR")
+f_family(mp,ms,mf,mw,mn,vpPOC,0,5,0.89,"VP POC")
+f_family(mp,ms,mf,mw,mn,vpVAL,1,5,0.78,"VP VAL")
+f_family(mp,ms,mf,mw,mn,vpVAH,-1,5,0.78,"VP VAH")
+f_family(mp,ms,mf,mw,mn,blue,0,6,0.84,"MTF 파랑선")
+f_family(mp,ms,mf,mw,mn,vwap,0,6,0.65,"VWAP")
+f_family(mp,ms,mf,mw,mn,caAVWAP,0,6,0.73,"확정피벗 AVWAP")
+f_family(mp,ms,mf,mw,mn,caRegLower,1,8,0.52,"회귀채널 하단")
+f_family(mp,ms,mf,mw,mn,caRegUpper,-1,8,0.52,"회귀채널 상단")
+f_family(mp,ms,mf,mw,mn,trendlineL,1,7,0.73,"추세지지")
+f_family(mp,ms,mf,mw,mn,trendlineS,-1,7,0.73,"추세저항")
+f_family(mp,ms,mf,mw,mn,gannSupport,1,7,0.52,"Gann 지지")
+f_family(mp,ms,mf,mw,mn,gannResistance,-1,7,0.52,"Gann 저항")
+f_family(mp,ms,mf,mw,mn,fibLong,1,7,0.66,"Fib 골든포켓")
+f_family(mp,ms,mf,mw,mn,fibShort,-1,7,0.66,"Fib 골든포켓")
+f_family(mp,ms,mf,mw,mn,nweLower,1,8,0.58,"NWE 하단")
+f_family(mp,ms,mf,mw,mn,nweUpper,-1,8,0.58,"NWE 상단")
+f_family(mp,ms,mf,mw,mn,bbLower,1,8,0.51,"BB200 하단")
+f_family(mp,ms,mf,mw,mn,bbUpper,-1,8,0.51,"BB200 상단")
+f_family(mp,ms,mf,mw,mn,devMinus2,1,8,0.47,"Deviation -2")
+f_family(mp,ms,mf,mw,mn,devPlus2,-1,8,0.47,"Deviation +2")
+// Previous-period data join the EXISTING MTF family, never multiple votes.
+if showPrevLevels
+    if sec<=86400
+        f_family(mp,ms,mf,mw,mn,pdl,1,2,0.84,"전일 저가")
+        f_family(mp,ms,mf,mw,mn,pdh,-1,2,0.84,"전일 고가")
+    if sec<=604800
+        f_family(mp,ms,mf,mw,mn,pwl,1,2,0.90,"전주 저가")
+        f_family(mp,ms,mf,mw,mn,pwh,-1,2,0.90,"전주 고가")
+    if sec<=2592000
+        f_family(mp,ms,mf,mw,mn,pml,1,2,0.95,"전월 저가")
+        f_family(mp,ms,mf,mw,mn,pmh,-1,2,0.95,"전월 고가")
+
+if sec<300
+    f_family(mp,ms,mf,mw,mn,l5,1,2,0.68,"5분 S/R")
+    f_family(mp,ms,mf,mw,mn,h5,-1,2,0.68,"5분 S/R")
+    f_family(mp,ms,mf,mw,mn,o5L,1,3,0.83,"5분 OB")
+    f_family(mp,ms,mf,mw,mn,o5S,-1,3,0.83,"5분 OB")
+    f_family(mp,ms,mf,mw,mn,g5L,1,4,0.67,"5분 FVG")
+    f_family(mp,ms,mf,mw,mn,g5S,-1,4,0.67,"5분 FVG")
+if sec<900
+    f_family(mp,ms,mf,mw,mn,l15,1,2,0.82,"15분 S/R")
+    f_family(mp,ms,mf,mw,mn,h15,-1,2,0.82,"15분 S/R")
+    f_family(mp,ms,mf,mw,mn,o15L,1,3,0.98,"15분 OB")
+    f_family(mp,ms,mf,mw,mn,o15S,-1,3,0.98,"15분 OB")
+    f_family(mp,ms,mf,mw,mn,g15L,1,4,0.87,"15분 FVG")
+    f_family(mp,ms,mf,mw,mn,g15S,-1,4,0.87,"15분 FVG")
+if sec<3600
+    f_family(mp,ms,mf,mw,mn,l60,1,2,0.84,"1시간 S/R")
+    f_family(mp,ms,mf,mw,mn,h60,-1,2,0.84,"1시간 S/R")
+    f_family(mp,ms,mf,mw,mn,o60L,1,3,0.89,"1시간 OB")
+    f_family(mp,ms,mf,mw,mn,o60S,-1,3,0.89,"1시간 OB")
+if sec<14400
+    f_family(mp,ms,mf,mw,mn,l240,1,2,0.89,"4시간 S/R")
+    f_family(mp,ms,mf,mw,mn,h240,-1,2,0.89,"4시간 S/R")
+    f_family(mp,ms,mf,mw,mn,o240L,1,3,0.93,"4시간 OB")
+    f_family(mp,ms,mf,mw,mn,o240S,-1,3,0.93,"4시간 OB")
+if sec<86400
+    f_family(mp,ms,mf,mw,mn,lD,1,2,0.94,"일봉 지지")
+    f_family(mp,ms,mf,mw,mn,hD,-1,2,0.94,"일봉 저항")
+if sec<604800
+    f_family(mp,ms,mf,mw,mn,lW,1,2,0.95,"주봉 지지")
+    f_family(mp,ms,mf,mw,mn,hW,-1,2,0.95,"주봉 저항")
+if sec<2592000
+    f_family(mp,ms,mf,mw,mn,lM,1,2,0.98,"월봉 지지")
+    f_family(mp,ms,mf,mw,mn,hM,-1,2,0.98,"월봉 저항")
+if sec<31536000
+    f_family(mp,ms,mf,mw,mn,lY,1,2,0.99,"연봉 지지")
+    f_family(mp,ms,mf,mw,mn,hY,-1,2,0.99,"연봉 저항")
+
+// Price-cluster algorithm: choose a location CLOSE to the candle's contact
+// wick, not the high-score but distant level. Independent family types count
+// only once, and a 'structural' location is mandatory for an entry candidate.
+f_cluster(int side,array<float> levels,array<int> dirs,array<int> families,array<float> weights,array<string> names,float candleEdge,float currentClose,float a,float tol)=>
+    float anchor=na
+    float priority=-1.0
+    string desc=""
+    if array.size(levels)>0
+        for j=0 to array.size(levels)-1
+            float p=array.get(levels,j)
+            int d=array.get(dirs,j)
+            int actual=d==0?(p<=currentClose?1:-1):d
+            float distance=math.abs(p-candleEdge)
+            if actual==side and distance<=a*1.15 and array.get(families,j)<=4
+                float prox=f_clip(1-distance/(a*1.15),0,1)
+                float rank=0.55*array.get(weights,j)+0.45*prox
+                if rank>priority
+                    priority:=rank
+                    anchor:=p
+                    desc:=array.get(names,j)
+    bool f1=false
+    bool f2=false
+    bool f3=false
+    bool f4=false
+    bool f5=false
+    bool f6=false
+    bool f7=false
+    bool f8=false
+    float strength=0.0
+    if not na(anchor)
+        for j=0 to array.size(levels)-1
+            float p=array.get(levels,j)
+            int d=array.get(dirs,j)
+            int actual=d==0?(p<=currentClose?1:-1):d
+            if actual==side and math.abs(p-anchor)<=a*tol
+                int f=array.get(families,j)
+                f1:=f1 or f==1
+                f2:=f2 or f==2
+                f3:=f3 or f==3
+                f4:=f4 or f==4
+                f5:=f5 or f==5
+                f6:=f6 or f==6
+                f7:=f7 or f==7
+                f8:=f8 or f==8
+                strength:=math.max(strength,array.get(weights,j))
+    int count=(f1?1:0)+(f2?1:0)+(f3?1:0)+(f4?1:0)+(f5?1:0)+(f6?1:0)+(f7?1:0)+(f8?1:0)
+    bool structural=f1 or f2 or f3 or f4 or f7
+    bool realOrderBlock=f3 or f4
+    [anchor,count,structural,realOrderBlock,strength,desc]
+[sAnchor,sFamilies,sStructural,sOrder,sStrength,sDesc]=f_cluster(1,mp,ms,mf,mw,mn,low,close,atr,mergeTol)
+[rAnchor,rFamilies,rStructural,rOrder,rStrength,rDesc]=f_cluster(-1,mp,ms,mf,mw,mn,high,close,atr,mergeTol)
+// Retest only counts if candle ACTUALLY intersected a historically known level.
+bool sTouch=not na(sAnchor) and low<=sAnchor+atr*0.16 and high>=sAnchor-atr*0.16
+bool rTouch=not na(rAnchor) and high>=rAnchor-atr*0.16 and low<=rAnchor+atr*0.16
+bool sReclaimed=barstate.isconfirmed and sTouch and close>sAnchor+atr*0.10 and pressure>0.12 and nz(rvol,0)>=minVol
+bool rRejected=barstate.isconfirmed and rTouch and close<rAnchor-atr*0.10 and pressure< -0.12 and nz(rvol,0)>=minVol
+bool sBroken=barstate.isconfirmed and not na(sAnchor) and close<sAnchor-atr*0.16 and close[1]>=sAnchor
+bool rBroken=barstate.isconfirmed and not na(rAnchor) and close>rAnchor+atr*0.16 and close[1]<=rAnchor
+
+// Nearest real opposition for the TP cap and clear, historically grounded chart.
+f_nearest(int side,float refPrice,array<float> levels,array<int> dirs,array<int> families,float a)=>
+    float nearest=na
+    if array.size(levels)>0
+        for j=0 to array.size(levels)-1
+            float p=array.get(levels,j)
+            int f=array.get(families,j)
+            int d=array.get(dirs,j)
+            bool structural=f<=5
+            bool valid=side==1?(p>refPrice+a*0.04 and (d==-1 or d==0)):(p<refPrice-a*0.04 and (d==1 or d==0))
+            if structural and valid
+                if na(nearest) or (side==1 and p<nearest) or (side==-1 and p>nearest)
+                    nearest:=p
+    nearest
+float nextResistance=f_nearest(1,close,mp,ms,mf,atr)
+float nextSupport=f_nearest(-1,close,mp,ms,mf,atr)
+
+// V7 conditional shelves. Only existing known structure anchors, never
+// extrapolated "predicted" prices. De-duplicate nearby sources in ATR units.
+f_v7Next(int direction,float baseline,float prior,array<float> levels,array<int> dirs,array<int> fam,float gap) =>
+    float answer=na
+    if not na(prior) and array.size(levels)>0
+        for i=0 to array.size(levels)-1
+            float p=array.get(levels,i)
+            int d=array.get(dirs,i)
+            int f=array.get(fam,i)
+            bool eligible=f<=5 and (direction==1?(p>prior+gap and (d==-1 or d==0)):(p<prior-gap and (d==1 or d==0)))
+            if eligible
+                if na(answer) or (direction==1?p<answer:p>answer)
+                    answer:=p
+    answer
+float v7R2=f_v7Next(1,close,nextResistance,mp,ms,mf,atr*0.35)
+float v7R3=f_v7Next(1,close,v7R2,mp,ms,mf,atr*0.35)
+float v7S2=f_v7Next(-1,close,nextSupport,mp,ms,mf,atr*0.35)
+float v7S3=f_v7Next(-1,close,v7S2,mp,ms,mf,atr*0.35)
+
+// 10 — Synthesis is not a flat vote: different causal paths require different
+// evidence. VP node / structure LOCATION changes the meaning of a candle pattern.
+bool recentStoL=(not na(sinceLow) and sinceLow<=24) or divL
+bool recentStoS=(not na(sinceHigh) and sinceHigh<=24) or divS
+bool bodyRejectL=dnWick>=minWick and closeQ>0.60
+bool bodyRejectS=upWick>=minWick and closeQ<0.40
+bool locationL=not na(sAnchor) and sStructural and sFamilies>=2 and low<=sAnchor+atr*0.32 and high>=sAnchor-atr*0.20
+bool locationS=not na(rAnchor) and rStructural and rFamilies>=2 and high>=rAnchor-atr*0.32 and low<=rAnchor+atr*0.20
+bool structL=sweepL or chochL or bosL or divL or patternBreakL or (eqLow and bodyRejectL) or sOrder
+bool structS=sweepS or chochS or bosS or divS or patternBreakS or (eqHigh and bodyRejectS) or rOrder
+bool patternReadyL=patL>=2 or (bodyRejectL and absorbL) or (progressFailureL and bodyRejectL)
+bool patternReadyS=patS>=2 or (bodyRejectS and absorbS) or (progressFailureS and bodyRejectS)
+bool timingL=stoL or (recentStoL and k1>k1[1]) or (rsiBbL and k3>=k3[1])
+bool timingS=stoS or (recentStoS and k1<k1[1]) or (rsiBbS and k3<=k3[1])
+
+// BOS -> subsequent retest state; do not call the breakout itself a retest.
+var int bosWaitSide=0
+var int bosWaitAt=na
+var float bosWaitLevel=na
+bool retestL=false
+bool retestS=false
+if barstate.isconfirmed
+    if bosWaitSide!=0
+        bool expired=bar_index-nz(bosWaitAt,bar_index)>9
+        bool invalid=bosWaitSide==1?close<bosWaitLevel-atr*0.25:close>bosWaitLevel+atr*0.25
+        if expired or invalid
+            bosWaitSide:=0
+        else if bar_index>bosWaitAt
+            if bosWaitSide==1 and low<=bosWaitLevel+atr*0.20 and close>=bosWaitLevel and (bodyRejectL or strongBull)
+                retestL:=true
+                bosWaitSide:=0
+            else if bosWaitSide==-1 and high>=bosWaitLevel-atr*0.20 and close<=bosWaitLevel and (bodyRejectS or strongBear)
+                retestS:=true
+                bosWaitSide:=0
+    if bosWaitSide==0
+        if bosL
+            bosWaitSide:=1
+            bosWaitAt:=bar_index
+            bosWaitLevel:=swingHigh
+        else if bosS
+            bosWaitSide:=-1
+            bosWaitAt:=bar_index
+            bosWaitLevel:=swingLow
+
+bool reversalL=locationL and (sweepL or chochL or progressFailureL or absorbL) and patternReadyL and timingL and volumeL
+bool reversalS=locationS and (sweepS or chochS or progressFailureS or absorbS) and patternReadyS and timingS and volumeS
+bool continuationL=locationL and trendUp and (sFamilies>=3 or sOrder) and patternReadyL and timingL and volumeL
+bool continuationS=locationS and trendDown and (rFamilies>=3 or rOrder) and patternReadyS and timingS and volumeS
+bool breakL=retestL and (locationL or math.abs(close-bosWaitLevel)<atr*0.60) and timingL and volumeL
+bool breakS=retestS and (locationS or math.abs(close-bosWaitLevel)<atr*0.60) and timingS and volumeS
+// True function synthesis: ChartArt's RSI(6) midline cross + BB(200,2)
+// recovery is only a NEW candidate ROUTE when it meets the old real structure,
+// candle, volume, 4STO timing and AVWAP/cloud/GMMA context constraints.
+// The strict / 2-bar pulse is not counted again as another independent zone.
+bool caReversalL=caPulseL and locationL and (sOrder or sFamilies>=3) and
+     (sweepL or absorbL or progressFailureL or bodyRejectL or engulfL) and
+     caVolumeOK and (k1>k2 and k3>=k3[1] and k4>=k4[1]) and
+     (patL>=2 or bodyRejectL or strongBull) and caContextPassL
+bool caReversalS=caPulseS and locationS and (rOrder or rFamilies>=3) and
+     (sweepS or absorbS or progressFailureS or bodyRejectS or engulfS) and
+     caVolumeOK and (k1<k2 and k3<=k3[1] and k4<=k4[1]) and
+     (patS>=2 or bodyRejectS or strongBear) and caContextPassS
+bool routeL=reversalL or continuationL or breakL or caReversalL
+bool routeS=reversalS or continuationS or breakS or caReversalS
+string routeNameL=breakL?"돌파재시험":caReversalL?"RSI·BB 구조복귀":reversalL?"스윕반전":"추세눌림"
+string routeNameS=breakS?"돌파재시험":caReversalS?"RSI·BB 구조복귀":reversalS?"스윕반전":"추세되돌림"
+
+// Fused quality uses six INDEPENDENT evidence families.
+// Conditions are NOT replaceable with a high score. All hard gates below apply.
+f_grade(int fam,bool loc,bool pat,bool wick,bool volOk,bool absorbing,bool structureOk,bool osc,bool trendOk,float rvolVal)=>
+    int qLocation=loc?(fam>=4?30:fam>=3?25:20):0
+    int qCandle=pat?20:wick?11:0
+    int qVolume=volOk?(absorbing?16:rvolVal>=1.5?15:11):0
+    int qStructure=structureOk?16:0
+    int qTiming=osc?10:0
+    int qTrend=trendOk?8:0
+    qLocation+qCandle+qVolume+qStructure+qTiming+qTrend
+int scoreL=f_grade(sFamilies,locationL,patL>=2,bodyRejectL,volumeL,absorbL or progressFailureL,structL,timingL,trendUp and biasL,nz(rvol,0))
+int scoreS=f_grade(rFamilies,locationS,patS>=2,bodyRejectS,volumeS,absorbS or progressFailureS,structS,timingS,trendDown and biasS,nz(rvol,0))
+int scoreThreshold=profile=="엄격"?82:profile=="정밀"?75:68
+int needFamilies=profile=="엄격"?3:2
+bool confirmedCandidateL=routeL and locationL and sFamilies>=needFamilies and biasL and scoreL>=scoreThreshold-7 and not routeS and v7MicroLong
+bool confirmedCandidateS=routeS and locationS and rFamilies>=needFamilies and biasS and scoreS>=scoreThreshold-7 and not routeL and v7MicroShort
+
+// 11 — Stateful confirmation. Lock the candidate at the signal candle CLOSE.
+// Next 1..life candles must reclaim the trigger. Wrong wick/volume/bias blocks.
+var int pendingDir=0
+var int pendingAt=na
+var float pendingTrigger=na
+var float pendingStop=na
+var float pendingAnchor=na
+var int pendingScore=0
+var int pendingFamilies=0
+var int pendingKey=-1
+var string pendingWhy=""
+var float pendingPressure=na
+var float pendingBody=na
+var float pendingWick=na
+var float pendingRVOL=na
+var float pendingK1=na
+var float pendingK4=na
+var float pendingZCount=na
+var float pendingVPDist=na
+var int pendingPattern=na
+var int caPendingBB=0
+var int lastEntry=na
+var int paperDir=0
+var int paperAt=na
+var float paperE=na
+var float paperSL=na
+var float paperTP=na
+var int wins=0
+var int losses=0
+var int timedOut=0
+var float v7PaperNet=0.0
+var float v7PaperGrossProfit=0.0
+var float v7PaperGrossLoss=0.0
+var int v7PaperClosed=0
+var float v7PaperHighEquity=account
+var float v7PaperMaxDD=0.0
+var float v7DailyNet=0.0
+bool v7NewDay=ta.change(time("D"))!=0
+if barstate.isconfirmed and v7NewDay
+    v7DailyNet:=0.0
+bool v7DailyOK=sec>86400 or v7DailyNet > -account*v7DailyStop/100.0
+bool watchL=false
+bool watchS=false
+bool exitedPaper=false
+bool enterL=false
+bool enterS=false
+bool failL=false
+bool failS=false
+bool blockL=false
+bool blockS=false
+string rejectWhy=""
+int actualScore=0
+float signalRR=na
+float signalNetUSDT=na
+
+// Analog key = direction x trend phase x confluence x absorption x pattern x VP.
+// 64 past-only context buckets; never a calibrated probability.
+f_key(bool isLong,bool aligned,int families,bool absorption,int patternStrength,string shape)=>
+    (isLong?0:32)+(aligned?16:0)+(families>=3?8:0)+(absorption?4:0)+(patternStrength>=3?2:0)+(shape=="Double Zone"?1:0)
+int candidateKeyL=f_key(true,trendUp,sFamilies,absorbL or progressFailureL,patL,vpKind)
+int candidateKeyS=f_key(false,trendDown,rFamilies,absorbS or progressFailureS,patS,vpKind)
+int eventKey=-1
+int eventDir=0
+
+if barstate.isconfirmed
+    // Existing PAPER position is settled on subsequent candles only.
+    if paperDir!=0 and bar_index>paperAt
+        bool hitSL=paperDir==1?low<=paperSL:high>=paperSL
+        bool hitTP=paperDir==1?high>=paperTP:low<=paperTP
+        if hitSL or hitTP or bar_index-paperAt>=60
+            if hitSL
+                losses+=1  // If both touched in one bar, worst-case SL wins.
+            else if hitTP
+                wins+=1
+            else
+                timedOut+=1
+            // V7 notional-based PAPER accounting, not a real exchange fill.
+            float paperExit=hitSL?paperSL:hitTP?paperTP:close
+            float notional=account*marginPercent/100.0*leverage
+            float gross=not na(paperE) and paperE>0?notional*paperDir*(paperExit-paperE)/paperE:0.0
+            float costsUSDT=notional*(costPercent+fundingPercent)/100.0
+            float net=gross-costsUSDT
+            v7PaperNet+=net
+            v7DailyNet+=net
+            v7PaperClosed+=1
+            if net>=0
+                v7PaperGrossProfit+=net
+            else
+                v7PaperGrossLoss+=-net
+            float v7EquityNow=account+v7PaperNet
+            v7PaperHighEquity:=math.max(v7PaperHighEquity,v7EquityNow)
+            v7PaperMaxDD:=math.max(v7PaperMaxDD,v7PaperHighEquity>0?100.0*(v7PaperHighEquity-v7EquityNow)/v7PaperHighEquity:0.0)
+            paperDir:=0
+            exitedPaper:=true
+    if pendingDir!=0 and bar_index>pendingAt
+        bool isLong=pendingDir==1
+        bool pastLife=bar_index-pendingAt>life
+        bool invalidStop=isLong?low<=pendingStop:high>=pendingStop
+        bool oppositeStructure=isLong?chochS or sweepS:chochL or sweepL
+        if pastLife or invalidStop or oppositeStructure
+            failL:=isLong
+            failS:=not isLong
+            pendingDir:=0
+        else
+            bool crossed=isLong?close>pendingTrigger:close<pendingTrigger
+            if crossed
+                bool bullishConfirmation=bull and closeQ>=0.70 and bodyQ>=0.35
+                bool bearishConfirmation=bear and closeQ<=0.30 and bodyQ>=0.35
+                bool candlePass=isLong?bullishConfirmation:bearishConfirmation
+                bool volumePass=not na(rvol) and rvol>=confirmVol
+                bool timingPass=isLong?(k1>k2 and k3>=k3[1]):(k1<k2 and k3<=k3[1])
+                bool htfPass=isLong?biasL:biasS
+                bool activeClear=paperDir==0
+                float stopDist=isLong?close-pendingStop:pendingStop-close
+                float costs=close*(costPercent+fundingPercent)/100
+                float rawTarget=isLong?close+stopDist*rewardR:close-stopDist*rewardR
+                float nearest=isLong?nextResistance:nextSupport
+                // An obstacle too close to cover fees is a rejection, not ignored.
+                float goal=isLong?(not na(nearest)?math.min(rawTarget,nearest):rawTarget):(not na(nearest)?math.max(rawTarget,nearest):rawTarget)
+                float netDistance=math.abs(goal-close)-costs
+                float rr=stopDist>0?netDistance/(stopDist+costs):na
+                float estimatedAccountLoss=close>0?marginPercent*leverage*(stopDist+costs)/close:na
+                float nominal=account*marginPercent/100*leverage
+                float netUSDT=close>0?nominal*netDistance/close:na
+                bool stopOK=stopDist>syminfo.mintick*3 and stopDist<=atr*3.5 and close>0
+                bool liqOK=close>0 and stopDist/close<0.62/leverage
+                bool rrOK=not na(rr) and rr>=minRR and netDistance>0
+                bool accountOK=not na(estimatedAccountLoss) and estimatedAccountLoss<=maxLossPercent
+                bool profitOK=not na(netUSDT) and netUSDT>=minNetDollar
+                bool spacing=na(lastEntry) or bar_index-lastEntry>=cooldown
+                actualScore:=math.min(100,pendingScore+(candlePass and volumePass?5:0))
+                bool microPass=isLong?v7MicroLong:v7MicroShort
+                bool gate=activeClear and spacing and v7DailyOK and candlePass and volumePass and timingPass and htfPass and microPass and
+                     actualScore>=scoreThreshold and stopOK and liqOK and rrOK and accountOK and profitOK
+                if gate
+                    enterL:=isLong
+                    enterS:=not isLong
+                    paperDir:=isLong?1:-1
+                    paperAt:=bar_index
+                    paperE:=close
+                    paperSL:=pendingStop
+                    paperTP:=goal
+                    lastEntry:=bar_index
+                    signalRR:=rr
+                    signalNetUSDT:=netUSDT
+                else
+                    blockL:=isLong
+                    blockS:=not isLong
+                    rejectWhy:=not activeClear?"PAPER 포지션 중복":not spacing?"재진입 간격":not v7DailyOK?"PAPER 일일 손실제한":not candlePass?"후속 캔들 압력":not volumePass?"RVOL 부족":not timingPass?"4STO 후속 불일치":not htfPass?"상위봉 반대":not microPass?"5분/15분 상위확정 불일치":actualScore<scoreThreshold?"합성 근거 부족":not stopOK?"손절 거리":not liqOK?"청산 위험":not rrOK?"목표 앞 장애물·손익비":not accountOK?"계좌 위험 초과":not profitOK?"예상 순수익 부족":"자료 검증"
+                pendingDir:=0
+    bool readyForNew=not exitedPaper and pendingDir==0 and paperDir==0 and not enterL and not enterS and not blockL and not blockS and
+         (na(lastEntry) or bar_index-lastEntry>=cooldown) and v7DailyOK
+    if readyForNew and confirmedCandidateL and not confirmedCandidateS
+        float candidateSL=math.min(low,nz(sAnchor,low))-atr*0.14
+        if candidateSL<close-syminfo.mintick*4
+            pendingDir:=1
+            pendingAt:=bar_index
+            pendingTrigger:=high+atr*0.025
+            pendingStop:=candidateSL
+            pendingAnchor:=sAnchor
+            pendingScore:=scoreL
+            pendingFamilies:=sFamilies
+            pendingWhy:=routeNameL+" · "+patternL+" · "+sDesc
+            pendingPressure:=pressure
+            pendingBody:=bodyQ
+            pendingWick:=dnWick
+            pendingRVOL:=nz(rvol,1)
+            pendingK1:=k1
+            pendingK4:=k4
+            pendingZCount:=sFamilies
+            pendingVPDist:=(close-nz(vpPOC,close))/math.max(atr,syminfo.mintick)
+            pendingPattern:=patL
+            caPendingBB:=caPulseL?1:0
+            pendingKey:=candidateKeyL
+            eventKey:=candidateKeyL
+            eventDir:=1
+            watchL:=true
+    else if readyForNew and confirmedCandidateS and not confirmedCandidateL
+        float candidateSL=math.max(high,nz(rAnchor,high))+atr*0.14
+        if candidateSL>close+syminfo.mintick*4
+            pendingDir:=-1
+            pendingAt:=bar_index
+            pendingTrigger:=low-atr*0.025
+            pendingStop:=candidateSL
+            pendingAnchor:=rAnchor
+            pendingScore:=scoreS
+            pendingFamilies:=rFamilies
+            pendingWhy:=routeNameS+" · "+patternS+" · "+rDesc
+            pendingPressure:=pressure
+            pendingBody:=bodyQ
+            pendingWick:=upWick
+            pendingRVOL:=nz(rvol,1)
+            pendingK1:=k1
+            pendingK4:=k4
+            pendingZCount:=rFamilies
+            pendingVPDist:=(close-nz(vpPOC,close))/math.max(atr,syminfo.mintick)
+            pendingPattern:=patS
+            caPendingBB:=caPulseS?1:0
+            pendingKey:=candidateKeyS
+            eventKey:=candidateKeyS
+            eventDir:=-1
+            watchS:=true
+
+// V7 pre-entry hypothetical plan. Never show a PAPER fill before the entry.
+float v7PlanE=pendingDir!=0?pendingTrigger:na
+float v7PlanSL=pendingDir!=0?pendingStop:na
+float v7PlanDist=not na(v7PlanE) and not na(v7PlanSL)?math.abs(v7PlanE-v7PlanSL):na
+float v7PlanRaw=not na(v7PlanDist)?v7PlanE+pendingDir*v7PlanDist*rewardR:na
+float v7PlanOpp=pendingDir==1?f_nearest(1,v7PlanE,mp,ms,mf,atr):pendingDir==-1?f_nearest(-1,v7PlanE,mp,ms,mf,atr):na
+float v7PlanTP=pendingDir==1?(na(v7PlanOpp)?v7PlanRaw:math.min(v7PlanRaw,v7PlanOpp)):
+     pendingDir==-1?(na(v7PlanOpp)?v7PlanRaw:math.max(v7PlanRaw,v7PlanOpp)):na
+float v7PlanCosts=not na(v7PlanE)?v7PlanE*(costPercent+fundingPercent)/100.0:na
+float v7PlanNet=not na(v7PlanTP)?math.abs(v7PlanTP-v7PlanE)-v7PlanCosts:na
+float v7PlanRR=not na(v7PlanDist) and v7PlanDist>0?v7PlanNet/(v7PlanDist+v7PlanCosts):na
+float v7PlanAcctLoss=not na(v7PlanE) and v7PlanE>0?marginPercent*leverage*(v7PlanDist+v7PlanCosts)/v7PlanE:na
+bool v7PlanViable=pendingDir!=0 and not na(v7PlanRR) and v7PlanRR>=minRR and v7PlanNet>0 and v7PlanAcctLoss<=maxLossPercent and v7PlanDist<=atr*3.5
+
+// 12 — Matured outcome study, 64 buckets * 1/3/5 closed-bar horizons.
+// Only watches already existed H candles ago get added. No random future inputs.
+// Open event and currently unfinished samples are excluded.
+var array<int> total1=array.new_int(64,0)
+var array<int> total3=array.new_int(64,0)
+var array<int> total5=array.new_int(64,0)
+var array<int> correct1=array.new_int(64,0)
+var array<int> correct3=array.new_int(64,0)
+var array<int> correct5=array.new_int(64,0)
+if barstate.isconfirmed
+    if bar_index>=5 and eventKey[1]>=0
+        int k=eventKey[1]
+        bool yes=eventDir[1]==1?close>close[1]:close<close[1]
+        array.set(total1,k,array.get(total1,k)+1)
+        array.set(correct1,k,array.get(correct1,k)+(yes?1:0))
+    if bar_index>=5 and eventKey[3]>=0
+        int k=eventKey[3]
+        bool yes=eventDir[3]==1?close>close[3]:close<close[3]
+        array.set(total3,k,array.get(total3,k)+1)
+        array.set(correct3,k,array.get(correct3,k)+(yes?1:0))
+    if bar_index>=5 and eventKey[5]>=0
+        int k=eventKey[5]
+        bool yes=eventDir[5]==1?close>close[5]:close<close[5]
+        array.set(total5,k,array.get(total5,k)+1)
+        array.set(correct5,k,array.get(correct5,k)+(yes?1:0))
+int displayKey=pendingDir!=0?pendingKey:(not na(sAnchor) and scoreL>scoreS?candidateKeyL:candidateKeyS)
+int sample1=array.get(total1,displayKey)
+int sample3=array.get(total3,displayKey)
+int sample5=array.get(total5,displayKey)
+float match1=sample1>0?100.0*array.get(correct1,displayKey)/sample1:na
+float match3=sample3>0?100.0*array.get(correct3,displayKey)/sample3:na
+float match5=sample5>0?100.0*array.get(correct5,displayKey)/sample5:na
+
+// 12B — Similar-past-CANDLE feature search, not a global win-rate counter.
+// Freeze every candidate's features. Store outcomes ONLY 5 bars after candidate.
+// Search up to the 20 closest historical cases in the same LONG/SHORT direction.
+// Values are written only on the CLOSED candidate bar and matured after 5 bars.
+float eventPressure=eventKey>=0?pressure:na
+float eventBody=eventKey>=0?bodyQ:na
+float eventWick=eventKey>=0?(eventDir==1?dnWick:upWick):na
+float eventRVOL=eventKey>=0?rvol:na
+float eventK1=eventKey>=0?k1:na
+float eventK4=eventKey>=0?k4:na
+float eventFamilies=eventKey>=0?(eventDir==1?sFamilies:rFamilies):na
+float eventPoc=eventKey>=0?(close-nz(vpPOC,close))/math.max(atr,syminfo.mintick):na
+int eventPattern=eventKey>=0?(eventDir==1?patL:patS):-1
+int caEventBB=eventKey>=0?((eventDir==1?caPulseL:caPulseS)?1:0):0
+int eventPhase=eventKey>=0?(rangeMode?0:(eventDir==1?trendUp:trendDown)?1:-1):-9
+var array<int> caseDir=array.new_int()
+var array<float> casePressure=array.new_float()
+var array<float> caseBody=array.new_float()
+var array<float> caseWick=array.new_float()
+var array<float> caseRvol=array.new_float()
+var array<float> caseK1=array.new_float()
+var array<float> caseK4=array.new_float()
+var array<float> caseZone=array.new_float()
+var array<float> casePoc=array.new_float()
+var array<int> casePattern=array.new_int()
+var array<int> caCaseBB=array.new_int()
+var array<int> caseResult1=array.new_int()
+var array<int> caseResult3=array.new_int()
+var array<int> caseResult5=array.new_int()
+var array<int> casePhase=array.new_int()
+var array<float> caseAtrMove1=array.new_float()
+var array<float> caseAtrMove3=array.new_float()
+var array<float> caseAtrMove5=array.new_float()
+if barstate.isconfirmed and bar_index>=5 and eventKey[5]>=0
+    int side=eventDir[5]
+    array.push(caseDir,side)
+    array.push(casePressure,nz(eventPressure[5],0.0))
+    array.push(caseBody,nz(eventBody[5],0.0))
+    array.push(caseWick,nz(eventWick[5],0.0))
+    array.push(caseRvol,nz(eventRVOL[5],1.0))
+    array.push(caseK1,nz(eventK1[5],50.0))
+    array.push(caseK4,nz(eventK4[5],50.0))
+    array.push(caseZone,nz(eventFamilies[5],0.0))
+    array.push(casePoc,nz(eventPoc[5],0.0))
+    array.push(casePattern,eventPattern[5])
+    array.push(caCaseBB,caEventBB[5])
+    array.push(caseResult1,(side==1?close[4]>close[5]:close[4]<close[5])?1:0)
+    array.push(caseResult3,(side==1?close[2]>close[5]:close[2]<close[5])?1:0)
+    array.push(caseResult5,(side==1?close>close[5]:close<close[5])?1:0)
+    array.push(casePhase,eventPhase[5])
+    float baseATR=math.max(nz(atr[5],syminfo.mintick),syminfo.mintick)
+    array.push(caseAtrMove1,side*(close[4]-close[5])/baseATR)
+    array.push(caseAtrMove3,side*(close[2]-close[5])/baseATR)
+    array.push(caseAtrMove5,side*(close-close[5])/baseATR)
+    if array.size(caseDir)>280
+        array.shift(caseDir)
+        array.shift(casePressure)
+        array.shift(caseBody)
+        array.shift(caseWick)
+        array.shift(caseRvol)
+        array.shift(caseK1)
+        array.shift(caseK4)
+        array.shift(caseZone)
+        array.shift(casePoc)
+        array.shift(casePattern)
+        array.shift(caCaseBB)
+        array.shift(caseResult1)
+        array.shift(caseResult3)
+        array.shift(caseResult5)
+        array.shift(casePhase)
+        array.shift(caseAtrMove1)
+        array.shift(caseAtrMove3)
+        array.shift(caseAtrMove5)
+int neighborN=0
+int neighborUp1=0
+int neighborUp3=0
+int neighborUp5=0
+float neighborATR1=0.0
+float neighborATR3=0.0
+float neighborATR5=0.0
+if barstate.islast and showStats and array.size(caseDir)>0
+    int sd=pendingDir!=0?pendingDir:scoreL>=scoreS?1:-1
+    float cp=pendingDir!=0?pendingPressure:pressure
+    float cb=pendingDir!=0?pendingBody:bodyQ
+    float cw=pendingDir!=0?pendingWick:(sd==1?dnWick:upWick)
+    float cv=pendingDir!=0?pendingRVOL:nz(rvol,1.0)
+    float ck1=pendingDir!=0?pendingK1:k1
+    float ck4=pendingDir!=0?pendingK4:k4
+    float cz=pendingDir!=0?pendingZCount:(sd==1?sFamilies:rFamilies)
+    float cpoc=pendingDir!=0?pendingVPDist:(close-nz(vpPOC,close))/math.max(atr,syminfo.mintick)
+    int cpat=pendingDir!=0?pendingPattern:(sd==1?patL:patS)
+    int cbb=pendingDir!=0?caPendingBB:((sd==1?caPulseL:caPulseS)?1:0)
+    int currentPhase=rangeMode?0:(sd==1?trendUp:trendDown)?1:-1
+    array<float> closest=array.new_float(20,999.0)
+    array<int> closestId=array.new_int(20,-1)
+    for i=0 to array.size(caseDir)-1
+        if array.get(caseDir,i)==sd
+            float dist=(0.22*math.abs(cp-array.get(casePressure,i))/2+0.09*math.abs(cb-array.get(caseBody,i))+
+                0.10*math.abs(cw-array.get(caseWick,i))+0.11*f_clip(math.abs(cv-array.get(caseRvol,i))/2,0,1)+
+                0.10*math.abs(ck1-array.get(caseK1,i))/100+0.08*math.abs(ck4-array.get(caseK4,i))/100+
+                0.12*f_clip(math.abs(cz-array.get(caseZone,i))/4,0,1)+
+                0.12*f_clip(math.abs(cpoc-array.get(casePoc,i))/4,0,1)+
+                (cpat==array.get(casePattern,i)?0.0:0.06)+
+                (currentPhase==array.get(casePhase,i)?0.0:0.13)+
+                (cbb==array.get(caCaseBB,i)?0.0:0.12))
+            if dist<0.30
+                for j=0 to 19
+                    if dist<array.get(closest,j)
+                        if j<19
+                            for x=19 to j+1
+                                array.set(closest,x,array.get(closest,x-1))
+                                array.set(closestId,x,array.get(closestId,x-1))
+                        array.set(closest,j,dist)
+                        array.set(closestId,j,i)
+                        break
+    for j=0 to 19
+        int id=array.get(closestId,j)
+        if id>=0
+            neighborN+=1
+            neighborUp1+=array.get(caseResult1,id)
+            neighborUp3+=array.get(caseResult3,id)
+            neighborUp5+=array.get(caseResult5,id)
+            neighborATR1+=array.get(caseAtrMove1,id)
+            neighborATR3+=array.get(caseAtrMove3,id)
+            neighborATR5+=array.get(caseAtrMove5,id)
+
+// 12D — Large-candle aftermath research, independent from entry signals.
+// A large directional impulse with higher RVOL is observed ONLY after 1/3/5 bars.
+bool impulseL=barstate.isconfirmed and strongBull and high-low>=atr*1.55 and rvol>=1.30
+bool impulseS=barstate.isconfirmed and strongBear and high-low>=atr*1.55 and rvol>=1.30
+int impulseDir=impulseL?1:impulseS?-1:0
+var array<int> impulseTotal=array.new_int(6,0)
+var array<int> impulseSuccess=array.new_int(6,0)
+if barstate.isconfirmed
+    for h=1 to 5 by 2
+        if bar_index>=h and impulseDir[h]!=0
+            int kind=(impulseDir[h]==1?0:3)+(h==1?0:h==3?1:2)
+            bool continued=impulseDir[h]==1?close>close[h]:close<close[h]
+            array.set(impulseTotal,kind,array.get(impulseTotal,kind)+1)
+            array.set(impulseSuccess,kind,array.get(impulseSuccess,kind)+(continued?1:0))
+int impulseBase=trendDown?3:0
+int impulseCount1=array.get(impulseTotal,impulseBase)
+int impulseCount3=array.get(impulseTotal,impulseBase+1)
+int impulseCount5=array.get(impulseTotal,impulseBase+2)
+float impulse1=impulseCount1>0?100.0*array.get(impulseSuccess,impulseBase)/impulseCount1:na
+float impulse3=impulseCount3>0?100.0*array.get(impulseSuccess,impulseBase+1)/impulseCount3:na
+float impulse5=impulseCount5>0?100.0*array.get(impulseSuccess,impulseBase+2)/impulseCount5:na
+
+// 12C — Optional long-horizon BTC Power Law, out of entry gates by design.
+// Log10(close)=A+B*Log10(days since genesis); in-chart D/W/M feed only.
+// The curve is fitted on the available symbol history, not a universal model.
+int genesis=timestamp("UTC",2009,1,3,0,0)
+float genesisDays=(time-genesis)/86400000.0
+bool powerEligible=showPower and sec>=86400 and str.contains(syminfo.ticker,"BTC") and
+     time>=timestamp("UTC",2010,7,18,0,0) and close>0 and genesisDays>0
+var float powerN=0.0
+var float powerX=0.0
+var float powerY=0.0
+var float powerXX=0.0
+var float powerXY=0.0
+var int powerStart=na
+if barstate.isconfirmed and powerEligible
+    float px=math.log10(genesisDays)
+    float py=math.log10(close)
+    powerN+=1
+    powerX+=px
+    powerY+=py
+    powerXX+=px*px
+    powerXY+=px*py
+    if na(powerStart)
+        powerStart:=time
+float powerDen=powerN*powerXX-powerX*powerX
+float powerB=powerN>=104 and math.abs(powerDen)>0.000001?(powerN*powerXY-powerX*powerY)/powerDen:na
+float powerA=not na(powerB)?(powerY-powerB*powerX)/powerN:na
+bool powerEnough=not na(powerStart) and time-powerStart>=2*365*86400000
+float powerCurve=powerEligible and powerEnough and not na(powerA)?math.pow(10,powerA+powerB*math.log10(genesisDays)):na
+float powerRatio=not na(powerCurve) and powerCurve>0?close/powerCurve:na
+
+// 13 — Sparse chart output: market data plotted, not artificial reconstructed candles.
+color GREEN=color.rgb(22,199,116)
+color RED=color.rgb(242,70,87)
+color GOLD=color.rgb(245,188,49)
+color BLUE=color.rgb(50,138,243)
+color GRAY=color.rgb(128,145,161)
+color pressureColor=absorbL or strongBull and volumeL?GREEN:absorbS or strongBear and volumeS?RED:progressFailureL or progressFailureS?GOLD:na
+barcolor(showCandles and barstate.isconfirmed?pressureColor:na,title="캔들 압력 강조")
+plot(showGMMA?fastG:na,"GMMA 빠른",color=color.new(GOLD,20),linewidth=1)
+plot(showGMMA?slowG:na,"GMMA 느린",color=color.new(BLUE,20),linewidth=2)
+plot(showBlue and showBlueRibbon?blue:na,"대표 MTF 합성 파랑곡선 (추가선)",color=blueHit?GRAY:BLUE,linewidth=2)
+plot(showVwap?vwap:na,"세션 VWAP",color=color.new(BLUE,55))
+plot(showBands?nweLower:na,"NWE 하단",color=color.new(GREEN,65))
+plot(showBands?nweUpper:na,"NWE 상단",color=color.new(RED,65))
+plot(showBands or caShowBB?bbLower:na,"BB200 하단",color=color.new(GREEN,78))
+plot(showBands or caShowBB?bbUpper:na,"BB200 상단",color=color.new(RED,78))
+plot(caShowBB?bbBasis:na,"BB200 중심",color=color.new(BLUE,45))
+plot(caShowAVWAP?caAVWAP:na,"확정 피벗 AVWAP",color=color.new(BLUE,18),linewidth=2)
+plot(caShowReg?caRegUpper:na,"회귀채널 위",color=color.new(RED,80))
+plot(caShowReg?caRegLower:na,"회귀채널 아래",color=color.new(GREEN,80))
+plot(showPower?powerCurve:na,"BTC Power Law 장기회귀 (진입분리)",color=color.new(GOLD,0),linewidth=2)
+// V8.2: watchL/watchS markers removed (대기 표시 불필요). PAPER pending 로직은 유지.
+plotshape(showS and failL,title="롱 후보 무효",style=shape.xcross,location=location.belowbar,color=GRAY,size=size.tiny)
+plotshape(showS and failS,title="숏 후보 무효",style=shape.xcross,location=location.abovebar,color=GRAY,size=size.tiny)
+plotshape(showS and enterL,title="롱진입 · 모의",style=shape.labelup,location=location.belowbar,color=GREEN,text="롱진입",textcolor=color.white,size=size.tiny)
+plotshape(showS and enterS,title="숏진입 · 모의",style=shape.labeldown,location=location.abovebar,color=RED,text="숏진입",textcolor=color.white,size=size.tiny)
+plotshape(showS and sweepL,title="저점 스윕",style=shape.triangleup,location=location.belowbar,color=BLUE,size=size.tiny)
+plotshape(showS and sweepS,title="고점 스윕",style=shape.triangledown,location=location.abovebar,color=BLUE,size=size.tiny)
+plotshape(showBlueCross and blueCrossL,title="장기롱 · 파랑상향",style=shape.triangleup,location=location.belowbar,color=BLUE,text="장기롱",textcolor=BLUE,size=size.tiny)
+plotshape(showBlueCross and blueCrossS,title="장기숏 · 파랑하향",style=shape.triangledown,location=location.abovebar,color=BLUE,text="장기숏",textcolor=BLUE,size=size.tiny)
+
+var array<line> viewLines=array.new_line()
+var array<label> viewLabels=array.new_label()
+var array<box> viewBoxes=array.new_box()
+var array<linefill> viewFills=array.new_linefill()
+var int v7SupportType=na
+var int v7ResistanceType=na
+// Return actual recorded structure origin, else mark this as a live snapshot.
+f_priceOrigin(float p,int side,array<float> vals,array<int> dirs,array<int> born,array<FusionZone> zStore,float tol)=>
+    int origin=bar_index-30
+    float best=1e20
+    if not na(p) and array.size(vals)>0
+        for j=0 to array.size(vals)-1
+            float d=math.abs(array.get(vals,j)-p)
+            if d<tol and d<best and array.get(dirs,j)==side
+                best:=d
+                origin:=array.get(born,j)
+    if not na(p) and array.size(zStore)>0
+        for j=0 to array.size(zStore)-1
+            FusionZone z=array.get(zStore,j)
+            float d=math.abs((z.top+z.bot)/2-p)
+            if z.state==0 and z.side==side and d<tol and d<best
+                best:=d
+                origin:=z.born
+    math.max(bar_index-1200,math.min(bar_index,origin))
+f_draw(float p,string textLabel,color c,bool isCore,bool zone,int rightX,int originX,array<line> lines,array<label> labels,array<box> boxes)=>
+    if not na(p) and math.abs(p-close)<=atr*visibleAtr
+        array.push(lines,line.new(originX,p,rightX,p,xloc=xloc.bar_index,color=c,width=isCore?3:2))
+        if zone
+            float half=f_clip(atr*0.10,syminfo.mintick*3,atr*0.25)
+            array.push(boxes,box.new(math.max(originX,bar_index-42),p+half,rightX,p-half,xloc=xloc.bar_index,bgcolor=color.new(c,94),border_color=color.new(isCore?GOLD:c,34)))
+        array.push(labels,label.new(bar_index+v7LabelOffset,p,textLabel+"  "+str.tostring(p,format.mintick),xloc=xloc.bar_index,style=label.style_label_left,color=color.new(color.black,20),textcolor=c,size=size.tiny))
+    0
+
+// V8: When the structural Zone is already shown, do not duplicate its name and
+// price as an independent S1/R1 line. Historical data / evidence remain intact.
+f_v8AlreadyBoxed(float p,int side,array<int> ids,array<FusionZone> zones,float allowance) =>
+    bool found=false
+    if not na(p) and array.size(ids)>0
+        for j=0 to array.size(ids)-1
+            FusionZone z=array.get(zones,array.get(ids,j))
+            if z.side==side and p>=z.bot-allowance and p<=z.top+allowance
+                found:=true
+                break
+    found
+
+// Short on-chart observed frequencies, NEVER derived from the confluence score.
+f_v8CompactRate(int src,int side) =>
+    int key=(src-1)*2+(side==1?0:1)
+    int good=array.get(v7Win,key)
+    int bad=array.get(v7Break,key)
+    int flat=array.get(v7Timeout,key)
+    int n=good+bad+flat
+    string outcome=side==1?"반등":"거부"
+    n>=v7MinSamples?outcome+" "+str.tostring(100.0*good/n,"#.0")+"% N"+str.tostring(n):"관측 "+str.tostring(n)+"/"+str.tostring(v7MinSamples)
+
+// Draw the most relevant selected cluster at the price which actually matters.
+// Secondary levels remain optional; labels never reposition their Y to look tidy.
+if barstate.islast
+    while array.size(viewFills)>0
+        linefill.delete(array.pop(viewFills))
+    while array.size(viewLines)>0
+        line.delete(array.pop(viewLines))
+    while array.size(viewLabels)>0
+        label.delete(array.pop(viewLabels))
+    while array.size(viewBoxes)>0
+        box.delete(array.pop(viewBoxes))
+    int rightX=bar_index+lineAhead  // Original confirmed-pivot trendlines: UNCHANGED.
+    int v8X=bar_index+v7LabelOffset  // Exactly 10 future bars by default; not the trendline length.
+    v7SupportType:=na
+    v7ResistanceType:=na
+    // Zone memory remains intact. Only the 1~2 best independent PRICE areas per
+    // direction are revealed; source, left edge, original prices never move.
+    array<int> selectedZones=array.new_int()
+    if array.size(fusionZones)>0
+        for zi=0 to array.size(fusionZones)-1
+            FusionZone z=array.get(fusionZones,zi)
+            color originalColor=z.side==1?GREEN:RED
+            bool historyVisible=showActiveZones and showZoneHistory and z.state!=0
+            box.set_bgcolor(z.draw,color.new(originalColor,historyVisible?97:100))
+            box.set_border_color(z.draw,color.new(originalColor,historyVisible?91:100))
+        if showActiveZones
+            for targetSide=-1 to 1 by 2
+                for choice=0 to zonePerSide-1
+                    int bestId=-1
+                    float bestRank=-1e10
+                    for zi=0 to array.size(fusionZones)-1
+                        FusionZone z=array.get(fusionZones,zi)
+                        if z.state==0 and z.side==targetSide
+                            float mid=(z.top+z.bot)*0.5
+                            float dist=math.abs(mid-close)
+                            bool correctSide=targetSide==1?z.bot<=close+atr*0.30:z.top>=close-atr*0.30
+                            bool nearEnough=dist<=atr*zoneDisplayAtr
+                            bool duplicate=false
+                            if array.size(selectedZones)>0
+                                for qq=0 to array.size(selectedZones)-1
+                                    FusionZone p=array.get(fusionZones,array.get(selectedZones,qq))
+                                    bool overlaps=math.max(z.bot,p.bot)<=math.min(z.top,p.top)
+                                    bool near=math.abs(mid-(p.top+p.bot)*0.5)<=atr*zoneDupAtr
+                                    if p.side==z.side and (overlaps or near)
+                                        duplicate:=true
+                                        break
+                            if correctSide and nearEnough and not duplicate
+                                float nearWeight=1.0-f_clip(dist/math.max(atr*zoneDisplayAtr,syminfo.mintick),0,1)
+                                float ageWeight=1.0-f_clip(float(bar_index-z.born)/math.max(zoneMaxAge,1),0,1)
+                                float widthPenalty=f_clip((z.top-z.bot)/math.max(atr*2,syminfo.mintick),0,1)
+                                float decisionAnchor=targetSide==1?(pendingDir==1?pendingAnchor:sAnchor):(pendingDir==-1?pendingAnchor:rAnchor)
+                                bool nearDecision=not na(decisionAnchor) and decisionAnchor>=z.bot-atr*mergeTol and decisionAnchor<=z.top+atr*mergeTol
+                                float rank=0.52*z.quality+0.32*nearWeight+0.12*ageWeight+0.04*math.min(float(z.touches),3)/3.0-0.08*widthPenalty+(nearDecision?0.20:0.0)
+                                if rank>bestRank
+                                    bestRank:=rank
+                                    bestId:=zi
+                    if bestId>=0
+                        array.push(selectedZones,bestId)
+            if array.size(selectedZones)>0
+                for qq=0 to array.size(selectedZones)-1
+                    FusionZone z=array.get(fusionZones,array.get(selectedZones,qq))
+                    color cc=z.side==1?GREEN:RED
+                    bool core=z.quality>=0.89 and z.touches>=1
+                    if z.side==1 and na(v7SupportType)
+                        v7SupportType:=z.src
+                    if z.side==-1 and na(v7ResistanceType)
+                        v7ResistanceType:=z.src
+                    box.set_bgcolor(z.draw,color.new(cc,94))
+                    box.set_border_color(z.draw,color.new(core?GOLD:cc,core?14:24))
+                    box.set_right(z.draw,v8X)  // Display only: preserve the event-origin LEFT and prices.
+    if showMap
+        // Respect 2+2 active boxed zones; use S/R line only as a fallback.
+        if not na(rAnchor) and not f_v8AlreadyBoxed(rAnchor,-1,selectedZones,fusionZones,atr*0.18)
+            f_draw(rAnchor,"R1 저항",RED,rFamilies>=3,false,v8X,f_priceOrigin(rAnchor,-1,levelP,levelSide,levelBorn,fusionZones,atr*mergeTol),viewLines,viewLabels,viewBoxes)
+        if not na(sAnchor) and not f_v8AlreadyBoxed(sAnchor,1,selectedZones,fusionZones,atr*0.18)
+            f_draw(sAnchor,"S1 지지",GREEN,sFamilies>=3,false,v8X,f_priceOrigin(sAnchor,1,levelP,levelSide,levelBorn,fusionZones,atr*mergeTol),viewLines,viewLabels,viewBoxes)
+        // Secondary fallback levels are not another box if already represented.
+        if showNextSR and not na(nextResistance) and (na(rAnchor) or math.abs(nextResistance-rAnchor)>atr*0.50) and not f_v8AlreadyBoxed(nextResistance,-1,selectedZones,fusionZones,atr*0.18)
+            f_draw(nextResistance,"R2 저항",color.new(RED,20),false,false,v8X,bar_index-20,viewLines,viewLabels,viewBoxes)
+        if showNextSR and not na(nextSupport) and (na(sAnchor) or math.abs(nextSupport-sAnchor)>atr*0.50) and not f_v8AlreadyBoxed(nextSupport,1,selectedZones,fusionZones,atr*0.18)
+            f_draw(nextSupport,"S2 지지",color.new(GREEN,20),false,false,v8X,bar_index-20,viewLines,viewLabels,viewBoxes)
+        if not na(vpPOC) and math.abs(vpPOC-close)<=atr*visibleAtr and not f_v8AlreadyBoxed(vpPOC,1,selectedZones,fusionZones,atr*0.18) and not f_v8AlreadyBoxed(vpPOC,-1,selectedZones,fusionZones,atr*0.18)
+            array.push(viewLines,line.new(bar_index-8,vpPOC,v8X,vpPOC,color=GOLD,style=line.style_dotted,width=1))
+            array.push(viewLabels,label.new(v8X,vpPOC,"POC "+str.tostring(vpPOC,format.mintick),xloc=xloc.bar_index,style=label.style_label_left,color=color.new(color.black,20),textcolor=GOLD,size=size.tiny,tooltip="VP 가격대별 거래량 중심 · "+vpKind))
+    if showVPBars and array.size(vpVolumes)==vpRows and not na(vpBottom) and not na(vpStep)
+        float peakV=math.max(array.max(vpVolumes),0.000001)
+        int xvp=bar_index+lineAhead+20
+        for j=0 to vpRows-1
+            float totalV=array.get(vpVolumes,j)
+            if totalV>0
+                float share=f_clip(array.get(vpBuys,j)/totalV,0,1)
+                int totalWidth=math.max(1,int(math.round(17*totalV/peakV)))
+                int buyWidth=int(math.round(totalWidth*share))
+                float yLo=vpBottom+(j+0.09)*vpStep
+                float yHi=vpBottom+(j+0.91)*vpStep
+                if buyWidth>0
+                    array.push(viewBoxes,box.new(xvp,yHi,xvp+buyWidth,yLo,xloc=xloc.bar_index,border_color=color.new(GREEN,100),bgcolor=color.new(GREEN,35)))
+                if totalWidth-buyWidth>0
+                    array.push(viewBoxes,box.new(xvp+buyWidth,yHi,xvp+totalWidth,yLo,xloc=xloc.bar_index,border_color=color.new(RED,100),bgcolor=color.new(RED,35)))
+    if showActiveZones and showZoneBadges and array.size(selectedZones)>0
+        bool seenSupport=false
+        bool seenResistance=false
+        for zz=0 to array.size(selectedZones)-1
+            FusionZone z=array.get(fusionZones,array.get(selectedZones,zz))
+            float mid=(z.top+z.bot)*0.5
+            string srcName=z.src==1?"OB":z.src==2?"FVG":z.src==3?"역FVG":"BPR"
+            string zoneRank=z.side==1?"S":"R"
+            int pos=0
+            for pp=0 to zz
+                FusionZone q=array.get(fusionZones,array.get(selectedZones,pp))
+                if q.side==z.side
+                    pos+=1
+            string labelName=zoneRank+str.tostring(pos)+" "+srcName+(z.quality>=0.89 and z.touches>0?" · 핵심":"")
+            string priceBand="상 "+str.tostring(z.top,format.mintick)+" / 하 "+str.tostring(z.bot,format.mintick)
+            string timeName="생성 "+str.format_time(z.bornTime,"yyyy-MM-dd",syminfo.timezone)
+            string resultText=v7ShowStats?f_v7StudyText(z.src,z.side):"실측 통계 꺼짐"
+            string contextText=f_v7ContextRate(z.src,z.side,z.side==1?trendUp:trendDown,nz(rvol,0)>=1.2)
+            string allInfo=labelName+"  "+priceBand+"\n강도 "+str.tostring(z.quality*100,"#.0")+"점 · 터치 "+str.tostring(z.touches)+"회 · "+timeName+"\n"+resultText+"\n"+contextText
+            color zzColor=z.side==1?GREEN:RED
+            if v7ZoneLabels
+                // ONE compact line at +10 bars. Full study preserved in tooltip.
+                string shortText=labelName+" "+str.tostring(z.top,format.mintick)+"~"+str.tostring(z.bot,format.mintick)
+                if v7ShowStats and pos==1
+                    shortText+=" · "+f_v8CompactRate(z.src,z.side)
+                array.push(viewLabels,label.new(v8X,mid,shortText,xloc=xloc.bar_index,
+                     style=label.style_label_left,color=color.new(color.black,22),textcolor=zzColor,size=size.tiny,tooltip=allInfo))
+            if z.side==1
+                seenSupport:=true
+            else
+                seenResistance:=true
+    if showBlue and showMtfAll
+        // Among active higher TFs show the closest levels, not eight overlapping chips.
+        array<bool> used=array.new_bool(8,false)
+        int drawn=0
+        for pick=0 to 7
+            if drawn<maxMtfLines
+                int bestId=-1
+                float bestDistance=1e20
+                for j=0 to 7
+                    float v=array.get(mtfBlueVals,j)
+                    if not array.get(used,j) and sec<array.get(mtfBlueSecs,j) and not na(v)
+                        float d=math.abs(close-v)
+                        if d<bestDistance and d<=atr*visibleAtr
+                            bestDistance:=d
+                            bestId:=j
+                if bestId>=0
+                    array.set(used,bestId,true)
+                    drawn+=1
+                    float mval=array.get(mtfBlueVals,bestId)
+                    bool touched=array.get(mtfBlueTouched,bestId)
+                    color mcol=touched?GRAY:BLUE
+                    array.push(viewLines,line.new(bar_index-28,mval,rightX,mval,color=color.new(mcol,12),style=line.style_dotted,width=2))
+                    if not f_v8AlreadyBoxed(mval,1,selectedZones,fusionZones,atr*0.15) and not f_v8AlreadyBoxed(mval,-1,selectedZones,fusionZones,atr*0.15)
+                        array.push(viewLabels,label.new(v8X,mval,array.get(mtfBlueNames,bestId)+" "+str.tostring(mval,format.mintick)+(touched?" · 터치":""),style=label.style_label_left,color=color.new(color.black,22),textcolor=mcol,size=size.tiny))
+    if showPlan and v7ShowPreview and pendingDir!=0 and not na(v7PlanTP)
+        color pc=v7PlanViable?GOLD:GRAY
+        array.push(viewLines,line.new(bar_index-4,v7PlanE,v8X,v7PlanE,color=pc,style=line.style_dotted,width=1))
+        array.push(viewLines,line.new(bar_index-4,v7PlanSL,v8X,v7PlanSL,color=color.new(RED,20),style=line.style_dotted,width=1))
+        array.push(viewLines,line.new(bar_index-4,v7PlanTP,v8X,v7PlanTP,color=color.new(GREEN,20),style=line.style_dotted,width=1))
+        string prevRisk="예상 계획 / 실제 체결 아님\n비용후 RR "+str.tostring(v7PlanRR,"#.00")+" · 계좌예상손실 "+str.tostring(v7PlanAcctLoss,"#.00")+"%\n"+(v7PlanViable?"사전심사 통과":"사전심사 미통과")+" / 실제 청산가격 아님"
+        array.push(viewLabels,label.new(v8X,v7PlanE,"후보 E "+str.tostring(v7PlanE,format.mintick),style=label.style_label_left,color=color.new(color.black,24),textcolor=pc,size=size.tiny,tooltip=prevRisk))
+        array.push(viewLabels,label.new(v8X,v7PlanSL,"예상 SL "+str.tostring(v7PlanSL,format.mintick),style=label.style_label_left,color=color.new(color.black,24),textcolor=RED,size=size.tiny,tooltip=prevRisk))
+        array.push(viewLabels,label.new(v8X,v7PlanTP,"예상 TP "+str.tostring(v7PlanTP,format.mintick),style=label.style_label_left,color=color.new(color.black,24),textcolor=GREEN,size=size.tiny,tooltip=prevRisk))
+    if v7ShowPath and showMap
+        // On-demand only: secondary route shelves, short dotted lines rather
+        // than a text block. Existing S1/R1 and active zones take priority.
+        if not na(v7R2) and not f_v8AlreadyBoxed(v7R2,-1,selectedZones,fusionZones,atr*0.20)
+            f_draw(v7R2,"원거리 저항",color.new(RED,45),false,false,v8X,bar_index-5,viewLines,viewLabels,viewBoxes)
+        if not na(v7S2) and not f_v8AlreadyBoxed(v7S2,1,selectedZones,fusionZones,atr*0.20)
+            f_draw(v7S2,"원거리 지지",color.new(GREEN,45),false,false,v8X,bar_index-5,viewLines,viewLabels,viewBoxes)
+    if showPlan and paperDir!=0
+        array.push(viewLines,line.new(bar_index-6,paperE,v8X,paperE,color=GOLD,style=line.style_dashed,width=2))
+        array.push(viewLines,line.new(bar_index-6,paperSL,v8X,paperSL,color=RED,style=line.style_dashed,width=2))
+        array.push(viewLines,line.new(bar_index-6,paperTP,v8X,paperTP,color=GREEN,style=line.style_dashed,width=2))
+        array.push(viewLabels,label.new(v8X,paperE,"진입 E "+str.tostring(paperE,format.mintick),xloc=xloc.bar_index,style=label.style_label_left,color=color.black,textcolor=GOLD,size=size.tiny))
+        array.push(viewLabels,label.new(v8X,paperSL,"손절 SL "+str.tostring(paperSL,format.mintick),xloc=xloc.bar_index,style=label.style_label_left,color=color.black,textcolor=RED,size=size.tiny))
+        array.push(viewLabels,label.new(v8X,paperTP,"목표 TP "+str.tostring(paperTP,format.mintick),xloc=xloc.bar_index,style=label.style_label_left,color=color.black,textcolor=GREEN,size=size.tiny))
+    if showTrend
+        if lineReadyL
+            int fromX=math.max(bar_index-1200,oldLowAt)
+            float fromY=swingLow+slopeL*(fromX-swingLowAt)
+            float toY=trendlineL+slopeL*lineAhead
+            line loEdge=line.new(fromX,fromY,rightX,toY,color=color.new(GREEN,18),width=2)
+            array.push(viewLines,loEdge)
+            if showTrendBand
+                float pad=atr*0.18
+                line loOuter=line.new(fromX,fromY-pad,rightX,toY-pad,color=color.new(GREEN,64),width=1)
+                array.push(viewLines,loOuter)
+                array.push(viewFills,linefill.new(loEdge,loOuter,color.new(GREEN,90)))
+        if lineReadyS
+            int fromX=math.max(bar_index-1200,oldHighAt)
+            float fromY=swingHigh+slopeS*(fromX-swingHighAt)
+            float toY=trendlineS+slopeS*lineAhead
+            line hiEdge=line.new(fromX,fromY,rightX,toY,color=color.new(RED,18),width=2)
+            array.push(viewLines,hiEdge)
+            if showTrendBand
+                float pad=atr*0.18
+                line hiOuter=line.new(fromX,fromY+pad,rightX,toY+pad,color=color.new(RED,64),width=1)
+                array.push(viewLines,hiOuter)
+                array.push(viewFills,linefill.new(hiEdge,hiOuter,color.new(RED,90)))
+        if compression
+            string nm=fallingWedge?"하락쐐기":risingWedge?"상승쐐기":triangle?"삼각수렴":"수렴"
+            array.push(viewLabels,label.new(rightX,(trendlineL+trendlineS)*0.5,nm+" · 이탈봉 확인",style=label.style_label_left,color=color.new(color.black,15),textcolor=GOLD,size=size.tiny))
+    // V8.2: showDetail default OFF. When ON, never show ○롱대기/○숏대기 card text.
+    if showDetail
+        string reaction=showReactions?(sReclaimed?"상승 확인 · 지지 회복 (진입 미확정)":rRejected?"하락 확인 · 저항 거부 (진입 미확정)":rBroken?"상승 돌파·재시험":sBroken?"하락 이탈·재시험":sTouch?"지지 시험 · 관망":rTouch?"저항 시험 · 관망":"관망"):"관망"
+        string state=enterL?"■ 롱진입 · 봉마감확정":enterS?"■ 숏진입 · 봉마감확정":blockL?"롱진입금지 · "+rejectWhy:blockS?"숏진입금지 · "+rejectWhy:paperDir==1?"롱유지 · PAPER":paperDir==-1?"숏유지 · PAPER":blueCrossL?"장기롱 · 파랑상향 · "+blueCrossName:blueCrossS?"장기숏 · 파랑하향 · "+blueCrossName:failL?"롱 확정실패":failS?"숏 확정실패":reaction
+        int scoreNow=math.max(scoreL,scoreS)
+        string summary=" | 합류 "+str.tostring(scoreNow)+"/100"
+        string analog=neighborN>=12?"\n과거 캔들 유사도 상위 "+str.tostring(neighborN)+"건: 1봉 "+str.tostring(100.0*neighborUp1/neighborN,"#.0")+"% / 3봉 "+str.tostring(100.0*neighborUp3/neighborN,"#.0")+"% / 5봉 "+str.tostring(100.0*neighborUp5/neighborN,"#.0")+"%":"\n캔들 유사 검색 "+str.tostring(neighborN)+"건 (12건 미만: 자료부족)"
+        color stateColor=paperDir==1 or enterL or blueCrossL?GREEN:paperDir==-1 or enterS or blueCrossS?RED:GOLD
+        string analogATR=neighborN>=12?"\n유사 사례 1/3/5봉 평균: "+str.tostring(neighborATR1/neighborN,"#.##")+" / "+str.tostring(neighborATR3/neighborN,"#.##")+" / "+str.tostring(neighborATR5/neighborN,"#.##")+" ATR":""
+        string tooltip="[캔들·구조·거래량 합성]\n압력 "+str.tostring(pressure,"#.00")+" | RVOL "+str.tostring(rvol,"#.00")+"\n4STO "+str.tostring(k1,"#.0")+"/"+str.tostring(k2,"#.0")+"/"+str.tostring(k3,"#.0")+"/"+str.tostring(k4,"#.0")+"\nVP "+vpKind+" | POC "+str.tostring(vpPOC,format.mintick)+"\n지지 근거 "+str.tostring(sFamilies)+" / 저항 근거 "+str.tostring(rFamilies)+"\n실제 체결 CVD·호가·OI 아님. 승률 추정 아님."+analogATR
+        string shortState=enterL?"■ 롱진입":enterS?"■ 숏진입":paperDir==1?"롱유지":paperDir==-1?"숏유지":blueCrossL?"장기롱":blueCrossS?"장기숏":blockL or blockS?"진입금지":failL or failS?"후보실패":sReclaimed?"지지확인":rRejected?"저항확인":rBroken?"상향돌파":sBroken?"지지이탈":"관망"
+        array.push(viewLabels,label.new(v8X,high+atr*0.45,shortState,style=label.style_label_left,color=color.new(color.black,25),textcolor=stateColor,size=size.tiny,tooltip=tooltip+"\n"+state+summary+(showStats?analog:"")))
+
+// V8: real bar-confirmed reaction marks on the CANDLE itself, not another
+// panel. Only one sparse marker per event cluster; all signals remain advisory.
+var array<label> v8ReactionMarks=array.new_label()
+var int v8LastReactionAt=na
+bool v8ReactUp=(sReclaimed or rBroken) and not (sReclaimed and rBroken)
+bool v8ReactDn=(rRejected or sBroken) and not (rRejected and sBroken)
+bool v8CleanReact=(v8ReactUp != v8ReactDn) and not (watchL or watchS or enterL or enterS)
+if barstate.isconfirmed and showReactions and v8CleanReact and (na(v8LastReactionAt) or bar_index-v8LastReactionAt>=4)
+    bool upNow=v8ReactUp
+    string shortReaction=upNow?(rBroken?"저항돌파":"지지확인"):(sBroken?"지지이탈":"저항거부")
+    color rc=upNow?GREEN:RED
+    float ry=upNow?low-atr*0.18:high+atr*0.18
+    label mark=label.new(bar_index,ry,shortReaction,xloc=xloc.bar_index,yloc=yloc.price,
+         style=upNow?label.style_label_up:label.style_label_down,
+         color=color.new(color.black,32),textcolor=rc,size=size.tiny)
+    array.push(v8ReactionMarks,mark)
+    v8LastReactionAt:=bar_index
+    if array.size(v8ReactionMarks)>24
+        label.delete(array.shift(v8ReactionMarks))
+
+// Confirmed ENTRY notes only (V8.2: watch/대기 notes removed). Cap 42.
+var array<label> eventNotes=array.new_label()
+if barstate.isconfirmed and showEventText and (enterL or enterS)
+    bool isLong=enterL
+    string eventText=enterL?"■ 롱진입":"■ 숏진입"
+    string detail="후속봉·위험심사 통과"
+    float y=isLong?low-atr*0.35:high+atr*0.35
+    color colorForEvent=isLong?GREEN:RED
+    label note=label.new(bar_index,y,eventText+"\n"+detail,xloc=xloc.bar_index,style=isLong?label.style_label_up:label.style_label_down,color=color.new(color.black,22),textcolor=colorForEvent,size=size.tiny)
+    array.push(eventNotes,note)
+    if array.size(eventNotes)>42
+        label.delete(array.shift(eventNotes))
+
+// Sparse TF-tagged blue-cross notes (plotshape text is fixed; label carries TF).
+var array<label> blueCrossNotes=array.new_label()
+if barstate.isconfirmed and showBlueCross and (blueCrossL or blueCrossS) and blueCrossName!=""
+    bool isUp=blueCrossL
+    float by=isUp?low-atr*0.22:high+atr*0.22
+    string btxt=(isUp?"장기롱 · 파랑상향 · ":"장기숏 · 파랑하향 · ")+blueCrossName
+    label bln=label.new(bar_index,by,btxt,xloc=xloc.bar_index,yloc=yloc.price,
+         style=isUp?label.style_label_up:label.style_label_down,
+         color=color.new(color.black,28),textcolor=BLUE,size=size.tiny)
+    array.push(blueCrossNotes,bln)
+    if array.size(blueCrossNotes)>28
+        label.delete(array.shift(blueCrossNotes))
+
+// 13B — Sparse confirmed structure and high-quality candle annotations.
+plotshape(showStructureEvents and bosL and not chochL,title="BOS 상승 마감",style=shape.triangleup,location=location.belowbar,color=BLUE,text="BOS",textcolor=BLUE,size=size.tiny)
+plotshape(showStructureEvents and bosS and not chochS,title="BOS 하락 마감",style=shape.triangledown,location=location.abovebar,color=BLUE,text="BOS",textcolor=BLUE,size=size.tiny)
+plotshape(showStructureEvents and chochL,title="CHoCH 상승 마감",style=shape.triangleup,location=location.belowbar,color=GOLD,text="CHoCH",textcolor=GOLD,size=size.tiny)
+plotshape(showStructureEvents and chochS,title="CHoCH 하락 마감",style=shape.triangledown,location=location.abovebar,color=GOLD,text="CHoCH",textcolor=GOLD,size=size.tiny)
+var array<label> patternNotes=array.new_label()
+var int lastPatternAt=na
+if barstate.isconfirmed and showCandleNames and (na(lastPatternAt) or bar_index-lastPatternAt>=4)
+    bool notableL=patL>=3 and (sweepL or chochL or locationL) and rvol>=minVol and not watchL and not enterL
+    bool notableS=patS>=3 and (sweepS or chochS or locationS) and rvol>=minVol and not watchS and not enterS
+    if notableL != notableS
+        bool isL=notableL
+        float yy=isL?low-atr*0.25:high+atr*0.25
+        string txt=(isL?patternL:patternS)+" · "+(isL?"지지 반응":"저항 반응")
+        color cc=isL?GREEN:RED
+        array.push(patternNotes,label.new(bar_index,yy,txt,style=isL?label.style_label_up:label.style_label_down,
+             color=color.new(color.black,25),textcolor=cc,size=size.tiny))
+        lastPatternAt:=bar_index
+        if array.size(patternNotes)>56
+            label.delete(array.shift(patternNotes))
+// V8 chart-only: no table/card/HUD object at all.
+// Original statistics, RSI/BB context, Zone outcome rates and PAPER ledgers are
+// still calculated and are accessible through on-chart label tooltips and Data Window.
+
+// 14 — Indicator data window, not additional price charts.
+plot(k1,"STO 9/3",display=display.data_window)
+plot(k2,"STO 14/3",display=display.data_window)
+plot(k3,"STO 40/4",display=display.data_window)
+plot(k4,"STO 60/10",display=display.data_window)
+plot(rvol,"상대거래량 RVOL",display=display.data_window)
+plot(pressure,"캔들 압력 [-1,+1]",display=display.data_window)
+plot(cvdProxy,"CVD 유사 OHLCV 프록시 (실제 CVD 아님)",display=display.data_window)
+plot(vpPOC,"VP POC",display=display.data_window)
+plot(vpVAH,"VP VAH",display=display.data_window)
+plot(vpVAL,"VP VAL",display=display.data_window)
+plot(powerRatio,"BTC Power Law 가격/모델 비율",display=display.data_window)
+plot(scoreL,"롱 합성 강도 (승률 아님)",display=display.data_window)
+plot(scoreS,"숏 합성 강도 (승률 아님)",display=display.data_window)
+plot(wins,"PAPER TP 횟수",display=display.data_window)
+plot(losses,"PAPER SL 횟수",display=display.data_window)
+plot(timedOut,"PAPER 시간만료",display=display.data_window)
+plot(sFamilies,"지지 독립 증거계열 수",display=display.data_window)
+plot(rFamilies,"저항 독립 증거계열 수",display=display.data_window)
+plot(sReclaimed?1:0,"지지 회복 확인 (진입 아님)",display=display.data_window)
+plot(rRejected?1:0,"저항 거부 확인 (진입 아님)",display=display.data_window)
+plot(pdh,"전일 고가",display=display.data_window)
+plot(pdl,"전일 저가",display=display.data_window)
+plot(pwh,"전주 고가",display=display.data_window)
+plot(pwl,"전주 저가",display=display.data_window)
+plot(pmh,"전월 고가",display=display.data_window)
+plot(pml,"전월 저가",display=display.data_window)
+plot(neighborN,"과거 유사 사례 표본수 (상태계산)",display=display.data_window)
+
+alertcondition(caReversalL,"RSI BB 합성 롱 후보 (주문 아님)","RSI·BB 구조복귀 롱 후보 · 아직 확정 진입 아님 {{ticker}} {{interval}}")
+alertcondition(caReversalS,"RSI BB 합성 숏 후보 (주문 아님)","RSI·BB 구조복귀 숏 후보 · 아직 확정 진입 아님 {{ticker}} {{interval}}")
+alertcondition(enterL,"캔들 합성 V8 롱진입 PAPER","캔들 합성 롱진입 · 마감확정 PAPER {{ticker}} {{interval}} close={{close}}")
+alertcondition(enterS,"캔들 합성 V8 숏진입 PAPER","캔들 합성 숏진입 · 마감확정 PAPER {{ticker}} {{interval}} close={{close}}")
+alertcondition(failL or failS,"캔들 합성 V8 후보무효","캔들 합성 진입 후보 무효 {{ticker}} {{interval}}")
+alertcondition(sReclaimed and not enterL,"캔들 합성 V8 지지 확인·미진입","지지 반응 확인 · 진입확정 아님 {{ticker}} {{interval}}")
+alertcondition(rRejected and not enterS,"캔들 합성 V8 저항 확인·미진입","저항 반응 확인 · 진입확정 아님 {{ticker}} {{interval}}")
+alertcondition(blueCrossL,"캔들 합성 V8 장기롱 · 파랑상향","GMMA빠른줄선이 상위 MTF 파랑선 상향 돌파 · 장기롱 {{ticker}} {{interval}}")
+alertcondition(blueCrossS,"캔들 합성 V8 장기숏 · 파랑하향","GMMA빠른줄선이 상위 MTF 파랑선 하향 이탈 · 장기숏 {{ticker}} {{interval}}")
