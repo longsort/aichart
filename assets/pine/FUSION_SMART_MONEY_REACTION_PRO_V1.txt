@@ -1,0 +1,582 @@
+//@version=6
+indicator("퓨전 정밀타격 PRO V2", overlay=true, max_boxes_count=100, max_labels_count=100, max_lines_count=100)
+// Independent overlay. No orders. OHLCV volume is not aggressive trade delta.
+rvMin=input.float(1.5,"고거래량 기준 배수",minval=1)
+bodyMin=input.float(0.5,"추진봉 몸통 비율",minval=0.1,maxval=1)
+maxAge=input.int(150,"불균형 수명 (원본 봉 수)",minval=10)
+keep=input.int(80,"시간봉별 저장 구간 수",minval=20,maxval=150)
+showN=input.int(2,"방향별 표시 구간",minval=1,maxval=4)
+rrMin=input.float(1.5,"최소 손익비",minval=0.5)
+showPanel=input.bool(true,"상태판 표시")
+showMarks=input.bool(true,"확정 반응 표시")
+// Each request returns only completed source bars. Lower TF sources are skipped.
+f_pack()=>
+    a=ta.atr(14)
+    v=ta.sma(volume,20)
+    r=v>0?volume/v:na
+    b=math.abs(close-open)/math.max(high-low,syminfo.mintick)
+    [time[1],open[1],high[1],low[1],close[1],high[3],low[3],a[1],r[1],r[2],b[2],close[2],open[2],ta.highest(high,10)[2],ta.lowest(low,10)[2]]
+type Zone
+    float lo
+    float hi
+    int dir
+    string kind
+    string tf
+    int born
+    int age=0
+    int state=0
+    float fillPct=0.0
+    float strength=0.0
+    int touches=0
+    bool inside=false
+    bool flipped=false
+var zones=array.new<Zone>()
+minScore=input.int(75,"최소 합류 점수",minval=50,maxval=100)
+showMemory=input.bool(true,"장기 정밀 가격선 표시")
+showSweep=input.bool(false,"핵심 스윕 표시")
+showStructure=input.bool(true,"최근 구조 전환 표시")
+macroKeep=input.int(240,"장기 시간봉별 기억 가격 수",minval=50,maxval=500)
+type Memory
+    float p
+    float a
+    float r
+    string tf
+    string kind
+    int born
+    int origin
+    int hits=0
+    bool inside=false
+var memory=array.new<Memory>()
+f_mem(float p,float a,float r,string tf,string kind,int origin)=>
+    if not na(p) and a>0
+        array.push(memory,Memory.new(p,a,r,tf,kind,time,origin))
+        int count=0
+        int first=-1
+        for j=0 to array.size(memory)-1
+            m=array.get(memory,j)
+            if m.tf==tf
+                count+=1
+                if first<0
+                    first:=j
+        if count>macroKeep and first>=0
+            array.remove(memory,first)
+f_tf(string tf)=>
+    tf=="M"?"월봉":tf=="W"?"주봉":tf=="D"?"일봉":tf=="240"?"4시간":tf=="60"?"1시간":tf+"분"
+f_kind(string k)=>
+    k=="IFVG"?"역불균형":k=="BPR"?"균형 중첩":k=="VOL LOW"?"고거래량 저가":k=="VOL HIGH"?"고거래량 고가":k=="VOL BODY"?"고거래량 몸통":k=="VOL OPEN"?"고거래량 시가":k=="VOL CLOSE"?"고거래량 종가":"불균형"
+var tfs=array.from("1","3","5","15","60","240","D","W","M")
+var stamps=array.new_int(9,0)
+var boxes=array.new_box()
+var labels=array.new_label()
+var lines=array.new_line()
+f_add(float lo,float hi,int dir,string kind,string tf,int born,float strength)=>
+    if not na(lo) and not na(hi) and hi>lo
+        array.push(zones,Zone.new(lo,hi,dir,kind,tf,born,0,0,0.0,strength))
+        int n=0
+        int oldest=-1
+        for j=0 to array.size(zones)-1
+            zz=array.get(zones,j)
+            if zz.tf==tf
+                n+=1
+                if oldest<0
+                    oldest:=j
+        if n>keep and oldest>=0
+            array.remove(zones,oldest)
+f_name(Zone z)=>
+    z.kind=="FVG" ? (z.state==0?"불균형 신규":z.state==1?"불균형 재시험":z.state==2?"불균형 방어":z.state==3?"불균형 미방문 지속": "불균형") : f_kind(z.kind)
+atr=ta.atr(14)
+rv=volume/ta.sma(volume,20)
+rng=math.max(high-low,syminfo.mintick)
+body=math.abs(close-open)/rng
+lower=(math.min(open,close)-low)/rng
+upper=(high-math.max(open,close))/rng
+absL=rv>=1.5 and lower>=0.35 and close>=low+rng*0.6
+absS=rv>=1.5 and upper>=0.35 and close<=high-rng*0.6
+exL=close[1]<open[1] and rv[1]>=1.5 and close>open and close>close[1] and lower>=0.2
+exS=close[1]>open[1] and rv[1]>=1.5 and close<open and close<close[1] and upper>=0.2
+pushL=rv>=1.2 and body>=0.55 and close>open and rng>=atr
+pushS=rv>=1.2 and body>=0.55 and close<open and rng>=atr
+pvH=ta.pivothigh(high,3,3)
+pvL=ta.pivotlow(low,3,3)
+var float swingH=na
+var float swingL=na
+var int trend=0
+var int structBar=na
+var float structPrice=na
+var string structName=""
+bool bosL=false
+bool bosS=false
+if barstate.isconfirmed
+    if not na(pvH)
+        swingH:=pvH
+    if not na(pvL)
+        swingL:=pvL
+    bosL:=not na(swingH) and close>swingH and close[1]<=swingH
+    bosS:=not na(swingL) and close<swingL and close[1]>=swingL
+    if bosL or bosS
+        structName:=bosL?(trend==-1?"상승 구조전환":"상승 구조돌파"):(trend==1?"하락 구조전환":"하락 구조돌파")
+        structPrice:=bosL?swingH:swingL
+        structBar:=bar_index
+        trend:=bosL?1:-1
+ph=ta.highest(high,10)[1]
+pl=ta.lowest(low,10)[1]
+ema=ta.ema(close,20)
+var int direction=0
+var float entry=na
+var float stop=na
+var float target=na
+var int started=na
+var int wins=0
+var int losses=0
+var int expired=0
+var float mfe=0.0
+var float mae=0.0
+bool longFire=false
+bool shortFire=false
+bool sweepFire=false
+// CW10003: call f_pack via request.security every bar (never inside if/for).
+[ts_p1,o_p1,h_p1,l_p1,c_p1,h3_p1,l3_p1,a_p1,r_p1,r2_p1,b2_p1,c2_p1,o2_p1,sh_p1,sl_p1]=request.security(syminfo.tickerid,"1",f_pack(),lookahead=barmerge.lookahead_on)
+[ts_p3,o_p3,h_p3,l_p3,c_p3,h3_p3,l3_p3,a_p3,r_p3,r2_p3,b2_p3,c2_p3,o2_p3,sh_p3,sl_p3]=request.security(syminfo.tickerid,"3",f_pack(),lookahead=barmerge.lookahead_on)
+[ts_p5,o_p5,h_p5,l_p5,c_p5,h3_p5,l3_p5,a_p5,r_p5,r2_p5,b2_p5,c2_p5,o2_p5,sh_p5,sl_p5]=request.security(syminfo.tickerid,"5",f_pack(),lookahead=barmerge.lookahead_on)
+[ts_p15,o_p15,h_p15,l_p15,c_p15,h3_p15,l3_p15,a_p15,r_p15,r2_p15,b2_p15,c2_p15,o2_p15,sh_p15,sl_p15]=request.security(syminfo.tickerid,"15",f_pack(),lookahead=barmerge.lookahead_on)
+[ts_p60,o_p60,h_p60,l_p60,c_p60,h3_p60,l3_p60,a_p60,r_p60,r2_p60,b2_p60,c2_p60,o2_p60,sh_p60,sl_p60]=request.security(syminfo.tickerid,"60",f_pack(),lookahead=barmerge.lookahead_on)
+[ts_p240,o_p240,h_p240,l_p240,c_p240,h3_p240,l3_p240,a_p240,r_p240,r2_p240,b2_p240,c2_p240,o2_p240,sh_p240,sl_p240]=request.security(syminfo.tickerid,"240",f_pack(),lookahead=barmerge.lookahead_on)
+[ts_pD,o_pD,h_pD,l_pD,c_pD,h3_pD,l3_pD,a_pD,r_pD,r2_pD,b2_pD,c2_pD,o2_pD,sh_pD,sl_pD]=request.security(syminfo.tickerid,"D",f_pack(),lookahead=barmerge.lookahead_on)
+[ts_pW,o_pW,h_pW,l_pW,c_pW,h3_pW,l3_pW,a_pW,r_pW,r2_pW,b2_pW,c2_pW,o2_pW,sh_pW,sl_pW]=request.security(syminfo.tickerid,"W",f_pack(),lookahead=barmerge.lookahead_on)
+[ts_pM,o_pM,h_pM,l_pM,c_pM,h3_pM,l3_pM,a_pM,r_pM,r2_pM,b2_pM,c2_pM,o2_pM,sh_pM,sl_pM]=request.security(syminfo.tickerid,"M",f_pack(),lookahead=barmerge.lookahead_on)
+
+if barstate.isconfirmed
+    // Existing zones are updated before new zones are born.
+    if array.size(zones)>0
+        for j=0 to array.size(zones)-1
+            z=array.get(zones,j)
+            if z.state!=9 and time>=z.born
+                hit=low<=z.hi and high>=z.lo
+                invalid=z.dir==1?close<z.lo-atr*0.1:close>z.hi+atr*0.1
+                if invalid
+                    if z.kind=="FVG" and not z.flipped
+                        z.dir:=-z.dir
+                        z.kind:="IFVG"
+                        z.flipped:=true
+                        z.fillPct:=0
+                        z.touches:=0
+                        z.born:=time
+                        z.state:=0
+                        z.inside:=false
+                    else
+                        z.state:=9
+                else
+                    if hit
+                        if not z.inside
+                            z.touches+=1
+                        z.fillPct:=math.max(z.fillPct,math.min(100.0,100*(z.dir==1?z.hi-low:high-z.lo)/(z.hi-z.lo)))
+                        z.state:=1
+                        if (z.dir==1?close>z.hi and close>open:close<z.lo and close<open)
+                            z.state:=2
+                    else if z.kind=="FVG" and z.touches==0 and (z.dir==1?close>z.hi+atr:close<z.lo-atr)
+                        z.state:=3
+                    z.inside:=hit
+    for i=0 to 8
+        tf=array.get(tfs,i)
+        if timeframe.in_seconds(tf)>=timeframe.in_seconds()
+            int ts=na
+            float o=na
+            float h=na
+            float l=na
+            float c=na
+            float h3=na
+            float l3=na
+            float a=na
+            float r=na
+            float r2=na
+            float b2=na
+            float c2=na
+            float o2=na
+            float sh=na
+            float sl=na
+            if i==0
+                ts:=ts_p1
+                o:=o_p1
+                h:=h_p1
+                l:=l_p1
+                c:=c_p1
+                h3:=h3_p1
+                l3:=l3_p1
+                a:=a_p1
+                r:=r_p1
+                r2:=r2_p1
+                b2:=b2_p1
+                c2:=c2_p1
+                o2:=o2_p1
+                sh:=sh_p1
+                sl:=sl_p1
+            else if i==1
+                ts:=ts_p3
+                o:=o_p3
+                h:=h_p3
+                l:=l_p3
+                c:=c_p3
+                h3:=h3_p3
+                l3:=l3_p3
+                a:=a_p3
+                r:=r_p3
+                r2:=r2_p3
+                b2:=b2_p3
+                c2:=c2_p3
+                o2:=o2_p3
+                sh:=sh_p3
+                sl:=sl_p3
+            else if i==2
+                ts:=ts_p5
+                o:=o_p5
+                h:=h_p5
+                l:=l_p5
+                c:=c_p5
+                h3:=h3_p5
+                l3:=l3_p5
+                a:=a_p5
+                r:=r_p5
+                r2:=r2_p5
+                b2:=b2_p5
+                c2:=c2_p5
+                o2:=o2_p5
+                sh:=sh_p5
+                sl:=sl_p5
+            else if i==3
+                ts:=ts_p15
+                o:=o_p15
+                h:=h_p15
+                l:=l_p15
+                c:=c_p15
+                h3:=h3_p15
+                l3:=l3_p15
+                a:=a_p15
+                r:=r_p15
+                r2:=r2_p15
+                b2:=b2_p15
+                c2:=c2_p15
+                o2:=o2_p15
+                sh:=sh_p15
+                sl:=sl_p15
+            else if i==4
+                ts:=ts_p60
+                o:=o_p60
+                h:=h_p60
+                l:=l_p60
+                c:=c_p60
+                h3:=h3_p60
+                l3:=l3_p60
+                a:=a_p60
+                r:=r_p60
+                r2:=r2_p60
+                b2:=b2_p60
+                c2:=c2_p60
+                o2:=o2_p60
+                sh:=sh_p60
+                sl:=sl_p60
+            else if i==5
+                ts:=ts_p240
+                o:=o_p240
+                h:=h_p240
+                l:=l_p240
+                c:=c_p240
+                h3:=h3_p240
+                l3:=l3_p240
+                a:=a_p240
+                r:=r_p240
+                r2:=r2_p240
+                b2:=b2_p240
+                c2:=c2_p240
+                o2:=o2_p240
+                sh:=sh_p240
+                sl:=sl_p240
+            else if i==6
+                ts:=ts_pD
+                o:=o_pD
+                h:=h_pD
+                l:=l_pD
+                c:=c_pD
+                h3:=h3_pD
+                l3:=l3_pD
+                a:=a_pD
+                r:=r_pD
+                r2:=r2_pD
+                b2:=b2_pD
+                c2:=c2_pD
+                o2:=o2_pD
+                sh:=sh_pD
+                sl:=sl_pD
+            else if i==7
+                ts:=ts_pW
+                o:=o_pW
+                h:=h_pW
+                l:=l_pW
+                c:=c_pW
+                h3:=h3_pW
+                l3:=l3_pW
+                a:=a_pW
+                r:=r_pW
+                r2:=r2_pW
+                b2:=b2_pW
+                c2:=c2_pW
+                o2:=o2_pW
+                sh:=sh_pW
+                sl:=sl_pW
+            else if i==8
+                ts:=ts_pM
+                o:=o_pM
+                h:=h_pM
+                l:=l_pM
+                c:=c_pM
+                h3:=h3_pM
+                l3:=l3_pM
+                a:=a_pM
+                r:=r_pM
+                r2:=r2_pM
+                b2:=b2_pM
+                c2:=c2_pM
+                o2:=o2_pM
+                sh:=sh_pM
+                sl:=sl_pM
+            if not na(ts) and ts!=array.get(stamps,i)
+                array.set(stamps,i,ts)
+                if array.size(zones)>0
+                    for j=0 to array.size(zones)-1
+                        z=array.get(zones,j)
+                        if z.tf==tf
+                            z.age+=1
+                            if z.age>maxAge and (z.kind=="FVG" or z.kind=="IFVG" or z.kind=="BPR")
+                                z.state:=9
+                int d=l>h3 and c2>o2 and b2>=bodyMin?1:h<l3 and c2<o2 and b2>=bodyMin?-1:0
+                if d!=0
+                    lo=d==1?h3:h
+                    hi=d==1?l:l3
+                    if hi-lo>=a*0.05
+                        float bl=na
+                        float bh=na
+                        if array.size(zones)>0
+                            for j=0 to array.size(zones)-1
+                                z=array.get(zones,j)
+                                if z.kind=="FVG" and z.dir==-d and z.state!=9 and z.tf==tf
+                                    ol=math.max(lo,z.lo)
+                                    oh=math.min(hi,z.hi)
+                                    if oh>ol
+                                        bl:=ol
+                                        bh:=oh
+                        f_add(lo,hi,d,"FVG",tf,time, nz(r2,1)+i*0.3)
+                        if not na(bl)
+                            f_add(bl,bh,d,"BPR",tf,time,2+i*0.3)
+                if i>=6 and a>0 and not na(r)
+                    if r>=rvMin
+                        f_mem(l,a,r,tf,"저가",ts)
+                        f_mem(h,a,r,tf,"고가",ts)
+                        f_mem(o,a,r,tf,"시가",ts)
+                        f_mem(c,a,r,tf,"종가",ts)
+                        f_mem((o+c)/2,a,r,tf,"몸통 중심",ts)
+                    if l<=sl or h>=sh
+                        if l<=sl
+                            f_mem(l,a,r,tf,"구조 저가",ts)
+                        if h>=sh
+                            f_mem(h,a,r,tf,"구조 고가",ts)
+                if r>=rvMin and a>0
+                    pad=math.max(a*0.08,syminfo.mintick)
+                    f_add(l-pad,l+pad,1,"VOL LOW",tf,time,r+i*0.4)
+                    f_add(h-pad,h+pad,-1,"VOL HIGH",tf,time,r+i*0.4)
+                    mid=(o+c)/2
+                    f_add(mid-pad,mid+pad,c>=o?1:-1,"VOL BODY",tf,time,r+i*0.4)
+                    f_add(o-pad,o+pad,c>=o?1:-1,"VOL OPEN",tf,time,r+i*0.4)
+                    f_add(c-pad,c+pad,c>=o?1:-1,"VOL CLOSE",tf,time,r+i*0.4)
+// Confirmed prior period references, only used when source is not lower than chart.
+// CW10003-safe: prior HTF refs via top-level request.security every bar.
+[dh,dl]=request.security(syminfo.tickerid,"D",[high[1],low[1]],lookahead=barmerge.lookahead_on)
+[wh,wl]=request.security(syminfo.tickerid,"W",[high[1],low[1]],lookahead=barmerge.lookahead_on)
+[mh,ml]=request.security(syminfo.tickerid,"M",[high[1],low[1]],lookahead=barmerge.lookahead_on)
+[qh,ql]=request.security(syminfo.tickerid,"3M",[high[1],low[1]],lookahead=barmerge.lookahead_on)
+[yh,yl]=request.security(syminfo.tickerid,"12M",[high[1],low[1]],lookahead=barmerge.lookahead_on)
+refs=array.from(dh,dl,wh,wl,mh,ml,qh,ql,yh,yl)
+refNames=array.from("PDH","PDL","PWH","PWL","PMH","PML","PQH","PQL","PYH","PYL")
+f_target(int d,float p)=>
+    float out=na
+    for i=0 to 9
+        sec=i<2?86400:i<4?604800:i<6?timeframe.in_seconds("M"):i<8?timeframe.in_seconds("3M"):timeframe.in_seconds("12M")
+        x=array.get(refs,i)
+        if sec>=timeframe.in_seconds() and not na(x) and (d==1?x>p+syminfo.mintick:x<p-syminfo.mintick)
+            out:=na(out)?x:d==1?math.min(out,x):math.max(out,x)
+    if array.size(zones)>0
+        for j=0 to array.size(zones)-1
+            z=array.get(zones,j)
+            x=d==1?z.lo:z.hi
+            if z.state!=9 and z.dir==-d and (d==1?x>p+syminfo.mintick:x<p-syminfo.mintick)
+                out:=na(out)?x:d==1?math.min(out,x):math.max(out,x)
+    if array.size(memory)>0
+        for j=0 to array.size(memory)-1
+            m=array.get(memory,j)
+            x=m.p
+            if d==1?x>p+syminfo.mintick:x<p-syminfo.mintick
+                out:=na(out)?x:d==1?math.min(out,x):math.max(out,x)
+    out
+// Long-lived memory is role-neutral; current approach determines direction.
+float memL=na
+float memS=na
+float memScoreL=0.0
+float memScoreS=0.0
+if barstate.isconfirmed and array.size(memory)>0
+    for j=0 to array.size(memory)-1
+        m=array.get(memory,j)
+        tol=math.max(syminfo.mintick,m.a*0.025)
+        hit=low<=m.p+tol and high>=m.p-tol and time>m.born
+        quality=math.min(25.0,8+math.min(m.r,3)*3+(m.tf=="M"?8:m.tf=="W"?6:2))
+        if hit and not m.inside
+            m.hits+=1
+        m.inside:=hit
+        if hit and close>m.p+tol and close>open and close[1]>=m.p-tol and quality>memScoreL
+            memL:=m.p
+            memScoreL:=quality
+        if hit and close<m.p-tol and close<open and close[1]<=m.p+tol and quality>memScoreS
+            memS:=m.p
+            memScoreS:=quality
+float bestL=na
+float bestS=na
+float scoreL=0
+float scoreS=0
+if barstate.isconfirmed and array.size(zones)>0
+    for j=0 to array.size(zones)-1
+        z=array.get(zones,j)
+        if z.state!=9 and z.kind!="BPR" and time>z.born and low<=z.hi and high>=z.lo
+            float score=math.min(20.0,8+z.strength*2)
+            seen=array.new_string()
+            for k=0 to array.size(zones)-1
+                other=array.get(zones,k)
+                if k!=j and other.state!=9 and other.dir==z.dir and other.tf!=z.tf and other.lo<=z.hi and other.hi>=z.lo
+                    if not array.includes(seen,other.tf)
+                        array.push(seen,other.tf)
+                        score:=math.min(20.0,score+3)
+            if z.dir==1 and close>z.hi and close>open and score>scoreL
+                scoreL:=score
+                bestL:=z.lo
+            if z.dir==-1 and close<z.lo and close<open and score>scoreS
+                scoreS:=score
+                bestS:=z.hi
+    sweepFire:=(low<pl and close>pl and (not na(memL) or not na(bestL))) or (high>ph and close<ph and (not na(memS) or not na(bestS)))
+if not na(memL)
+    bestL:=na(bestL)?memL:math.min(bestL,memL)
+if not na(memS)
+    bestS:=na(bestS)?memS:math.max(bestS,memS)
+scoreL:=memScoreL+scoreL+(trend==1?15:0)+(absL or exL or pushL?15:0)+(low<pl and close>pl?10:0)+(close>high[1]?10:0)+(not na(bestL) and close>open?10:0)
+scoreS:=memScoreS+scoreS+(trend==-1?15:0)+(absS or exS or pushS?15:0)+(high>ph and close<ph?10:0)+(close<low[1]?10:0)+(not na(bestS) and close<open?10:0)
+if barstate.isconfirmed
+    if direction!=0 and bar_index>started
+        mfe:=math.max(mfe,direction==1?high-entry:entry-low)
+        mae:=math.max(mae,direction==1?entry-low:high-entry)
+        bad=direction==1?low<=stop:high>=stop
+        good=direction==1?high>=target:low<=target
+        if bad or good or bar_index-started>=100
+            if bad
+                losses+=1
+            else if good
+                wins+=1
+            else
+                expired+=1
+            direction:=0
+    if direction==0 and not na(rv) and rv>=1.1
+        int d=not na(bestL) and scoreL+5>=minScore and scoreL>scoreS+10 and close>high[1]?1:not na(bestS) and scoreS+5>=minScore and scoreS>scoreL+10 and close<low[1]?-1:0
+        if d!=0
+            s=d==1?bestL-atr*0.15:bestS+atr*0.15
+            t=f_target(d,close)
+            risk=math.abs(close-s)
+            if not na(t) and risk>syminfo.mintick and math.abs(t-close)/risk>=rrMin
+                direction:=d
+                entry:=close
+                stop:=s
+                target:=t
+                started:=bar_index
+                mfe:=0
+                mae:=0
+                longFire:=d==1
+                shortFire:=d==-1
+plotshape(showMarks and longFire,title="롱 반응",style=shape.square,location=location.belowbar,color=color.lime,size=size.tiny,text="롱")
+plotshape(showMarks and shortFire,title="숏 반응",style=shape.square,location=location.abovebar,color=color.red,size=size.tiny,text="숏")
+plotshape(showSweep and sweepFire and low<pl and close>pl,title="하단 스윕",style=shape.circle,location=location.belowbar,color=color.aqua,size=size.tiny)
+plotshape(showSweep and sweepFire and high>ph and close<ph,title="상단 스윕",style=shape.circle,location=location.abovebar,color=color.aqua,size=size.tiny)
+alertcondition(longFire,"롱 반응","롱 반응 확인")
+alertcondition(shortFire,"숏 반응","숏 반응 확인")
+alertcondition(sweepFire,"유동성 스윕","핵심 유동성 스윕")
+var table panel=table.new(position.top_right,2,6)
+if barstate.islast
+    while array.size(boxes)>0
+        box.delete(array.pop(boxes))
+    while array.size(labels)>0
+        label.delete(array.pop(labels))
+    while array.size(lines)>0
+        line.delete(array.pop(lines))
+    chosen=array.new_int()
+    for side=0 to 1
+        d=side==0?1:-1
+        for slot=0 to showN-1
+            int idx=-1
+            float best=1e20
+            if array.size(zones)>0
+                for j=0 to array.size(zones)-1
+                    z=array.get(zones,j)
+                    dist=math.abs(close-(z.lo+z.hi)/2)/math.max(nz(atr,1),syminfo.mintick)
+                    rank=dist/(1+z.strength*0.2)
+                    if z.state!=9 and z.dir==d and (d==1?z.lo<=close:z.hi>=close) and not array.includes(chosen,j) and rank<best
+                        idx:=j
+                        best:=rank
+            if idx>=0
+                array.push(chosen,idx)
+                z=array.get(zones,idx)
+                col=d==1?color.green:color.red
+                string name=f_tf(z.tf)+" "+f_name(z)+(z.kind=="FVG" or z.kind=="IFVG"?" "+str.tostring(z.fillPct,"#")+"%":"")
+                array.push(boxes,box.new(z.born,z.hi,time,z.lo,xloc=xloc.bar_time,extend=extend.right,bgcolor=color.new(col,85),border_color=color.new(col,40)))
+                array.push(labels,label.new(bar_index+3,(z.lo+z.hi)/2,name,style=label.style_label_left,color=color.new(color.black,15),textcolor=col,size=size.small))
+    if showMemory and array.size(memory)>0
+        selected=array.new_float()
+        for side=0 to 1
+            for slot=0 to 1
+                int idx=-1
+                float rankBest=1e20
+                for j=0 to array.size(memory)-1
+                    m=array.get(memory,j)
+                    bool distinct=true
+                    if array.size(selected)>0
+                        for k=0 to array.size(selected)-1
+                            if math.abs(m.p-array.get(selected,k))<math.max(atr*0.3,m.a*0.025)
+                                distinct:=false
+                    rank=math.abs(close-m.p)/math.max(atr,syminfo.mintick)/(1+math.min(m.r,3)+(m.tf=="W" or m.tf=="M"?2:0))
+                    if distinct and (side==0?m.p<close:m.p>close) and rank<rankBest
+                        idx:=j
+                        rankBest:=rank
+                if idx>=0
+                    m=array.get(memory,idx)
+                    array.push(selected,m.p)
+                    col=side==0?color.lime:color.red
+                    array.push(lines,line.new(m.born,m.p,time,m.p,xloc=xloc.bar_time,extend=extend.right,color=col,width=2))
+                    array.push(labels,label.new(bar_index+12,m.p,f_tf(m.tf)+" "+m.kind+" "+str.tostring(m.p,format.mintick),style=label.style_label_left,color=color.black,textcolor=col,size=size.small))
+    if showStructure and not na(structBar)
+        array.push(lines,line.new(math.max(structBar,bar_index-9999),structPrice,bar_index+3,structPrice,color=color.yellow,style=line.style_dotted))
+        array.push(labels,label.new(bar_index+3,structPrice,structName,style=label.style_label_left,color=color.black,textcolor=color.yellow,size=size.small))
+    if direction!=0
+        float t2=f_target(direction,target)
+        float t3=na(t2)?na:f_target(direction,t2)
+        vals=array.from(entry,stop,target,t2,t3)
+        names=array.from("진입","무효화","목표1","조건부 목표2","조건부 목표3")
+        for j=0 to 4
+            p=array.get(vals,j)
+            if not na(p)
+                col=j==1?color.red:j==0?color.yellow:direction==1?color.lime:color.red
+                array.push(lines,line.new(started,p,bar_index+10,p,color=col,style=j>2?line.style_dotted:line.style_solid))
+                array.push(labels,label.new(bar_index+10,p,array.get(names,j)+" "+str.tostring(p,format.mintick),style=label.style_label_left,color=color.black,textcolor=col,size=size.small))
+    if showPanel
+        table.cell(panel,0,0,"정밀타격",text_color=color.white,bgcolor=color.black)
+        table.cell(panel,1,0,direction==1?"롱 후보":direction==-1?"숏 후보":"관망",text_color=color.white,bgcolor=color.black)
+        table.cell(panel,0,1,"목표 / 무효 / 만료",text_color=color.white,bgcolor=color.black)
+        table.cell(panel,1,1,str.tostring(wins)+" / "+str.tostring(losses)+" / "+str.tostring(expired),text_color=color.white,bgcolor=color.black)
+        table.cell(panel,0,2,"최근 최대 유리 / 불리",text_color=color.white,bgcolor=color.black)
+        table.cell(panel,1,2,str.tostring(mfe,format.mintick)+" / "+str.tostring(mae,format.mintick),text_color=color.white,bgcolor=color.black)
+        table.cell(panel,0,3,"데이터",text_color=color.white,bgcolor=color.black)
+        table.cell(panel,1,3,"봉 거래량 / 체결 미확인",text_color=color.white,bgcolor=color.black)
+        table.cell(panel,0,4,"롱 / 숏 근거 점수",text_color=color.white,bgcolor=color.black)
+        table.cell(panel,1,4,str.tostring(scoreL,"#")+" / "+str.tostring(scoreS,"#"),text_color=color.white,bgcolor=color.black)
+        table.cell(panel,0,5,"거래량 반응 추정",text_color=color.white,bgcolor=color.black)
+        table.cell(panel,1,5,absL?"하단 흡수 후보":absS?"상단 흡수 후보":exL?"매도 소진 후보":exS?"매수 소진 후보":pushL?"상승 추진":pushS?"하락 추진":"일반",text_color=color.white,bgcolor=color.black)
