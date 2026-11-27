@@ -1,10 +1,8 @@
-'use client';
-
-import type { MouseEvent, ReactNode } from 'react';
+import Link from 'next/link';
+import type { ReactNode } from 'react';
 
 /**
- * 압력등급·카탈로그 칩 — 클릭 시 필터된 재고현황을 새 창/탭으로 연다.
- * (사이즈·부족만 등은 페이지 내 Link 유지)
+ * 압력등급·카탈로그 칩 — 같은 페이지에서 쿼리 필터만 적용 (새 창/탭 없음).
  */
 export function PressureOpenChip({
   href,
@@ -17,21 +15,9 @@ export function PressureOpenChip({
   title?: string;
   children: ReactNode;
 }) {
-  function onClick(e: MouseEvent<HTMLAnchorElement>) {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    e.preventDefault();
-    window.open(href, '_blank', 'noopener,noreferrer');
-  }
-
   return (
-    <a
-      href={href}
-      className={className}
-      title={title ? `${title} · 새 창` : '새 창에서 해당 압력 재고'}
-      onClick={onClick}
-      rel="noopener noreferrer"
-    >
+    <Link href={href} className={className} title={title || '해당 압력으로 필터'}>
       {children}
-    </a>
+    </Link>
   );
 }

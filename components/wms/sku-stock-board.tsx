@@ -212,7 +212,7 @@ export function SkuStockBoard({
                           className="text-xs text-sky-300 underline-offset-2 hover:underline"
                           title={`${row.pressureClass} · ${bandLabelKo(activeBand)}만`}
                         >
-                          새 창
+                          필터
                         </PressureOpenChip>
                       </td>
                     </tr>
@@ -249,7 +249,7 @@ export function SkuStockBoard({
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
         <div className="mb-2 text-sm font-semibold text-slate-100">압력등급</div>
         <div className="mb-1 text-[11px] text-slate-500">
-          압력 · kg/cm² · BAR · ANSI/AWWA · 칩 클릭=새 창 필터 · 보유합계
+          압력 · kg/cm² · BAR · ANSI/AWWA · 칩=페이지 내 필터 · 보유합계
         </div>
         <div className="flex flex-wrap gap-2">
           <PressureOpenChip href={buildHref('ALL', size, shortageExtra)} className={chipClass(pressure === 'ALL')}>
@@ -274,7 +274,7 @@ export function SkuStockBoard({
         {productKeys.length ? (
           <div className="mt-3">
             <div className="mb-1 text-[11px] text-slate-500">
-              유일 카탈로그 제품·규격명 (클릭=새 창 · 같은 압력칩 필터 · 보유합계)
+              유일 카탈로그 제품·규격명 (페이지 내 필터 · 보유합계)
             </div>
             <div className="flex flex-wrap gap-2">
               {productKeys.map((p) => {
@@ -307,8 +307,8 @@ export function SkuStockBoard({
           ))}
         </div>
         <p className="mt-3 text-xs text-slate-500">
-          압력·카탈로그 칩은 새 창으로 연다 (예:{' '}
-          <strong className="text-slate-300">/dashboard?pressure=10K</strong>). 사이즈는 이 페이지에서 교집합.
+          압력·사이즈 칩은 이 페이지에서 교집합 필터 (예:{' '}
+          <strong className="text-slate-300">/dashboard?pressure=10K</strong>).
         </p>
       </section>
 
