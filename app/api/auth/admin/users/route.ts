@@ -14,8 +14,16 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const user = String((body as { user?: unknown }).user ?? '');
   const password = String((body as { password?: unknown }).password ?? '');
-  const role = (body as { role?: string }).role === 'master_admin' ? 'master_admin' : 'user';
+  const rawRole = String((body as { role?: unknown }).role ?? 'inventory').trim().toLowerCase();
+  const role =
+    rawRole === 'master_admin'
+      ? 'master_admin'
+      : rawRole === 'charts'
+        ? 'charts'
+        : rawRole === 'both'
+          ? 'both'
+          : 'inventory';
   const created = await createUser(user, password, role);
   if (!created.ok) return NextResponse.json(created, { status: 400 });
-  return NextResponse.json({ ok: true, user: user.trim().toLowerCase(), role });
+  return NextResponse.json({ ok: true, user: user.trim().toLowerCase(), role: created.role });
 }

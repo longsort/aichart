@@ -18,22 +18,36 @@
     "data:pre3-memory:full": "node scripts/build-pre3-memory.mjs --symbol BTCUSDT --full-history --max-bars 500000 --tf 15m,1h,4h,1d,1w,1M --delay-ms 350",
     "data:pre3-memory:app": "node scripts/build-pre3-memory.mjs --symbol BTCUSDT --full-history --max-bars 500000 --tf 15m,1h,4h,1d,1w,1M --delay-ms 350",
     "data:whale-memory": "node scripts/build-whale-memory.mjs --symbol BTCUSDT --years 8 --tf 15m,1h,4h --delay-ms 350",
-    "data:whale-memory:dwm": "node scripts/build-whale-memory.mjs --symbol BTCUSDT --years 15 --tf 1d,1w,1M --delay-ms 450"
+    "data:whale-memory:dwm": "node scripts/build-whale-memory.mjs --symbol BTCUSDT --years 15 --tf 1d,1w,1M --delay-ms 450",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.0",
     "axios": "^1.14.0",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
     "cors": "^2.8.6",
     "express": "^4.22.1",
     "html-to-image": "^1.11.13",
     "lightweight-charts": "^5.0.8",
+    "lucide-react": "^1.82.0",
     "next": "14.2.35",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "tailwind-merge": "^3.7.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "20.17.10",
     "@types/react": "18.3.12",
+    "prisma": "^6.19.0",
+    "tsx": "^4.23.15",
     "typescript": "5.7.2"
   }
 }

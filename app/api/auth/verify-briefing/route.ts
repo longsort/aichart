@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyBriefingLoginBody, buildSiteAuthToken, APP_SITE_COOKIE, siteAuthCookieOptions } from '@/lib/appSiteAuth';
+import {
+  verifyBriefingLoginBody,
+  buildSiteAuthToken,
+  APP_SITE_COOKIE,
+  siteAuthCookieOptions,
+  homePathForRole,
+} from '@/lib/appSiteAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +17,13 @@ export async function POST(req: NextRequest) {
     if (result.ok === false) {
       return NextResponse.json({ ok: false, error: result.error }, { status: 403 });
     }
-    const res = NextResponse.json({ ok: true, user: result.user, role: result.role });
+    const redirectTo = homePathForRole(result.role);
+    const res = NextResponse.json({
+      ok: true,
+      user: result.user,
+      role: result.role,
+      redirectTo,
+    });
     res.cookies.set(APP_SITE_COOKIE, buildSiteAuthToken(result.user, result.role), siteAuthCookieOptions());
     return res;
   } catch {
