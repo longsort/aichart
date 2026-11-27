@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   AlertTriangle,
+  BellRing,
   ClipboardList,
 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ const NAV = [
   { href: '/stock/out', label: '출고(상세)', icon: ArrowUpFromLine },
   { href: '/moves', label: '입출고 원장', icon: History },
   { href: '/safety', label: '안전재고', icon: AlertTriangle },
+  { href: '/settings/alerts', label: '재고 경보 설정', icon: BellRing },
   { href: '/settings', label: '설정', icon: Settings },
 ] as const;
 
@@ -55,7 +57,11 @@ export function WmsSidebar() {
         </div>
         <nav className="flex flex-col gap-0.5">
           {NAV.map(({ href, label, icon: Icon }) => {
-            const active = path === href || (href !== '/dashboard' && path.startsWith(href));
+            // /settings 와 /settings/alerts 가 서로 하이라이트되지 않게
+            const active =
+              href === '/settings'
+                ? path === '/settings'
+                : path === href || (href !== '/dashboard' && path.startsWith(href));
             return (
               <Link
                 key={href}

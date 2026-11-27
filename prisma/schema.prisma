@@ -240,3 +240,33 @@ model Attachment {
   @@index([lotId])
   @@index([qualityCheckId])
 }
+
+/// 재고 경보 전역 기준 (긴급/주의/정상 밴드)
+/// 기본: 긴급 < 20, 주의 < 500, 그 외 정상
+model InventoryThresholdSettings {
+  id                   String   @id @default("default")
+  criticalBelowSku     Int      @default(20)
+  warnBelowSku         Int      @default(500)
+  criticalBelowSize    Int      @default(20)
+  warnBelowSize        Int      @default(500)
+  criticalBelowPressure Int     @default(20)
+  warnBelowPressure    Int      @default(500)
+  updatedAt            DateTime @updatedAt
+  updatedBy            String?
+}
+
+/// 사이즈(호칭지름)별 경보 기준 덮어쓰기
+model SizeThresholdOverride {
+  nominalSize   String @id
+  criticalBelow Int?
+  warnBelow     Int?
+  updatedAt     DateTime @updatedAt
+}
+
+/// 압력등급별 경보 기준 덮어쓰기
+model PressureThresholdOverride {
+  pressureClass String @id
+  criticalBelow Int?
+  warnBelow     Int?
+  updatedAt     DateTime @updatedAt
+}

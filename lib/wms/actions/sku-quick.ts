@@ -33,11 +33,13 @@ export async function quickStockInAction(formData: FormData) {
   const note = String(formData.get('note') || '').trim();
   const pressure = String(formData.get('pressure') || '').trim();
   const size = String(formData.get('size') || '').trim();
+  const shortage = String(formData.get('shortage') || '').trim();
 
   const back = () => {
     const sp = new URLSearchParams();
     if (pressure) sp.set('pressure', pressure);
     if (size) sp.set('size', size);
+    if (shortage === '1' || shortage === 'true') sp.set('shortage', '1');
     return sp;
   };
 
@@ -115,11 +117,13 @@ export async function quickStockOutAction(formData: FormData) {
   const note = String(formData.get('note') || '').trim();
   const pressure = String(formData.get('pressure') || '').trim();
   const size = String(formData.get('size') || '').trim();
+  const shortage = String(formData.get('shortage') || '').trim();
 
   const back = () => {
     const sp = new URLSearchParams();
     if (pressure) sp.set('pressure', pressure);
     if (size) sp.set('size', size);
+    if (shortage === '1' || shortage === 'true') sp.set('shortage', '1');
     return sp;
   };
 

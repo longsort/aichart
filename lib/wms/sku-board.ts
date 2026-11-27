@@ -9,11 +9,20 @@ import {
   catalogPressureChipLabel,
   itemMatchesCatalogPressure,
 } from '@/lib/wms/yuil-catalog-filters';
+import {
+  classifyStockBand,
+  loadThresholdBundle,
+  resolveSkuThreshold,
+  type StockAlertBand,
+  type ThresholdBundle,
+} from '@/lib/wms/stock-alerts';
 
 export type SkuBoardFilters = {
   pressureClass?: string;
   size?: string;
   q?: string;
+  /** 긴급·주의만 표시 */
+  shortageOnly?: boolean;
 };
 
 export type SkuBoardRow = {
@@ -28,16 +37,35 @@ export type SkuBoardRow = {
   safetyStock: number;
   onHand: number;
   locationName: string;
+  band: StockAlertBand;
+  criticalBelow: number;
+  warnBelow: number;
 };
 
-/** 압력·사이즈 칩 + 검색으로 SKU 목록 + 보유수량 */
+export type BandCounts = {
+  critical: number;
+  warn: number;
+  ok: number;
+};
+
+function annotateBand(row: Omit<SkuBoardRow, 'band' | 'criticalBelow' | 'warnBelow'>, bundle: ThresholdBundle): SkuBoardRow {
+  const th = resolveSkuThreshold(bundle, {
+    pressureClass: row.pressureClass,
+    size: row.size,
+    safetyStock: row.safetyStock,
+  });
+  const band = classifyStockBand(row.onHand, th.criticalBelow, th.warnBelow);
+  return { ...row, band, criticalBelow: th.criticalBelow, warnBelow: th.warnBelow };
+}
+
+/** 압력·사이즈 칩 + 검색으로 SKU 목록 + 보유수량 + 경보 밴드 */
 export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   const where: Prisma.ItemWhereInput = { isActive: true };
   const pressure = (filters.pressureClass || '').trim();
   const size = (filters.size || '').trim();
   const q = (filters.q || '').trim();
+  const shortageOnly = Boolean(filters.shortageOnly);
 
-  // 사이즈·검색만 Prisma where — 압력/카탈로그 칩은 별칭·제품명 OR 매칭
   if (size && size !== 'ALL') where.size = size;
   if (q) {
     where.OR = [
@@ -49,15 +77,29 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     ];
   }
 
-  // DB string orderBy size는 1000A < 15A 가 됨 → 메모리에서 숫자 호칭 정렬
-  const items = await prisma.item.findMany({
-    where,
-    include: {
-      location: { select: { name: true, zone: true } },
-      lots: { select: { quantity: true } },
-    },
-    orderBy: [{ pressureClass: 'asc' }, { itemCode: 'asc' }],
-  });
+  const [items, bundle, allActiveItems] = await Promise.all([
+    prisma.item.findMany({
+      where,
+      include: {
+        location: { select: { name: true, zone: true } },
+        lots: { select: { quantity: true } },
+      },
+      orderBy: [{ pressureClass: 'asc' }, { itemCode: 'asc' }],
+    }),
+    loadThresholdBundle(),
+    // 압력 칩 합계용 — 필터와 무관하게 활성 전체
+    prisma.item.findMany({
+      where: { isActive: true },
+      select: {
+        pressureClass: true,
+        productType: true,
+        standard: true,
+        itemName: true,
+        itemCode: true,
+        lots: { select: { quantity: true } },
+      },
+    }),
+  ]);
 
   const matched = items.filter((it) =>
     itemMatchesCatalogPressure(
@@ -72,22 +114,27 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     ),
   );
 
-  const rows: SkuBoardRow[] = matched
-    .map((it) => ({
-      id: it.id,
-      itemCode: it.itemCode,
-      itemName: it.itemName,
-      materialType: it.materialType,
-      productType: it.productType,
-      pressureClass: it.pressureClass,
-      size: it.size,
-      unit: it.unit,
-      safetyStock: it.safetyStock,
-      onHand: it.lots.reduce((s, l) => s + l.quantity, 0),
-      locationName: it.location
-        ? `${it.location.zone ? `${it.location.zone}/` : ''}${it.location.name}`
-        : '—',
-    }))
+  const allBanded: SkuBoardRow[] = matched
+    .map((it) =>
+      annotateBand(
+        {
+          id: it.id,
+          itemCode: it.itemCode,
+          itemName: it.itemName,
+          materialType: it.materialType,
+          productType: it.productType,
+          pressureClass: it.pressureClass,
+          size: it.size,
+          unit: it.unit,
+          safetyStock: it.safetyStock,
+          onHand: it.lots.reduce((s, l) => s + l.quantity, 0),
+          locationName: it.location
+            ? `${it.location.zone ? `${it.location.zone}/` : ''}${it.location.name}`
+            : '—',
+        },
+        bundle,
+      ),
+    )
     .sort((a, b) => {
       const bySize = compareNominalSize(a.size, b.size);
       if (bySize !== 0) return bySize;
@@ -96,19 +143,57 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
       return a.itemCode.localeCompare(b.itemCode, 'ko');
     });
 
+  const bandCounts: BandCounts = { critical: 0, warn: 0, ok: 0 };
+  for (const r of allBanded) {
+    bandCounts[r.band] += 1;
+  }
+
+  const rows = shortageOnly
+    ? allBanded.filter((r) => r.band === 'critical' || r.band === 'warn')
+    : allBanded;
+
   const filteredTotal = rows.reduce((s, r) => s + r.onHand, 0);
 
-  const allLots = await prisma.inventoryLot.findMany({
-    where: { item: { isActive: true } },
-    select: { quantity: true },
-  });
-  const overallTotal = allLots.reduce((s, l) => s + l.quantity, 0);
+  const overallTotal = allActiveItems.reduce(
+    (s, it) => s + it.lots.reduce((a, l) => a + l.quantity, 0),
+    0,
+  );
+
+  // 압력 칩별 보유 합계 (카탈로그 매칭 + DB-only 키)
+  const pressureTotals: Record<string, number> = {};
+  for (const key of CATALOG_PRESSURE_CHIP_KEYS) {
+    pressureTotals[key] = 0;
+  }
+  const catalogKeySet = new Set(CATALOG_PRESSURE_CHIP_KEYS);
+  for (const it of allActiveItems) {
+    const qty = it.lots.reduce((s, l) => s + l.quantity, 0);
+    if (qty <= 0) continue;
+    const identity = {
+      pressureClass: it.pressureClass,
+      productType: it.productType,
+      standard: it.standard,
+      itemName: it.itemName,
+      itemCode: it.itemCode,
+    };
+    for (const key of CATALOG_PRESSURE_CHIP_KEYS) {
+      if (itemMatchesCatalogPressure(identity, key)) {
+        pressureTotals[key] += qty;
+      }
+    }
+    const pc = (it.pressureClass || '').trim();
+    if (pc && !catalogKeySet.has(pc)) {
+      pressureTotals[pc] = (pressureTotals[pc] || 0) + qty;
+    }
+  }
 
   return {
     rows,
     filteredTotal,
     overallTotal,
     skuCount: rows.length,
+    bandCounts,
+    pressureTotals,
+    thresholds: bundle.global,
   };
 }
 
@@ -119,7 +204,6 @@ export async function getSkuFilterOptions() {
     select: { pressureClass: true, size: true },
   });
 
-  // 카탈로그 칩 키를 항상 앞에 유지 (정렬로 뒤섞지 않음)
   const pressureSeen = new Set<string>(CATALOG_PRESSURE_CHIP_KEYS);
   const pressures: string[] = [...CATALOG_PRESSURE_CHIP_KEYS];
   for (const it of items) {
