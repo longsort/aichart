@@ -5,31 +5,28 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils/cn';
 import {
-  LayoutDashboard,
   Package,
   Boxes,
   ArrowDownToLine,
   ArrowUpFromLine,
-  Cog,
-  ClipboardCheck,
   History,
   Settings,
   Menu,
   X,
   AlertTriangle,
+  ClipboardList,
 } from 'lucide-react';
 
+/** 재고 사용자용 — 차트/분석 내비 없음. 핵심만 앞에. */
 const NAV = [
-  { href: '/dashboard', label: '대시보드', icon: LayoutDashboard },
+  { href: '/dashboard', label: '재고현황', icon: ClipboardList },
   { href: '/items', label: '품목마스터', icon: Package },
-  { href: '/inventory', label: 'LOT·Heat 재고', icon: Boxes },
-  { href: '/stock/in', label: '입고관리', icon: ArrowDownToLine },
-  { href: '/stock/out', label: '출고관리', icon: ArrowUpFromLine },
-  { href: '/process', label: '毛皮 가공', icon: Cog },
-  { href: '/quality', label: '검사·MTC', icon: ClipboardCheck },
-  { href: '/safety', label: '안전재고 경고', icon: AlertTriangle },
-  { href: '/moves', label: '재고이동 이력', icon: History },
-  { href: '/settings', label: '설정·기초코드', icon: Settings },
+  { href: '/inventory', label: 'LOT 상세', icon: Boxes },
+  { href: '/stock/in', label: '입고(상세)', icon: ArrowDownToLine },
+  { href: '/stock/out', label: '출고(상세)', icon: ArrowUpFromLine },
+  { href: '/moves', label: '입출고 원장', icon: History },
+  { href: '/safety', label: '안전재고', icon: AlertTriangle },
+  { href: '/settings', label: '설정', icon: Settings },
 ] as const;
 
 export function WmsSidebar() {
@@ -53,8 +50,8 @@ export function WmsSidebar() {
         )}
       >
         <div className="mb-4 px-2 pt-10 lg:pt-2">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">WMS</div>
-          <div className="text-sm font-semibold text-slate-100">스테인리스·毛皮 재고</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-teal-500/80">유일후랜지</div>
+          <div className="text-sm font-semibold text-slate-100">재고관리</div>
         </div>
         <nav className="flex flex-col gap-0.5">
           {NAV.map(({ href, label, icon: Icon }) => {
@@ -75,16 +72,15 @@ export function WmsSidebar() {
             );
           })}
         </nav>
-        <div className="mt-6 border-t border-slate-800 px-2 pt-3 space-y-1">
-          <Link href="/" className="block text-xs text-slate-400 hover:text-slate-200">
-            ← 차트(독수리1호)로
-          </Link>
+        <div className="mt-6 space-y-1 border-t border-slate-800 px-2 pt-3">
           <Link href="/login" className="block text-xs text-slate-500 hover:text-slate-300">
             로그인 전환
           </Link>
         </div>
       </aside>
-      {open ? <div className="fixed inset-0 z-[50] bg-black/50 lg:hidden" onClick={() => setOpen(false)} aria-hidden /> : null}
+      {open ? (
+        <div className="fixed inset-0 z-[50] bg-black/50 lg:hidden" onClick={() => setOpen(false)} aria-hidden />
+      ) : null}
     </>
   );
 }

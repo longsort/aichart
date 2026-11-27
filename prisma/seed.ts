@@ -59,6 +59,50 @@ async function main() {
       memo: '양산',
     },
   });
+  const i10k15 = await prisma.item.create({
+    data: {
+      itemCode: 'F-304-10K-15A',
+      itemName: 'KS Flange 10K 15A SCS304',
+      materialType: MaterialType.SCS304,
+      productType: 'KS Flange',
+      standard: 'KS B1503',
+      size: '15A',
+      pressureClass: '10K',
+      unit: 'EA',
+      safetyStock: 20,
+      locationId: locA.id,
+      memo: 'filter demo 10K x 15A',
+    },
+  });
+  const i20k15 = await prisma.item.create({
+    data: {
+      itemCode: 'F-304-20K-15A',
+      itemName: 'KS Flange 20K 15A SCS304',
+      materialType: MaterialType.SCS304,
+      productType: 'KS Flange',
+      standard: 'KS B1503',
+      size: '15A',
+      pressureClass: '20K',
+      unit: 'EA',
+      safetyStock: 20,
+      locationId: locA.id,
+      memo: 'filter demo 20K x 15A',
+    },
+  });
+  const i20k50 = await prisma.item.create({
+    data: {
+      itemCode: 'F-304-20K-50A',
+      itemName: 'KS Flange 20K 50A SCS304',
+      materialType: MaterialType.SCS304,
+      productType: 'KS Flange',
+      standard: 'KS B1503',
+      size: '50A',
+      pressureClass: '20K',
+      unit: 'EA',
+      safetyStock: 15,
+      locationId: locA.id,
+    },
+  });
   const i316 = await prisma.item.create({
     data: {
       itemCode: 'F-316-ANSI150-2B',
@@ -113,6 +157,39 @@ async function main() {
       locationId: locA.id,
     },
   });
+  const lot10k15 = await prisma.inventoryLot.create({
+    data: {
+      itemId: i10k15.id,
+      lotNo: 'OPEN',
+      heatNo: '',
+      quantity: 120,
+      status: InventoryLotStatus.NORMAL,
+      receivedDate: new Date('2025-03-01'),
+      locationId: locA.id,
+    },
+  });
+  const lot20k15 = await prisma.inventoryLot.create({
+    data: {
+      itemId: i20k15.id,
+      lotNo: 'OPEN',
+      heatNo: '',
+      quantity: 80,
+      status: InventoryLotStatus.NORMAL,
+      receivedDate: new Date('2025-03-01'),
+      locationId: locA.id,
+    },
+  });
+  const lot20k50 = await prisma.inventoryLot.create({
+    data: {
+      itemId: i20k50.id,
+      lotNo: 'OPEN',
+      heatNo: '',
+      quantity: 40,
+      status: InventoryLotStatus.NORMAL,
+      receivedDate: new Date('2025-03-01'),
+      locationId: locA.id,
+    },
+  });
   const lot2 = await prisma.inventoryLot.create({
     data: {
       itemId: i316.id,
@@ -160,6 +237,39 @@ async function main() {
         vendorName: '대한금속',
         documentNo: 'PO-2024-001',
         reason: '입고',
+        createdBy: u1.id,
+      },
+      {
+        itemId: i10k15.id,
+        lotId: lot10k15.id,
+        moveType: StockMoveType.IN,
+        quantity: 120,
+        beforeQty: 0,
+        afterQty: 120,
+        toLocationId: locA.id,
+        reason: 'IN',
+        createdBy: u1.id,
+      },
+      {
+        itemId: i20k15.id,
+        lotId: lot20k15.id,
+        moveType: StockMoveType.IN,
+        quantity: 80,
+        beforeQty: 0,
+        afterQty: 80,
+        toLocationId: locA.id,
+        reason: 'IN',
+        createdBy: u1.id,
+      },
+      {
+        itemId: i20k50.id,
+        lotId: lot20k50.id,
+        moveType: StockMoveType.IN,
+        quantity: 40,
+        beforeQty: 0,
+        afterQty: 40,
+        toLocationId: locA.id,
+        reason: 'IN',
         createdBy: u1.id,
       },
       {
