@@ -23,6 +23,8 @@ export type SkuBoardFilters = {
   q?: string;
   /** 긴급·주의만 표시 */
   shortageOnly?: boolean;
+  /** 긴급|주의|정상 한 밴드만 */
+  band?: StockAlertBand;
 };
 
 export type SkuBoardRow = {
@@ -48,6 +50,38 @@ export type BandCounts = {
   ok: number;
 };
 
+/** 한 밴드 안에서 압력등급별 SKU 수 (발주·보충용) */
+export type BandPressureCount = {
+  pressureClass: string;
+  skuCount: number;
+  onHandTotal: number;
+};
+
+export type BandPressureBreakdown = Record<StockAlertBand, BandPressureCount[]>;
+
+function buildBandPressureBreakdown(rows: SkuBoardRow[]): BandPressureBreakdown {
+  const acc: Record<StockAlertBand, Record<string, BandPressureCount>> = {
+    critical: {},
+    warn: {},
+    ok: {},
+  };
+  for (const r of rows) {
+    const key = (r.pressureClass || '').trim() || '—';
+    const bucket = acc[r.band];
+    const cur = bucket[key] || { pressureClass: key, skuCount: 0, onHandTotal: 0 };
+    cur.skuCount += 1;
+    cur.onHandTotal += r.onHand;
+    bucket[key] = cur;
+  }
+  const sortRows = (list: BandPressureCount[]) =>
+    list.sort((a, b) => b.skuCount - a.skuCount || a.pressureClass.localeCompare(b.pressureClass, 'ko'));
+  return {
+    critical: sortRows(Object.values(acc.critical)),
+    warn: sortRows(Object.values(acc.warn)),
+    ok: sortRows(Object.values(acc.ok)),
+  };
+}
+
 function annotateBand(row: Omit<SkuBoardRow, 'band' | 'criticalBelow' | 'warnBelow'>, bundle: ThresholdBundle): SkuBoardRow {
   const th = resolveSkuThreshold(bundle, {
     pressureClass: row.pressureClass,
@@ -65,6 +99,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   const size = (filters.size || '').trim();
   const q = (filters.q || '').trim();
   const shortageOnly = Boolean(filters.shortageOnly);
+  const bandFilter = filters.band;
 
   if (size && size !== 'ALL') where.size = size;
   if (q) {
@@ -148,9 +183,14 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     bandCounts[r.band] += 1;
   }
 
-  const rows = shortageOnly
-    ? allBanded.filter((r) => r.band === 'critical' || r.band === 'warn')
-    : allBanded;
+  const bandPressureBreakdown = buildBandPressureBreakdown(allBanded);
+
+  let rows = allBanded;
+  if (bandFilter === 'critical' || bandFilter === 'warn' || bandFilter === 'ok') {
+    rows = allBanded.filter((r) => r.band === bandFilter);
+  } else if (shortageOnly) {
+    rows = allBanded.filter((r) => r.band === 'critical' || r.band === 'warn');
+  }
 
   const filteredTotal = rows.reduce((s, r) => s + r.onHand, 0);
 
@@ -192,6 +232,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     overallTotal,
     skuCount: rows.length,
     bandCounts,
+    bandPressureBreakdown,
     pressureTotals,
     thresholds: bundle.global,
   };
