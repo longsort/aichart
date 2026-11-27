@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { quickStockInAction } from '@/lib/wms/actions/sku-quick';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
@@ -15,14 +16,20 @@ export type PendingSkuRow = {
 
 function chipClass(active: boolean) {
   return active
-    ? 'inline-flex min-h-8 max-w-full items-center rounded-md bg-teal-700 px-2.5 text-xs font-semibold text-white'
-    : 'inline-flex min-h-8 max-w-full items-center rounded-md border border-slate-600 bg-slate-900 px-2.5 text-xs text-slate-200 hover:border-teal-600 hover:text-teal-200';
+    ? 'inline-flex min-h-8 max-w-full shrink-0 items-center rounded-md bg-teal-700 px-2.5 text-xs font-semibold text-white'
+    : 'inline-flex min-h-8 max-w-full shrink-0 items-center rounded-md border border-slate-600 bg-slate-900 px-2.5 text-xs text-slate-200 hover:border-teal-600 hover:text-teal-200';
 }
 
 /**
- * 입고대기 목록 — 압력 검색·칩으로 클라이언트 필터 (빠른 점프).
+ * 입고대기 목록 — 헤더에 압력별 전체 통계(클릭=필터) + 검색.
  */
-export function StockPendingBoard({ rows }: { rows: PendingSkuRow[] }) {
+export function StockPendingBoard({
+  rows,
+  userName,
+}: {
+  rows: PendingSkuRow[];
+  userName?: string;
+}) {
   const [query, setQuery] = useState('');
   const [pressure, setPressure] = useState<string>('ALL');
 
@@ -53,8 +60,63 @@ export function StockPendingBoard({ rows }: { rows: PendingSkuRow[] }) {
     });
   }, [rows, query, pressure]);
 
+  const userInitial = (userName || 'U').trim().slice(0, 1).toUpperCase() || 'U';
+
   return (
     <div className="space-y-3">
+      {/* 헤더: 재고현황 링크 · 압력별 전체 통계 · 유저 */}
+      <header className="sticky top-0 z-20 -mx-1 border-b border-slate-700/80 bg-slate-950/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/dashboard"
+            className="shrink-0 text-sm font-semibold text-slate-100 hover:text-teal-200"
+          >
+            재고현황
+          </Link>
+          <span className="hidden text-slate-600 sm:inline">/</span>
+          <span className="shrink-0 text-sm text-slate-400">입고대기</span>
+          <span className="text-xs text-slate-500">
+            미입고 <strong className="tabular-nums text-slate-200">{rows.length.toLocaleString()}</strong>
+          </span>
+
+          <div
+            className="ml-auto flex max-w-full min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-0.5 sm:ml-2 sm:flex-none sm:justify-end"
+            role="toolbar"
+            aria-label="압력별 입고대기 수"
+          >
+            <button
+              type="button"
+              className={chipClass(pressure === 'ALL')}
+              onClick={() => setPressure('ALL')}
+              title="전체 압력"
+            >
+              전체
+              <span className="ml-1 tabular-nums opacity-80">{rows.length.toLocaleString()}</span>
+            </button>
+            {pressureChips.map((c) => (
+              <button
+                type="button"
+                key={c.key}
+                className={chipClass(pressure === c.key)}
+                onClick={() => setPressure(c.key)}
+                title={`${c.label} · ${c.count}건`}
+              >
+                <span className="truncate">{c.label}</span>
+                <span className="ml-1 tabular-nums opacity-80">{c.count.toLocaleString()}</span>
+              </button>
+            ))}
+          </div>
+
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white"
+            title={userName || 'user'}
+            aria-label={userName ? `로그인 ${userName}` : '사용자'}
+          >
+            {userInitial}
+          </div>
+        </div>
+      </header>
+
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-3">
         <div className="mb-2 text-sm font-semibold text-slate-100">압력 빠른찾기</div>
         <label className="mb-2 block">
@@ -68,34 +130,10 @@ export function StockPendingBoard({ rows }: { rows: PendingSkuRow[] }) {
             autoComplete="off"
           />
         </label>
-        <div className="mb-1 text-[11px] text-slate-500">칩 클릭 = 해당 압력만 · 검색은 목록만 좁힘(페이지 이동 없음)</div>
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            className={chipClass(pressure === 'ALL')}
-            onClick={() => setPressure('ALL')}
-          >
-            전체
-            <span className="ml-1 tabular-nums opacity-80">{rows.length.toLocaleString()}</span>
-          </button>
-          {pressureChips.map((c) => (
-            <button
-              type="button"
-              key={c.key}
-              className={chipClass(pressure === c.key)}
-              onClick={() => setPressure(c.key)}
-              title={c.key}
-            >
-              <span className="truncate">{c.label}</span>
-              <span className="ml-1 tabular-nums opacity-80">{c.count.toLocaleString()}</span>
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-slate-500">
-          표시 <strong className="text-slate-300">{filtered.length.toLocaleString()}</strong>
-          {pressure !== 'ALL' || query.trim()
-            ? ` / 전체 ${rows.length.toLocaleString()}`
-            : null}
+        <p className="text-xs text-slate-500">
+          헤더 압력 칩·검색으로 목록만 좁힘 · 표시{' '}
+          <strong className="text-slate-300">{filtered.length.toLocaleString()}</strong>
+          {pressure !== 'ALL' || query.trim() ? ` / 전체 ${rows.length.toLocaleString()}` : null}
         </p>
       </section>
 
