@@ -35,6 +35,10 @@ const NAV = [
 export function WmsSidebar() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  /** 압력 통계 팝업 창에서는 사이드바 숨김 */
+  const popupStats = path === '/stock/pending/stats';
+
+  if (popupStats) return null;
 
   return (
     <>
