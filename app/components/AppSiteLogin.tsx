@@ -1,15 +1,18 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import AppDisclaimerBanner from './AppDisclaimerBanner';
 import { setStoredBriefingCredentials } from '@/lib/clientAiCredentials';
 import { useVisitorCount } from '@/lib/useVisitorCount';
+import { homePathForRole } from '@/lib/appSiteAuthClient';
 
 type Props = {
-  onLoggedIn: (user: string) => void;
+  /** role 을 넘기면 호출측에서 리다이렉트. 없으면 역할 기본 경로로 이동 */
+  onLoggedIn?: (user: string, role: string) => void;
 };
 
-/** 사이트 최초 진입 시 ID/비밀번호 (기본: aichart / longshort, 서버 env로 변경 가능) */
+/** 사이트 최초 진입 시 ID/비밀번호 */
 export default function AppSiteLogin({ onLoggedIn }: Props) {
   const visitor = useVisitorCount();
   const [user, setUser] = useState('');
@@ -39,7 +42,16 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
         return;
       }
       setStoredBriefingCredentials(u, password);
-      window.location.reload();
+      const role = String(data.role || 'charts');
+      if (onLoggedIn) {
+        onLoggedIn(u, role);
+        return;
+      }
+      const to =
+        typeof data.redirectTo === 'string' && data.redirectTo
+          ? data.redirectTo
+          : homePathForRole(role);
+      window.location.href = to;
     } catch {
       setError('연결 오류입니다. 서버가 실행 중인지 확인하세요.');
     } finally {
@@ -51,10 +63,10 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
     <div className="site-login-wrap" role="dialog" aria-labelledby="site-login-title">
       <div className="card site-login-card">
         <h1 id="site-login-title" className="site-login-title">
-          AI 트레이더 분석 엔진
+          로그인
         </h1>
         <p className="subtle" style={{ marginBottom: 20 }}>
-          사이트에 접속하려면 아이디와 비밀번호를 입력하세요.
+          아이디·비밀번호로 접속합니다. 역할에 따라 차트 또는 재고 화면으로 이동합니다.
           {visitor.count != null && (
             <span style={{ marginLeft: 10, color: 'var(--muted)' }}>· 현재 {visitor.count}명 접속</span>
           )}
@@ -67,7 +79,7 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
               type="text"
               autoComplete="username"
               value={user}
-              onChange={e => setUser(e.target.value)}
+              onChange={(e) => setUser(e.target.value)}
               placeholder="아이디 입력"
               disabled={loading}
             />
@@ -79,16 +91,26 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
               type="password"
               autoComplete="current-password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               disabled={loading}
             />
           </label>
-          {error && <div className="site-login-error" role="alert">{error}</div>}
+          {error && (
+            <div className="site-login-error" role="alert">
+              {error}
+            </div>
+          )}
           <button type="submit" className="tool-chip tool-chip-button site-login-submit" disabled={loading}>
             {loading ? '확인 중...' : '접속'}
           </button>
         </form>
+        <p className="site-login-signup">
+          계정이 없나요? <Link href="/signup">회원가입</Link>
+        </p>
+        <p className="site-login-devhint">
+          개발용 재고 계정: <code>u1</code> / <code>u1</code> (실서버에서는 비밀번호를 바꾸세요)
+        </p>
         <AppDisclaimerBanner variant="login" />
       </div>
       <style jsx>{`
@@ -132,6 +154,24 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
           margin-top: 8px;
           padding: 12px 16px;
           font-weight: 700;
+        }
+        .site-login-signup {
+          margin: 16px 0 0;
+          font-size: 13px;
+          color: var(--muted);
+        }
+        .site-login-signup :global(a) {
+          color: #5eead4;
+          font-weight: 600;
+        }
+        .site-login-devhint {
+          margin: 8px 0 0;
+          font-size: 11px;
+          color: var(--muted);
+          opacity: 0.85;
+        }
+        .site-login-devhint code {
+          font-size: 11px;
         }
       `}</style>
     </div>

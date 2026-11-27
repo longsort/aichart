@@ -1,0 +1,242 @@
+// 재고관리(WMS) — SQLite(개발) / DATABASE_URL로 PostgreSQL 전환 가능
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// 사용자 (입출고·검사 기록 연계용)
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String   @default("USER") // ADMIN | USER | INSPECTOR
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// 재질 축: SCS304 / SCS316 / 毛皮 반제품(SEMI_RAW)
+enum MaterialType {
+  SCS304
+  SCS316
+  SEMI_RAW
+}
+
+/// LOT 상태
+enum InventoryLotStatus {
+  NORMAL
+  WAIT_INSPECTION
+  PROCESSING
+  DEFECT
+  SHIPPED
+  HOLD
+}
+
+/// 재고 이동 유형
+enum StockMoveType {
+  IN
+  OUT
+  ADJUST
+  PROCESS_IN
+  PROCESS_OUT
+  TRANSFER
+}
+
+/// 가공지시 상태
+enum ProcessOrderStatus {
+  READY
+  PROCESSING
+  DONE
+  CANCELLED
+}
+
+/// 가공 단계
+enum ProcessStep {
+  RAW
+  CUTTING
+  CNC
+  DRILLING
+  INSPECTION
+  FINISHED
+}
+
+/// 검사 유형
+enum QualityCheckType {
+  DIMENSION
+  MATERIAL
+  PRESSURE
+  VISUAL
+  FINAL
+}
+
+/// 검사 결과
+enum QualityResult {
+  PASS
+  FAIL
+  HOLD
+}
+
+/// 첨부 파일 유형 (MTC 등)
+enum AttachmentFileType {
+  MTC
+  INSPECTION_REPORT
+  PHOTO
+  PDF
+  ETC
+}
+
+/// 품목 마스터
+model Item {
+  id             String       @id @default(cuid())
+  itemCode       String       @unique
+  itemName       String
+  materialType   MaterialType
+  productType    String
+  standard       String       @default("")
+  size           String       @default("")
+  pressureClass  String       @default("")
+  unit           String       @default("EA")
+  safetyStock    Int          @default(0)
+  locationId     String?
+  isActive       Boolean      @default(true)
+  memo           String       @default("")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  location    Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  lots        InventoryLot[]
+  stockMoves  StockMove[]
+  processTargets ProcessOrder[] @relation("TargetItem")
+}
+
+/// 창고·구역
+model Location {
+  id          String   @id @default(cuid())
+  name        String
+  zone        String   @default("")
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items            Item[]
+  lots             InventoryLot[]
+  movesFrom        StockMove[] @relation("MoveFrom")
+  movesTo          StockMove[] @relation("MoveTo")
+}
+
+/// LOT / Heat 단위 재고
+model InventoryLot {
+  id            String             @id @default(cuid())
+  itemId        String
+  lotNo         String
+  heatNo        String             @default("")
+  quantity      Int                @default(0)
+  status        InventoryLotStatus @default(NORMAL)
+  receivedDate  DateTime?
+  locationId    String?
+  memo          String             @default("")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  item            Item             @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  location        Location?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  stockMoves      StockMove[]
+  qualityChecks   QualityCheck[]
+  attachments     Attachment[]
+  processSources ProcessOrder[] @relation("SourceLot")
+
+  @@unique([itemId, lotNo, heatNo])
+  @@index([itemId])
+  @@index([status])
+  @@index([locationId])
+}
+
+/// 재고 이동 이력
+model StockMove {
+  id              String        @id @default(cuid())
+  itemId          String
+  lotId           String?
+  moveType        StockMoveType
+  quantity        Int
+  beforeQty       Int?
+  afterQty        Int?
+  fromLocationId  String?
+  toLocationId    String?
+  customerName    String        @default("")
+  vendorName      String        @default("")
+  documentNo      String        @default("")
+  reason          String        @default("")
+  createdBy       String?
+  createdAt       DateTime      @default(now())
+
+  item         Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  lot          InventoryLot? @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  fromLocation Location?     @relation("MoveFrom", fields: [fromLocationId], references: [id], onDelete: SetNull)
+  toLocation   Location?     @relation("MoveTo", fields: [toLocationId], references: [id], onDelete: SetNull)
+
+  @@index([itemId])
+  @@index([lotId])
+  @@index([createdAt])
+}
+
+/// 毛皮 반제품 가공 지시
+model ProcessOrder {
+  id           String             @id @default(cuid())
+  orderNo      String             @unique
+  sourceLotId  String
+  targetItemId String
+  inputQty     Int
+  outputQty    Int                @default(0)
+  defectQty    Int                @default(0)
+  status       ProcessOrderStatus @default(READY)
+  processStep  ProcessStep        @default(RAW)
+  startDate    DateTime?
+  endDate      DateTime?
+  memo         String             @default("")
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  sourceLot  InventoryLot @relation("SourceLot", fields: [sourceLotId], references: [id], onDelete: Cascade)
+  targetItem Item         @relation("TargetItem", fields: [targetItemId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([sourceLotId])
+}
+
+/// 검사 / MTC 연계
+model QualityCheck {
+  id        String           @id @default(cuid())
+  lotId     String
+  checkType QualityCheckType
+  result    QualityResult
+  inspector String           @default("")
+  checkedAt DateTime         @default(now())
+  memo      String           @default("")
+  createdAt DateTime         @default(now())
+
+  lot          InventoryLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  attachments  Attachment[]
+
+  @@index([lotId])
+  @@index([result])
+}
+
+/// 첨부 (MTC·검사성적서 등, fileUrl은 mock 가능)
+model Attachment {
+  id              String             @id @default(cuid())
+  lotId           String?
+  qualityCheckId  String?
+  fileName        String
+  fileUrl         String
+  fileType        AttachmentFileType @default(ETC)
+  uploadedAt      DateTime           @default(now())
+
+  lot           InventoryLot? @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  qualityCheck  QualityCheck? @relation(fields: [qualityCheckId], references: [id], onDelete: Cascade)
+
+  @@index([lotId])
+  @@index([qualityCheckId])
+}

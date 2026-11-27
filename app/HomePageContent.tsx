@@ -534,7 +534,12 @@ export default function HomePageContent() {
   useEffect(() => {
     fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' })
       .then(r => r.json())
-      .then((d: { authenticated?: boolean; user?: string }) => {
+      .then((d: { authenticated?: boolean; user?: string; role?: string }) => {
+        if (d.authenticated && d.role === 'inventory') {
+          // 재고 전용 계정은 차트 홈 대신 WMS 대시보드
+          window.location.replace('/dashboard');
+          return;
+        }
         setSiteAuth(d.authenticated ? 'authed' : 'anon');
         setSiteUser(d.user || '');
       })
@@ -1690,7 +1695,17 @@ export default function HomePageContent() {
   }
 
   if (siteAuth === 'anon') {
-    return <AppSiteLogin onLoggedIn={() => setSiteAuth('authed')} />;
+    return (
+      <AppSiteLogin
+        onLoggedIn={(_u, role) => {
+          if (role === 'inventory') {
+            window.location.href = '/dashboard';
+            return;
+          }
+          setSiteAuth('authed');
+        }}
+      />
+    );
   }
 
   return (

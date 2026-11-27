@@ -50,6 +50,7 @@ async function verifySiteAuthCookieEdge(token: string, secret: string): Promise<
 
 const AUTH_WHITELIST_PREFIXES = [
   '/api/auth/verify-briefing',
+  '/api/auth/signup',
   '/api/auth/logout',
   '/api/auth/session',
   '/api/visitors',

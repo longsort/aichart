@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* WMS 루트: 기본 타이포(preflight 없음 보완) */
+.wms-root {
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+  color: #f1f5f9;
+  line-height: 1.5;
+}
+
+.wms-root *,
+.wms-root *::before,
+.wms-root *::after {
+  box-sizing: border-box;
+}
+
+@layer components {
+  /* 폼 라벨+컨트롤 세로 스택 (브라우저 기본 inline 라벨로 겹침 방지) */
+  .wms-root label:has(> select),
+  .wms-root label:has(> input:not([type='checkbox']):not([type='radio'])),
+  .wms-root label:has(> textarea) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .wms-control {
+    @apply box-border block w-full min-h-[2.75rem] rounded-md border border-slate-500 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none placeholder:text-slate-500 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30;
+  }
+
+  .wms-field-label {
+    @apply text-xs font-medium text-slate-200;
+  }
+
+  .wms-control-compact {
+    @apply box-border block w-full min-h-[2.4rem] rounded-md border border-slate-500 bg-slate-950 px-2 py-1.5 text-xs text-slate-100 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30;
+  }
+
+  .wms-root select option {
+    @apply bg-slate-900 text-slate-100;
+  }
+}
