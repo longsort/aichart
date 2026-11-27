@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
-import { CATALOG_PRESSURE_CHIP_KEYS, NOMINAL_SIZES } from '@/lib/wms/codes';
+import {
+  CATALOG_PRESSURE_CHIP_KEYS,
+  NOMINAL_SIZES,
+  compareNominalSize,
+} from '@/lib/wms/codes';
 import {
   catalogPressureChipLabel,
   itemMatchesCatalogPressure,
@@ -45,13 +49,14 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     ];
   }
 
+  // DB string orderBy size는 1000A < 15A 가 됨 → 메모리에서 숫자 호칭 정렬
   const items = await prisma.item.findMany({
     where,
     include: {
       location: { select: { name: true, zone: true } },
       lots: { select: { quantity: true } },
     },
-    orderBy: [{ pressureClass: 'asc' }, { size: 'asc' }, { itemCode: 'asc' }],
+    orderBy: [{ pressureClass: 'asc' }, { itemCode: 'asc' }],
   });
 
   const matched = items.filter((it) =>
@@ -67,21 +72,29 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     ),
   );
 
-  const rows: SkuBoardRow[] = matched.map((it) => ({
-    id: it.id,
-    itemCode: it.itemCode,
-    itemName: it.itemName,
-    materialType: it.materialType,
-    productType: it.productType,
-    pressureClass: it.pressureClass,
-    size: it.size,
-    unit: it.unit,
-    safetyStock: it.safetyStock,
-    onHand: it.lots.reduce((s, l) => s + l.quantity, 0),
-    locationName: it.location
-      ? `${it.location.zone ? `${it.location.zone}/` : ''}${it.location.name}`
-      : '—',
-  }));
+  const rows: SkuBoardRow[] = matched
+    .map((it) => ({
+      id: it.id,
+      itemCode: it.itemCode,
+      itemName: it.itemName,
+      materialType: it.materialType,
+      productType: it.productType,
+      pressureClass: it.pressureClass,
+      size: it.size,
+      unit: it.unit,
+      safetyStock: it.safetyStock,
+      onHand: it.lots.reduce((s, l) => s + l.quantity, 0),
+      locationName: it.location
+        ? `${it.location.zone ? `${it.location.zone}/` : ''}${it.location.name}`
+        : '—',
+    }))
+    .sort((a, b) => {
+      const bySize = compareNominalSize(a.size, b.size);
+      if (bySize !== 0) return bySize;
+      const byPc = a.pressureClass.localeCompare(b.pressureClass, 'ko');
+      if (byPc !== 0) return byPc;
+      return a.itemCode.localeCompare(b.itemCode, 'ko');
+    });
 
   const filteredTotal = rows.reduce((s, r) => s + r.onHand, 0);
 
@@ -125,11 +138,6 @@ export async function getSkuFilterOptions() {
   return {
     pressures,
     pressureLabels: Object.fromEntries(pressures.map((k) => [k, catalogPressureChipLabel(k)])),
-    sizes: [...sizes].sort((a, b) => {
-      const na = parseInt(a, 10);
-      const nb = parseInt(b, 10);
-      if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
-      return a.localeCompare(b, 'ko');
-    }),
+    sizes: [...sizes].sort(compareNominalSize),
   };
 }
