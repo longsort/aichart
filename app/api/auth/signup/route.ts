@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const user = String((body as { user?: unknown }).user ?? '');
     const password = String((body as { password?: unknown }).password ?? '');
     const created = await createUser(user, password, 'inventory');
-    if (!created.ok) {
+    if (created.ok === false) {
       return NextResponse.json({ ok: false, error: created.error }, { status: 400 });
     }
     const res = NextResponse.json({
