@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { compareNominalSize } from '@/lib/wms/codes';
 import {
   CATALOG_SEED_NOMINAL_SIZES,
   CATALOG_SEED_PRESSURE_KEYS,
@@ -7,6 +8,14 @@ import {
   buildCatalogPressureSizeGrid,
   catalogGridSeedCounts,
 } from '@/lib/wms/yuil-catalog-size-grid';
+
+assert.ok(compareNominalSize('15A', '1000A') < 0);
+assert.ok(compareNominalSize('100A', '1000A') < 0);
+assert.ok(compareNominalSize('900A', '1000A') < 0);
+assert.deepEqual(
+  ['1000A', '15A', '100A', '50A'].sort(compareNominalSize),
+  ['15A', '50A', '100A', '1000A'],
+);
 
 assert.ok(CATALOG_SEED_NOMINAL_SIZES.includes('15A'));
 assert.ok(CATALOG_SEED_NOMINAL_SIZES.includes('1000A'));

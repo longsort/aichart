@@ -37,3 +37,15 @@ export const NOMINAL_SIZES = CATALOG_SEED_NOMINAL_SIZES;
 export type ProductType = (typeof PRODUCT_TYPES)[number];
 export type PressureClass = string;
 export type NominalSize = (typeof NOMINAL_SIZES)[number];
+
+/** 호칭지름 숫자 비교 — 15A < 100A < 1000A (문자열 정렬 금지) */
+export function compareNominalSize(a: string, b: string): number {
+  const na = parseInt(String(a || '').replace(/[^0-9]/g, ''), 10);
+  const nb = parseInt(String(b || '').replace(/[^0-9]/g, ''), 10);
+  const aOk = Number.isFinite(na);
+  const bOk = Number.isFinite(nb);
+  if (aOk && bOk && na !== nb) return na - nb;
+  if (aOk && !bOk) return -1;
+  if (!aOk && bOk) return 1;
+  return String(a || '').localeCompare(String(b || ''), 'ko');
+}
