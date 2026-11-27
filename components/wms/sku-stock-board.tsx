@@ -14,6 +14,7 @@ import {
 import type { BandCounts, SkuBoardRow } from '@/lib/wms/sku-board';
 import { bandTextClass } from '@/lib/wms/stock-alerts';
 import { wmsControlCompact, wmsLabel } from '@/components/wms/wms-form-styles';
+import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
 
 function chipClass(active: boolean) {
   return active
@@ -142,16 +143,18 @@ export function SkuStockBoard({
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
         <div className="mb-2 text-sm font-semibold text-slate-100">압력등급</div>
-        <div className="mb-1 text-[11px] text-slate-500">압력 · kg/cm² · BAR · ANSI/AWWA · 칩에 보유합계</div>
+        <div className="mb-1 text-[11px] text-slate-500">
+          압력 · kg/cm² · BAR · ANSI/AWWA · 칩 클릭=새 창 필터 · 보유합계
+        </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={buildHref('ALL', size, shortageExtra)} className={chipClass(pressure === 'ALL')}>
+          <PressureOpenChip href={buildHref('ALL', size, shortageExtra)} className={chipClass(pressure === 'ALL')}>
             전체
-          </Link>
+          </PressureOpenChip>
           {ratingKeys.map((p) => {
             const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
             const total = pressureTotals[p] ?? 0;
             return (
-              <Link
+              <PressureOpenChip
                 key={p}
                 href={buildHref(p, size, shortageExtra)}
                 className={chipClass(pressure === p)}
@@ -159,21 +162,21 @@ export function SkuStockBoard({
               >
                 <span className="truncate">{label}</span>
                 <span className="ml-1.5 tabular-nums opacity-80">{total.toLocaleString()}</span>
-              </Link>
+              </PressureOpenChip>
             );
           })}
         </div>
         {productKeys.length ? (
           <div className="mt-3">
             <div className="mb-1 text-[11px] text-slate-500">
-              유일 카탈로그 제품·규격명 (같은 압력칩 필터 · 보유합계)
+              유일 카탈로그 제품·규격명 (클릭=새 창 · 같은 압력칩 필터 · 보유합계)
             </div>
             <div className="flex flex-wrap gap-2">
               {productKeys.map((p) => {
                 const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
                 const total = pressureTotals[p] ?? 0;
                 return (
-                  <Link
+                  <PressureOpenChip
                     key={p}
                     href={buildHref(p, size, shortageExtra)}
                     className={chipClass(pressure === p)}
@@ -181,7 +184,7 @@ export function SkuStockBoard({
                   >
                     <span className="truncate">{label}</span>
                     <span className="ml-1.5 tabular-nums opacity-80">{total.toLocaleString()}</span>
-                  </Link>
+                  </PressureOpenChip>
                 );
               })}
             </div>
@@ -199,10 +202,8 @@ export function SkuStockBoard({
           ))}
         </div>
         <p className="mt-3 text-xs text-slate-500">
-          예: <strong className="text-slate-300">10K</strong> ·{' '}
-          <strong className="text-slate-300">40BAR</strong> ·{' '}
-          <strong className="text-slate-300">수도용 도복장(KS D 3578)</strong> → 해당 행 ·{' '}
-          <strong className="text-slate-300">15A</strong>와 같이 고르면 교집합.
+          압력·카탈로그 칩은 새 창으로 연다 (예:{' '}
+          <strong className="text-slate-300">/dashboard?pressure=10K</strong>). 사이즈는 이 페이지에서 교집합.
         </p>
       </section>
 
