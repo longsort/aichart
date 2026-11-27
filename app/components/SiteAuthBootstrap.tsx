@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import AppSiteLogin from '@/app/components/AppSiteLogin';
 import { homePathForRole } from '@/lib/appSiteAuthClient';
-import { bindSiteSessionUser } from '@/lib/settings';
+import { setBriefingLoggedIn } from '@/lib/clientAiCredentials';
 
 type AuthState = 'loading' | 'anon' | 'authed';
 
@@ -53,7 +53,7 @@ export default function SiteAuthBootstrap({ children }: { children: ReactNode })
             window.location.replace('/dashboard');
             return;
           }
-          bindSiteSessionUser(d.user || '');
+          setBriefingLoggedIn(true);
           setAuth('authed');
           setSlow(false);
           return;
@@ -145,8 +145,8 @@ export default function SiteAuthBootstrap({ children }: { children: ReactNode })
   if (auth === 'anon') {
     return (
       <AppSiteLogin
-        onLoggedIn={(u, role) => {
-          bindSiteSessionUser(u || '');
+        onLoggedIn={(_u, role) => {
+          setBriefingLoggedIn(true);
           window.location.href = homePathForRole(role);
         }}
       />
