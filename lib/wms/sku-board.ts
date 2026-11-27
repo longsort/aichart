@@ -45,6 +45,7 @@ export type SkuBoardRow = {
 };
 
 export type BandCounts = {
+  empty: number;
   critical: number;
   warn: number;
   ok: number;
@@ -61,6 +62,7 @@ export type BandPressureBreakdown = Record<StockAlertBand, BandPressureCount[]>;
 
 function buildBandPressureBreakdown(rows: SkuBoardRow[]): BandPressureBreakdown {
   const acc: Record<StockAlertBand, Record<string, BandPressureCount>> = {
+    empty: {},
     critical: {},
     warn: {},
     ok: {},
@@ -76,6 +78,7 @@ function buildBandPressureBreakdown(rows: SkuBoardRow[]): BandPressureBreakdown 
   const sortRows = (list: BandPressureCount[]) =>
     list.sort((a, b) => b.skuCount - a.skuCount || a.pressureClass.localeCompare(b.pressureClass, 'ko'));
   return {
+    empty: sortRows(Object.values(acc.empty)),
     critical: sortRows(Object.values(acc.critical)),
     warn: sortRows(Object.values(acc.warn)),
     ok: sortRows(Object.values(acc.ok)),
@@ -178,7 +181,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
       return a.itemCode.localeCompare(b.itemCode, 'ko');
     });
 
-  const bandCounts: BandCounts = { critical: 0, warn: 0, ok: 0 };
+  const bandCounts: BandCounts = { empty: 0, critical: 0, warn: 0, ok: 0 };
   for (const r of allBanded) {
     bandCounts[r.band] += 1;
   }
@@ -186,7 +189,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   const bandPressureBreakdown = buildBandPressureBreakdown(allBanded);
 
   let rows = allBanded;
-  if (bandFilter === 'critical' || bandFilter === 'warn' || bandFilter === 'ok') {
+  if (bandFilter === 'empty' || bandFilter === 'critical' || bandFilter === 'warn' || bandFilter === 'ok') {
     rows = allBanded.filter((r) => r.band === bandFilter);
   } else if (shortageOnly) {
     rows = allBanded.filter((r) => r.band === 'critical' || r.band === 'warn');

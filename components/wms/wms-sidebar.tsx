@@ -21,6 +21,7 @@ import {
 /** 재고 사용자용 — 차트/분석 내비 없음. 핵심만 앞에. */
 const NAV = [
   { href: '/dashboard', label: '재고현황', icon: ClipboardList },
+  { href: '/stock/pending', label: '입고대기', icon: ArrowDownToLine },
   { href: '/items', label: '품목마스터', icon: Package },
   { href: '/inventory', label: 'LOT 상세', icon: Boxes },
   { href: '/stock/in', label: '입고(상세)', icon: ArrowDownToLine },

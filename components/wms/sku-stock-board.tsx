@@ -103,7 +103,7 @@ export function SkuStockBoard({
         <p className="rounded-md border border-emerald-800/60 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">{ok}</p>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3">
           <div className="text-xs text-slate-400">전체 재고 합계</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-teal-300">{overallTotal.toLocaleString()}</div>
@@ -116,6 +116,16 @@ export function SkuStockBoard({
           <div className="text-xs text-slate-400">표시 SKU</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-slate-100">{skuCount.toLocaleString()}</div>
         </div>
+        <BandSummaryOpenCard
+          href="/dashboard?band=empty"
+          className={bandCardClass('empty', 'rounded-lg border border-slate-600 bg-slate-900/80 px-4 py-3')}
+          title="미입고(0) SKU — 압력등급별 구성 새 창"
+        >
+          <div className="text-xs text-slate-400">미입고 · 클릭=새 창</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-slate-200">
+            {(bandCounts.empty ?? 0).toLocaleString()}
+          </div>
+        </BandSummaryOpenCard>
         <BandSummaryOpenCard
           href="/dashboard?band=critical"
           className={bandCardClass('critical', 'rounded-lg border border-red-900/60 bg-red-950/30 px-4 py-3')}
@@ -151,11 +161,13 @@ export function SkuStockBoard({
       {activeBand ? (
         <section
           className={`rounded-lg border px-4 py-3 ${
-            activeBand === 'critical'
-              ? 'border-red-900/60 bg-red-950/25'
-              : activeBand === 'warn'
-                ? 'border-amber-900/60 bg-amber-950/20'
-                : 'border-emerald-900/60 bg-emerald-950/20'
+            activeBand === 'empty'
+              ? 'border-slate-600 bg-slate-900/50'
+              : activeBand === 'critical'
+                ? 'border-red-900/60 bg-red-950/25'
+                : activeBand === 'warn'
+                  ? 'border-amber-900/60 bg-amber-950/20'
+                  : 'border-emerald-900/60 bg-emerald-950/20'
           }`}
         >
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">

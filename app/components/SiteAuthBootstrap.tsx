@@ -142,6 +142,7 @@ export default function SiteAuthBootstrap({ children }: { children: ReactNode })
     );
   }
 
+  // 익명: 차트/홈 콘텐츠 노출 금지 — 로그인만
   if (auth === 'anon') {
     return (
       <AppSiteLogin

@@ -15,7 +15,7 @@ type Search = {
 
 function parseBand(raw?: string): StockAlertBand | undefined {
   const v = (raw || '').trim().toLowerCase();
-  if (v === 'critical' || v === 'warn' || v === 'ok') return v;
+  if (v === 'empty' || v === 'critical' || v === 'warn' || v === 'ok') return v;
   return undefined;
 }
 
