@@ -146,6 +146,158 @@ async function main() {
     },
   });
 
+  // 유일 카탈로그 칩 데모 (압력등급 행 제품·규격 필터 확인용)
+  const iD3578 = await prisma.item.create({
+    data: {
+      itemCode: 'F-3578-10KG-100A',
+      itemName: '수도용 도복장 강관 이형관용(KS D 3578-1997)플랜지 10kg 100A',
+      materialType: MaterialType.SCS304,
+      productType: '수도용 도복장',
+      standard: 'KS D 3578-1997',
+      size: '100A',
+      pressureClass: '10kg/cm²',
+      unit: 'EA',
+      safetyStock: 10,
+      locationId: locA.id,
+      memo: 'catalog p.55',
+    },
+  });
+  const iD3578b = await prisma.item.create({
+    data: {
+      itemCode: 'F-3578-16KG-150A',
+      itemName: '수도용 도복장 강관 이형관용(KS D 3578-1997)플랜지 16kg 150A',
+      materialType: MaterialType.SCS304,
+      productType: '수도용 도복장',
+      standard: 'KS D 3578-1997',
+      size: '150A',
+      pressureClass: '16kg/cm²',
+      unit: 'EA',
+      safetyStock: 8,
+      locationId: locA.id,
+      memo: 'catalog p.55',
+    },
+  });
+  const iDin40 = await prisma.item.create({
+    data: {
+      itemCode: 'F-DIN2545-40BAR-50A',
+      itemName: '40BAR DIN 2545 SLIP-ON 50A',
+      materialType: MaterialType.SCS304,
+      productType: 'DIN Flange',
+      standard: 'DIN 2545',
+      size: '50A',
+      pressureClass: '40BAR',
+      unit: 'EA',
+      safetyStock: 12,
+      locationId: locA.id,
+      memo: 'catalog p.51',
+    },
+  });
+  const iDin40wn = await prisma.item.create({
+    data: {
+      itemCode: 'F-DIN2635-40BAR-50A',
+      itemName: '40BAR DIN 2635 WELDING NECK 50A',
+      materialType: MaterialType.SCS316,
+      productType: 'DIN Flange',
+      standard: 'DIN 2635',
+      size: '50A',
+      pressureClass: '40BAR',
+      unit: 'EA',
+      safetyStock: 10,
+      locationId: locB.id,
+      memo: 'catalog p.51',
+    },
+  });
+  const iDinBlind = await prisma.item.create({
+    data: {
+      itemCode: 'F-DIN2527-40BAR-50A',
+      itemName: '40BAR DIN 2527 BLIND 50A',
+      materialType: MaterialType.SCS304,
+      productType: 'DIN Flange',
+      standard: 'DIN 2527',
+      size: '50A',
+      pressureClass: '40BAR',
+      unit: 'EA',
+      safetyStock: 10,
+      locationId: locA.id,
+      memo: 'catalog p.51',
+    },
+  });
+  const iOil = await prisma.item.create({
+    data: {
+      itemCode: 'F-OIL-210-25A',
+      itemName: '210kgf/cm² Oil Pressure SHA 25A',
+      materialType: MaterialType.SCS304,
+      productType: 'Oil Pressure',
+      standard: 'JIS B2291-1907',
+      size: '25A',
+      pressureClass: '210kgf/cm²',
+      unit: 'EA',
+      safetyStock: 6,
+      locationId: locA.id,
+      memo: 'catalog p.35',
+    },
+  });
+  const iAwwa = await prisma.item.create({
+    data: {
+      itemCode: 'F-AWWA-C207-B-100A',
+      itemName: 'AWWA C207 Class B Slip-on 100A',
+      materialType: MaterialType.SCS304,
+      productType: 'AWWA Flange',
+      standard: 'AWWA C207',
+      size: '100A',
+      pressureClass: 'AWWA-B',
+      unit: 'EA',
+      safetyStock: 5,
+      locationId: locA.id,
+      memo: 'catalog p.44',
+    },
+  });
+  const iJesu = await prisma.item.create({
+    data: {
+      itemCode: 'F-JESU-4308-200A',
+      itemName: '제수변 KSD 4308 200A',
+      materialType: MaterialType.SCS304,
+      productType: '제수변 Flange',
+      standard: 'KSD 4308',
+      size: '200A',
+      pressureClass: 'JESU-KSD4308',
+      unit: 'EA',
+      safetyStock: 4,
+      locationId: locA.id,
+      memo: 'catalog p.52',
+    },
+  });
+  const iSafety = await prisma.item.create({
+    data: {
+      itemCode: 'F-SAFE-6216-10K-50A',
+      itemName: '스프링 안전밸브 설치 플랜지 KS B 6216 10K 50A',
+      materialType: MaterialType.SCS304,
+      productType: '안전변 Flange',
+      standard: 'KS B 6216-1998',
+      size: '50A',
+      pressureClass: '10K',
+      unit: 'EA',
+      safetyStock: 8,
+      locationId: locA.id,
+      memo: 'catalog p.56',
+    },
+  });
+  const iSsc13 = await prisma.item.create({
+    data: {
+      itemCode: 'F-SSC13-ACF-80A',
+      itemName: 'SSC13 ACF 원심주조플랜지 80A',
+      materialType: MaterialType.SCS304,
+      productType: 'SSC13 ACF',
+      standard: 'SSC13 ACF',
+      size: '80A',
+      pressureClass: 'SSC13-ACF',
+      unit: 'EA',
+      safetyStock: 5,
+      locationId: locA.id,
+      memo: 'catalog p.6',
+    },
+  });
+
   const lot1 = await prisma.inventoryLot.create({
     data: {
       itemId: i304.id,
@@ -224,6 +376,33 @@ async function main() {
     },
   });
 
+  const catalogLots = await Promise.all(
+    [
+      { item: iD3578, qty: 35, loc: locA },
+      { item: iD3578b, qty: 22, loc: locA },
+      { item: iDin40, qty: 18, loc: locA },
+      { item: iDin40wn, qty: 14, loc: locB },
+      { item: iDinBlind, qty: 11, loc: locA },
+      { item: iOil, qty: 9, loc: locA },
+      { item: iAwwa, qty: 7, loc: locA },
+      { item: iJesu, qty: 6, loc: locA },
+      { item: iSafety, qty: 15, loc: locA },
+      { item: iSsc13, qty: 4, loc: locA },
+    ].map(({ item, qty, loc }, idx) =>
+      prisma.inventoryLot.create({
+        data: {
+          itemId: item.id,
+          lotNo: `CAT-${idx + 1}`,
+          heatNo: '',
+          quantity: qty,
+          status: InventoryLotStatus.NORMAL,
+          receivedDate: new Date('2025-06-01'),
+          locationId: loc.id,
+        },
+      }),
+    ),
+  );
+
   await prisma.stockMove.createMany({
     data: [
       {
@@ -284,6 +463,28 @@ async function main() {
         reason: '입고',
         createdBy: u1.id,
       },
+      ...[
+        { item: iD3578, lot: catalogLots[0], qty: 35, loc: locA },
+        { item: iD3578b, lot: catalogLots[1], qty: 22, loc: locA },
+        { item: iDin40, lot: catalogLots[2], qty: 18, loc: locA },
+        { item: iDin40wn, lot: catalogLots[3], qty: 14, loc: locB },
+        { item: iDinBlind, lot: catalogLots[4], qty: 11, loc: locA },
+        { item: iOil, lot: catalogLots[5], qty: 9, loc: locA },
+        { item: iAwwa, lot: catalogLots[6], qty: 7, loc: locA },
+        { item: iJesu, lot: catalogLots[7], qty: 6, loc: locA },
+        { item: iSafety, lot: catalogLots[8], qty: 15, loc: locA },
+        { item: iSsc13, lot: catalogLots[9], qty: 4, loc: locA },
+      ].map(({ item, lot, qty, loc }) => ({
+        itemId: item.id,
+        lotId: lot.id,
+        moveType: StockMoveType.IN,
+        quantity: qty,
+        beforeQty: 0,
+        afterQty: qty,
+        toLocationId: loc.id,
+        reason: 'CATALOG_SEED',
+        createdBy: u1.id,
+      })),
     ],
   });
 
