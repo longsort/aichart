@@ -5,13 +5,19 @@ import {
   quickStockOutAction,
 } from '@/lib/wms/actions/sku-quick';
 import { PRODUCT_TYPES, PRESSURE_CLASSES, NOMINAL_SIZES } from '@/lib/wms/codes';
+import {
+  YUIL_CATALOG_PRESSURE_CHIPS,
+  catalogPressureChipLabel,
+  catalogPressureChipTitle,
+  getCatalogPressureChip,
+} from '@/lib/wms/yuil-catalog-filters';
 import type { SkuBoardRow } from '@/lib/wms/sku-board';
 import { wmsControlCompact, wmsLabel } from '@/components/wms/wms-form-styles';
 
 function chipClass(active: boolean) {
   return active
-    ? 'inline-flex min-h-9 items-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white'
-    : 'inline-flex min-h-9 items-center rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-200 hover:border-teal-600 hover:text-teal-200';
+    ? 'inline-flex min-h-9 max-w-full items-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white'
+    : 'inline-flex min-h-9 max-w-full items-center rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-200 hover:border-teal-600 hover:text-teal-200';
 }
 
 function buildHref(pressure: string, size: string, extra?: Record<string, string>) {
@@ -42,6 +48,7 @@ export function SkuStockBoard({
   overallTotal,
   filteredTotal,
   skuCount,
+  pressureLabels,
   err,
   ok,
 }: {
@@ -53,10 +60,21 @@ export function SkuStockBoard({
   overallTotal: number;
   filteredTotal: number;
   skuCount: number;
+  pressureLabels?: Record<string, string>;
   err?: string;
   ok?: string;
 }) {
+  const catalogKeys = YUIL_CATALOG_PRESSURE_CHIPS.map((c) => c.key);
+  const catalogSet = new Set(catalogKeys);
   const pressureOpts = pressures.length ? pressures : [...PRESSURE_CLASSES];
+  // 카탈로그 전체 칩을 항상 노출 + DB에만 있는 키 뒤에 추가
+  const allPressureKeys = [
+    ...catalogKeys,
+    ...pressureOpts.filter((p) => !catalogSet.has(p)),
+  ];
+  const ratingKeys = allPressureKeys.filter((k) => getCatalogPressureChip(k)?.group !== 'product');
+  const productKeys = allPressureKeys.filter((k) => getCatalogPressureChip(k)?.group === 'product');
+  // 그룹 없는 DB-only 키는 rating 줄에
   const sizeOpts = sizes.length ? sizes : [...NOMINAL_SIZES];
 
   return (
@@ -85,16 +103,47 @@ export function SkuStockBoard({
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
         <div className="mb-2 text-sm font-semibold text-slate-100">압력등급</div>
+        <div className="mb-1 text-[11px] text-slate-500">압력 · kg/cm² · BAR · ANSI/AWWA</div>
         <div className="flex flex-wrap gap-2">
           <Link href={buildHref('ALL', size)} className={chipClass(pressure === 'ALL')}>
             전체
           </Link>
-          {pressureOpts.map((p) => (
-            <Link key={p} href={buildHref(p, size)} className={chipClass(pressure === p)}>
-              {p}
-            </Link>
-          ))}
+          {ratingKeys.map((p) => {
+            const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
+            return (
+              <Link
+                key={p}
+                href={buildHref(p, size)}
+                className={chipClass(pressure === p)}
+                title={catalogPressureChipTitle(p)}
+              >
+                <span className="truncate">{label}</span>
+              </Link>
+            );
+          })}
         </div>
+        {productKeys.length ? (
+          <div className="mt-3">
+            <div className="mb-1 text-[11px] text-slate-500">
+              유일 카탈로그 제품·규격명 (같은 압력등급 필터)
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {productKeys.map((p) => {
+                const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
+                return (
+                  <Link
+                    key={p}
+                    href={buildHref(p, size)}
+                    className={chipClass(pressure === p)}
+                    title={catalogPressureChipTitle(p)}
+                  >
+                    <span className="truncate">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
         <div className="mb-2 mt-4 text-sm font-semibold text-slate-100">사이즈</div>
         <div className="flex flex-wrap gap-2">
           <Link href={buildHref(pressure, 'ALL')} className={chipClass(size === 'ALL')}>
@@ -107,8 +156,10 @@ export function SkuStockBoard({
           ))}
         </div>
         <p className="mt-3 text-xs text-slate-500">
-          예: <strong className="text-slate-300">10K</strong>만 → 10K 행 ·{' '}
-          <strong className="text-slate-300">15A</strong>만 → 15A 행 · 둘 다 고르면 교집합.
+          예: <strong className="text-slate-300">10K</strong> ·{' '}
+          <strong className="text-slate-300">40BAR</strong> ·{' '}
+          <strong className="text-slate-300">수도용 도복장(KS D 3578)</strong> → 해당 행 ·{' '}
+          <strong className="text-slate-300">15A</strong>와 같이 고르면 교집합.
         </p>
       </section>
 
@@ -127,7 +178,9 @@ export function SkuStockBoard({
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-slate-800/80 align-top">
-                <td className="px-3 py-2 font-medium text-teal-200">{r.pressureClass || '—'}</td>
+                <td className="px-3 py-2 font-medium text-teal-200">
+                  {catalogPressureChipLabel(r.pressureClass) || r.pressureClass || '—'}
+                </td>
                 <td className="px-3 py-2 font-medium text-sky-200">{r.size || '—'}</td>
                 <td className="px-3 py-2">
                   <div className="font-mono text-slate-100">{r.itemCode}</div>
@@ -218,7 +271,7 @@ export function SkuStockBoard({
             >
               {PRESSURE_CLASSES.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {catalogPressureChipLabel(p)}
                 </option>
               ))}
             </select>

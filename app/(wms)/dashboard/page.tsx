@@ -46,6 +46,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         overallTotal={board.overallTotal}
         filteredTotal={board.filteredTotal}
         skuCount={board.skuCount}
+        pressureLabels={opts.pressureLabels}
         err={err || undefined}
         ok={ok || undefined}
       />
