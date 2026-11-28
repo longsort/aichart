@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {
   quickCreateSkuAction,
+  quickSetOnHandAction,
   quickStockInAction,
   quickStockOutAction,
   quickUpdateSkuAlertAction,
@@ -253,7 +254,7 @@ export function SkuStockBoard({
             </Link>
           </div>
           <p className="mb-3 text-xs text-slate-500">
-            밴드 해당 SKU 목록 (압력·사이즈·품명·보유) · 아래 표에서 입고/출고
+            밴드 해당 SKU 목록 (압력·사이즈·품명·보유) · 아래 표에서 보유 저장/입고/출고
           </p>
           {rows.length === 0 ? (
             <p className="text-sm text-slate-400">해당 밴드 SKU 없음</p>
@@ -353,7 +354,7 @@ export function SkuStockBoard({
           재고 경보 설정
         </Link>
         <p className="text-xs text-slate-500">
-          긴급·주의 카드에서 전역 기준 숫자 편집 · 표 보유 옆에서 품번별 긴급/주의 · 보유 색이 따라감.
+          표 「보유」입력→저장=ADJUST 원장 · 칩/밴드/합계 갱신 · 긴급/주의 기준도 행에서 편집.
         </p>
       </section>
 
@@ -453,9 +454,36 @@ export function SkuStockBoard({
                     </span>
                   </div>
                 </td>
-                <td className={`px-3 py-2 text-right tabular-nums ${bandTextClass(r.band)}`}>
-                  {r.onHand.toLocaleString()}
-                  <span className="ml-1 text-[10px] font-normal text-slate-500">{r.unit}</span>
+                <td className="px-3 py-2">
+                  <form action={quickSetOnHandAction} className="flex min-w-[7.5rem] flex-col items-end gap-1">
+                    <input type="hidden" name="itemId" value={r.id} />
+                    <input type="hidden" name="pressure" value={pressure === 'ALL' ? '' : pressure} />
+                    <input type="hidden" name="size" value={size === 'ALL' ? '' : size} />
+                    {shortageOnly ? <input type="hidden" name="shortage" value="1" /> : null}
+                    {activeBand ? <input type="hidden" name="band" value={activeBand} /> : null}
+                    <div className="flex items-center gap-1">
+                      <label className="sr-only" htmlFor={`onhand-${r.id}`}>
+                        보유
+                      </label>
+                      <input
+                        id={`onhand-${r.id}`}
+                        name="onHand"
+                        type="number"
+                        min={0}
+                        defaultValue={r.onHand}
+                        required
+                        className={`${wmsControlCompact} w-20 text-right tabular-nums ${bandTextClass(r.band)}`}
+                        aria-label={`${r.itemCode} 보유 수량`}
+                      />
+                      <span className="text-[10px] text-slate-400">{r.unit}</span>
+                    </div>
+                    <button
+                      type="submit"
+                      className="inline-flex min-h-7 items-center justify-center rounded-md border border-teal-700/70 bg-teal-950/50 px-2 text-[11px] font-semibold text-teal-100 hover:border-teal-500 hover:text-teal-50"
+                    >
+                      보유 저장
+                    </button>
+                  </form>
                 </td>
                 <td className="px-3 py-2">
                   <form action={quickUpdateSkuAlertAction} className="flex min-w-[10.5rem] flex-col gap-1">

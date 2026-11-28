@@ -308,6 +308,137 @@ export async function quickCreateSkuAction(formData: FormData) {
 }
 
 /**
+ * SKU 보유수량 직접 설정 — OPEN LOT 맞춤 + StockMove(ADJUST).
+ * 목표 수량(≥0)으로 맞추고, 칩·밴드·합계는 revalidate로 동기화.
+ */
+export async function quickSetOnHandAction(formData: FormData) {
+  const itemId = String(formData.get('itemId') || '').trim();
+  const targetRaw = Number(formData.get('onHand') || formData.get('quantity') || 0);
+  const targetQty = Number.isFinite(targetRaw) ? Math.max(0, Math.floor(targetRaw)) : NaN;
+  const note = String(formData.get('note') || '').trim();
+  const pressure = String(formData.get('pressure') || '').trim();
+  const size = String(formData.get('size') || '').trim();
+  const shortage = String(formData.get('shortage') || '').trim();
+  const band = String(formData.get('band') || '').trim();
+
+  const back = () => {
+    const sp = new URLSearchParams();
+    if (pressure) sp.set('pressure', pressure);
+    if (size) sp.set('size', size);
+    if (shortage === '1' || shortage === 'true') sp.set('shortage', '1');
+    if (band === 'empty' || band === 'critical' || band === 'warn' || band === 'ok') {
+      sp.set('band', band);
+    }
+    return sp;
+  };
+
+  if (!itemId) {
+    const sp = back();
+    sp.set('err', '품목을 선택하세요.');
+    redirect(`/dashboard?${sp.toString()}`);
+  }
+  if (!Number.isFinite(targetQty) || targetQty < 0) {
+    const sp = back();
+    sp.set('err', '보유 수량은 0 이상이어야 합니다.');
+    redirect(`/dashboard?${sp.toString()}`);
+  }
+
+  try {
+    const item = await prisma.item.findUnique({ where: { id: itemId } });
+    if (!item || !item.isActive) throw new Error('품목을 찾을 수 없습니다.');
+    const locationId = await resolveLocationId(item.locationId);
+
+    await prisma.$transaction(async (tx) => {
+      const lots = await tx.inventoryLot.findMany({
+        where: { itemId },
+        orderBy: [{ receivedDate: 'asc' }, { createdAt: 'asc' }],
+      });
+      const before = lots.reduce((s, l) => s + l.quantity, 0);
+      if (before === targetQty) return;
+
+      const delta = targetQty - before;
+      const reason = note || `보유조정 → ${targetQty}`;
+
+      if (delta > 0) {
+        const lot = await tx.inventoryLot.upsert({
+          where: { itemId_lotNo_heatNo: { itemId, lotNo: OPEN_LOT, heatNo: '' } },
+          create: {
+            itemId,
+            lotNo: OPEN_LOT,
+            heatNo: '',
+            quantity: delta,
+            status: InventoryLotStatus.NORMAL,
+            receivedDate: new Date(),
+            locationId,
+            memo: '보유조정',
+          },
+          update: {
+            quantity: { increment: delta },
+            locationId: locationId || undefined,
+            status: InventoryLotStatus.NORMAL,
+          },
+        });
+        await tx.stockMove.create({
+          data: {
+            itemId,
+            lotId: lot.id,
+            moveType: StockMoveType.ADJUST,
+            quantity: delta,
+            beforeQty: before,
+            afterQty: targetQty,
+            toLocationId: locationId,
+            reason,
+          },
+        });
+        return;
+      }
+
+      // delta < 0 — FIFO 차감 후 ADJUST 원장
+      let remain = -delta;
+      for (const lot of lots) {
+        if (remain <= 0) break;
+        if (lot.quantity <= 0) continue;
+        const take = Math.min(lot.quantity, remain);
+        const lotBefore = lot.quantity;
+        const lotAfter = lotBefore - take;
+        await tx.inventoryLot.update({
+          where: { id: lot.id },
+          data: {
+            quantity: lotAfter,
+            status: lotAfter === 0 ? InventoryLotStatus.SHIPPED : lot.status,
+          },
+        });
+        await tx.stockMove.create({
+          data: {
+            itemId,
+            lotId: lot.id,
+            moveType: StockMoveType.ADJUST,
+            quantity: take,
+            beforeQty: lotBefore,
+            afterQty: lotAfter,
+            fromLocationId: lot.locationId,
+            reason,
+          },
+        });
+        remain -= take;
+      }
+      if (remain > 0) {
+        throw new Error(`보유 조정 실패: 차감 잔여 ${remain}`);
+      }
+    });
+  } catch (e) {
+    const sp = back();
+    sp.set('err', e instanceof Error ? e.message : '보유 조정 실패');
+    redirect(`/dashboard?${sp.toString()}`);
+  }
+
+  revalidateStockPaths();
+  const sp = back();
+  sp.set('ok', `보유 ${targetQty.toLocaleString()} 저장`);
+  redirect(`/dashboard?${sp.toString()}`);
+}
+
+/**
  * SKU 목표재고(targetStock) 저장 — 보유색 % 기준.
  * 0이면 경보설정의 압력/사이즈/전역 max(주의)를 사용.
  */
