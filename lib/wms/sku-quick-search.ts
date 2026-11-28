@@ -2,7 +2,8 @@
  * 재고현황·입고대기·모피 큐 빠른찾기.
  * - 공백 분리·단일 토큰
  * - 압축 질의: `50A20BL`, `20K50A`, `50A20BLRF` (사이즈·압력·FACE, 순서 무관, K 생략 가능)
- * - Class 압력: `150#` / `300#` / `100a150#` → Class150 · Class300 only (`#` = Class, never ANSI)
+ * - Class 압력: `150` / `300` / `100a150` / `150#` → Class150 · Class300 only (never ANSI)
+ * - ANSI는 `ansi150`처럼 명시할 때만
  * - 사이즈형(50a)은 150A 부분일치 방지
  */
 
@@ -27,6 +28,8 @@ export type CompactSkuTokens = {
 };
 
 const SIZE_LIKE = /^\d+a$/i;
+/** 맨숫자 150/300… = Class 등급 (K/BAR가 아님). ANSI는 ansi150 명시 시에만 */
+const CLASS_RATING_NUMS = new Set(['150', '300', '400', '600', '900', '1500', '2500']);
 const FACE_FULL = [...FLANGE_FACE_TYPES].map((f) => f.toLowerCase()).sort((a, b) => b.length - a.length);
 
 function norm(s: string | null | undefined): string {
@@ -71,13 +74,13 @@ export function parseCompactSkuQuery(query: string): CompactSkuTokens {
     return '';
   });
 
-  // Class 약기: 150# / 300# → class150 / class300 (# = Class)
+  // Class 약기: 150# / 300# → class150 / class300
   q = q.replace(/(\d+)#/g, (_m, n: string) => {
     pressures.push(`class${n}`);
     return '';
   });
 
-  // 압력 with unit
+  // 압력 with unit — ansi 는 명시적 ANSI 전용
   q = q.replace(/(\d+)k(?:g(?:f)?(?:cm)?²?)?/gi, (_m, n: string) => {
     pressures.push(`${n}k`);
     return '';
@@ -105,9 +108,9 @@ export function parseCompactSkuQuery(query: string): CompactSkuTokens {
     }
   }
 
-  // 남은 숫자 = 압력(K 생략: 20 → 20k 후보)
+  // 남은 숫자: 150/300… → Class / 그 외 → K 생략 후보(20 → 20k)
   q = q.replace(/(\d+)/g, (_m, n: string) => {
-    pressures.push(n);
+    pressures.push(CLASS_RATING_NUMS.has(n) ? `class${n}` : n);
     return '';
   });
 
@@ -119,12 +122,14 @@ export function parseCompactSkuQuery(query: string): CompactSkuTokens {
   };
 }
 
-/** `150#` / class150 → Class only (never ANSI150 / 150LB) */
+/** `150` / `150#` / class150 → Class only (never ANSI150 / 150LB) */
 function classPressureNum(token: string): string | null {
   const t = norm(token).replace(/\s+/g, '');
   const fromClass = t.match(/^class(\d+)$/i)?.[1];
   if (fromClass) return fromClass;
   if (/^\d+#$/.test(t)) return t.replace(/#$/, '');
+  // bare Class 등급 숫자 (150 / 300 …) — ANSI 아님
+  if (/^\d+$/.test(t) && CLASS_RATING_NUMS.has(t)) return t;
   return null;
 }
 
@@ -139,16 +144,30 @@ function matchesClassPressureOnly(pressureClass: string, classNum: string): bool
   return new RegExp(`(^|[^a-z0-9])class${classNum}([^a-z0-9]|$)`, 'i').test(pc);
 }
 
+function matchesAnsiPressureOnly(pressureClass: string, ansiNum: string): boolean {
+  const pc = norm(pressureClass).replace(/\s+/g, '');
+  if (!pc || !ansiNum) return false;
+  if (pc === `ansi${ansiNum}`) return true;
+  if (pc.startsWith('ansi') && pc.includes(`ansi${ansiNum}`)) return true;
+  return new RegExp(`(^|[^a-z0-9])ansi${ansiNum}([^a-z0-9]|$)`, 'i').test(pc);
+}
+
 function pressureMatches(pressureClass: string, token: string): boolean {
   const pc = norm(pressureClass).replace(/\s+/g, '');
   const t = norm(token).replace(/\s+/g, '');
   if (!t) return true;
   if (!pc) return false;
 
-  // class150 / 150# → Class150 · Class300 only (never ANSI)
+  // class150 / 150 / 150# → Class only (never ANSI)
   const classNum = classPressureNum(t);
   if (classNum) {
     return matchesClassPressureOnly(pc, classNum);
+  }
+
+  // ansi150 → ANSI only (명시적)
+  const ansiNum = t.match(/^ansi(\d+)$/i)?.[1];
+  if (ansiNum) {
+    return matchesAnsiPressureOnly(pc, ansiNum);
   }
 
   if (pc === t) return true;
@@ -203,9 +222,15 @@ function matchesCompactTokens(fields: SkuQuickSearchFields, tokens: CompactSkuTo
 
   for (const p of tokens.pressures) {
     const classNum = classPressureNum(p);
-    // # / classN = pressureClass가 ClassN 일 때만 (품번·ANSI 별칭 무시)
+    // 150 / 300 / classN / # → Class only (품번·ANSI 별칭 무시)
     if (classNum) {
       if (matchesClassPressureOnly(fields.pressureClass || '', classNum)) continue;
+      return false;
+    }
+    // ansiN → ANSI only
+    const ansiNum = p.match(/^ansi(\d+)$/i)?.[1];
+    if (ansiNum) {
+      if (matchesAnsiPressureOnly(fields.pressureClass || '', ansiNum)) continue;
       return false;
     }
     if (

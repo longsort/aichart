@@ -253,7 +253,7 @@ export function SkuListFilterPanel({
       <div className="mb-1.5 flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold text-slate-100">검색</span>
         <span className="text-[11px] text-slate-500">
-          압력·사이즈·FACE · 150#=Class150 · 입력 즉시 표 필터
+          압력·사이즈·FACE · 150/100a150=Class · ansi150=ANSI · 입력 즉시
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -263,7 +263,7 @@ export function SkuListFilterPanel({
             type="search"
             value={draftQ}
             onChange={(e) => onDraftChange(e.target.value)}
-            placeholder="예: 50A20BL · 100a150# · 150#…"
+            placeholder="예: 50A20BL · 100a150 · 150# · ansi150…"
             className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
             autoComplete="off"
             enterKeyHint="search"
