@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { StockPendingBoard } from '@/components/wms/stock-pending-board';
+import { mapPendingQtyByItemId } from '@/lib/wms/pending-inbound';
 import { listSkuBoard } from '@/lib/wms/sku-board';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
 
@@ -11,7 +12,7 @@ type Search = {
 
 /**
  * 입고대기 — 보유 0(미입고) SKU 목록.
- * 칩=목록 필터 · 「대기열」담기 · 「압력 통계」=대기열만 새 창 · 「입고완료」= StockMove(IN).
+ * 칩=같은 페이지 필터 · 「대기 저장」=PendingInbound(DB) · 「입고완료」=대기→StockMove(IN).
  */
 export default async function StockPendingPage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams;
@@ -19,7 +20,10 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
   const ok = sp.ok ? decodeURIComponent(sp.ok) : '';
   const auth = requireInventoryAuth();
 
-  const board = await listSkuBoard({ band: 'empty' });
+  const [board, pendingMap] = await Promise.all([
+    listSkuBoard({ band: 'empty' }),
+    mapPendingQtyByItemId(),
+  ]);
 
   const rows = board.rows.map((r) => ({
     id: r.id,
@@ -27,13 +31,15 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
     itemName: r.itemName,
     pressureClass: r.pressureClass,
     size: r.size,
+    onHand: r.onHand,
+    pendingQty: pendingMap.get(r.id) ?? 0,
   }));
 
   return (
     <>
       <WmsPageHeader
         title="입고대기"
-        subtitle="칩=필터 · 대기열 담기 · 압력 통계=새 창(대기열만) · 입고완료=StockMove"
+        subtitle="수량→대기 저장(DB) · 공장 도착 후 입고완료(StockMove) · 칩=같은 페이지 필터"
       />
       {err ? (
         <p className="mb-3 rounded-md border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm text-red-200">{err}</p>
@@ -49,7 +55,9 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
           미입고 전체(대시보드 밴드)
         </Link>
         <span className="text-slate-600">·</span>
-        <span className="text-slate-500">압력 통계는 대기열만 새 창 — 미입고 450 전체와 별개</span>
+        <span className="text-slate-500">
+          대기 수량은 DB(PendingInbound) — 보유와 분리 · 압력 통계=대기 수량 기준
+        </span>
       </section>
 
       <StockPendingBoard rows={rows} userName={auth.user} />

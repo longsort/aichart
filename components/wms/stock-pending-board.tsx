@@ -1,16 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { quickStockInAction } from '@/lib/wms/actions/sku-quick';
+import { useMemo, useState } from 'react';
+import {
+  clearPendingInboundAction,
+  receivePendingInboundAction,
+  savePendingInboundAction,
+} from '@/lib/wms/actions/pending-inbound';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
-import {
-  readPendingInboundQueue,
-  removePendingInboundQueueItem,
-  upsertPendingInboundQueueItem,
-  type PendingInboundQueueItem,
-} from '@/lib/wms/pending-inbound-queue';
 
 export type PendingSkuRow = {
   id: string;
@@ -18,6 +16,10 @@ export type PendingSkuRow = {
   itemName: string;
   pressureClass: string;
   size: string;
+  /** 실보유(LOT) — 미입고 목록이면 보통 0 */
+  onHand: number;
+  /** DB 입고대기 수량 */
+  pendingQty: number;
 };
 
 function chipClass(active: boolean) {
@@ -29,8 +31,8 @@ function chipClass(active: boolean) {
 const STATS_POPUP_FEATURES = 'noopener,noreferrer,width=560,height=720';
 
 /**
- * 입고대기 목록 — 검색·칩 필터·입고완료.
- * 압력 통계는 대기열(사용자가 담은 SKU)만 새 창에서 표시.
+ * 입고대기 목록 — 검색·칩 필터 · 대기(DB) 저장 · 입고완료(대기→StockMove IN).
+ * 압력 통계는 DB 대기 수량 기준 새 창.
  */
 export function StockPendingBoard({
   rows,
@@ -41,39 +43,22 @@ export function StockPendingBoard({
 }) {
   const [query, setQuery] = useState('');
   const [pressure, setPressure] = useState<string>('ALL');
-  const [queue, setQueue] = useState<PendingInboundQueueItem[]>([]);
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
 
-  const refreshQueue = useCallback(() => {
-    setQueue(readPendingInboundQueue());
-  }, []);
-
-  useEffect(() => {
-    refreshQueue();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === null || e.key === 'wms-pending-inbound-queue-v1') refreshQueue();
-    };
-    const onLocal = () => refreshQueue();
-    window.addEventListener('storage', onStorage);
-    window.addEventListener('wms-pending-inbound-queue', onLocal);
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener('wms-pending-inbound-queue', onLocal);
-    };
-  }, [refreshQueue]);
-
-  const queuedIds = useMemo(() => new Set(queue.map((q) => q.id)), [queue]);
-
   const pressureChips = useMemo(() => {
-    const counts = new Map<string, number>();
+    const counts = new Map<string, { sku: number; pendingQty: number }>();
     for (const r of rows) {
       const key = (r.pressureClass || '').trim() || '—';
-      counts.set(key, (counts.get(key) || 0) + 1);
+      const cur = counts.get(key) || { sku: 0, pendingQty: 0 };
+      cur.sku += 1;
+      cur.pendingQty += r.pendingQty > 0 ? r.pendingQty : 0;
+      counts.set(key, cur);
     }
     return [...counts.entries()]
-      .map(([key, count]) => ({
+      .map(([key, v]) => ({
         key,
-        count,
+        count: v.sku,
+        pendingQty: v.pendingQty,
         label: catalogPressureChipLabel(key) || key,
       }))
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'ko'));
@@ -91,30 +76,21 @@ export function StockPendingBoard({
     });
   }, [rows, query, pressure]);
 
+  const pendingSkuCount = useMemo(
+    () => rows.filter((r) => r.pendingQty > 0).length,
+    [rows],
+  );
+  const pendingQtyTotal = useMemo(
+    () => rows.reduce((s, r) => s + (r.pendingQty > 0 ? r.pendingQty : 0), 0),
+    [rows],
+  );
+
   const userInitial = (userName || 'U').trim().slice(0, 1).toUpperCase() || 'U';
 
-  function parseQty(id: string): number | undefined {
-    const raw = qtyDraft[id];
-    if (raw == null || raw === '') return undefined;
-    const n = Number(raw);
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
-  }
-
-  function addToQueue(row: PendingSkuRow) {
-    upsertPendingInboundQueueItem({
-      id: row.id,
-      itemCode: row.itemCode,
-      itemName: row.itemName,
-      pressureClass: row.pressureClass,
-      size: row.size,
-      qty: parseQty(row.id) ?? 1,
-    });
-    refreshQueue();
-  }
-
-  function removeFromQueue(id: string) {
-    removePendingInboundQueueItem(id);
-    refreshQueue();
+  function draftOrPending(row: PendingSkuRow): string {
+    if (qtyDraft[row.id] != null) return qtyDraft[row.id];
+    if (row.pendingQty > 0) return String(row.pendingQty);
+    return '1';
   }
 
   function openPressureStatsWindow() {
@@ -123,7 +99,6 @@ export function StockPendingBoard({
 
   return (
     <div className="space-y-3">
-      {/* 헤더: 재고현황 · 필터 칩 · 대기열 통계 버튼 · 유저 */}
       <header className="sticky top-0 z-20 -mx-1 border-b border-slate-700/80 bg-slate-950/95 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80">
         <div className="flex flex-wrap items-center gap-2">
           <Link
@@ -138,14 +113,19 @@ export function StockPendingBoard({
             미입고 <strong className="tabular-nums text-slate-200">{rows.length.toLocaleString()}</strong>
           </span>
           <span className="text-xs text-slate-500">
-            대기열 <strong className="tabular-nums text-teal-300">{queue.length.toLocaleString()}</strong>
+            대기 SKU{' '}
+            <strong className="tabular-nums text-amber-300">{pendingSkuCount.toLocaleString()}</strong>
+          </span>
+          <span className="text-xs text-slate-500">
+            대기 합{' '}
+            <strong className="tabular-nums text-teal-300">{pendingQtyTotal.toLocaleString()}</strong>
           </span>
 
           <button
             type="button"
             onClick={openPressureStatsWindow}
             className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-teal-700 bg-teal-950/60 px-2.5 text-xs font-semibold text-teal-100 hover:border-teal-500"
-            title="대기열 압력 통계를 새 창에서 열기"
+            title="DB 입고대기 압력 통계를 새 창에서 열기"
           >
             압력 통계 · 새 창
           </button>
@@ -158,7 +138,7 @@ export function StockPendingBoard({
             {userInitial}
           </div>
 
-          {/* 압력 칩: 가로 클립 금지 · 여러 줄 wrap으로 전부 보이게 */}
+          {/* 압력 칩: 가로 클립 금지 · 여러 줄 wrap · 같은 페이지 필터만 */}
           <div
             className="flex w-full basis-full flex-wrap items-center gap-1.5"
             role="toolbar"
@@ -179,10 +159,17 @@ export function StockPendingBoard({
                 key={c.key}
                 className={chipClass(pressure === c.key)}
                 onClick={() => setPressure(c.key)}
-                title={`${c.label} · ${c.count}건 · 목록 필터`}
+                title={
+                  c.pendingQty > 0
+                    ? `${c.label} · ${c.count}건 · 대기 ${c.pendingQty} · 목록 필터`
+                    : `${c.label} · ${c.count}건 · 목록 필터`
+                }
               >
                 <span>{c.label}</span>
                 <span className="ml-1 tabular-nums opacity-80">{c.count.toLocaleString()}</span>
+                {c.pendingQty > 0 ? (
+                  <span className="ml-1 tabular-nums text-amber-200/90">대기{c.pendingQty}</span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -203,27 +190,31 @@ export function StockPendingBoard({
           />
         </label>
         <p className="text-xs text-slate-500">
-          칩·검색=목록 필터 · 「대기열」담기 후 「압력 통계 · 새 창」=대기열만 집계 · 표시{' '}
+          수량 입력 → <strong className="text-amber-200/90">대기 저장</strong>(DB, 보유 아님) → 공장
+          도착 후 <strong className="text-teal-300">입고완료</strong>(StockMove IN). 칩=같은 페이지
+          필터. 표시{' '}
           <strong className="text-slate-300">{filtered.length.toLocaleString()}</strong>
           {pressure !== 'ALL' || query.trim() ? ` / 전체 ${rows.length.toLocaleString()}` : null}
         </p>
       </section>
 
       <section className="overflow-x-auto rounded-lg border border-slate-700">
-        <table className="w-full min-w-[800px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[880px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium uppercase tracking-wide text-slate-400">
               <th className="px-3 py-2">압력</th>
               <th className="px-3 py-2">사이즈</th>
               <th className="px-3 py-2">품번 / 명칭</th>
               <th className="px-3 py-2 text-right">보유</th>
-              <th className="px-3 py-2">대기열</th>
+              <th className="px-3 py-2 text-right">대기</th>
+              <th className="px-3 py-2">수량</th>
+              <th className="px-3 py-2">대기 저장</th>
               <th className="px-3 py-2">입고완료</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((r) => {
-              const inQueue = queuedIds.has(r.id);
+              const hasPending = r.pendingQty > 0;
               return (
                 <tr key={r.id} className="border-b border-slate-800/80 align-top">
                   <td className="px-3 py-2 font-medium text-teal-200">
@@ -234,56 +225,80 @@ export function StockPendingBoard({
                     <div className="font-medium text-slate-100">{r.itemCode}</div>
                     <div className="text-xs text-slate-400">{r.itemName}</div>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-400">0</td>
-                  <td className="px-3 py-2">
-                    {inQueue ? (
-                      <button
-                        type="button"
-                        onClick={() => removeFromQueue(r.id)}
-                        className="inline-flex min-h-9 items-center justify-center rounded-md border border-teal-600 bg-teal-900/40 px-3 text-xs font-semibold text-teal-100 hover:border-teal-400"
-                        title="대기열에서 제거"
-                      >
-                        담김 ✓
-                      </button>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-400">
+                    {r.onHand.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    {hasPending ? (
+                      <span className="font-semibold tabular-nums text-amber-300">
+                        대기 {r.pendingQty.toLocaleString()}
+                      </span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => addToQueue(r)}
-                        className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-600 bg-slate-900 px-3 text-xs font-semibold text-slate-200 hover:border-teal-600 hover:text-teal-200"
-                        title="대기열에 담기 (압력 통계용)"
-                      >
-                        대기열
-                      </button>
+                      <span className="tabular-nums text-slate-600">—</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
+                    <input
+                      name={`qty-${r.id}`}
+                      type="number"
+                      min={1}
+                      value={draftOrPending(r)}
+                      onChange={(e) =>
+                        setQtyDraft((prev) => ({
+                          ...prev,
+                          [r.id]: e.target.value,
+                        }))
+                      }
+                      className={wmsControlCompact}
+                      aria-label={`${r.itemCode} 수량`}
+                      form={`pending-save-${r.id}`}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
                     <form
-                      action={quickStockInAction}
-                      className="flex min-w-[10rem] flex-wrap items-center gap-2"
-                      onSubmit={() => {
-                        if (queuedIds.has(r.id)) removeFromQueue(r.id);
-                      }}
+                      id={`pending-save-${r.id}`}
+                      action={savePendingInboundAction}
+                      className="flex flex-wrap items-center gap-1.5"
                     >
                       <input type="hidden" name="itemId" value={r.id} />
                       <input type="hidden" name="returnTo" value="/stock/pending" />
-                      <input
-                        name="quantity"
-                        type="number"
-                        min={1}
-                        value={qtyDraft[r.id] ?? '1'}
-                        onChange={(e) =>
-                          setQtyDraft((prev) => ({
-                            ...prev,
-                            [r.id]: e.target.value,
-                          }))
-                        }
-                        className={wmsControlCompact}
-                        aria-label={`${r.itemCode} 입고수량`}
-                        required
-                      />
+                      <input type="hidden" name="quantity" value={draftOrPending(r)} />
                       <button
                         type="submit"
-                        className="inline-flex min-h-9 items-center justify-center rounded-md border border-teal-700 bg-teal-900/50 px-3 text-xs font-semibold text-teal-100 hover:border-teal-500"
+                        className="inline-flex min-h-9 items-center justify-center rounded-md border border-amber-700/80 bg-amber-950/40 px-3 text-xs font-semibold text-amber-100 hover:border-amber-500"
+                        title="입고대기(DB)로 저장 — 보유 수량 증가 없음"
+                      >
+                        대기 저장
+                      </button>
+                      {hasPending ? (
+                        <button
+                          type="submit"
+                          formAction={clearPendingInboundAction}
+                          className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-700 px-2 text-xs text-slate-400 hover:border-red-800 hover:text-red-200"
+                          title="대기 취소(재고 변동 없음)"
+                        >
+                          취소
+                        </button>
+                      ) : null}
+                    </form>
+                  </td>
+                  <td className="px-3 py-2">
+                    <form
+                      action={receivePendingInboundAction}
+                      className="flex min-w-[7rem] flex-wrap items-center gap-2"
+                    >
+                      <input type="hidden" name="itemId" value={r.id} />
+                      <input type="hidden" name="returnTo" value="/stock/pending" />
+                      <input type="hidden" name="quantity" value={draftOrPending(r)} />
+                      <button
+                        type="submit"
+                        disabled={!hasPending}
+                        className="inline-flex min-h-9 items-center justify-center rounded-md border border-teal-700 bg-teal-900/50 px-3 text-xs font-semibold text-teal-100 hover:border-teal-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        title={
+                          hasPending
+                            ? '공장 도착 후: 대기→실재고(StockMove IN)'
+                            : '먼저 대기 저장하세요'
+                        }
                       >
                         입고완료
                       </button>

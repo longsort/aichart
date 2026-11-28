@@ -100,6 +100,8 @@ model Item {
   pressureClass  String       @default("")
   unit           String       @default("EA")
   safetyStock    Int          @default(0)
+  /// 목표 보유(색/% 기준). 0이면 경보 설정의 warn 상한을 사용
+  targetStock    Int          @default(0)
   locationId     String?
   isActive       Boolean      @default(true)
   memo           String       @default("")
@@ -110,6 +112,7 @@ model Item {
   lots        InventoryLot[]
   stockMoves  StockMove[]
   processTargets ProcessOrder[] @relation("TargetItem")
+  pendingInbound PendingInbound?
 }
 
 /// 창고·구역
@@ -239,6 +242,22 @@ model Attachment {
 
   @@index([lotId])
   @@index([qualityCheckId])
+}
+
+/// 입고대기(미도착) 수량 — 실재고(LOT)와 분리. 공장 도착 후 입고완료 시 StockMove(IN)로 전환.
+model PendingInbound {
+  id        String   @id @default(cuid())
+  itemId    String   @unique
+  quantity  Int      @default(0)
+  memo      String   @default("")
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([quantity])
+  @@index([updatedAt])
 }
 
 /// 재고 경보 전역 기준 (긴급/주의/정상 밴드)
