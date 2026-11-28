@@ -12,8 +12,10 @@ import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import type { MaterialFilter } from '@/lib/wms/material';
 import type { FaceFilter } from '@/lib/wms/flange-face';
 import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
+import { sortSkuRows, type SkuSortMode } from '@/lib/wms/sku-list-sort';
 import { MaterialFilterChips } from '@/components/wms/material-filter-chips';
 import { FaceFilterChips } from '@/components/wms/face-filter-chips';
+import { SkuSortChips } from '@/components/wms/sku-sort-chips';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 
@@ -53,6 +55,7 @@ export function StockPendingBoard({
   userName,
   material = 'ALL',
   face = 'ALL',
+  sort = 'stock',
   basePath = '/stock/pending',
   showMaterialChips = true,
   showFaceChips = true,
@@ -65,6 +68,8 @@ export function StockPendingBoard({
   material?: MaterialFilter;
   /** URL ?face= — 서버에서 이미 필터된 rows */
   face?: FaceFilter;
+  /** URL ?sort= */
+  sort?: SkuSortMode;
   /** 폼 returnTo · 재질칩 링크 기준 경로 */
   basePath?: string;
   /** 모피 큐 등에서는 재질칩 숨김 */
@@ -79,12 +84,14 @@ export function StockPendingBoard({
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
-  function pendingHref(next: { material?: MaterialFilter; face?: FaceFilter }) {
+  function pendingHref(next: { material?: MaterialFilter; face?: FaceFilter; sort?: SkuSortMode }) {
     const m = next.material ?? material;
     const f = next.face ?? face;
+    const s = next.sort ?? sort;
     const sp = new URLSearchParams();
     if (m !== 'ALL') sp.set('material', m);
     if (f !== 'ALL') sp.set('face', f);
+    if (s !== 'stock') sp.set('sort', s);
     const q = sp.toString();
     return q ? `${basePath}?${q}` : basePath;
   }
@@ -95,6 +102,10 @@ export function StockPendingBoard({
 
   function faceHref(f: FaceFilter) {
     return pendingHref({ face: f });
+  }
+
+  function sortHref(s: SkuSortMode) {
+    return pendingHref({ sort: s });
   }
 
   /** 칩 클릭 = 해당 압력 목록만 (검색어 잔존으로 빈 표 나는 것 방지) */
@@ -125,7 +136,7 @@ export function StockPendingBoard({
 
   const filtered = useMemo(() => {
     const q = query.trim();
-    return rows.filter((r) => {
+    const list = rows.filter((r) => {
       const pc = (r.pressureClass || '').trim() || '—';
       // 칩 키는 rows의 pressureClass 그대로 — 카운트와 동일 집합
       if (pressure !== 'ALL' && pc !== pressure) return false;
@@ -141,7 +152,8 @@ export function StockPendingBoard({
         q,
       );
     });
-  }, [rows, query, pressure]);
+    return sortSkuRows(list, sort);
+  }, [rows, query, pressure, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -228,6 +240,9 @@ export function StockPendingBoard({
               <FaceFilterChips face={face} hrefFor={faceHref} />
             </div>
           ) : null}
+          <div className="w-full basis-full">
+            <SkuSortChips sort={sort} hrefFor={sortHref} />
+          </div>
 
           {/* 압력 칩: 가로 클립 금지 · 여러 줄 wrap · 같은 페이지 필터만 */}
           <div

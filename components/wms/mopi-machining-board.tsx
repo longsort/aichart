@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { completeMopiMachiningAction } from '@/lib/wms/actions/mopi-process';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
+import { sortSkuRows, type SkuSortMode } from '@/lib/wms/sku-list-sort';
+import { SkuSortChips } from '@/components/wms/sku-sort-chips';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 import type { MopiSkuQueueRow } from '@/lib/wms/mopi-queries';
@@ -21,12 +23,18 @@ function chipClass(active: boolean) {
 export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
   const [query, setQuery] = useState('');
   const [pressure, setPressure] = useState('ALL');
+  const [sort, setSort] = useState<SkuSortMode>('stock');
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
   function selectPressure(next: string) {
     setPressure(next);
     setQuery('');
+    setPage(1);
+  }
+
+  function selectSort(next: SkuSortMode) {
+    setSort(next);
     setPage(1);
   }
 
@@ -51,7 +59,7 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
 
   const filtered = useMemo(() => {
     const q = query.trim();
-    return rows.filter((r) => {
+    const list = rows.filter((r) => {
       const pc = (r.pressureClass || '').trim() || '—';
       if (pressure !== 'ALL' && pc !== pressure) return false;
       if (!q) return true;
@@ -66,7 +74,8 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
         q,
       );
     });
-  }, [rows, query, pressure]);
+    return sortSkuRows(list, sort);
+  }, [rows, query, pressure, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -77,7 +86,7 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
 
   useEffect(() => {
     setPage(1);
-  }, [query, pressure]);
+  }, [query, pressure, sort]);
 
   const onHandTotal = useMemo(() => rows.reduce((s, r) => s + r.onHand, 0), [rows]);
 
@@ -127,6 +136,9 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
                 <span className="ml-1 tabular-nums opacity-80">{c.count}</span>
               </button>
             ))}
+          </div>
+          <div className="w-full basis-full">
+            <SkuSortChips sort={sort} onSelect={selectSort} />
           </div>
           <label className="flex w-full max-w-md basis-full items-center gap-2 sm:ml-auto sm:basis-auto">
             <span className="sr-only">빠른찾기</span>

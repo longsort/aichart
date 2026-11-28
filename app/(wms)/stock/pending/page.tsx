@@ -3,6 +3,7 @@ import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { StockPendingBoard } from '@/components/wms/stock-pending-board';
 import { parseMaterialFilter } from '@/lib/wms/material';
 import { parseFaceFilter } from '@/lib/wms/flange-face';
+import { parseSkuSortMode } from '@/lib/wms/sku-list-sort';
 import { mapPendingQtyByItemId, mapUndoableReceiveQtyByItemId } from '@/lib/wms/pending-inbound';
 import { listSkuBoard } from '@/lib/wms/sku-board';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
@@ -12,6 +13,7 @@ type Search = {
   ok?: string;
   material?: string;
   face?: string;
+  sort?: string;
 };
 
 /**
@@ -24,6 +26,7 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
   const ok = sp.ok ? decodeURIComponent(sp.ok) : '';
   const material = parseMaterialFilter(sp.material);
   const face = parseFaceFilter(sp.face);
+  const sort = parseSkuSortMode(sp.sort);
   const auth = requireInventoryAuth();
 
   const [board, pendingMap, undoMap] = await Promise.all([
@@ -80,7 +83,13 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
         </span>
       </section>
 
-      <StockPendingBoard rows={rows} userName={auth.user} material={material} face={face} />
+      <StockPendingBoard
+        rows={rows}
+        userName={auth.user}
+        material={material}
+        face={face}
+        sort={sort}
+      />
     </>
   );
 }
