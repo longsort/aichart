@@ -14,24 +14,31 @@ import {
   Menu,
   X,
   AlertTriangle,
+  BellRing,
   ClipboardList,
 } from 'lucide-react';
 
 /** 재고 사용자용 — 차트/분석 내비 없음. 핵심만 앞에. */
 const NAV = [
   { href: '/dashboard', label: '재고현황', icon: ClipboardList },
+  { href: '/stock/pending', label: '입고대기', icon: ArrowDownToLine },
   { href: '/items', label: '품목마스터', icon: Package },
   { href: '/inventory', label: 'LOT 상세', icon: Boxes },
   { href: '/stock/in', label: '입고(상세)', icon: ArrowDownToLine },
   { href: '/stock/out', label: '출고(상세)', icon: ArrowUpFromLine },
   { href: '/moves', label: '입출고 원장', icon: History },
   { href: '/safety', label: '안전재고', icon: AlertTriangle },
+  { href: '/settings/alerts', label: '재고 경보 설정', icon: BellRing },
   { href: '/settings', label: '설정', icon: Settings },
 ] as const;
 
 export function WmsSidebar() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  /** 압력 통계 팝업 창에서는 사이드바 숨김 */
+  const popupStats = path === '/stock/pending/stats';
+
+  if (popupStats) return null;
 
   return (
     <>
@@ -55,7 +62,11 @@ export function WmsSidebar() {
         </div>
         <nav className="flex flex-col gap-0.5">
           {NAV.map(({ href, label, icon: Icon }) => {
-            const active = path === href || (href !== '/dashboard' && path.startsWith(href));
+            // /settings 와 /settings/alerts 가 서로 하이라이트되지 않게
+            const active =
+              href === '/settings'
+                ? path === '/settings'
+                : path === href || (href !== '/dashboard' && path.startsWith(href));
             return (
               <Link
                 key={href}

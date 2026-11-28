@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppSiteLogin from '@/app/components/AppSiteLogin';
 import { homePathForRole } from '@/lib/appSiteAuthClient';
 
-/** 전용 로그인 URL — 역할에 따라 차트(/) 또는 재고(/dashboard)로 이동 */
+/** 전용 로그인 URL — 허용 계정만 · 익명 홈 차단 */
 export default function LoginPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);

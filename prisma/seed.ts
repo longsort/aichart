@@ -30,6 +30,9 @@ async function main() {
   await prisma.item.deleteMany();
   await prisma.location.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.sizeThresholdOverride.deleteMany();
+  await prisma.pressureThresholdOverride.deleteMany();
+  await prisma.inventoryThresholdSettings.deleteMany();
 
   const u1 = await prisma.user.create({
     data: { name: '김재고', email: 'kim@example.com', role: 'ADMIN' },
@@ -521,10 +524,23 @@ async function main() {
     },
   });
 
+  // 재고 경보 기본값: 긴급 < 20, 주의 < 500
+  await prisma.inventoryThresholdSettings.create({
+    data: {
+      id: 'default',
+      criticalBelowSku: 20,
+      warnBelowSku: 500,
+      criticalBelowSize: 20,
+      warnBelowSize: 500,
+      criticalBelowPressure: 20,
+      warnBelowPressure: 500,
+    },
+  });
+
   const totalItems = await prisma.item.count();
   const tenK = await prisma.item.count({ where: { pressureClass: '10K' } });
   console.log(
-    `Seed 완료: grid ${counts.pressures} pressures × ${counts.sizes} sizes = ${counts.skus} SKUs; extras ${extras.length}; total items ${totalItems}; 10K rows ${tenK}`,
+    `Seed 완료: grid ${counts.pressures} pressures × ${counts.sizes} sizes = ${counts.skus} SKUs; extras ${extras.length}; total items ${totalItems}; 10K rows ${tenK}; alerts critical<20 warn<500`,
   );
 }
 

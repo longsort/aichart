@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { WmsCard, WmsPageHeader } from '@/components/wms/wms-shell';
 import { prisma } from '@/lib/prisma';
 import { LocationForm } from '@/components/wms/forms/location-form';
@@ -10,6 +11,17 @@ export default async function SettingsPage() {
   return (
     <>
       <WmsPageHeader title="설정·기초코드" subtitle="창고 등록 · 제품타입·압력등급 코드(참고)" />
+      <WmsCard title="재고 경보" className="mb-4">
+        <p className="mb-2 text-sm text-slate-300">
+          긴급(빨강) / 주의(노랑) / 정상(초록) 기준은 별도 메뉴에서 바꿉니다.
+        </p>
+        <Link
+          href="/settings/alerts"
+          className="inline-flex min-h-9 items-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white hover:bg-teal-600"
+        >
+          재고 경보 설정 열기
+        </Link>
+      </WmsCard>
       <WmsCard title="창고·구역 추가" className="mb-4">
         <LocationForm />
       </WmsCard>

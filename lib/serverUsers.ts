@@ -2,7 +2,7 @@
  * 사이트 사용자 저장소 (data/site-users.json).
  * 비밀번호는 bcrypt 해시만 저장. 옛 SHA-256 해시는 로그인 성공 시 bcrypt 로 승격.
  *
- * 개발 시드: u1 / u1 (role=inventory) — 실서버에서는 반드시 비밀번호 변경.
+ * 허용 계정만: u1, aichart1, aichart2, aichart3. 회원가입 비활성.
  */
 import crypto from 'crypto';
 import { promises as fs } from 'fs';
@@ -11,6 +11,26 @@ import bcrypt from 'bcryptjs';
 
 /** appSiteAuth 와 동일 규칙 — 순환 import 방지용 로컬 복사 */
 export type AppRole = 'master_admin' | 'charts' | 'inventory' | 'both' | 'user';
+
+/** 로그인·시드 허용 계정 (이 외 전부/가입 거부). 오타 aicahrt3 → aichart3 로 교정 */
+export const ALLOWED_SITE_USERS = ['u1', 'aichart1', 'aichart2', 'aichart3'] as const;
+export type AllowedSiteUser = (typeof ALLOWED_SITE_USERS)[number];
+
+const ALLOWED_SET = new Set<string>(ALLOWED_SITE_USERS.map((u) => u.toLowerCase()));
+
+/** 알려진 오타 아이디 → 정식 아이디 */
+const USER_TYPO_ALIASES: Record<string, AllowedSiteUser> = {
+  aicahrt3: 'aichart3',
+};
+
+export function isAllowedSiteUser(user: string | undefined | null): boolean {
+  const u = String(user || '')
+    .trim()
+    .toLowerCase();
+  if (!u) return false;
+  const fixed = USER_TYPO_ALIASES[u] || u;
+  return ALLOWED_SET.has(fixed);
+}
 
 function normalizeAppRole(role: string | undefined | null): Exclude<AppRole, 'user'> {
   const r = String(role || '').trim().toLowerCase();
@@ -64,14 +84,28 @@ export async function writeUsers(users: UserRecord[]) {
   await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
 }
 
-/** 시드·누락 계정 보장 (bcrypt). u1/u1 은 로컬·개발용 — 실서버에서 변경하세요. */
+/** 시드·누락 계정 보장 (bcrypt). 허용 4계정만 유지. */
 export async function ensureSeedUsers(users: UserRecord[]): Promise<UserRecord[]> {
   let next = [...users];
   let changed = false;
   const now = Date.now();
 
-  const ensure = async (user: string, password: string, role: AppRole) => {
-    const idx = next.findIndex((u) => u.user.toLowerCase() === user.toLowerCase());
+  // 오타 aicahrt3 → aichart3 (비밀번호·역할 유지, 정식 아이디로 합침)
+  for (let i = next.length - 1; i >= 0; i -= 1) {
+    const raw = next[i].user.toLowerCase();
+    const fixed = USER_TYPO_ALIASES[raw];
+    if (!fixed) continue;
+    const existingIdx = next.findIndex((u) => u.user.toLowerCase() === fixed);
+    if (existingIdx >= 0 && existingIdx !== i) {
+      next.splice(i, 1);
+    } else {
+      next[i] = { ...next[i], user: fixed };
+    }
+    changed = true;
+  }
+
+  const ensure = async (user: AllowedSiteUser, password: string, role: AppRole) => {
+    const idx = next.findIndex((u) => u.user.toLowerCase() === user);
     if (idx < 0) {
       next.push({
         user,
@@ -84,17 +118,16 @@ export async function ensureSeedUsers(users: UserRecord[]): Promise<UserRecord[]
       return;
     }
     const row = next[idx];
-    // 역할만 비어 있거나 옛 user 인 경우 정규화; u1 은 inventory 유지
     const normalized = normalizeAppRole(row.role);
-    if (row.role !== normalized && user !== 'u1') {
+    if (user === 'u1') {
+      if (normalized !== 'inventory' && normalized !== 'both') {
+        next[idx] = { ...next[idx], role: 'inventory' };
+        changed = true;
+      }
+    } else if (row.role !== normalized) {
       next[idx] = { ...row, role: normalized };
       changed = true;
     }
-    if (user === 'u1' && normalizeAppRole(row.role) !== 'inventory' && normalizeAppRole(row.role) !== 'both') {
-      next[idx] = { ...next[idx], role: 'inventory' };
-      changed = true;
-    }
-    // 빈 해시(플레이스홀더)면 bcrypt 로 채움
     if (!row.passwordHash) {
       next[idx] = {
         ...next[idx],
@@ -105,27 +138,15 @@ export async function ensureSeedUsers(users: UserRecord[]): Promise<UserRecord[]
     }
   };
 
-  await ensure('masteradmin', 'longshortmaster', 'master_admin');
   await ensure('u1', 'u1', 'inventory');
+  await ensure('aichart1', 'longshort1', 'master_admin');
+  await ensure('aichart2', 'longshort2', 'charts');
+  await ensure('aichart3', 'longshort3', 'charts');
 
-  for (let i = 1; i <= 10; i += 1) {
-    const user = `aichart${i}`;
-    const pass = `longshort${i}`;
-    const role: AppRole = i === 1 ? 'master_admin' : 'charts';
-    const idx = next.findIndex((u) => u.user.toLowerCase() === user);
-    if (idx < 0) {
-      next.push({
-        user,
-        passwordHash: await hashPasswordBcrypt(pass),
-        role,
-        createdAt: now,
-        hashAlgo: 'bcrypt',
-      });
-      changed = true;
-    } else if (next[idx].role === 'user') {
-      next[idx] = { ...next[idx], role };
-      changed = true;
-    }
+  const pruned = next.filter((u) => ALLOWED_SET.has(u.user.toLowerCase()));
+  if (pruned.length !== next.length) {
+    next = pruned;
+    changed = true;
   }
 
   if (changed) await writeUsers(next);
@@ -145,9 +166,11 @@ export async function readUsers(): Promise<UserRecord[]> {
 }
 
 export async function verifyUser(userInput: string, passwordInput: string): Promise<UserRecord | null> {
-  const user = userInput.trim().toLowerCase();
+  const raw = userInput.trim().toLowerCase();
+  const user = USER_TYPO_ALIASES[raw] || raw;
   const password = passwordInput.trim();
   if (!user || !password) return null;
+  if (!isAllowedSiteUser(user)) return null;
   const users = await readUsers();
   const foundIdx = users.findIndex((u) => u.user.toLowerCase() === user);
   if (foundIdx < 0) return null;
@@ -177,7 +200,7 @@ export type CreateUserOptions = {
 };
 
 /**
- * 회원가입·관리자 계정 생성.
+ * 관리자 계정 생성(허용 목록만). 공개 회원가입은 비활성 — /api/auth/signup 사용 금지.
  * 비밀번호는 bcrypt 해시만 저장. 평문 저장 금지.
  */
 export async function createUser(
@@ -185,9 +208,12 @@ export async function createUser(
   passwordInput: string,
   role: AppRole = 'inventory'
 ): Promise<{ ok: true; role: AppRole } | { ok: false; error: string }> {
-  const user = userInput.trim().toLowerCase();
+  const raw = userInput.trim().toLowerCase();
+  const user = USER_TYPO_ALIASES[raw] || raw;
   const password = passwordInput.trim();
-  // u1 같은 짧은 개발 계정·자가가입 허용 (2~32). 실서버에서는 강한 비번 권장.
+  if (!isAllowedSiteUser(user)) {
+    return { ok: false, error: '허용되지 않은 계정입니다. 가입이 막혀 있습니다.' };
+  }
   if (!/^[a-z0-9._-]{2,32}$/.test(user)) {
     return { ok: false, error: '아이디는 2~32자, 영문·숫자·._- 만 가능합니다.' };
   }

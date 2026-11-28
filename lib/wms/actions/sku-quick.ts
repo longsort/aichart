@@ -13,8 +13,16 @@ function revalidateStockPaths() {
   revalidatePath('/items');
   revalidatePath('/moves');
   revalidatePath('/stock/in');
+  revalidatePath('/stock/pending');
   revalidatePath('/stock/out');
   revalidatePath('/safety');
+}
+
+function safeReturnPath(raw: string): string | null {
+  const p = String(raw || '').trim();
+  if (!p.startsWith('/') || p.startsWith('//')) return null;
+  if (p.includes('://')) return null;
+  return p.split('?')[0] || null;
 }
 
 async function resolveLocationId(itemLocationId: string | null | undefined) {
@@ -33,23 +41,34 @@ export async function quickStockInAction(formData: FormData) {
   const note = String(formData.get('note') || '').trim();
   const pressure = String(formData.get('pressure') || '').trim();
   const size = String(formData.get('size') || '').trim();
+  const shortage = String(formData.get('shortage') || '').trim();
+  const returnTo = safeReturnPath(String(formData.get('returnTo') || ''));
+
+  const dest = (sp: URLSearchParams) => {
+    const base = returnTo || '/dashboard';
+    const q = sp.toString();
+    return q ? `${base}?${q}` : base;
+  };
 
   const back = () => {
     const sp = new URLSearchParams();
-    if (pressure) sp.set('pressure', pressure);
-    if (size) sp.set('size', size);
+    if (!returnTo) {
+      if (pressure) sp.set('pressure', pressure);
+      if (size) sp.set('size', size);
+      if (shortage === '1' || shortage === 'true') sp.set('shortage', '1');
+    }
     return sp;
   };
 
   if (!itemId) {
     const sp = back();
     sp.set('err', '품목을 선택하세요.');
-    redirect(`/dashboard?${sp.toString()}`);
+    redirect(dest(sp));
   }
   if (!Number.isFinite(qty) || qty <= 0) {
     const sp = back();
     sp.set('err', '입고 수량은 1 이상이어야 합니다.');
-    redirect(`/dashboard?${sp.toString()}`);
+    redirect(dest(sp));
   }
 
   try {
@@ -73,7 +92,7 @@ export async function quickStockInAction(formData: FormData) {
           status: InventoryLotStatus.NORMAL,
           receivedDate: new Date(),
           locationId,
-          memo: note || '간단입고',
+          memo: note || (returnTo === '/stock/pending' ? '입고완료' : '간단입고'),
         },
         update: {
           quantity: { increment: qty },
@@ -90,20 +109,20 @@ export async function quickStockInAction(formData: FormData) {
           beforeQty: before,
           afterQty: after,
           toLocationId: locationId,
-          reason: note || '간단입고',
+          reason: note || (returnTo === '/stock/pending' ? '입고완료' : '간단입고'),
         },
       });
     });
   } catch (e) {
     const sp = back();
     sp.set('err', e instanceof Error ? e.message : '입고 실패');
-    redirect(`/dashboard?${sp.toString()}`);
+    redirect(dest(sp));
   }
 
   revalidateStockPaths();
   const sp = back();
-  sp.set('ok', `입고 +${qty}`);
-  redirect(`/dashboard?${sp.toString()}`);
+  sp.set('ok', `입고완료 +${qty}`);
+  redirect(dest(sp));
 }
 
 /**
@@ -115,11 +134,13 @@ export async function quickStockOutAction(formData: FormData) {
   const note = String(formData.get('note') || '').trim();
   const pressure = String(formData.get('pressure') || '').trim();
   const size = String(formData.get('size') || '').trim();
+  const shortage = String(formData.get('shortage') || '').trim();
 
   const back = () => {
     const sp = new URLSearchParams();
     if (pressure) sp.set('pressure', pressure);
     if (size) sp.set('size', size);
+    if (shortage === '1' || shortage === 'true') sp.set('shortage', '1');
     return sp;
   };
 
@@ -237,6 +258,7 @@ export async function quickCreateSkuAction(formData: FormData) {
         pressureClass,
         unit: 'EA',
         safetyStock: 20,
+        targetStock: 20,
         locationId,
         memo: '간단등록',
       },
@@ -282,5 +304,48 @@ export async function quickCreateSkuAction(formData: FormData) {
   // 등록한 압력·사이즈로 바로 보이게
   if (pressureClass) sp.set('pressure', pressureClass);
   if (size) sp.set('size', size);
+  redirect(`/dashboard?${sp.toString()}`);
+}
+
+/**
+ * SKU 목표재고(targetStock) 저장 — 보유색 % 기준.
+ * 0이면 경보설정의 압력/사이즈/전역 max(주의)를 사용.
+ */
+export async function quickUpdateTargetStockAction(formData: FormData) {
+  const itemId = String(formData.get('itemId') || '').trim();
+  const targetRaw = Number(formData.get('targetStock') || 0);
+  const targetStock = Number.isFinite(targetRaw) ? Math.max(0, Math.floor(targetRaw)) : 0;
+  const pressure = String(formData.get('pressure') || '').trim();
+  const size = String(formData.get('size') || '').trim();
+  const shortage = String(formData.get('shortage') || '').trim();
+
+  const back = () => {
+    const sp = new URLSearchParams();
+    if (pressure) sp.set('pressure', pressure);
+    if (size) sp.set('size', size);
+    if (shortage === '1' || shortage === 'true') sp.set('shortage', '1');
+    return sp;
+  };
+
+  if (!itemId) {
+    const sp = back();
+    sp.set('err', '품목을 선택하세요.');
+    redirect(`/dashboard?${sp.toString()}`);
+  }
+
+  try {
+    await prisma.item.update({
+      where: { id: itemId },
+      data: { targetStock },
+    });
+  } catch {
+    const sp = back();
+    sp.set('err', '목표재고 저장에 실패했습니다.');
+    redirect(`/dashboard?${sp.toString()}`);
+  }
+
+  revalidateStockPaths();
+  const sp = back();
+  sp.set('ok', targetStock > 0 ? `목표 ${targetStock} 저장` : '목표 해제(경보 max 사용)');
   redirect(`/dashboard?${sp.toString()}`);
 }
