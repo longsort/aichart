@@ -193,6 +193,7 @@ export function StockPendingBoard({
         showFace={showFaceChips}
         onLiveQueryChange={setLiveQ}
         liveSearchNav="history"
+        searchRows={rows}
         skuCount={sorted.length}
       />
 
