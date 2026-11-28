@@ -74,6 +74,8 @@ pm2 restart ailongshort --update-env
 
 ## 주의
 
-- `vps-deploy.sh` 는 **devDeps 포함** `npm install` 후 빌드합니다 (`NODE_ENV=production` 으로 `npm ci` 하면 tailwind 누락).
+- **필수:** 루트에 `postcss.config.mjs` + `tailwind.config.ts` 가 있어야 WMS(`/dashboard`) CSS가 빌드됩니다. 없으면 프로덕션 CSS에 raw `@tailwind` 가 남아 미스타일 HTML이 됩니다.
+- `vps-deploy.sh` 는 **devDeps 포함** `npm install` 후 빌드하고, 빌드 산출물에 raw `@tailwind` 가 있으면 실패합니다.
 - 서버에 `restore-chart-features` 등 **untracked** 소스가 남아 있으면 typecheck가 깨질 수 있습니다. 배포 전에 격리하거나 clean 하세요.
 - 디스크 full 이면 stash/checkout 실패 → `df -h`, `npm cache clean`, `.next`/로그 정리.
+- 차트 전역 스타일은 `public/globals.css` (`/globals.css`). WMS는 Next 번들 `/_next/static/css/*.css` (Tailwind).
