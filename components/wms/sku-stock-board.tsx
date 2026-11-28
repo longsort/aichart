@@ -8,12 +8,7 @@ import {
 } from '@/lib/wms/actions/sku-quick';
 import { quickSaveDashboardGlobalThresholdsAction } from '@/lib/wms/actions/stock-alerts';
 import { PRODUCT_TYPES, PRESSURE_CLASSES, NOMINAL_SIZES } from '@/lib/wms/codes';
-import {
-  YUIL_CATALOG_PRESSURE_CHIPS,
-  catalogPressureChipLabel,
-  catalogPressureChipTitle,
-  getCatalogPressureChip,
-} from '@/lib/wms/yuil-catalog-filters';
+import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import type {
   BandCounts,
   BandPressureBreakdown,
@@ -24,19 +19,11 @@ import { bandLabelKo, bandTextClass, type StockAlertBand } from '@/lib/wms/stock
 import { wmsControlCompact, wmsLabel } from '@/components/wms/wms-form-styles';
 import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
 import { BandSummaryOpenCard } from '@/components/wms/band-summary-open-card';
-import { MaterialFilterChips } from '@/components/wms/material-filter-chips';
-import { FaceFilterChips } from '@/components/wms/face-filter-chips';
-import { SkuSortChips } from '@/components/wms/sku-sort-chips';
+import { SkuListFilterPanel } from '@/components/wms/sku-list-filter-panel';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import type { MaterialFilter } from '@/lib/wms/material';
 import type { FaceFilter } from '@/lib/wms/flange-face';
 import type { SkuSortMode } from '@/lib/wms/sku-list-sort';
-
-function chipClass(active: boolean) {
-  return active
-    ? 'inline-flex min-h-9 max-w-full items-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white'
-    : 'inline-flex min-h-9 max-w-full items-center rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-200 hover:border-teal-600 hover:text-teal-200';
-}
 
 function buildHref(
   pressure: string,
@@ -124,16 +111,6 @@ export function SkuStockBoard({
   err?: string;
   ok?: string;
 }) {
-  const catalogKeys = YUIL_CATALOG_PRESSURE_CHIPS.map((c) => c.key);
-  const catalogSet = new Set(catalogKeys);
-  const pressureOpts = pressures.length ? pressures : [...PRESSURE_CLASSES];
-  const allPressureKeys = [
-    ...catalogKeys,
-    ...pressureOpts.filter((p) => !catalogSet.has(p)),
-  ];
-  const ratingKeys = allPressureKeys.filter((k) => getCatalogPressureChip(k)?.group !== 'product');
-  const productKeys = allPressureKeys.filter((k) => getCatalogPressureChip(k)?.group === 'product');
-  const sizeOpts = sizes.length ? sizes : [...NOMINAL_SIZES];
   const searchQ = (q || '').trim();
   const materialExtra =
     material && material !== 'ALL' ? { material } : ({} as Record<string, string | undefined>);
@@ -156,34 +133,11 @@ export function SkuStockBoard({
       ...(searchQ ? { q: searchQ } : {}),
       ...(p > 1 ? { page: String(p) } : {}),
     });
-  const materialHref = (m: MaterialFilter) =>
-    buildHref(pressure, size, {
-      ...(m !== 'ALL' ? { material: m } : {}),
-      ...faceExtra,
-      ...sortExtra,
-      ...shortageExtra,
-      ...(activeBand ? { band: activeBand } : {}),
-      ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
-    });
-  const faceHref = (f: FaceFilter) =>
-    buildHref(pressure, size, {
-      ...materialExtra,
-      ...(f !== 'ALL' ? { face: f } : {}),
-      ...sortExtra,
-      ...shortageExtra,
-      ...(activeBand ? { band: activeBand } : {}),
-      ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
-    });
-  const sortHref = (s: SkuSortMode) =>
-    buildHref(pressure, size, {
-      ...materialExtra,
-      ...faceExtra,
-      ...(s !== 'stock' ? { sort: s } : {}),
-      ...shortageExtra,
-      ...(activeBand ? { band: activeBand } : {}),
-      ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
-      ...(searchQ ? { q: searchQ } : {}),
-    });
+  const filterPreserveExtra: Record<string, string | undefined> = {
+    ...shortageExtra,
+    ...(activeBand ? { band: activeBand } : {}),
+    ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
+  };
   const bandCardClass = (band: StockAlertBand, base: string) =>
     `${base} block transition hover:ring-2 hover:ring-teal-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 ${
       activeBand === band ? 'ring-2 ring-teal-500/70' : ''
@@ -531,130 +485,16 @@ export function SkuStockBoard({
         </p>
       </section>
 
-      <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
-        <div className="mb-3">
-          <MaterialFilterChips material={material} hrefFor={materialHref} />
-          <FaceFilterChips face={face} hrefFor={faceHref} />
-          <div className="mt-1.5">
-            <SkuSortChips sort={sort} hrefFor={sortHref} />
-          </div>
-          <p className="mt-1.5 text-[11px] text-slate-500">
-            316 행은 빨강 · 칩/합계는 선택한 재질만 집계
-          </p>
-        </div>
-        <div className="mb-2 text-sm font-semibold text-slate-100">빠른찾기 (압력·사이즈·FACE·압축)</div>
-        <form method="get" action="/dashboard" className="mb-4 flex flex-wrap items-center gap-2">
-          {pressure !== 'ALL' ? <input type="hidden" name="pressure" value={pressure} /> : null}
-          {size !== 'ALL' ? <input type="hidden" name="size" value={size} /> : null}
-          {material !== 'ALL' ? <input type="hidden" name="material" value={material} /> : null}
-          {face !== 'ALL' ? <input type="hidden" name="face" value={face} /> : null}
-          {sort !== 'stock' ? <input type="hidden" name="sort" value={sort} /> : null}
-          {activeBand ? <input type="hidden" name="band" value={activeBand} /> : null}
-          {shortageOnly && !activeBand ? <input type="hidden" name="shortage" value="1" /> : null}
-          <label className="block min-w-0 flex-1 basis-[16rem]">
-            <span className="sr-only">압력·사이즈·FACE 압축 검색</span>
-            <input
-              type="search"
-              name="q"
-              defaultValue={searchQ}
-              placeholder="예: 50A20BL · 20K50A · BLRF…"
-              className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
-              autoComplete="off"
-            />
-          </label>
-          <button
-            type="submit"
-            className="inline-flex min-h-10 items-center rounded-md border border-teal-700 bg-teal-900/50 px-3 text-xs font-semibold text-teal-100 hover:border-teal-500"
-          >
-            찾기
-          </button>
-          {searchQ ? (
-            <Link
-              href={buildHref(pressure, size, {
-                ...chipExtra,
-                ...(activeBand ? { band: activeBand } : {}),
-              })}
-              className="inline-flex min-h-10 items-center rounded-md border border-slate-600 px-3 text-xs text-slate-300 hover:border-teal-600 hover:text-teal-200"
-              title="검색어 지우기"
-            >
-              지우기
-            </Link>
-          ) : null}
-          {searchQ ? (
-            <span className="text-xs text-slate-500">
-              검색 <strong className="text-slate-300">{searchQ}</strong> · SKU{' '}
-              <strong className="text-teal-300">{skuCount.toLocaleString()}</strong>
-            </span>
-          ) : null}
-        </form>
-        <p className="mb-3 text-xs text-slate-500">
-          압축 검색 가능(50A20BL · K 생략). 압력·사이즈·FACE 칩 클릭 시 검색어는 초기화됩니다.
-        </p>
-
-        <div className="mb-2 text-sm font-semibold text-slate-100">압력등급</div>
-        <div className="mb-1 text-[11px] text-slate-500">
-          압력 · kg/cm² · BAR · ANSI/AWWA · 칩=페이지 내 필터 · 보유합계
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-2">
-          <PressureOpenChip href={buildHref('ALL', size, chipExtra)} className={chipClass(pressure === 'ALL')}>
-            전체
-          </PressureOpenChip>
-          {ratingKeys.map((p) => {
-            const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
-            const total = pressureTotals[p] ?? 0;
-            return (
-              <PressureOpenChip
-                key={p}
-                href={buildHref(p, size, chipExtra)}
-                className={chipClass(pressure === p)}
-                title={catalogPressureChipTitle(p)}
-              >
-                <span>{label}</span>
-                <span className="ml-1.5 tabular-nums opacity-80">{total.toLocaleString()}</span>
-              </PressureOpenChip>
-            );
-          })}
-        </div>
-        {productKeys.length ? (
-          <div className="mt-3">
-            <div className="mb-1 text-[11px] text-slate-500">
-              유일 카탈로그 제품·규격명 (페이지 내 필터 · 보유합계)
-            </div>
-            <div className="flex w-full flex-wrap items-center gap-2">
-              {productKeys.map((p) => {
-                const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
-                const total = pressureTotals[p] ?? 0;
-                return (
-                  <PressureOpenChip
-                    key={p}
-                    href={buildHref(p, size, chipExtra)}
-                    className={chipClass(pressure === p)}
-                    title={catalogPressureChipTitle(p)}
-                  >
-                    <span>{label}</span>
-                    <span className="ml-1.5 tabular-nums opacity-80">{total.toLocaleString()}</span>
-                  </PressureOpenChip>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-        <div className="mb-2 mt-4 text-sm font-semibold text-slate-100">사이즈</div>
-        <div className="flex w-full flex-wrap items-center gap-2">
-          <Link href={buildHref(pressure, 'ALL', chipExtra)} className={chipClass(size === 'ALL')}>
-            전체
-          </Link>
-          {sizeOpts.map((s) => (
-            <Link key={s} href={buildHref(pressure, s, chipExtra)} className={chipClass(size === s)}>
-              {s}
-            </Link>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-slate-500">
-          압력·사이즈 칩은 이 페이지에서 교집합 필터 (예:{' '}
-          <strong className="text-slate-300">/dashboard?pressure=10K</strong>).
-        </p>
-      </section>
+      <SkuListFilterPanel
+        basePath="/dashboard"
+        values={{ material, face, sort, pressure, size, q: searchQ }}
+        pressures={pressures}
+        sizes={sizes}
+        pressureTotals={pressureTotals}
+        pressureLabels={pressureLabels}
+        preserveExtra={filterPreserveExtra}
+        skuCount={skuCount}
+      />
 
       {sizesPanelOnly ? (
         <section className="rounded-lg border border-slate-700 bg-slate-900/40 px-4 py-4 text-sm text-slate-300">

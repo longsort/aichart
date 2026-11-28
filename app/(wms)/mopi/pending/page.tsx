@@ -1,13 +1,21 @@
 import Link from 'next/link';
 import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { StockPendingBoard } from '@/components/wms/stock-pending-board';
-import { listSkuBoard } from '@/lib/wms/sku-board';
+import { listSkuBoard, getSkuFilterOptions } from '@/lib/wms/sku-board';
 import { mapPendingQtyByItemId, mapUndoableReceiveQtyByItemId } from '@/lib/wms/pending-inbound';
 import { parseFaceFilter } from '@/lib/wms/flange-face';
 import { parseSkuSortMode } from '@/lib/wms/sku-list-sort';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
 
-type Search = { err?: string; ok?: string; face?: string; sort?: string };
+type Search = {
+  err?: string;
+  ok?: string;
+  face?: string;
+  sort?: string;
+  pressure?: string;
+  size?: string;
+  q?: string;
+};
 
 /** 모피 입고대기 — 미강품 대기 저장 · 입고완료 → 가공대기 */
 export default async function MopiPendingPage({ searchParams }: { searchParams: Promise<Search> }) {
@@ -16,11 +24,22 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
   const ok = sp.ok ? decodeURIComponent(sp.ok) : '';
   const face = parseFaceFilter(sp.face);
   const sort = parseSkuSortMode(sp.sort);
+  const pressure = (sp.pressure || 'ALL').trim() || 'ALL';
+  const size = (sp.size || 'ALL').trim() || 'ALL';
+  const q = (sp.q || '').trim();
   const auth = requireInventoryAuth();
 
-  const [board, pendingMap, undoMap] = await Promise.all([
-    // 모피 전 카탈로그(보유 0 포함) — 대기 수량 입력용
-    listSkuBoard({ kind: 'mopi', unpaged: true, face }),
+  const [board, opts, pendingMap, undoMap] = await Promise.all([
+    listSkuBoard({
+      kind: 'mopi',
+      unpaged: true,
+      face,
+      sort,
+      pressureClass: pressure === 'ALL' ? undefined : pressure,
+      size: size === 'ALL' ? undefined : size,
+      q: q || undefined,
+    }),
+    getSkuFilterOptions(),
     mapPendingQtyByItemId(),
     mapUndoableReceiveQtyByItemId(),
   ]);
@@ -42,7 +61,7 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
     <>
       <WmsPageHeader
         title="모피 입고대기"
-        subtitle="미강품 · 304 동일 압력×사이즈×규격 · 대기 저장 → 입고완료 → 가공대기"
+        subtitle="미강품 · 필터=재고현황과 동일 패널 · 대기 저장 → 입고완료 → 가공대기"
       />
       {err ? (
         <p className="mb-3 rounded-md border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm text-red-200">{err}</p>
@@ -75,6 +94,13 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
         userName={auth.user}
         face={face}
         sort={sort}
+        pressure={pressure}
+        size={size}
+        q={q}
+        pressures={opts.pressures}
+        sizes={opts.sizes}
+        pressureTotals={board.pressureTotals}
+        pressureLabels={opts.pressureLabels}
         basePath="/mopi/pending"
         showMaterialChips={false}
         showFaceChips

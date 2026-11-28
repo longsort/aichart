@@ -5,7 +5,7 @@ import { parseMaterialFilter } from '@/lib/wms/material';
 import { parseFaceFilter } from '@/lib/wms/flange-face';
 import { parseSkuSortMode } from '@/lib/wms/sku-list-sort';
 import { mapPendingQtyByItemId, mapUndoableReceiveQtyByItemId } from '@/lib/wms/pending-inbound';
-import { listSkuBoard } from '@/lib/wms/sku-board';
+import { getSkuFilterOptions, listSkuBoard } from '@/lib/wms/sku-board';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
 
 type Search = {
@@ -14,11 +14,14 @@ type Search = {
   material?: string;
   face?: string;
   sort?: string;
+  pressure?: string;
+  size?: string;
+  q?: string;
 };
 
 /**
  * 입고대기 — 보유 0(미입고) SKU 목록.
- * 칩=같은 페이지 필터 · 「대기 저장」=PendingInbound(DB) · 「입고완료」=대기→StockMove(IN).
+ * 필터 패널=재고현황과 동일 (재질·FACE·정렬·압력·제품규격·사이즈·검색).
  */
 export default async function StockPendingPage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams;
@@ -27,11 +30,22 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
   const material = parseMaterialFilter(sp.material);
   const face = parseFaceFilter(sp.face);
   const sort = parseSkuSortMode(sp.sort);
+  const pressure = (sp.pressure || 'ALL').trim() || 'ALL';
+  const size = (sp.size || 'ALL').trim() || 'ALL';
+  const q = (sp.q || '').trim();
   const auth = requireInventoryAuth();
 
-  const [board, pendingMap, undoMap] = await Promise.all([
-    // unpaged 전체 — 미입고·대기·최근 입고(되돌리기) 행을 필터
-    listSkuBoard({ unpaged: true, material, face }),
+  const [board, opts, pendingMap, undoMap] = await Promise.all([
+    listSkuBoard({
+      unpaged: true,
+      material,
+      face,
+      sort,
+      pressureClass: pressure === 'ALL' ? undefined : pressure,
+      size: size === 'ALL' ? undefined : size,
+      q: q || undefined,
+    }),
+    getSkuFilterOptions(),
     mapPendingQtyByItemId(),
     mapUndoableReceiveQtyByItemId(),
   ]);
@@ -55,7 +69,7 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
     <>
       <WmsPageHeader
         title="입고대기"
-        subtitle="수량→대기 저장(DB) · 304/316 재질 분리 · 공장 도착 후 입고완료 · 칩=같은 페이지 필터"
+        subtitle="수량→대기 저장(DB) · 304/316 재질 분리 · 공장 도착 후 입고완료 · 필터=재고현황과 동일"
       />
       {err ? (
         <p className="mb-3 rounded-md border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm text-red-200">{err}</p>
@@ -89,6 +103,13 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
         material={material}
         face={face}
         sort={sort}
+        pressure={pressure}
+        size={size}
+        q={q}
+        pressures={opts.pressures}
+        sizes={opts.sizes}
+        pressureTotals={board.pressureTotals}
+        pressureLabels={opts.pressureLabels}
       />
     </>
   );
