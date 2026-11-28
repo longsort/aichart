@@ -21,7 +21,8 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
   const auth = requireInventoryAuth();
 
   const [board, pendingMap] = await Promise.all([
-    listSkuBoard({ band: 'empty' }),
+    // unpaged: 미입고 전체(사이즈 50A 등) — 기본 80건 페이지면 검색이 빈 표
+    listSkuBoard({ band: 'empty', unpaged: true }),
     mapPendingQtyByItemId(),
   ]);
 

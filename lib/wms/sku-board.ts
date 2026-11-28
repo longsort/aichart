@@ -33,6 +33,11 @@ export type SkuBoardFilters = {
   /** 상세 표 페이지 (1-based). omitDetailRows면 무시 */
   page?: number;
   pageSize?: number;
+  /**
+   * true면 필터된 SKU 전부 반환 (입고대기 등).
+   * 기본 페이지(80)만 주면 작은 사이즈만 잡혀 50A 검색이 빈 표가 됨.
+   */
+  unpaged?: boolean;
 };
 
 export const SKU_BOARD_DEFAULT_PAGE_SIZE = 80;
@@ -132,6 +137,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     where.OR = [
       { itemCode: { contains: q } },
       { itemName: { contains: q } },
+      { size: { contains: q } },
       { standard: { contains: q } },
       { productType: { contains: q } },
       { pressureClass: { contains: q } },
@@ -223,17 +229,19 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
 
   const filteredTotal = filtered.reduce((s, r) => s + r.onHand, 0);
   const skuCount = filtered.length;
-  const pageSize = Math.min(
-    200,
-    Math.max(20, Math.floor(filters.pageSize || SKU_BOARD_DEFAULT_PAGE_SIZE)),
-  );
-  const totalPages = Math.max(1, Math.ceil(skuCount / pageSize));
-  const page = Math.min(totalPages, Math.max(1, Math.floor(filters.page || 1)));
+  const unpaged = Boolean(filters.unpaged);
+  const pageSize = unpaged
+    ? Math.max(skuCount, 1)
+    : Math.min(200, Math.max(20, Math.floor(filters.pageSize || SKU_BOARD_DEFAULT_PAGE_SIZE)));
+  const totalPages = unpaged ? 1 : Math.max(1, Math.ceil(skuCount / pageSize));
+  const page = unpaged ? 1 : Math.min(totalPages, Math.max(1, Math.floor(filters.page || 1)));
   /** 밴드 요약 표용 미리보기 (페이지와 무관, 상한) */
   const previewRows = filters.omitDetailRows ? [] : filtered.slice(0, 60);
   const rows = filters.omitDetailRows
     ? []
-    : filtered.slice((page - 1) * pageSize, page * pageSize);
+    : unpaged
+      ? filtered
+      : filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const overallTotal = allActiveItems.reduce(
     (s, it) => s + it.lots.reduce((a, l) => a + l.quantity, 0),

@@ -66,6 +66,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         sizes={opts.sizes}
         pressure={pressure}
         size={size}
+        q={q}
         overallTotal={board.overallTotal}
         filteredTotal={board.filteredTotal}
         skuCount={board.skuCount}

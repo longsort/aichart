@@ -58,6 +58,7 @@ export function SkuStockBoard({
   sizes,
   pressure,
   size,
+  q = '',
   overallTotal,
   filteredTotal,
   skuCount,
@@ -84,6 +85,8 @@ export function SkuStockBoard({
   sizes: string[];
   pressure: string;
   size: string;
+  /** 빠른찾기 (압력·사이즈·품번) — URL ?q= */
+  q?: string;
   overallTotal: number;
   filteredTotal: number;
   skuCount: number;
@@ -115,6 +118,7 @@ export function SkuStockBoard({
   const ratingKeys = allPressureKeys.filter((k) => getCatalogPressureChip(k)?.group !== 'product');
   const productKeys = allPressureKeys.filter((k) => getCatalogPressureChip(k)?.group === 'product');
   const sizeOpts = sizes.length ? sizes : [...NOMINAL_SIZES];
+  const searchQ = (q || '').trim();
 
   const shortageExtra = shortageOnly ? { shortage: '1' } : undefined;
   const activeBreakdown = activeBand ? bandPressureBreakdown[activeBand] : [];
@@ -123,10 +127,12 @@ export function SkuStockBoard({
   const bandListRows = activeBand ? bandSource.slice(0, BAND_PANEL_ROW_CAP) : [];
   const bandListOmitted = activeBand ? Math.max(0, activeBandTotal - bandListRows.length) : 0;
   const sizesPanelOnly = activePanel === 'sizes';
+  // 페이지 이동만 검색어 유지 — 압력/사이즈 칩 클릭은 q 미포함(초기화)
   const pageHref = (p: number) =>
     buildHref(pressure, size, {
       ...shortageExtra,
       ...(activeBand ? { band: activeBand } : {}),
+      ...(searchQ ? { q: searchQ } : {}),
       ...(p > 1 ? { page: String(p) } : {}),
     });
   const bandCardClass = (band: StockAlertBand, base: string) =>
@@ -471,6 +477,53 @@ export function SkuStockBoard({
       </section>
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+        <div className="mb-2 text-sm font-semibold text-slate-100">빠른찾기 (압력·사이즈·품번)</div>
+        <form method="get" action="/dashboard" className="mb-4 flex flex-wrap items-center gap-2">
+          {pressure !== 'ALL' ? <input type="hidden" name="pressure" value={pressure} /> : null}
+          {size !== 'ALL' ? <input type="hidden" name="size" value={size} /> : null}
+          {activeBand ? <input type="hidden" name="band" value={activeBand} /> : null}
+          {shortageOnly && !activeBand ? <input type="hidden" name="shortage" value="1" /> : null}
+          <label className="block min-w-0 flex-1 basis-[16rem]">
+            <span className="sr-only">압력·사이즈·품번 검색</span>
+            <input
+              type="search"
+              name="q"
+              defaultValue={searchQ}
+              placeholder="예: 50a · 10K · 품번…"
+              className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
+              autoComplete="off"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex min-h-10 items-center rounded-md border border-teal-700 bg-teal-900/50 px-3 text-xs font-semibold text-teal-100 hover:border-teal-500"
+          >
+            찾기
+          </button>
+          {searchQ ? (
+            <Link
+              href={buildHref(pressure, size, {
+                ...shortageExtra,
+                ...(activeBand ? { band: activeBand } : {}),
+              })}
+              className="inline-flex min-h-10 items-center rounded-md border border-slate-600 px-3 text-xs text-slate-300 hover:border-teal-600 hover:text-teal-200"
+              title="검색어 지우기"
+            >
+              지우기
+            </Link>
+          ) : null}
+          {searchQ ? (
+            <span className="text-xs text-slate-500">
+              검색 <strong className="text-slate-300">{searchQ}</strong> · SKU{' '}
+              <strong className="text-teal-300">{skuCount.toLocaleString()}</strong>
+            </span>
+          ) : null}
+        </form>
+        <p className="mb-3 text-xs text-slate-500">
+          검색은 압력·사이즈·품번/명칭을 찾습니다. 압력·사이즈 칩을 누르면 검색어는 초기화되고 칩만
+          적용됩니다.
+        </p>
+
         <div className="mb-2 text-sm font-semibold text-slate-100">압력등급</div>
         <div className="mb-1 text-[11px] text-slate-500">
           압력 · kg/cm² · BAR · ANSI/AWWA · 칩=페이지 내 필터 · 보유합계

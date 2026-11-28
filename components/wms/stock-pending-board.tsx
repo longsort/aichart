@@ -184,7 +184,7 @@ export function StockPendingBoard({
       </header>
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-3">
-        <div className="mb-2 text-sm font-semibold text-slate-100">압력 빠른찾기</div>
+        <div className="mb-2 text-sm font-semibold text-slate-100">빠른찾기 (압력·사이즈·품번)</div>
         <div className="mb-2 flex gap-2">
           <label className="block min-w-0 flex-1">
             <span className="sr-only">압력·사이즈·품번 검색</span>
@@ -192,7 +192,7 @@ export function StockPendingBoard({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="10K · 50A · 품번 검색… (칩 클릭 시 검색 초기화)"
+              placeholder="예: 50a · 10K · 품번… (칩 클릭 시 검색 초기화)"
               className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
               autoComplete="off"
             />
@@ -210,8 +210,8 @@ export function StockPendingBoard({
         </div>
         <p className="text-xs text-slate-500">
           수량 입력 → <strong className="text-amber-200/90">대기 저장</strong>(DB, 보유 아님) → 공장
-          도착 후 <strong className="text-teal-300">입고완료</strong>(StockMove IN). 압력 칩=같은 페이지
-          필터(클릭 시 검색 초기화). 표시{' '}
+          도착 후 <strong className="text-teal-300">입고완료</strong>(StockMove IN). 검색=압력·사이즈·품번/명칭.
+          칩=같은 페이지 필터(클릭 시 검색 초기화). 표시{' '}
           <strong className="text-slate-300">{filtered.length.toLocaleString()}</strong>
           {pressure !== 'ALL' || query.trim() ? ` / 전체 ${rows.length.toLocaleString()}` : null}
           {pressure !== 'ALL' ? (
@@ -229,7 +229,7 @@ export function StockPendingBoard({
       <section className="overflow-x-auto rounded-lg border border-slate-700">
         <table className="w-full min-w-[880px] border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium uppercase tracking-wide text-slate-400">
+            <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium tracking-wide text-slate-400">
               <th className="px-3 py-2">압력</th>
               <th className="px-3 py-2">사이즈</th>
               <th className="px-3 py-2">품번 / 명칭</th>
