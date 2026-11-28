@@ -102,6 +102,10 @@ model Item {
   safetyStock    Int          @default(0)
   /// 목표 보유(색/% 기준). 0이면 경보 설정의 warn 상한을 사용
   targetStock    Int          @default(0)
+  /// SKU 긴급 기준(절대수량). null이면 압력/사이즈/전역 상속
+  alertCriticalBelow Int?
+  /// SKU 주의 기준(절대수량). null이면 압력/사이즈/전역 상속
+  alertWarnBelow     Int?
   locationId     String?
   isActive       Boolean      @default(true)
   memo           String       @default("")
@@ -258,6 +262,21 @@ model PendingInbound {
 
   @@index([quantity])
   @@index([updatedAt])
+}
+
+/// 전체입고완료 배치 — 한 단계 되돌리기용 (StockMove.documentNo = PENDING-BULK:{id})
+model BulkReceiveBatch {
+  id        String    @id @default(cuid())
+  /// JSON [{itemId, qty, stockMoveId, lotId}]
+  linesJson String    @default("[]")
+  itemCount Int       @default(0)
+  qtyTotal  Int       @default(0)
+  undoneAt  DateTime?
+  createdAt DateTime  @default(now())
+  createdBy String?
+
+  @@index([createdAt])
+  @@index([undoneAt])
 }
 
 /// 재고 경보 전역 기준 (긴급/주의/정상 밴드)

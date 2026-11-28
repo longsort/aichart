@@ -1,14 +1,31 @@
 import Link from 'next/link';
+import {
+  receiveAllPendingInboundAction,
+  receivePendingInboundAction,
+  undoLastBulkReceiveAction,
+} from '@/lib/wms/actions/pending-inbound';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
-import { listPendingPressureStats } from '@/lib/wms/pending-inbound';
+import {
+  getLastUndoableBulkReceive,
+  listPendingPressureStats,
+} from '@/lib/wms/pending-inbound';
+import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 
 /**
  * 입고대기 압력 통계 — DB PendingInbound(대기>0)만 집계.
- * 메인 표: SKU별 압력 + 사이즈 + 대기수량 (압력만 합치면 50A 등이 가려짐).
- * localStorage 대기열과 무관.
+ * 전체입고완료 · 품번별 입고완료 · 한 단계 되돌리기.
  */
-export async function PendingPressureStats() {
-  const { stats, skuTotal, qtyTotal, items } = await listPendingPressureStats();
+export async function PendingPressureStats({
+  err,
+  ok,
+}: {
+  err?: string;
+  ok?: string;
+}) {
+  const [{ stats, skuTotal, qtyTotal, items, clientReady }, lastBulk] = await Promise.all([
+    listPendingPressureStats(),
+    getLastUndoableBulkReceive(),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-1">
@@ -16,7 +33,7 @@ export async function PendingPressureStats() {
         <div>
           <h1 className="text-lg font-semibold text-slate-100">입고대기 · 압력 통계</h1>
           <p className="mt-1 text-xs text-slate-500">
-            DB 대기 수량만 · 압력+사이즈+대기수량 · 보유(LOT) 아님
+            DB 대기 수량만 · 전체/품번 입고완료 · 되돌리기
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -28,6 +45,25 @@ export async function PendingPressureStats() {
           </Link>
         </div>
       </header>
+
+      {err ? (
+        <p className="rounded-md border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm text-red-200">
+          {err}
+        </p>
+      ) : null}
+      {ok ? (
+        <p className="rounded-md border border-emerald-800/60 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+          {ok}
+        </p>
+      ) : null}
+
+      {!clientReady ? (
+        <p className="rounded-md border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-100">
+          PendingInbound Prisma 클라이언트가 없습니다. 로컬에서{' '}
+          <code className="text-amber-200">npx prisma generate && npx prisma db push</code> 후
+          서버를 재시작하세요.
+        </p>
+      ) : null}
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2">
@@ -50,6 +86,41 @@ export async function PendingPressureStats() {
         </div>
       </section>
 
+      <section className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2">
+        <form action={receiveAllPendingInboundAction}>
+          <input type="hidden" name="returnTo" value="/stock/pending/stats" />
+          <button
+            type="submit"
+            disabled={skuTotal === 0}
+            className="inline-flex min-h-9 items-center rounded-md bg-emerald-800 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            전체입고완료
+          </button>
+        </form>
+        <form action={undoLastBulkReceiveAction}>
+          <input type="hidden" name="returnTo" value="/stock/pending/stats" />
+          <button
+            type="submit"
+            disabled={!lastBulk}
+            className="inline-flex min-h-9 items-center rounded-md border border-amber-700/70 bg-amber-950/40 px-3 text-xs font-semibold text-amber-100 hover:border-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
+            title={
+              lastBulk
+                ? `마지막 전체입고 ${lastBulk.itemCount}품번 · +${lastBulk.qtyTotal}`
+                : '되돌릴 전체입고 없음'
+            }
+          >
+            한 단계 되돌리기
+          </button>
+        </form>
+        {lastBulk ? (
+          <span className="text-[11px] text-slate-500">
+            마지막 전체입고 {lastBulk.itemCount}품번 · +{lastBulk.qtyTotal.toLocaleString()}
+          </span>
+        ) : (
+          <span className="text-[11px] text-slate-600">되돌릴 전체입고 없음</span>
+        )}
+      </section>
+
       {skuTotal === 0 ? (
         <p className="rounded-lg border border-dashed border-slate-700 px-4 py-10 text-center text-sm text-slate-500">
           저장된 대기 수량이 없습니다.
@@ -59,18 +130,19 @@ export async function PendingPressureStats() {
       ) : (
         <>
           <section className="overflow-x-auto rounded-lg border border-slate-700">
-            <table className="w-full min-w-[480px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[560px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-700 bg-slate-900/90 text-xs uppercase tracking-wide text-slate-400">
                   <th className="px-3 py-2">압력</th>
                   <th className="px-3 py-2">사이즈</th>
                   <th className="px-3 py-2">품번</th>
                   <th className="px-3 py-2 text-right">대기수량</th>
+                  <th className="px-3 py-2">입고완료</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((it) => (
-                  <tr key={it.itemId} className="border-b border-slate-800/80">
+                  <tr key={it.itemId} className="border-b border-slate-800/80 align-middle">
                     <td className="px-3 py-2 font-medium text-teal-200">
                       {catalogPressureChipLabel(it.pressureClass) || it.pressureClass || '—'}
                     </td>
@@ -83,6 +155,30 @@ export async function PendingPressureStats() {
                     </td>
                     <td className="px-3 py-2 text-right font-semibold tabular-nums text-amber-300">
                       {it.quantity.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">
+                      <form
+                        action={receivePendingInboundAction}
+                        className="flex min-w-[8.5rem] flex-wrap items-center gap-1"
+                      >
+                        <input type="hidden" name="itemId" value={it.itemId} />
+                        <input type="hidden" name="returnTo" value="/stock/pending/stats" />
+                        <input
+                          name="quantity"
+                          type="number"
+                          min={1}
+                          max={it.quantity}
+                          defaultValue={it.quantity}
+                          className={`${wmsControlCompact} w-16`}
+                          aria-label={`${it.itemCode} 입고 수량`}
+                        />
+                        <button
+                          type="submit"
+                          className="inline-flex min-h-8 items-center rounded-md bg-emerald-800 px-2 text-[11px] font-semibold text-white hover:bg-emerald-700"
+                        >
+                          입고완료
+                        </button>
+                      </form>
                     </td>
                   </tr>
                 ))}

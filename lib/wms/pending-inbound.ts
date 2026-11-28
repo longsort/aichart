@@ -23,15 +23,48 @@ export type PendingSkuStatRow = {
   quantity: number;
 };
 
+export type LastBulkReceiveInfo = {
+  id: string;
+  itemCount: number;
+  qtyTotal: number;
+  createdAt: Date;
+};
+
 /** 사이즈 문자열 숫자 정렬용 (50A → 50) */
 function sizeSortKey(size: string): number {
   const m = String(size || '').match(/(\d+(?:\.\d+)?)/);
   return m ? Number(m[1]) : Number.POSITIVE_INFINITY;
 }
 
-/** itemId → 대기 수량 (quantity > 0만) */
+/**
+ * Prisma PendingInbound delegate — generate 전이면 undefined → 페이지가 죽지 않게 감지.
+ * 로컬: `npx prisma generate && npx prisma db push`
+ */
+function pendingInboundDelegate():
+  | typeof prisma.pendingInbound
+  | null {
+  const d = (prisma as { pendingInbound?: typeof prisma.pendingInbound }).pendingInbound;
+  if (!d || typeof d.findMany !== 'function') return null;
+  return d;
+}
+
+function bulkReceiveBatchDelegate():
+  | typeof prisma.bulkReceiveBatch
+  | null {
+  const d = (prisma as { bulkReceiveBatch?: typeof prisma.bulkReceiveBatch }).bulkReceiveBatch;
+  if (!d || typeof d.findFirst !== 'function') return null;
+  return d;
+}
+
+export function isPendingInboundClientReady(): boolean {
+  return pendingInboundDelegate() != null;
+}
+
+/** itemId → 대기 수량 (quantity > 0만). 클라이언트 미생성 시 빈 Map. */
 export async function mapPendingQtyByItemId(): Promise<Map<string, number>> {
-  const rows = await prisma.pendingInbound.findMany({
+  const db = pendingInboundDelegate();
+  if (!db) return new Map();
+  const rows = await db.findMany({
     where: { quantity: { gt: 0 } },
     select: { itemId: true, quantity: true },
   });
@@ -44,8 +77,14 @@ export async function listPendingPressureStats(): Promise<{
   skuTotal: number;
   qtyTotal: number;
   items: PendingSkuStatRow[];
+  clientReady: boolean;
 }> {
-  const rows = await prisma.pendingInbound.findMany({
+  const db = pendingInboundDelegate();
+  if (!db) {
+    return { stats: [], skuTotal: 0, qtyTotal: 0, items: [], clientReady: false };
+  }
+
+  const rows = await db.findMany({
     where: { quantity: { gt: 0 } },
     include: {
       item: {
@@ -103,5 +142,24 @@ export async function listPendingPressureStats(): Promise<{
     skuTotal: active.length,
     qtyTotal,
     items,
+    clientReady: true,
   };
+}
+
+/** 되돌리기 가능한 마지막 전체입고완료 배치 */
+export async function getLastUndoableBulkReceive(): Promise<LastBulkReceiveInfo | null> {
+  const db = bulkReceiveBatchDelegate();
+  if (!db) return null;
+  const row = await db.findFirst({
+    where: { undoneAt: null },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, itemCount: true, qtyTotal: true, createdAt: true },
+  });
+  return row;
+}
+
+export const BULK_RECEIVE_DOC_PREFIX = 'PENDING-BULK:';
+
+export function bulkReceiveDocumentNo(batchId: string): string {
+  return `${BULK_RECEIVE_DOC_PREFIX}${batchId}`;
 }

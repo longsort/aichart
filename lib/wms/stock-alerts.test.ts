@@ -85,4 +85,23 @@ assert.equal(classifyStockBandByTargetPct(16, withItemTarget.targetMax), 'critic
 assert.equal(classifyStockBandByTargetPct(32, withItemTarget.targetMax), 'warn'); // 40%
 assert.equal(classifyStockBandByTargetPct(80, withItemTarget.targetMax), 'ok'); // 100%
 
+// per-SKU alert overrides win over pressure/size/global
+const withSkuAlert = resolveSkuThreshold(
+  {
+    ...base,
+    pressureOverrides: { '10K': { criticalBelow: 5, warnBelow: 50 } },
+  },
+  {
+    pressureClass: '10K',
+    size: '15A',
+    alertCriticalBelow: 3,
+    alertWarnBelow: 30,
+  },
+);
+assert.equal(withSkuAlert.criticalBelow, 3);
+assert.equal(withSkuAlert.warnBelow, 30);
+assert.equal(classifyStockBand(2, withSkuAlert.criticalBelow, withSkuAlert.warnBelow), 'critical');
+assert.equal(classifyStockBand(10, withSkuAlert.criticalBelow, withSkuAlert.warnBelow), 'warn');
+assert.equal(classifyStockBand(30, withSkuAlert.criticalBelow, withSkuAlert.warnBelow), 'ok');
+
 console.log('stock-alerts.test.ts OK');

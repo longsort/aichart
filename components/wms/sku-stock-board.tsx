@@ -3,7 +3,9 @@ import {
   quickCreateSkuAction,
   quickStockInAction,
   quickStockOutAction,
+  quickUpdateSkuAlertAction,
 } from '@/lib/wms/actions/sku-quick';
+import { quickSaveDashboardGlobalThresholdsAction } from '@/lib/wms/actions/stock-alerts';
 import { PRODUCT_TYPES, PRESSURE_CLASSES, NOMINAL_SIZES } from '@/lib/wms/codes';
 import {
   YUIL_CATALOG_PRESSURE_CHIPS,
@@ -55,6 +57,8 @@ export function SkuStockBoard({
   pressureTotals,
   shortageOnly,
   pressureLabels,
+  globalCriticalBelow,
+  globalWarnBelow,
   err,
   ok,
 }: {
@@ -72,6 +76,9 @@ export function SkuStockBoard({
   pressureTotals: Record<string, number>;
   shortageOnly: boolean;
   pressureLabels?: Record<string, string>;
+  /** 전역 긴급/주의 (카드에서 편집) */
+  globalCriticalBelow: number;
+  globalWarnBelow: number;
   err?: string;
   ok?: string;
 }) {
@@ -126,26 +133,93 @@ export function SkuStockBoard({
             {(bandCounts.empty ?? 0).toLocaleString()}
           </div>
         </BandSummaryOpenCard>
-        <BandSummaryOpenCard
-          href="/dashboard?band=critical"
-          className={bandCardClass('critical', 'rounded-lg border border-red-900/60 bg-red-950/30 px-4 py-3')}
-          title="긴급 SKU — 압력등급별 구성 새 창"
+        <div
+          className={bandCardClass(
+            'critical',
+            'rounded-lg border border-red-900/60 bg-red-950/30 px-4 py-3',
+          )}
         >
-          <div className="text-xs text-red-300/80">긴급 · 클릭=새 창</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-red-400">
-            {bandCounts.critical.toLocaleString()}
-          </div>
-        </BandSummaryOpenCard>
-        <BandSummaryOpenCard
-          href="/dashboard?band=warn"
+          <BandSummaryOpenCard
+            href="/dashboard?band=critical"
+            className="block"
+            title="긴급 SKU — 압력등급별 구성 새 창"
+          >
+            <div className="text-xs text-red-300/80">긴급 · 클릭=새 창</div>
+            <div className="mt-1 text-2xl font-bold tabular-nums text-red-400">
+              {bandCounts.critical.toLocaleString()}
+            </div>
+          </BandSummaryOpenCard>
+          <form
+            action={quickSaveDashboardGlobalThresholdsAction}
+            className="mt-2 flex flex-wrap items-end gap-1.5 border-t border-red-900/40 pt-2"
+          >
+            <input type="hidden" name="pressure" value={pressure === 'ALL' ? '' : pressure} />
+            <input type="hidden" name="size" value={size === 'ALL' ? '' : size} />
+            {shortageOnly ? <input type="hidden" name="shortage" value="1" /> : null}
+            {activeBand ? <input type="hidden" name="band" value={activeBand} /> : null}
+            <input type="hidden" name="warnBelowSku" value={globalWarnBelow} />
+            <label className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[10px] text-red-300/70">긴급 &lt;</span>
+              <input
+                name="criticalBelowSku"
+                type="number"
+                min={0}
+                defaultValue={globalCriticalBelow}
+                required
+                className={`${wmsControlCompact} w-20 border-red-900/50 bg-red-950/40 text-red-100`}
+                aria-label="전역 긴급 기준"
+              />
+            </label>
+            <button
+              type="submit"
+              className="inline-flex min-h-8 items-center rounded-md bg-red-900/80 px-2 text-[11px] font-semibold text-red-50 hover:bg-red-800"
+            >
+              적용
+            </button>
+          </form>
+        </div>
+        <div
           className={bandCardClass('warn', 'rounded-lg border border-amber-900/60 bg-amber-950/25 px-4 py-3')}
-          title="주의 SKU — 압력등급별 구성 새 창"
         >
-          <div className="text-xs text-amber-200/80">주의 · 클릭=새 창</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-amber-300">
-            {bandCounts.warn.toLocaleString()}
-          </div>
-        </BandSummaryOpenCard>
+          <BandSummaryOpenCard
+            href="/dashboard?band=warn"
+            className="block"
+            title="주의 SKU — 압력등급별 구성 새 창"
+          >
+            <div className="text-xs text-amber-200/80">주의 · 클릭=새 창</div>
+            <div className="mt-1 text-2xl font-bold tabular-nums text-amber-300">
+              {bandCounts.warn.toLocaleString()}
+            </div>
+          </BandSummaryOpenCard>
+          <form
+            action={quickSaveDashboardGlobalThresholdsAction}
+            className="mt-2 flex flex-wrap items-end gap-1.5 border-t border-amber-900/40 pt-2"
+          >
+            <input type="hidden" name="pressure" value={pressure === 'ALL' ? '' : pressure} />
+            <input type="hidden" name="size" value={size === 'ALL' ? '' : size} />
+            {shortageOnly ? <input type="hidden" name="shortage" value="1" /> : null}
+            {activeBand ? <input type="hidden" name="band" value={activeBand} /> : null}
+            <input type="hidden" name="criticalBelowSku" value={globalCriticalBelow} />
+            <label className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[10px] text-amber-200/70">주의 &lt;</span>
+              <input
+                name="warnBelowSku"
+                type="number"
+                min={0}
+                defaultValue={globalWarnBelow}
+                required
+                className={`${wmsControlCompact} w-20 border-amber-900/50 bg-amber-950/40 text-amber-100`}
+                aria-label="전역 주의 기준"
+              />
+            </label>
+            <button
+              type="submit"
+              className="inline-flex min-h-8 items-center rounded-md bg-amber-900/80 px-2 text-[11px] font-semibold text-amber-50 hover:bg-amber-800"
+            >
+              적용
+            </button>
+          </form>
+        </div>
         <BandSummaryOpenCard
           href="/dashboard?band=ok"
           className={bandCardClass('ok', 'rounded-lg border border-emerald-900/60 bg-emerald-950/25 px-4 py-3')}
@@ -242,7 +316,7 @@ export function SkuStockBoard({
           재고 경보 설정
         </Link>
         <p className="text-xs text-slate-500">
-          긴급/주의/정상 카드 클릭 → 새 창에서 압력등급별 SKU 수. 보유 색 = 긴급(빨강)/주의(노랑)/정상(초록).
+          긴급·주의 카드에서 전역 기준 숫자 편집 · 표 보유 옆에서 품번별 긴급/주의 · 보유 색이 따라감.
         </p>
       </section>
 
@@ -313,13 +387,14 @@ export function SkuStockBoard({
       </section>
 
       <section className="overflow-x-auto rounded-lg border border-slate-700">
-        <table className="w-full min-w-[780px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium uppercase tracking-wide text-slate-400">
               <th className="px-3 py-2">압력</th>
               <th className="px-3 py-2">사이즈</th>
               <th className="px-3 py-2">품번 / 명칭</th>
               <th className="px-3 py-2 text-right">보유</th>
+              <th className="px-3 py-2">긴급/주의</th>
               <th className="px-3 py-2">입고</th>
               <th className="px-3 py-2">출고</th>
             </tr>
@@ -336,16 +411,63 @@ export function SkuStockBoard({
                   <div className="text-xs text-slate-400">{r.itemName}</div>
                   <div className="text-[11px] text-slate-500">
                     {r.materialType} · {r.locationName}
-                    {r.band !== 'ok' ? (
-                      <span className="ml-1 text-slate-600">
-                        · 기준 &lt;{r.criticalBelow}/{r.warnBelow}
-                      </span>
-                    ) : null}
+                    <span className="ml-1 text-slate-600">
+                      · 적용 &lt;{r.criticalBelow}/{r.warnBelow}
+                    </span>
                   </div>
                 </td>
                 <td className={`px-3 py-2 text-right tabular-nums ${bandTextClass(r.band)}`}>
                   {r.onHand.toLocaleString()}
                   <span className="ml-1 text-[10px] font-normal text-slate-500">{r.unit}</span>
+                </td>
+                <td className="px-3 py-2">
+                  <form action={quickUpdateSkuAlertAction} className="flex min-w-[10.5rem] flex-col gap-1">
+                    <input type="hidden" name="itemId" value={r.id} />
+                    <input type="hidden" name="pressure" value={pressure === 'ALL' ? '' : pressure} />
+                    <input type="hidden" name="size" value={size === 'ALL' ? '' : size} />
+                    {shortageOnly ? <input type="hidden" name="shortage" value="1" /> : null}
+                    {activeBand ? <input type="hidden" name="band" value={activeBand} /> : null}
+                    <div className="flex items-center gap-1">
+                      <label className="sr-only" htmlFor={`crit-${r.id}`}>
+                        긴급
+                      </label>
+                      <span className="w-7 shrink-0 text-[10px] text-red-400">긴급</span>
+                      <input
+                        id={`crit-${r.id}`}
+                        name="alertCriticalBelow"
+                        type="number"
+                        min={0}
+                        placeholder={String(r.criticalBelow)}
+                        defaultValue={
+                          r.alertCriticalBelow != null ? String(r.alertCriticalBelow) : ''
+                        }
+                        className={`${wmsControlCompact} w-16 border-red-900/40`}
+                        aria-label={`${r.itemCode} 긴급 기준`}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <label className="sr-only" htmlFor={`warn-${r.id}`}>
+                        주의
+                      </label>
+                      <span className="w-7 shrink-0 text-[10px] text-amber-400">주의</span>
+                      <input
+                        id={`warn-${r.id}`}
+                        name="alertWarnBelow"
+                        type="number"
+                        min={0}
+                        placeholder={String(r.warnBelow)}
+                        defaultValue={r.alertWarnBelow != null ? String(r.alertWarnBelow) : ''}
+                        className={`${wmsControlCompact} w-16 border-amber-900/40`}
+                        aria-label={`${r.itemCode} 주의 기준`}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="inline-flex min-h-7 items-center justify-center rounded-md border border-slate-600 bg-slate-900 px-2 text-[11px] font-semibold text-slate-200 hover:border-teal-600 hover:text-teal-200"
+                    >
+                      기준 저장
+                    </button>
+                  </form>
                 </td>
                 <td className="px-3 py-2">
                   <form action={quickStockInAction} className="flex min-w-[9rem] flex-col gap-1">
