@@ -11,6 +11,7 @@ type Search = {
   band?: string;
   /** sizes = 전체 재고 사이즈별 수량 패널 */
   panel?: string;
+  page?: string;
   err?: string;
   ok?: string;
 };
@@ -33,6 +34,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const shortageOnly = sp.shortage === '1' || sp.shortage === 'true';
   const band = parseBand(sp.band);
   const panel = (sp.panel || '').trim().toLowerCase() === 'sizes' ? 'sizes' : undefined;
+  const pageRaw = Number(sp.page || 1);
+  const page = Number.isFinite(pageRaw) ? Math.max(1, Math.floor(pageRaw)) : 1;
   const err = sp.err ? decodeURIComponent(sp.err) : '';
   const okMsg = sp.ok ? decodeURIComponent(sp.ok) : '';
 
@@ -43,6 +46,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       q: q || undefined,
       shortageOnly: band ? false : shortageOnly,
       band,
+      // 사이즈별 패널은 25행만 필요 — 1313 SKU 표/폼 RSC·DOM 동결 방지
+      omitDetailRows: panel === 'sizes',
+      page: panel === 'sizes' ? 1 : page,
     }),
     getSkuFilterOptions(),
   ]);
@@ -55,6 +61,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       />
       <SkuStockBoard
         rows={board.rows}
+        previewRows={board.previewRows}
         pressures={opts.pressures}
         sizes={opts.sizes}
         pressure={pressure}
@@ -62,6 +69,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         overallTotal={board.overallTotal}
         filteredTotal={board.filteredTotal}
         skuCount={board.skuCount}
+        page={board.page}
+        pageSize={board.pageSize}
+        totalPages={board.totalPages}
         bandCounts={board.bandCounts}
         bandPressureBreakdown={board.bandPressureBreakdown}
         activeBand={band}
