@@ -51,6 +51,8 @@ node_modules
 
 # Site auth user store (password hashes; local/server only)
 data/site-users.json
+data/login-otp-store.json
+data/login-otp-admin.txt
 
 # Local Prisma SQLite DBs
 *.db

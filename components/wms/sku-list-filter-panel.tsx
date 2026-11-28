@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { NOMINAL_SIZES, PRESSURE_CLASSES } from '@/lib/wms/codes';
 import {
   FLANGE_FACE_TYPES,
@@ -21,6 +23,9 @@ import { FaceFilterChips } from '@/components/wms/face-filter-chips';
 import { SkuSortChips } from '@/components/wms/sku-sort-chips';
 import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
 
+/** URL soft-nav only — 목록 필터는 키 입력 즉시 */
+const URL_SYNC_DEBOUNCE_MS = 250;
+
 function chipClass(active: boolean) {
   return active
     ? 'inline-flex min-h-9 max-w-full items-center rounded-md bg-teal-700 px-3 text-sm font-semibold text-white'
@@ -38,7 +43,8 @@ export type SkuListFilterValues = {
 
 /**
  * 재고현황·입고대기 공통 필터 패널.
- * link: URL 칩 + GET 검색 · controlled: 버튼 + 로컬 검색 (모피 가공/홀대기).
+ * 빠른찾기 = 입력 즉시(디바운스) 라이브 필터.
+ * link: URL 칩 · controlled: 로컬 칩 (모피 가공/홀대기).
  */
 export function SkuListFilterPanel({
   basePath,
@@ -56,6 +62,15 @@ export function SkuListFilterPanel({
   onChange,
   localQuery,
   onLocalQueryChange,
+  /** 라이브 검색 콜백 — 키 입력마다 즉시 (표 필터용) */
+  onLiveQueryChange,
+  /**
+   * 검색어 URL 동기화(디바운스):
+   * - router: Next soft navigation (재고현황 서버 필터)
+   * - history: replaceState only (입고대기 등 RSC 재실행 없음)
+   * - off: URL 유지
+   */
+  liveSearchNav = 'off',
   skuCount,
 }: {
   basePath: string;
@@ -73,14 +88,28 @@ export function SkuListFilterPanel({
   onChange?: (next: SkuListFilterValues) => void;
   localQuery?: string;
   onLocalQueryChange?: (q: string) => void;
+  onLiveQueryChange?: (q: string) => void;
+  liveSearchNav?: 'off' | 'history' | 'router';
   skuCount?: number;
 }) {
+  const router = useRouter();
   const material = values.material || 'ALL';
   const face = values.face || 'ALL';
   const sort = values.sort || 'stock';
   const pressure = (values.pressure || 'ALL').trim() || 'ALL';
   const size = (values.size || 'ALL').trim() || 'ALL';
-  const searchQ = mode === 'controlled' ? (localQuery || '').trim() : (values.q || '').trim();
+  const seedQ =
+    mode === 'controlled' ? localQuery ?? values.q ?? '' : values.q ?? localQuery ?? '';
+
+  const [draftQ, setDraftQ] = useState(seedQ);
+  const urlDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastUrlQ = useRef(seedQ);
+
+  // 칩 네비 등으로 서버 q가 바뀌면 입력 동기화
+  useEffect(() => {
+    setDraftQ(seedQ);
+    lastUrlQ.current = seedQ;
+  }, [seedQ, pressure, size, material, face]);
 
   const catalogKeys = YUIL_CATALOG_PRESSURE_CHIPS.map((c) => c.key);
   const catalogSet = new Set(catalogKeys);
@@ -91,7 +120,7 @@ export function SkuListFilterPanel({
   const sizeOpts = sizes.length ? sizes : [...NOMINAL_SIZES];
 
   function hrefFor(patch: Partial<SkuListFilterValues> & { keepQ?: boolean }) {
-    const nextQ = patch.keepQ ? searchQ : patch.q !== undefined ? patch.q : '';
+    const nextQ = patch.keepQ ? draftQ.trim() : patch.q !== undefined ? patch.q : '';
     return buildSkuFilterHref(basePath, {
       pressure: patch.pressure ?? pressure,
       size: patch.size ?? size,
@@ -111,12 +140,76 @@ export function SkuListFilterPanel({
       sort,
       pressure,
       size,
-      q: searchQ,
+      q: draftQ,
       ...patch,
     };
-    if (patch.clearQ) next.q = '';
+    if (patch.clearQ) {
+      next.q = '';
+      setDraftQ('');
+      if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
+      onLiveQueryChange?.('');
+      onLocalQueryChange?.('');
+      syncUrl('');
+    }
     onChange(next);
   }
+
+  function syncUrl(q: string) {
+    if (liveSearchNav === 'off') return;
+    if (q === lastUrlQ.current) return;
+    lastUrlQ.current = q;
+    const href = buildSkuFilterHref(basePath, {
+      pressure,
+      size,
+      material,
+      face,
+      sort,
+      q: q.trim() || undefined,
+      extra: preserveExtra,
+    });
+    if (liveSearchNav === 'history') {
+      if (typeof window !== 'undefined') {
+        const cur = window.location.pathname + window.location.search;
+        if (cur !== href) window.history.replaceState(null, '', href);
+      }
+      return;
+    }
+    if (liveSearchNav === 'router') {
+      router.replace(href, { scroll: false });
+    }
+  }
+
+  function scheduleUrlSync(q: string) {
+    if (liveSearchNav === 'off') return;
+    if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
+    urlDebounceRef.current = setTimeout(() => syncUrl(q), URL_SYNC_DEBOUNCE_MS);
+  }
+
+  function emitLiveImmediate(q: string) {
+    onLiveQueryChange?.(q);
+    onLocalQueryChange?.(q);
+    scheduleUrlSync(q);
+  }
+
+  function onDraftChange(next: string) {
+    setDraftQ(next);
+    // 표 필터 = 즉시 / URL = 짧게 디바운스
+    emitLiveImmediate(next);
+  }
+
+  function clearSearch() {
+    if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
+    setDraftQ('');
+    onLiveQueryChange?.('');
+    onLocalQueryChange?.('');
+    syncUrl('');
+  }
+
+  useEffect(() => {
+    return () => {
+      if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
+    };
+  }, []);
 
   function renderPressureChip(p: string, active: boolean) {
     const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
@@ -151,6 +244,50 @@ export function SkuListFilterPanel({
       </button>
     );
   }
+
+  const showCount = draftQ.trim() && typeof skuCount === 'number';
+
+  /** 레이아웃: 칩들 → 검색(표 직전) → 표만 라이브 필터 (드롭다운 없음) */
+  const searchBlock = (
+    <div className="border-t border-slate-700/80 pt-3">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold text-slate-100">검색</span>
+        <span className="text-[11px] text-slate-500">
+          압력·사이즈·FACE · 150/100a150=Class · ansi150=ANSI · 입력 즉시
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="block min-w-0 flex-1 basis-[16rem]">
+          <span className="sr-only">검색 — 입력 즉시 표 필터</span>
+          <input
+            type="search"
+            value={draftQ}
+            onChange={(e) => onDraftChange(e.target.value)}
+            placeholder="예: 50A20BL · 100a150 · 150# · ansi150…"
+            className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
+            autoComplete="off"
+            enterKeyHint="search"
+          />
+        </label>
+        {draftQ.trim() ? (
+          <button
+            type="button"
+            onClick={clearSearch}
+            className="inline-flex min-h-10 items-center rounded-md border border-slate-600 px-3 text-xs text-slate-300 hover:border-teal-600 hover:text-teal-200"
+            title="검색어 지우기"
+          >
+            지우기
+          </button>
+        ) : null}
+        {showCount ? (
+          <span className="text-xs text-slate-500">
+            <strong className="text-slate-300">{draftQ.trim()}</strong> · SKU{' '}
+            <strong className="text-teal-300">{skuCount!.toLocaleString()}</strong>
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
 
   return (
     <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
@@ -200,85 +337,14 @@ export function SkuListFilterPanel({
           mode === 'controlled' ? (
             <SkuSortChips sort={sort} onSelect={(s) => apply({ sort: s })} />
           ) : (
-            <SkuSortChips sort={sort} hrefFor={(s) => hrefFor({ sort: s, pressure, size, keepQ: true })} />
+            <SkuSortChips
+              sort={sort}
+              hrefFor={(s) => hrefFor({ sort: s, pressure, size, keepQ: true })}
+            />
           )
         ) : null}
         {showMaterial ? <p className="text-[11px] text-slate-500">{materialHint}</p> : null}
       </div>
-
-      <div className="mb-2 text-sm font-semibold text-slate-100">빠른찾기 (압력·사이즈·FACE·압축)</div>
-      {mode === 'link' ? (
-        <form method="get" action={basePath} className="mb-4 flex flex-wrap items-center gap-2">
-          {pressure !== 'ALL' ? <input type="hidden" name="pressure" value={pressure} /> : null}
-          {size !== 'ALL' ? <input type="hidden" name="size" value={size} /> : null}
-          {material !== 'ALL' ? <input type="hidden" name="material" value={material} /> : null}
-          {face !== 'ALL' ? <input type="hidden" name="face" value={face} /> : null}
-          {sort !== 'stock' ? <input type="hidden" name="sort" value={sort} /> : null}
-          {preserveExtra
-            ? Object.entries(preserveExtra).map(([k, v]) =>
-                v ? <input key={k} type="hidden" name={k} value={v} /> : null,
-              )
-            : null}
-          <label className="block min-w-0 flex-1 basis-[16rem]">
-            <span className="sr-only">압력·사이즈·FACE 압축 검색</span>
-            <input
-              type="search"
-              name="q"
-              defaultValue={searchQ}
-              placeholder="예: 50A20BL · 20K50A · BLRF…"
-              className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
-              autoComplete="off"
-            />
-          </label>
-          <button
-            type="submit"
-            className="inline-flex min-h-10 items-center rounded-md border border-teal-700 bg-teal-900/50 px-3 text-xs font-semibold text-teal-100 hover:border-teal-500"
-          >
-            찾기
-          </button>
-          {searchQ ? (
-            <Link
-              href={hrefFor({ pressure, size })}
-              className="inline-flex min-h-10 items-center rounded-md border border-slate-600 px-3 text-xs text-slate-300 hover:border-teal-600 hover:text-teal-200"
-              title="검색어 지우기"
-            >
-              지우기
-            </Link>
-          ) : null}
-          {searchQ && typeof skuCount === 'number' ? (
-            <span className="text-xs text-slate-500">
-              검색 <strong className="text-slate-300">{searchQ}</strong> · SKU{' '}
-              <strong className="text-teal-300">{skuCount.toLocaleString()}</strong>
-            </span>
-          ) : null}
-        </form>
-      ) : (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <label className="block min-w-0 flex-1 basis-[16rem]">
-            <span className="sr-only">압력·사이즈·FACE 압축 검색</span>
-            <input
-              type="search"
-              value={localQuery || ''}
-              onChange={(e) => onLocalQueryChange?.(e.target.value)}
-              placeholder="예: 50A20BL · 20K50A · BLRF…"
-              className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
-              autoComplete="off"
-            />
-          </label>
-          {(localQuery || '').trim() ? (
-            <button
-              type="button"
-              onClick={() => onLocalQueryChange?.('')}
-              className="inline-flex min-h-10 items-center rounded-md border border-slate-600 px-3 text-xs text-slate-300 hover:border-teal-600 hover:text-teal-200"
-            >
-              지우기
-            </button>
-          ) : null}
-        </div>
-      )}
-      <p className="mb-3 text-xs text-slate-500">
-        압축 검색 가능(50A20BL · K 생략). 압력·사이즈·FACE 칩 클릭 시 검색어는 초기화됩니다.
-      </p>
 
       <div className="mb-2 text-sm font-semibold text-slate-100">압력등급</div>
       <div className="mb-1 text-[11px] text-slate-500">
@@ -344,13 +410,16 @@ export function SkuListFilterPanel({
           ),
         )}
       </div>
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-slate-500">
         압력·사이즈 칩은 이 페이지에서 교집합 필터 (예:{' '}
         <strong className="text-slate-300">
           {basePath}?pressure=10K
         </strong>
         ).
       </p>
+
+      {/* 칩 ↔ 표 사이 슬롯 — 모든 SKU 목록 공통 */}
+      <div className="mt-4">{searchBlock}</div>
     </section>
   );
 }
