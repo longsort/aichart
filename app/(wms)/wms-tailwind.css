@@ -5,7 +5,7 @@
 /* WMS 루트: 기본 타이포(preflight 없음 보완) */
 .wms-root {
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
-  color: #f1f5f9;
+  color: #f8fafc; /* slate-50 — body default */
   line-height: 1.5;
 }
 
@@ -13,6 +13,26 @@
 .wms-root *::before,
 .wms-root *::after {
   box-sizing: border-box;
+}
+
+/*
+ * Dark WMS surfaces (slate-950/900) make Tailwind slate-400/500 hard to read.
+ * Remap muted utilities inside .wms-root so labels/helpers stay legible
+ * without rewriting every component class.
+ */
+.wms-root .text-slate-500 {
+  color: #cbd5e1; /* was #64748b → slate-300 */
+}
+.wms-root .text-slate-400 {
+  color: #e2e8f0; /* was #94a3b8 → slate-200 */
+}
+.wms-root .text-slate-300 {
+  color: #f1f5f9; /* was #cbd5e1 → slate-100 */
+}
+.wms-root .placeholder\:text-slate-500::placeholder,
+.wms-root .placeholder\:text-slate-400::placeholder {
+  color: #94a3b8; /* slate-400 — still softer than body, readable on slate-950 */
+  opacity: 1;
 }
 
 @layer components {
@@ -28,11 +48,11 @@
   }
 
   .wms-control {
-    @apply box-border block w-full min-h-[2.75rem] rounded-md border border-slate-500 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none placeholder:text-slate-500 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30;
+    @apply box-border block w-full min-h-[2.75rem] rounded-md border border-slate-500 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30;
   }
 
   .wms-field-label {
-    @apply text-xs font-medium text-slate-200;
+    @apply text-xs font-semibold text-slate-100;
   }
 
   .wms-control-compact {

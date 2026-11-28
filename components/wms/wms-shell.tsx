@@ -4,7 +4,7 @@ export function WmsPageHeader({ title, subtitle }: { title: string; subtitle?: s
   return (
     <header className="mb-4 border-b border-slate-700 pb-3">
       <h1 className="text-lg font-semibold text-slate-100">{title}</h1>
-      {subtitle ? <p className="mt-1 text-xs text-slate-400">{subtitle}</p> : null}
+      {subtitle ? <p className="mt-1 text-sm text-slate-300">{subtitle}</p> : null}
     </header>
   );
 }

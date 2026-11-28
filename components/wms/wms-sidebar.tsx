@@ -84,7 +84,7 @@ export function WmsSidebar() {
           })}
         </nav>
         <div className="mt-6 space-y-1 border-t border-slate-800 px-2 pt-3">
-          <Link href="/login" className="block text-xs text-slate-500 hover:text-slate-300">
+          <Link href="/login" className="block text-xs text-slate-300 hover:text-slate-100">
             로그인 전환
           </Link>
         </div>
