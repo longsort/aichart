@@ -78,13 +78,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: mail.error }, { status: 503 });
     }
 
+    // 쿠키 미발급 — 클라이언트가 OTP 입력 UI로 전환해야 함
     return NextResponse.json({
       ok: true,
       otpRequired: true,
+      needsOtp: true,
       challengeId: challenge.id,
       user: result.user,
       role: result.role,
-      /** 쿠키는 OTP 확인 후 발급 */
+      /** 참고용 — OTP 전에는 이동하지 말 것 */
       redirectTo,
       otpHint: {
         to: maskEmail(loginOtpRecipient()),

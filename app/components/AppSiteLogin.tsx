@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppDisclaimerBanner from './AppDisclaimerBanner';
 import { setStoredBriefingCredentials } from '@/lib/clientAiCredentials';
 import { useVisitorCount } from '@/lib/useVisitorCount';
@@ -22,17 +22,58 @@ type OtpPending = {
   ip?: string;
 };
 
-/** 사이트 최초 진입 시 ID/비밀번호 — 외부 IP면 OTP 추가 */
+const OTP_SS_KEY = 'ailongshort-login-otp-pending';
+
+function readStoredOtp(): OtpPending | null {
+  try {
+    const raw = sessionStorage.getItem(OTP_SS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as OtpPending;
+    if (!parsed?.challengeId) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function storeOtp(pending: OtpPending | null) {
+  try {
+    if (!pending) sessionStorage.removeItem(OTP_SS_KEY);
+    else sessionStorage.setItem(OTP_SS_KEY, JSON.stringify(pending));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 사이트 최초 진입 시 ID/비밀번호 — 외부 IP면 OTP 입력 단계 */
 export default function AppSiteLogin({ onLoggedIn }: Props) {
   const visitor = useVisitorCount();
   const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpPending, setOtpPending] = useState<OtpPending | null>(null);
+  const [otpReady, setOtpReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // 새로고침·리마운트에도 OTP 단계 유지
+  useEffect(() => {
+    const stored = readStoredOtp();
+    if (stored) {
+      setOtpPending(stored);
+      setUser(stored.user || '');
+    }
+    setOtpReady(true);
+  }, []);
+
+  const setPending = (pending: OtpPending | null) => {
+    setOtpPending(pending);
+    storeOtp(pending);
+  };
+
   const finishLogin = (authedUser: string, role: string, redirectTo?: string) => {
+    storeOtp(null);
+    setOtpPending(null);
     setStoredBriefingCredentials(authedUser, otpPending?.password || password);
     if (onLoggedIn) {
       onLoggedIn(authedUser, role);
@@ -66,20 +107,32 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
         setError(data.error || '로그인에 실패했습니다.');
         return;
       }
-      if (data.otpRequired && data.challengeId) {
-        setOtpPending({
+
+      // 외부 IP: 쿠키 없이 challengeId만 — 반드시 OTP 화면 (리다이렉트 금지)
+      const needsOtp =
+        Boolean(data.otpRequired) ||
+        Boolean(data.needsOtp) ||
+        (typeof data.challengeId === 'string' && data.challengeId.length > 0);
+      if (needsOtp && data.challengeId) {
+        const pending: OtpPending = {
           challengeId: String(data.challengeId),
           user: String(data.user || u),
           role: String(data.role || 'charts'),
           password,
-          message: String(data.message || '관리자에게 OTP를 받아 입력하세요.'),
+          message: String(
+            data.message ||
+              '외부 IP입니다. 관리자에게 인증 코드를 받아 아래에 입력하세요.',
+          ),
           hintTo: data.otpHint?.to,
           expiresMinutes: data.otpHint?.expiresMinutes,
           ip: data.otpHint?.ip,
-        });
+        };
+        setPending(pending);
         setOtpCode('');
+        setError(null);
         return;
       }
+
       finishLogin(String(data.user || u), String(data.role || 'charts'), data.redirectTo);
     } catch {
       setError('연결 오류입니다. 서버가 실행 중인지 확인하세요.');
@@ -110,7 +163,11 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
         setError(data.error || 'OTP 확인에 실패했습니다.');
         return;
       }
-      finishLogin(String(data.user || otpPending.user), String(data.role || otpPending.role), data.redirectTo);
+      finishLogin(
+        String(data.user || otpPending.user),
+        String(data.role || otpPending.role),
+        data.redirectTo,
+      );
     } catch {
       setError('연결 오류입니다. 서버가 실행 중인지 확인하세요.');
     } finally {
@@ -118,39 +175,54 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
     }
   };
 
+  if (!otpReady) {
+    return (
+      <div className="site-login-wrap">
+        <div className="card site-login-card" style={{ textAlign: 'center', color: 'var(--muted)' }}>
+          로그인 준비 중…
+        </div>
+      </div>
+    );
+  }
+
+  const showOtp = Boolean(otpPending?.challengeId);
+
   return (
     <div className="site-login-wrap" role="dialog" aria-labelledby="site-login-title">
       <div className="card site-login-card">
         <h1 id="site-login-title" className="site-login-title">
-          {otpPending ? 'OTP 인증' : '로그인'}
+          {showOtp ? 'OTP 인증' : '로그인'}
         </h1>
         <p className="subtle" style={{ marginBottom: 20 }}>
-          {otpPending
-            ? otpPending.message
+          {showOtp
+            ? otpPending!.message
             : '허용된 계정으로만 접속할 수 있습니다.'}
-          {!otpPending && visitor.count != null && (
+          {!showOtp && visitor.count != null && (
             <span style={{ marginLeft: 10, color: 'var(--muted)' }}>· 현재 {visitor.count}명 접속</span>
           )}
         </p>
 
-        {otpPending ? (
-          <form onSubmit={submitOtp} className="site-login-form">
+        {showOtp ? (
+          <form onSubmit={submitOtp} className="site-login-form" key="otp-form">
+            <div className="site-login-otp-banner" role="status">
+              인증 코드가 관리자 이메일로 발송되었습니다. 아래에 6자리를 입력하세요.
+            </div>
             <p className="site-login-otp-meta">
-              계정 <strong>{otpPending.user}</strong>
-              {otpPending.ip ? (
+              계정 <strong>{otpPending!.user}</strong>
+              {otpPending!.ip ? (
                 <>
                   {' '}
-                  · IP <code>{otpPending.ip}</code>
+                  · IP <code>{otpPending!.ip}</code>
                 </>
               ) : null}
-              {otpPending.hintTo ? (
+              {otpPending!.hintTo ? (
                 <>
                   {' '}
-                  · 코드 수신처 <code>{otpPending.hintTo}</code>
+                  · 코드 수신처 <code>{otpPending!.hintTo}</code>
                 </>
               ) : null}
-              {otpPending.expiresMinutes ? (
-                <> · 약 {otpPending.expiresMinutes}분 유효</>
+              {otpPending!.expiresMinutes ? (
+                <> · 약 {otpPending!.expiresMinutes}분 유효</>
               ) : null}
             </p>
             <label className="site-login-label">
@@ -160,11 +232,13 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
+                name="otp"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="000000"
                 disabled={loading}
                 autoFocus
+                aria-label="OTP 인증 코드 6자리"
               />
             </label>
             {error && (
@@ -180,7 +254,7 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
               className="site-login-back"
               disabled={loading}
               onClick={() => {
-                setOtpPending(null);
+                setPending(null);
                 setOtpCode('');
                 setError(null);
               }}
@@ -189,7 +263,7 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
             </button>
           </form>
         ) : (
-          <form onSubmit={submitPassword} className="site-login-form">
+          <form onSubmit={submitPassword} className="site-login-form" key="pw-form">
             <label className="site-login-label">
               <span>아이디</span>
               <input
@@ -267,6 +341,15 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
           margin-top: 8px;
           padding: 12px 16px;
           font-weight: 700;
+        }
+        .site-login-otp-banner {
+          font-size: 13px;
+          line-height: 1.45;
+          padding: 10px 12px;
+          border-radius: 8px;
+          border: 1px solid #0f766e;
+          background: rgba(13, 148, 136, 0.15);
+          color: #99f6e4;
         }
         .site-login-otp-meta {
           font-size: 13px;
