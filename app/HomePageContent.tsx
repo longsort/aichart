@@ -535,8 +535,9 @@ export default function HomePageContent() {
     fetch('/api/auth/session', { cache: 'no-store', credentials: 'same-origin' })
       .then(r => r.json())
       .then((d: { authenticated?: boolean; user?: string; role?: string }) => {
-        if (d.authenticated && d.role === 'inventory') {
-          // 재고 전용 계정은 차트 홈 대신 WMS 대시보드
+        const u = String(d.user || '').trim().toLowerCase();
+        if (d.authenticated && (u === 'u1' || d.role === 'inventory')) {
+          // u1·재고 역할은 차트 홈 대신 WMS 대시보드
           window.location.replace('/dashboard');
           return;
         }
@@ -1697,11 +1698,13 @@ export default function HomePageContent() {
   if (siteAuth === 'anon') {
     return (
       <AppSiteLogin
-        onLoggedIn={(_u, role) => {
-          if (role === 'inventory') {
+        onLoggedIn={(u, role) => {
+          const id = String(u || '').trim().toLowerCase();
+          if (id === 'u1' || role === 'inventory') {
             window.location.href = '/dashboard';
             return;
           }
+          // aichart1~3 → 차트 홈 (이미 /)
           setSiteAuth('authed');
         }}
       />

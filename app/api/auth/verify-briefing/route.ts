@@ -4,7 +4,7 @@ import {
   buildSiteAuthToken,
   APP_SITE_COOKIE,
   siteAuthCookieOptions,
-  homePathForRole,
+  homePathForUser,
 } from '@/lib/appSiteAuth';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     if (result.ok === false) {
       return NextResponse.json({ ok: false, error: result.error }, { status: 403 });
     }
-    const redirectTo = homePathForRole(result.role);
+    const redirectTo = homePathForUser(result.user, result.role);
     const res = NextResponse.json({
       ok: true,
       user: result.user,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import AppSiteLogin from '@/app/components/AppSiteLogin';
-import { homePathForRole } from '@/lib/appSiteAuthClient';
+import { homePathForUser, isInventoryHomeUser } from '@/lib/appSiteAuthClient';
 import { setBriefingLoggedIn } from '@/lib/clientAiCredentials';
 
 type AuthState = 'loading' | 'anon' | 'authed';
@@ -12,7 +12,7 @@ const SESSION_TIMEOUT_MS = 6_000;
 /**
  * 무거운 HomePageContent 청크보다 먼저 세션을 확인한다.
  * 응답 지연 시 로그인 화면으로 넘어가 「접속 확인 중…응답 없음」에 갇히지 않게 한다.
- * inventory 역할은 차트 화면 대신 /dashboard 로 보낸다.
+ * u1(재고)은 차트 홈 대신 /dashboard 로 보낸다. aichart1~3 는 차트 홈.
  */
 export default function SiteAuthBootstrap({ children }: { children: ReactNode }) {
   const [auth, setAuth] = useState<AuthState>('loading');
@@ -49,7 +49,7 @@ export default function SiteAuthBootstrap({ children }: { children: ReactNode })
         };
         if (cancelled) return;
         if (d.authenticated) {
-          if (d.role === 'inventory') {
+          if (isInventoryHomeUser(d.user) || homePathForUser(d.user, d.role) === '/dashboard') {
             window.location.replace('/dashboard');
             return;
           }
@@ -146,9 +146,9 @@ export default function SiteAuthBootstrap({ children }: { children: ReactNode })
   if (auth === 'anon') {
     return (
       <AppSiteLogin
-        onLoggedIn={(_u, role) => {
+        onLoggedIn={(u, role) => {
           setBriefingLoggedIn(true);
-          window.location.href = homePathForRole(role);
+          window.location.href = homePathForUser(u, role);
         }}
       />
     );

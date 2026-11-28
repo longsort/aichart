@@ -4,7 +4,7 @@ import { useState } from 'react';
 import AppDisclaimerBanner from './AppDisclaimerBanner';
 import { setStoredBriefingCredentials } from '@/lib/clientAiCredentials';
 import { useVisitorCount } from '@/lib/useVisitorCount';
-import { homePathForRole } from '@/lib/appSiteAuthClient';
+import { homePathForUser } from '@/lib/appSiteAuthClient';
 
 type Props = {
   /** role 을 넘기면 호출측에서 리다이렉트. 없으면 역할 기본 경로로 이동 */
@@ -42,14 +42,15 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
       }
       setStoredBriefingCredentials(u, password);
       const role = String(data.role || 'charts');
+      const authedUser = String(data.user || u);
       if (onLoggedIn) {
-        onLoggedIn(u, role);
+        onLoggedIn(authedUser, role);
         return;
       }
       const to =
         typeof data.redirectTo === 'string' && data.redirectTo
           ? data.redirectTo
-          : homePathForRole(role);
+          : homePathForUser(authedUser, role);
       window.location.href = to;
     } catch {
       setError('연결 오류입니다. 서버가 실행 중인지 확인하세요.');

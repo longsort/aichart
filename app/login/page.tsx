@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppSiteLogin from '@/app/components/AppSiteLogin';
-import { homePathForRole } from '@/lib/appSiteAuthClient';
+import { homePathForUser } from '@/lib/appSiteAuthClient';
 
 /** 전용 로그인 URL — 허용 계정만 · 익명 홈 차단 */
 export default function LoginPage() {
@@ -18,7 +18,7 @@ export default function LoginPage() {
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;
         if (data?.authenticated) {
-          router.replace(homePathForRole(data.role));
+          router.replace(homePathForUser(data.user, data.role));
           return;
         }
       } catch {
@@ -41,8 +41,8 @@ export default function LoginPage() {
 
   return (
     <AppSiteLogin
-      onLoggedIn={(_user, role) => {
-        window.location.href = homePathForRole(role);
+      onLoggedIn={(user, role) => {
+        window.location.href = homePathForUser(user, role);
       }}
     />
   );

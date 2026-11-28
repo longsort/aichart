@@ -37,11 +37,33 @@ export function canAccessInventory(role: string | undefined | null): boolean {
   return r === 'inventory' || r === 'both' || r === 'master_admin';
 }
 
-/** 로그인 직후 보낼 기본 경로 */
+/** 로그인 직후 보낼 기본 경로 (역할만 — 가능하면 homePathForUser 사용) */
 export function homePathForRole(role: string | undefined | null): string {
   const r = normalizeAppRole(role);
   if (r === 'inventory') return '/dashboard';
   return '/';
+}
+
+/**
+ * 로그인 직후 목적지 — 계정 우선.
+ * u1 → WMS 재고(`/dashboard`), aichart1~3 → 차트 분석 홈(`/`).
+ * 그 외는 역할 기본 경로.
+ */
+export function homePathForUser(
+  user: string | undefined | null,
+  role?: string | undefined | null,
+): string {
+  const u = String(user || '')
+    .trim()
+    .toLowerCase();
+  if (u === 'u1') return '/dashboard';
+  if (u === 'aichart1' || u === 'aichart2' || u === 'aichart3') return '/';
+  return homePathForRole(role);
+}
+
+/** 재고 홈으로 보내야 하는 계정 (차트 홈 진입 시 /dashboard 로 보냄) */
+export function isInventoryHomeUser(user: string | undefined | null): boolean {
+  return String(user || '').trim().toLowerCase() === 'u1';
 }
 
 /** 클라이언트에서 넘어온 문자열 정리 (전각·공백·IME 이슈 완화) */
