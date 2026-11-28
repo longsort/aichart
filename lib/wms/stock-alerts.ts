@@ -105,12 +105,20 @@ export function bandChipClass(band: StockAlertBand, active: boolean): string {
 
 /**
  * SKU 목표(최대) + 절대 경보 밴드 해석
- * targetMax 우선순위: Item.targetStock(>0) → Item.safetyStock(>0) → 압력/사이즈 덮어쓰기 warn → 전역 warnBelowSku
- * critical/warn 절대값은 레거시·표시용으로 유지 (색은 target % 기준)
+ * critical/warn 우선순위: Item.alert* (설정 시) → 사이즈 덮어쓰기 → 압력 덮어쓰기 → 전역
+ * safetyStock>0 이면 warn 하한으로도 사용(레거시)
+ * targetMax: Item.targetStock(>0) → warnBelow
  */
 export function resolveSkuThreshold(
   bundle: ThresholdBundle,
-  opts: { pressureClass?: string; size?: string; safetyStock?: number; targetStock?: number },
+  opts: {
+    pressureClass?: string;
+    size?: string;
+    safetyStock?: number;
+    targetStock?: number;
+    alertCriticalBelow?: number | null;
+    alertWarnBelow?: number | null;
+  },
 ): ResolvedSkuThreshold {
   let criticalBelow = bundle.global.criticalBelowSku;
   let warnBelow = bundle.global.warnBelowSku;
@@ -134,13 +142,21 @@ export function resolveSkuThreshold(
     warnBelow = safety;
   }
 
+  // SKU 개별 긴급/주의 — 최우선 (대시보드에서 직접 편집)
+  if (opts.alertCriticalBelow != null && Number.isFinite(opts.alertCriticalBelow)) {
+    criticalBelow = Math.max(0, Math.floor(opts.alertCriticalBelow));
+  }
+  if (opts.alertWarnBelow != null && Number.isFinite(opts.alertWarnBelow)) {
+    warnBelow = Math.max(0, Math.floor(opts.alertWarnBelow));
+  }
+
   if (warnBelow < criticalBelow) warnBelow = criticalBelow;
 
   const itemTarget = opts.targetStock ?? 0;
   let targetMax = warnBelow;
   if (Number.isFinite(itemTarget) && itemTarget > 0) {
     targetMax = Math.floor(itemTarget);
-  } else if (Number.isFinite(safety) && safety > 0) {
+  } else if (Number.isFinite(safety) && safety > 0 && opts.alertWarnBelow == null) {
     targetMax = Math.floor(safety);
   }
 

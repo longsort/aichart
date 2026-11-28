@@ -349,3 +349,73 @@ export async function quickUpdateTargetStockAction(formData: FormData) {
   sp.set('ok', targetStock > 0 ? `목표 ${targetStock} 저장` : '목표 해제(경보 max 사용)');
   redirect(`/dashboard?${sp.toString()}`);
 }
+
+/**
+ * 대시보드 행 — SKU별 긴급/주의 절대수량 저장.
+ * 빈칸이면 해당 필드 null(전역·압력·사이즈 상속).
+ */
+export async function quickUpdateSkuAlertAction(formData: FormData) {
+  const itemId = String(formData.get('itemId') || '').trim();
+  const criticalRaw = String(formData.get('alertCriticalBelow') ?? '').trim();
+  const warnRaw = String(formData.get('alertWarnBelow') ?? '').trim();
+  const pressure = String(formData.get('pressure') || '').trim();
+  const size = String(formData.get('size') || '').trim();
+  const shortage = String(formData.get('shortage') || '').trim();
+  const band = String(formData.get('band') || '').trim();
+
+  const back = () => {
+    const sp = new URLSearchParams();
+    if (pressure) sp.set('pressure', pressure);
+    if (size) sp.set('size', size);
+    if (shortage === '1' || shortage === 'true') sp.set('shortage', '1');
+    if (band === 'empty' || band === 'critical' || band === 'warn' || band === 'ok') {
+      sp.set('band', band);
+    }
+    return sp;
+  };
+
+  if (!itemId) {
+    const sp = back();
+    sp.set('err', '품목을 선택하세요.');
+    redirect(`/dashboard?${sp.toString()}`);
+  }
+
+  const parseOpt = (raw: string): number | null => {
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, Math.floor(n));
+  };
+
+  const alertCriticalBelow = parseOpt(criticalRaw);
+  const alertWarnBelow = parseOpt(warnRaw);
+
+  if (
+    alertCriticalBelow != null &&
+    alertWarnBelow != null &&
+    alertWarnBelow < alertCriticalBelow
+  ) {
+    const sp = back();
+    sp.set('err', '주의 값은 긴급 이상이어야 합니다.');
+    redirect(`/dashboard?${sp.toString()}`);
+  }
+
+  try {
+    await prisma.item.update({
+      where: { id: itemId },
+      data: { alertCriticalBelow, alertWarnBelow },
+    });
+  } catch {
+    const sp = back();
+    sp.set('err', '긴급/주의 기준 저장에 실패했습니다.');
+    redirect(`/dashboard?${sp.toString()}`);
+  }
+
+  revalidateStockPaths();
+  const sp = back();
+  const parts: string[] = [];
+  if (alertCriticalBelow != null) parts.push(`긴급 <${alertCriticalBelow}`);
+  if (alertWarnBelow != null) parts.push(`주의 <${alertWarnBelow}`);
+  sp.set('ok', parts.length ? `기준 저장 ${parts.join(' · ')}` : '기준 해제(전역 상속)');
+  redirect(`/dashboard?${sp.toString()}`);
+}

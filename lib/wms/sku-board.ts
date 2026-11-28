@@ -37,6 +37,10 @@ export type SkuBoardRow = {
   size: string;
   unit: string;
   safetyStock: number;
+  /** SKU 개별 긴급 기준 (null=상속) */
+  alertCriticalBelow: number | null;
+  /** SKU 개별 주의 기준 (null=상속) */
+  alertWarnBelow: number | null;
   onHand: number;
   locationName: string;
   band: StockAlertBand;
@@ -90,6 +94,8 @@ function annotateBand(row: Omit<SkuBoardRow, 'band' | 'criticalBelow' | 'warnBel
     pressureClass: row.pressureClass,
     size: row.size,
     safetyStock: row.safetyStock,
+    alertCriticalBelow: row.alertCriticalBelow,
+    alertWarnBelow: row.alertWarnBelow,
   });
   const band = classifyStockBand(row.onHand, th.criticalBelow, th.warnBelow);
   return { ...row, band, criticalBelow: th.criticalBelow, warnBelow: th.warnBelow };
@@ -165,6 +171,8 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
           size: it.size,
           unit: it.unit,
           safetyStock: it.safetyStock,
+          alertCriticalBelow: it.alertCriticalBelow ?? null,
+          alertWarnBelow: it.alertWarnBelow ?? null,
           onHand: it.lots.reduce((s, l) => s + l.quantity, 0),
           locationName: it.location
             ? `${it.location.zone ? `${it.location.zone}/` : ''}${it.location.name}`

@@ -8,6 +8,7 @@
     "start": "node start.js",
     "start:next-only": "node --max-old-space-size=6144 ./node_modules/next/dist/bin/next start -H 0.0.0.0 -p 3000",
     "deploy:server": "bash scripts/vps-deploy.sh",
+    "postinstall": "prisma generate",
     "test:e2e": "playwright test",
     "test:signal-engine": "playwright test e2e/front-run-signal-engine.spec.ts",
     "data:bitget-futures": "node scripts/download-bitget-futures-candles.mjs",

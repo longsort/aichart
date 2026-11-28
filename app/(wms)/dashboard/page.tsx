@@ -48,7 +48,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <>
       <WmsPageHeader
         title="재고현황"
-        subtitle="압력·사이즈 필터 · 긴급/주의/정상 카드=새 창 압력등급별 구성 · 입고/출고는 원장"
+        subtitle="긴급·주의 카드/보유 옆에서 기준 숫자 직접 편집 · 보유 색 반영 · 입고/출고 원장"
       />
       <SkuStockBoard
         rows={board.rows}
@@ -65,6 +65,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         pressureTotals={board.pressureTotals}
         shortageOnly={shortageOnly}
         pressureLabels={opts.pressureLabels}
+        globalCriticalBelow={board.thresholds.criticalBelowSku}
+        globalWarnBelow={board.thresholds.warnBelowSku}
         err={err || undefined}
         ok={okMsg || undefined}
       />
