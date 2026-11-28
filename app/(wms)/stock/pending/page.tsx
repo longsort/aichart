@@ -36,6 +36,7 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
   const auth = requireInventoryAuth();
 
   const [board, opts, pendingMap, undoMap] = await Promise.all([
+    // q는 클라이언트 라이브 필터 — 서버는 칩(재질·FACE·압력·사이즈)만
     listSkuBoard({
       unpaged: true,
       material,
@@ -43,7 +44,6 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
       sort,
       pressureClass: pressure === 'ALL' ? undefined : pressure,
       size: size === 'ALL' ? undefined : size,
-      q: q || undefined,
     }),
     getSkuFilterOptions(),
     mapPendingQtyByItemId(),

@@ -30,6 +30,7 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
   const auth = requireInventoryAuth();
 
   const [board, opts, pendingMap, undoMap] = await Promise.all([
+    // q = 클라이언트 라이브 필터
     listSkuBoard({
       kind: 'mopi',
       unpaged: true,
@@ -37,7 +38,6 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
       sort,
       pressureClass: pressure === 'ALL' ? undefined : pressure,
       size: size === 'ALL' ? undefined : size,
-      q: q || undefined,
     }),
     getSkuFilterOptions(),
     mapPendingQtyByItemId(),

@@ -11,12 +11,13 @@ import {
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import type { MaterialFilter } from '@/lib/wms/material';
 import type { FaceFilter } from '@/lib/wms/flange-face';
+import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
 import { sortSkuRows, type SkuSortMode } from '@/lib/wms/sku-list-sort';
 import { SkuListFilterPanel } from '@/components/wms/sku-list-filter-panel';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 
-/** 표 DOM만 페이지 — 필터는 URL(서버) */
+/** 표 DOM만 페이지 — 칩은 URL · 빠른찾기는 클라이언트 라이브 */
 const TABLE_PAGE_SIZE = 80;
 
 export type PendingSkuRow = {
@@ -79,9 +80,30 @@ export function StockPendingBoard({
 }) {
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
-  const searchQ = (q || '').trim();
+  const [liveQ, setLiveQ] = useState((q || '').trim());
 
-  const sorted = useMemo(() => sortSkuRows(rows, sort), [rows, sort]);
+  useEffect(() => {
+    setLiveQ((q || '').trim());
+  }, [q]);
+
+  const filtered = useMemo(() => {
+    const query = liveQ.trim();
+    if (!query) return rows;
+    return rows.filter((r) =>
+      matchesSkuQuickSearch(
+        {
+          pressureClass: r.pressureClass,
+          size: r.size,
+          itemCode: r.itemCode,
+          itemName: r.itemName,
+          extra: catalogPressureChipLabel(r.pressureClass) || r.pressureClass,
+        },
+        query,
+      ),
+    );
+  }, [rows, liveQ]);
+
+  const sorted = useMemo(() => sortSkuRows(filtered, sort), [filtered, sort]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -92,7 +114,7 @@ export function StockPendingBoard({
 
   useEffect(() => {
     setPage(1);
-  }, [pressure, size, searchQ, material, face, sort]);
+  }, [pressure, size, liveQ, material, face, sort]);
 
   const pendingSkuCount = useMemo(
     () => rows.filter((r) => r.pendingQty > 0).length,
@@ -162,13 +184,15 @@ export function StockPendingBoard({
 
       <SkuListFilterPanel
         basePath={basePath}
-        values={{ material, face, sort, pressure, size, q: searchQ }}
+        values={{ material, face, sort, pressure, size, q: liveQ }}
         pressures={pressures}
         sizes={sizes}
         pressureTotals={pressureTotals}
         pressureLabels={pressureLabels}
         showMaterial={showMaterialChips}
         showFace={showFaceChips}
+        onLiveQueryChange={setLiveQ}
+        liveSearchNav="history"
         skuCount={sorted.length}
       />
 

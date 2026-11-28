@@ -493,6 +493,7 @@ export function SkuStockBoard({
         pressureTotals={pressureTotals}
         pressureLabels={pressureLabels}
         preserveExtra={filterPreserveExtra}
+        liveSearchNav="router"
         skuCount={skuCount}
       />
 

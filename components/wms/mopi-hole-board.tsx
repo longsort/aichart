@@ -52,7 +52,7 @@ export function MopiHoleBoard({ rows }: { rows: MopiHoleWaitRow[] }) {
     size: 'ALL',
     q: '',
   });
-  const [localQuery, setLocalQuery] = useState('');
+  const [liveQ, setLiveQ] = useState('');
   const [page, setPage] = useState(1);
 
   const pressure = filters.pressure || 'ALL';
@@ -61,7 +61,7 @@ export function MopiHoleBoard({ rows }: { rows: MopiHoleWaitRow[] }) {
   const pressureTotals = useMemo(() => buildPressureTotals(rows), [rows]);
 
   const filtered = useMemo(() => {
-    const q = localQuery.trim();
+    const q = liveQ.trim();
     const list = rows.filter((r) => {
       if (size !== 'ALL' && r.size !== size) return false;
       if (
@@ -91,7 +91,7 @@ export function MopiHoleBoard({ rows }: { rows: MopiHoleWaitRow[] }) {
       );
     });
     return sortSkuRows(list, sort);
-  }, [rows, localQuery, pressure, size, sort]);
+  }, [rows, liveQ, pressure, size, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -102,7 +102,7 @@ export function MopiHoleBoard({ rows }: { rows: MopiHoleWaitRow[] }) {
 
   useEffect(() => {
     setPage(1);
-  }, [localQuery, pressure, size, sort]);
+  }, [liveQ, pressure, size, sort]);
 
   const qtyTotal = useMemo(() => rows.reduce((s, r) => s + r.quantity, 0), [rows]);
 
@@ -132,13 +132,12 @@ export function MopiHoleBoard({ rows }: { rows: MopiHoleWaitRow[] }) {
       <SkuListFilterPanel
         basePath="/mopi/hole"
         mode="controlled"
-        values={filters}
+        values={{ ...filters, q: liveQ }}
         onChange={(next) => {
           setFilters(next);
-          if (next.q === '') setLocalQuery('');
+          if (next.q === '') setLiveQ('');
         }}
-        localQuery={localQuery}
-        onLocalQueryChange={setLocalQuery}
+        onLiveQueryChange={setLiveQ}
         pressureTotals={pressureTotals}
         showMaterial={false}
         showFace={false}
