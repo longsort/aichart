@@ -57,8 +57,8 @@ export const CATALOG_SEED_NOMINAL_SIZES = [
 export type CatalogSeedNominalSize = (typeof CATALOG_SEED_NOMINAL_SIZES)[number];
 
 /**
- * 시드용 압력등급 칩만 (product 칩·별칭 키 제외).
- * 10kg/cm²·Class150 등은 필터 별칭으로 기존 short key SKU에 매칭.
+ * 시드용 압력등급 칩만 (product 칩·kg/cm² 별칭 키 제외).
+ * Class150/Class300 은 ANSI150/300 과 별도 SKU로 등록 (검색 `150#` = Class only).
  */
 export const CATALOG_SEED_PRESSURE_KEYS: string[] = YUIL_CATALOG_PRESSURE_CHIPS.filter(
   (c) => c.group === 'rating' && !isAliasOnlyRatingKey(c.key),
@@ -66,8 +66,8 @@ export const CATALOG_SEED_PRESSURE_KEYS: string[] = YUIL_CATALOG_PRESSURE_CHIPS.
 
 function isAliasOnlyRatingKey(key: string): boolean {
   // short 코드와 동일 의미 — 별도 SKU 만들면 10K 필터에 중복 행
+  // (Class150/Class300 은 ANSI 와 구분되는 실 SKU — 별칭 제외 대상 아님)
   if (/^\d+kg\/cm²$/i.test(key)) return true;
-  if (/^Class\d+$/i.test(key)) return true;
   return false;
 }
 
@@ -305,7 +305,8 @@ export const CATALOG_PRODUCT_SEED_SPECS: CatalogProductSeedSpec[] = [
     productType: 'ANSI Flange',
     standard: 'ANSI B16.5 / JPI 7S-15',
     namePrefix: 'ANSI Flange',
-    pressures: ['ANSI150', 'ANSI300'],
+    // Class150/300 = 별도 pressureClass (ANSI150/300 과 병행 시드)
+    pressures: ['ANSI150', 'ANSI300', 'Class150', 'Class300'],
   },
   {
     chipKey: 'AWWA-FLANGES',

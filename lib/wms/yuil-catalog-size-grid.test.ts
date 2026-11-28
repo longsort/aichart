@@ -45,9 +45,10 @@ assert.ok(CATALOG_SEED_PRESSURE_KEYS.includes('10K'));
 assert.ok(CATALOG_SEED_PRESSURE_KEYS.includes('5K'));
 assert.ok(CATALOG_SEED_PRESSURE_KEYS.includes('40BAR'));
 assert.ok(CATALOG_SEED_PRESSURE_KEYS.includes('ANSI150'));
+assert.ok(CATALOG_SEED_PRESSURE_KEYS.includes('Class150'));
+assert.ok(CATALOG_SEED_PRESSURE_KEYS.includes('Class300'));
 assert.ok(CATALOG_SEED_PRESSURE_KEYS.includes('210kgf/cm²'));
 assert.ok(!CATALOG_SEED_PRESSURE_KEYS.includes('10kg/cm²')); // alias-only
-assert.ok(!CATALOG_SEED_PRESSURE_KEYS.includes('Class150'));
 assert.ok(!CATALOG_SEED_PRESSURE_KEYS.includes('KS-FLANGES')); // product chip
 
 assert.equal(buildCatalogGridItemCode('10K', '15A'), 'F-304-10K-15A');
@@ -130,6 +131,17 @@ assert.equal(new Set(faceGrid.map((g) => g.itemCode)).size, faceGrid.length);
 assert.ok(faceGrid.every((g) => g.faceType && g.itemName.includes(g.faceType)));
 assert.equal(mirrorCatalogSkuAs316(faceGrid[0]!).itemCode.startsWith('F-316-'), true);
 assert.equal(mirrorCatalogSkuAsMopi(faceGrid[0]!).materialType, 'SEMI_RAW');
+
+// Class150/Class300 rating + face SKUs exist (distinct from ANSI)
+const class150Rating = grid.filter((g) => g.pressureClass === 'Class150');
+assert.equal(class150Rating.length, counts.sizes);
+assert.ok(class150Rating.some((g) => g.size === '100A' && g.itemCode === 'F-304-Class150-100A'));
+assert.ok(faceGrid.some((g) => g.pressureClass === 'Class150' && g.faceType === 'SOFF' && g.size === '100A'));
+assert.ok(faceGrid.some((g) => g.pressureClass === 'Class300' && g.faceType === 'BLRF'));
+const ansiProductClass = productGrid.filter(
+  (g) => g.productType === 'ANSI Flange' && g.pressureClass === 'Class150',
+);
+assert.equal(ansiProductClass.length, counts.sizes);
 
 console.log(
   'yuil-catalog-size-grid.test.ts OK',
