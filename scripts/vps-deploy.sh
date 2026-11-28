@@ -44,10 +44,12 @@ if [ ! -f .env.production ] && [ ! -f .env.local ]; then
   fi
 fi
 
-export NODE_ENV=production
+# Install with devDeps (tailwind/postcss/typescript). NODE_ENV=production
+# before npm ci would skip them and break `next build`.
+echo "[1/4] npm install (incl. devDeps)"
+npm install --no-audit --no-fund
 
-echo "[1/4] npm ci"
-npm ci
+export NODE_ENV=production
 
 echo "[2/4] npm run build"
 npm run build

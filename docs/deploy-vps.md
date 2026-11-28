@@ -1,92 +1,79 @@
-# ailongshort / aichart — VPS 배포
+# ailongshort / aichart — VPS 배포 (실사용)
 
-배포 방식: **PM2 + Next.js** (`scripts/vps-deploy.sh`, `ecosystem.config.cjs`). Vercel/Docker 아님.
+배포 방식: **PM2 + Next.js** on Vultr VPS. (Vercel 아님)
 
-## 알려진 호스트
+## 실호스트
 
 | 항목 | 값 |
 |------|-----|
-| 예제 공인 IP | `167.179.119.140` |
-| 앱 루트 (서버) | `/root/ailongshort` |
-| HTTP | `http://167.179.119.140:3000` |
-| 프로세스명 | `ailongshort` (PM2) |
-| 로컬 경로 | `D:\apps\ailongshort` (Windows) / 이 저장소 `longsort/aichart` |
+| Host | `167.179.119.140` |
+| User | `root` |
+| App root | `/root/ailongshort` |
+| Live URL | **http://167.179.119.140:3000** |
+| PM2 name | `ailongshort` |
+| 로컬 PC | `D:\apps\ailongshort` |
 
-클라우드 에이전트에는 서버 SSH 키가 없습니다. 배포는 **서버에 SSH 가능한 사람**이 아래를 실행합니다.
+## 자격증명 (로컬 전용 · gitignore)
 
-## 로그인 목적지 (배포 후 확인)
+실배포 스크립트들은 **gitignored** `deploy_today.py` 또는 환경변수로 SSH 비밀번호를 읽습니다.
 
-허용 계정만 (공개 가입 없음):
+```python
+# deploy_today.py (repo 루트, 커밋 금지)
+HOST = "167.179.119.140"
+PORT = 22
+USER = "root"
+PASSWORD = "…"  # 로컬만
+REMOTE_ROOT = "/root/ailongshort"
+```
+
+또는:
+
+```bash
+export VPS_HOST=167.179.119.140
+export VPS_USER=root
+export VPS_PASSWORD='…'
+export VPS_PORT=22
+export REMOTE_ROOT=/root/ailongshort
+```
+
+히스토리의 `scripts/_deploy_*.py` / `scripts/sync-from-vps.sh` 가 같은 패턴입니다.
+
+## 서버에서 배포 (권장 · 실사용)
+
+```bash
+ssh root@167.179.119.140
+cd /root/ailongshort
+git fetch origin
+git checkout -B cursor/login-route-deploy-4db5 origin/cursor/login-route-deploy-4db5   # 또는 main
+# Prisma (WMS)
+grep -q '^DATABASE_URL=' .env || echo 'DATABASE_URL="file:./data/wms.db"' >> .env
+npx prisma generate && npx prisma db push
+# 실사용 원샷
+bash scripts/remote-full-deploy.sh
+# (= cron secret 보정 → scripts/vps-deploy.sh → npm install → build → pm2)
+```
+
+헬스: `curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/`
+
+## 로그인 목적지
 
 | 계정 | 로그인 후 |
 |------|-----------|
-| `u1` | WMS 재고 `/dashboard` |
-| `aichart1`, `aichart2`, `aichart3` | 차트 분석 홈 `/` |
+| `u1` | `/dashboard` (WMS 재고) |
+| `aichart1`, `aichart2`, `aichart3` | `/` (차트) |
 
-## 서버에서 배포 (권장)
+공개 가입 없음 (allowlist).
 
-```bash
-# 1) SSH
-ssh root@167.179.119.140
-# (키가 다르면) ssh -i ~/.ssh/<key> root@167.179.119.140
-
-# 2) 코드 갱신 — 이 PR 머지 전이면 브랜치 지정
-cd /root/ailongshort
-git fetch origin
-# 스택이 main에 머지된 뒤:
-git checkout main && git pull origin main
-# 또는 PR 브랜치를 직접 배포:
-# git checkout cursor/login-route-deploy-4db5 && git pull origin cursor/login-route-deploy-4db5
-
-# 3) Prisma (입고대기·경보 스키마 변경 시)
-npx prisma generate
-npx prisma db push
-
-# 4) 빌드 + PM2
-bash scripts/vps-deploy.sh
-# 또는: npm run deploy:server
-```
-
-`vps-deploy.sh`가 하는 일: `npm ci` → `npm run build` → `pm2 start ecosystem.config.cjs` → `http://127.0.0.1:3000` 헬스체크.
-
-## 환경 파일
-
-서버에 `.env.production` 또는 `.env.local` 필요. 없으면 스크립트가 `.env.example`을 복사합니다.
-
-필수:
-
-```bash
-APP_SESSION_SECRET=<긴-랜덤-문자열>
-# 선택
-PORT=3000
-SERVER_PORT=3001
-APP_USE_HTTPS=false   # HTTPS 리버스프록시 뒤면 true
-```
-
-계정 시드는 `data/site-users.json` + `lib/serverUsers.ts` (`u1` / `aichart1~3`).
-
-## 운영 명령
+## 운영
 
 ```bash
 pm2 status
 pm2 logs ailongshort --lines 80
-pm2 restart ailongshort
+pm2 restart ailongshort --update-env
 ```
 
-방화벽:
+## 주의
 
-```bash
-sudo ufw allow 3000/tcp && sudo ufw reload
-```
-
-## 로컬 → 서버 한 줄 (서버에 이미 클론된 경우)
-
-```bash
-ssh root@167.179.119.140 'cd /root/ailongshort && git pull && bash scripts/vps-deploy.sh'
-```
-
-## 라이브 URL
-
-배포 성공 후: **http://167.179.119.140:3000**
-
-(도메인/HTTPS가 있으면 리버스프록시만 추가하고 `APP_USE_HTTPS=true`.)
+- `vps-deploy.sh` 는 **devDeps 포함** `npm install` 후 빌드합니다 (`NODE_ENV=production` 으로 `npm ci` 하면 tailwind 누락).
+- 서버에 `restore-chart-features` 등 **untracked** 소스가 남아 있으면 typecheck가 깨질 수 있습니다. 배포 전에 격리하거나 clean 하세요.
+- 디스크 full 이면 stash/checkout 실패 → `df -h`, `npm cache clean`, `.next`/로그 정리.
