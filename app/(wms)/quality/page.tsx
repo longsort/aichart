@@ -33,7 +33,6 @@ export default async function QualityPage() {
           <table className="w-full min-w-[560px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-700 bg-slate-900/80 text-xs font-medium uppercase tracking-wide text-slate-300">
-                <th className="p-2">일시</th>
                 <th className="p-2">LOT</th>
                 <th className="p-2">유형</th>
                 <th className="p-2">결과</th>
@@ -44,7 +43,6 @@ export default async function QualityPage() {
             <tbody>
               {checks.map((c) => (
                 <tr key={c.id} className="border-b border-slate-800/80">
-                  <td className="p-2 text-slate-400">{new Date(c.checkedAt).toLocaleString('ko-KR')}</td>
                   <td className="p-2 font-mono text-slate-200">
                     {c.lot.item.itemCode} / {c.lot.lotNo}
                   </td>

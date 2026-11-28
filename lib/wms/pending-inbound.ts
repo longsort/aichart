@@ -1,3 +1,4 @@
+import { StockMoveType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 
@@ -159,7 +160,42 @@ export async function getLastUndoableBulkReceive(): Promise<LastBulkReceiveInfo 
 }
 
 export const BULK_RECEIVE_DOC_PREFIX = 'PENDING-BULK:';
+/** 단건 입고완료 태깅 — 품번별 한 단계 되돌리기용 */
+export const SINGLE_RECEIVE_DOC_PREFIX = 'PENDING-ONE:';
 
 export function bulkReceiveDocumentNo(batchId: string): string {
   return `${BULK_RECEIVE_DOC_PREFIX}${batchId}`;
+}
+
+export function singleReceiveDocumentNo(stockMoveId: string): string {
+  return `${SINGLE_RECEIVE_DOC_PREFIX}${stockMoveId}`;
+}
+
+/**
+ * 품번별 되돌릴 수 있는 최근 단건 입고완료 수량.
+ * documentNo PENDING-ONE:* 또는 reason에 입고완료(대기→재고).
+ */
+export async function mapUndoableReceiveQtyByItemId(): Promise<Map<string, number>> {
+  const moves = await prisma.stockMove.findMany({
+    where: {
+      moveType: StockMoveType.IN,
+      OR: [
+        { documentNo: { startsWith: SINGLE_RECEIVE_DOC_PREFIX } },
+        {
+          AND: [
+            { reason: { contains: '입고완료' } },
+            { NOT: { documentNo: { startsWith: BULK_RECEIVE_DOC_PREFIX } } },
+          ],
+        },
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { itemId: true, quantity: true, documentNo: true },
+  });
+  const map = new Map<string, number>();
+  for (const m of moves) {
+    if (map.has(m.itemId)) continue; // 품번당 최신 1건만
+    map.set(m.itemId, m.quantity);
+  }
+  return map;
 }

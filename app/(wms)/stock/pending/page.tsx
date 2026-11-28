@@ -3,7 +3,7 @@ import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { StockPendingBoard } from '@/components/wms/stock-pending-board';
 import { parseMaterialFilter } from '@/lib/wms/material';
 import { parseFaceFilter } from '@/lib/wms/flange-face';
-import { mapPendingQtyByItemId } from '@/lib/wms/pending-inbound';
+import { mapPendingQtyByItemId, mapUndoableReceiveQtyByItemId } from '@/lib/wms/pending-inbound';
 import { listSkuBoard } from '@/lib/wms/sku-board';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
 
@@ -26,23 +26,27 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
   const face = parseFaceFilter(sp.face);
   const auth = requireInventoryAuth();
 
-  const [board, pendingMap] = await Promise.all([
-    // unpaged: 미입고 전체(사이즈 50A 등) — 기본 80건 페이지면 검색이 빈 표
-    listSkuBoard({ band: 'empty', unpaged: true, material, face }),
+  const [board, pendingMap, undoMap] = await Promise.all([
+    // unpaged 전체 — 미입고·대기·최근 입고(되돌리기) 행을 필터
+    listSkuBoard({ unpaged: true, material, face }),
     mapPendingQtyByItemId(),
+    mapUndoableReceiveQtyByItemId(),
   ]);
 
-  const rows = board.rows.map((r) => ({
-    id: r.id,
-    itemCode: r.itemCode,
-    itemName: r.itemName,
-    pressureClass: r.pressureClass,
-    size: r.size,
-    materialType: r.materialType,
-    locationName: r.locationName,
-    onHand: r.onHand,
-    pendingQty: pendingMap.get(r.id) ?? 0,
-  }));
+  const rows = board.rows
+    .map((r) => ({
+      id: r.id,
+      itemCode: r.itemCode,
+      itemName: r.itemName,
+      pressureClass: r.pressureClass,
+      size: r.size,
+      materialType: r.materialType,
+      locationName: r.locationName,
+      onHand: r.onHand,
+      pendingQty: pendingMap.get(r.id) ?? 0,
+      undoableQty: undoMap.get(r.id) ?? 0,
+    }))
+    .filter((r) => r.onHand === 0 || r.pendingQty > 0 || r.undoableQty > 0);
 
   return (
     <>

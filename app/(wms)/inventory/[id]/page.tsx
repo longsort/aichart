@@ -35,7 +35,6 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
           <table className="w-full min-w-[560px] border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-700 bg-slate-900/80 text-xs font-medium uppercase tracking-wide text-slate-300">
-                <th className="py-1 pr-2">일시</th>
                 <th className="py-1 pr-2">유형</th>
                 <th className="py-1 pr-2">수량</th>
                 <th className="py-1 pr-2">전→후</th>
@@ -45,7 +44,6 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
             <tbody>
               {lot.stockMoves.map((m) => (
                 <tr key={m.id} className="border-b border-slate-800/80">
-                  <td className="py-1 pr-2 text-slate-400">{new Date(m.createdAt).toLocaleString('ko-KR')}</td>
                   <td className="py-1 pr-2 text-slate-200">{moveTypeLabel(m.moveType)}</td>
                   <td className="py-1 pr-2 font-medium text-slate-200">{m.quantity}</td>
                   <td className="py-1 pr-2 text-slate-400">
@@ -68,8 +66,18 @@ export default async function LotDetailPage({ params }: { params: Promise<{ id: 
             {lot.qualityChecks.map((qc) => (
               <li key={qc.id} className="rounded border border-slate-700 p-2">
                 <div className="font-medium text-slate-200">
-                  {qc.checkType} / <span className={qc.result === 'PASS' ? 'text-emerald-400' : qc.result === 'FAIL' ? 'text-red-400' : 'text-amber-400'}>{qc.result}</span> /{' '}
-                  {new Date(qc.checkedAt).toLocaleString('ko-KR')}
+                  {qc.checkType} /{' '}
+                  <span
+                    className={
+                      qc.result === 'PASS'
+                        ? 'text-emerald-400'
+                        : qc.result === 'FAIL'
+                          ? 'text-red-400'
+                          : 'text-amber-400'
+                    }
+                  >
+                    {qc.result}
+                  </span>
                 </div>
                 <div className="text-slate-400">검사자: {qc.inspector || '—'}</div>
                 {qc.attachments.map((a) => (
