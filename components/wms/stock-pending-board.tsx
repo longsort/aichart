@@ -8,7 +8,9 @@ import {
   savePendingInboundAction,
 } from '@/lib/wms/actions/pending-inbound';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
+import type { MaterialFilter } from '@/lib/wms/material';
 import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
+import { MaterialFilterChips } from '@/components/wms/material-filter-chips';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 
@@ -44,14 +46,21 @@ const STATS_POPUP_FEATURES = 'noopener,noreferrer,width=560,height=720';
 export function StockPendingBoard({
   rows,
   userName,
+  material = 'ALL',
 }: {
   rows: PendingSkuRow[];
   userName?: string;
+  /** URL ?material= — 서버에서 이미 필터된 rows */
+  material?: MaterialFilter;
 }) {
   const [query, setQuery] = useState('');
   const [pressure, setPressure] = useState<string>('ALL');
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
+
+  function materialHref(m: MaterialFilter) {
+    return m === 'ALL' ? '/stock/pending' : `/stock/pending?material=${m}`;
+  }
 
   /** 칩 클릭 = 해당 압력 목록만 (검색어 잔존으로 빈 표 나는 것 방지) */
   function selectPressure(next: string) {
@@ -170,6 +179,10 @@ export function StockPendingBoard({
             aria-label={userName ? `로그인 ${userName}` : '사용자'}
           >
             {userInitial}
+          </div>
+
+          <div className="w-full basis-full">
+            <MaterialFilterChips material={material} hrefFor={materialHref} />
           </div>
 
           {/* 압력 칩: 가로 클립 금지 · 여러 줄 wrap · 같은 페이지 필터만 */}

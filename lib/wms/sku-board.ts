@@ -11,6 +11,11 @@ import {
 } from '@/lib/wms/yuil-catalog-filters';
 import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
 import {
+  materialFilterToPrisma,
+  parseMaterialFilter,
+  type MaterialFilter,
+} from '@/lib/wms/material';
+import {
   classifyStockBand,
   loadThresholdBundle,
   resolveSkuThreshold,
@@ -22,6 +27,8 @@ export type SkuBoardFilters = {
   pressureClass?: string;
   size?: string;
   q?: string;
+  /** 재질 필터 — 304|316|ALL (URL ?material=) */
+  material?: MaterialFilter | string;
   /** 긴급·주의만 표시 */
   shortageOnly?: boolean;
   /** 긴급|주의|정상 한 밴드만 */
@@ -124,17 +131,23 @@ function annotateBand(row: Omit<SkuBoardRow, 'band' | 'criticalBelow' | 'warnBel
   return { ...row, band, criticalBelow: th.criticalBelow, warnBelow: th.warnBelow };
 }
 
-/** 압력·사이즈 칩 + 검색으로 SKU 목록 + 보유수량 + 경보 밴드 */
+/** 압력·사이즈·재질 칩 + 검색으로 SKU 목록 + 보유수량 + 경보 밴드 */
 export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   const where: Prisma.ItemWhereInput = { isActive: true };
   const pressure = (filters.pressureClass || '').trim();
   const size = (filters.size || '').trim();
   const q = (filters.q || '').trim();
+  const material = parseMaterialFilter(filters.material);
+  const materialPrisma = materialFilterToPrisma(material);
   const shortageOnly = Boolean(filters.shortageOnly);
   const bandFilter = filters.band;
 
   if (size && size !== 'ALL') where.size = size;
+  if (materialPrisma) where.materialType = materialPrisma;
   // q는 Prisma contains(사이즈 부분일치→150A⊃50a) 대신 메모리 토큰 매칭
+
+  const totalsWhere: Prisma.ItemWhereInput = { isActive: true };
+  if (materialPrisma) totalsWhere.materialType = materialPrisma;
 
   const [items, bundle, allActiveItems] = await Promise.all([
     prisma.item.findMany({
@@ -146,9 +159,9 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
       orderBy: [{ pressureClass: 'asc' }, { itemCode: 'asc' }],
     }),
     loadThresholdBundle(),
-    // 압력 칩 합계용 — 필터와 무관하게 활성 전체
+    // 칩·합계용 — 재질 필터는 존중, 압력/사이즈 필터와 무관
     prisma.item.findMany({
-      where: { isActive: true },
+      where: totalsWhere,
       select: {
         pressureClass: true,
         productType: true,
@@ -156,6 +169,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
         itemName: true,
         itemCode: true,
         size: true,
+        materialType: true,
         lots: { select: { quantity: true } },
       },
     }),

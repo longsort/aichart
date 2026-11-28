@@ -94,11 +94,59 @@ export type CatalogGridSku = {
   size: string;
   productType: string;
   standard: string;
-  materialType: 'SCS304';
+  materialType: 'SCS304' | 'SCS316';
   unit: 'EA';
   safetyStock: number;
   memo: string;
 };
+
+/**
+ * 304 품번 → 316 미러 품번.
+ * - rating: F-304-10K-50A → F-316-10K-50A
+ * - product: F-WN-5K-32A → F-WN316-5K-32A (F-316-… 과 AWWA 등 충돌 방지)
+ */
+export function catalogItemCodeTo316(itemCode: string): string {
+  const c = String(itemCode || '').trim();
+  if (!c) return c;
+  if (c.startsWith('F-304-')) return `F-316-${c.slice('F-304-'.length)}`;
+  if (c.startsWith('F-316-')) return c;
+  if (c.startsWith('F-')) {
+    const rest = c.slice(2);
+    const dash = rest.indexOf('-');
+    if (dash > 0) {
+      const token = rest.slice(0, dash);
+      if (/316$/i.test(token)) return c;
+      return `F-${token}316${rest.slice(dash)}`;
+    }
+    return `F-316-${rest}`;
+  }
+  return `F-316-${c}`;
+}
+
+/** 304 카탈로그 SKU → 동일 압력×사이즈×규격의 316 (보유 0) */
+export function mirrorCatalogSkuAs316(sku: CatalogGridSku): CatalogGridSku {
+  return {
+    ...sku,
+    itemCode: catalogItemCodeTo316(sku.itemCode),
+    itemName: String(sku.itemName || '').replace(/SCS304/g, 'SCS316'),
+    materialType: 'SCS316',
+    memo: `${sku.memo || 'catalog'} · SCS316 mirror · qty 0`.trim(),
+  };
+}
+
+/** 304 그리드 + 1:1 316 미러 (itemCode 중복 없음) */
+export function buildAllCatalogSeedSkusWith316(): CatalogGridSku[] {
+  const base = buildAllCatalogSeedSkus();
+  const mirrored = base.map(mirrorCatalogSkuAs316);
+  const seen = new Set(base.map((g) => g.itemCode));
+  const out = [...base];
+  for (const g of mirrored) {
+    if (seen.has(g.itemCode)) continue;
+    seen.add(g.itemCode);
+    out.push(g);
+  }
+  return out;
+}
 
 /** 압력 × 사이즈 전체 그리드 (수량 0 시드용) — KS Flange 기본 축 */
 export function buildCatalogPressureSizeGrid(): CatalogGridSku[] {

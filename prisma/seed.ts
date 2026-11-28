@@ -12,6 +12,7 @@ import {
 import {
   buildAllCatalogSeedSkus,
   catalogGridSeedCounts,
+  mirrorCatalogSkuAs316,
 } from '../lib/wms/yuil-catalog-size-grid';
 
 if (typeof process.env.DATABASE_URL !== 'string' || !process.env.DATABASE_URL.trim()) {
@@ -52,6 +53,7 @@ async function main() {
   });
 
   const grid = buildAllCatalogSeedSkus();
+  const grid316 = grid.map(mirrorCatalogSkuAs316);
   const counts = catalogGridSeedCounts();
 
   // 압력등급×사이즈 + 제품·규격칩×압력×사이즈 (보유 0 — 입고 원장으로만 증가)
@@ -70,6 +72,26 @@ async function main() {
         unit: g.unit,
         safetyStock: g.safetyStock,
         locationId: locA.id,
+        memo: g.memo,
+      })),
+    });
+  }
+
+  // 316 미러 — 동일 압력×사이즈×규격, 보유 0, 304 원장 미변경
+  for (let i = 0; i < grid316.length; i += BATCH) {
+    const slice = grid316.slice(i, i + BATCH);
+    await prisma.item.createMany({
+      data: slice.map((g) => ({
+        itemCode: g.itemCode,
+        itemName: g.itemName,
+        materialType: MaterialType.SCS316,
+        productType: g.productType,
+        standard: g.standard,
+        size: g.size,
+        pressureClass: g.pressureClass,
+        unit: g.unit,
+        safetyStock: 0,
+        locationId: locB.id,
         memo: g.memo,
       })),
     });
@@ -396,9 +418,11 @@ async function main() {
   });
 
   const totalItems = await prisma.item.count();
+  const n304 = await prisma.item.count({ where: { materialType: MaterialType.SCS304 } });
+  const n316 = await prisma.item.count({ where: { materialType: MaterialType.SCS316 } });
   const tenK = await prisma.item.count({ where: { pressureClass: '10K' } });
   console.log(
-    `Seed 완료: rating ${counts.pressures}×${counts.sizes}=${counts.ratingSkus}; productSpecs ${counts.productSpecs}→${counts.productSkus}; extras ${extras.length}; total items ${totalItems}; 10K rows ${tenK}; alerts critical<20 warn<500`,
+    `Seed 완료: rating ${counts.pressures}×${counts.sizes}=${counts.ratingSkus}; productSpecs ${counts.productSpecs}→${counts.productSkus}; extras ${extras.length}; total ${totalItems}; SCS304 ${n304}; SCS316 ${n316}; 10K rows ${tenK}; alerts critical<20 warn<500`,
   );
 }
 
