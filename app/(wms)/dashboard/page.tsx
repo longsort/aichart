@@ -1,5 +1,6 @@
 import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { SkuStockBoard } from '@/components/wms/sku-stock-board';
+import { parseMaterialFilter } from '@/lib/wms/material';
 import { getSkuFilterOptions, listSkuBoard } from '@/lib/wms/sku-board';
 import type { StockAlertBand } from '@/lib/wms/stock-alerts';
 
@@ -7,6 +8,7 @@ type Search = {
   pressure?: string;
   size?: string;
   q?: string;
+  material?: string;
   shortage?: string;
   band?: string;
   /** sizes = 전체 재고 사이즈별 수량 패널 */
@@ -31,6 +33,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const pressure = (sp.pressure || 'ALL').trim() || 'ALL';
   const size = (sp.size || 'ALL').trim() || 'ALL';
   const q = (sp.q || '').trim();
+  const material = parseMaterialFilter(sp.material);
   const shortageOnly = sp.shortage === '1' || sp.shortage === 'true';
   const band = parseBand(sp.band);
   const panel = (sp.panel || '').trim().toLowerCase() === 'sizes' ? 'sizes' : undefined;
@@ -44,6 +47,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       pressureClass: pressure === 'ALL' ? undefined : pressure,
       size: size === 'ALL' ? undefined : size,
       q: q || undefined,
+      material,
       shortageOnly: band ? false : shortageOnly,
       band,
       // 사이즈별 패널은 25행만 필요 — 1313 SKU 표/폼 RSC·DOM 동결 방지
@@ -57,7 +61,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <>
       <WmsPageHeader
         title="재고현황"
-        subtitle="보유 수량 직접 저장(ADJUST) · 긴급/주의 기준 편집 · 칩/밴드/합계 동기 · 입고/출고 원장"
+        subtitle="보유 수량 직접 저장(ADJUST) · 304/316 재질 분리 · 칩/밴드/합계 동기 · 입고/출고 원장"
       />
       <SkuStockBoard
         rows={board.rows}
@@ -66,6 +70,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         sizes={opts.sizes}
         pressure={pressure}
         size={size}
+        q={q}
+        material={material}
         overallTotal={board.overallTotal}
         filteredTotal={board.filteredTotal}
         skuCount={board.skuCount}

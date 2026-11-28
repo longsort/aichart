@@ -6,10 +6,13 @@ import {
   CATALOG_SEED_PRESSURE_KEYS,
   CATALOG_UNUSED_NOMINAL_SIZES,
   buildAllCatalogSeedSkus,
+  buildAllCatalogSeedSkusWith316,
   buildCatalogGridItemCode,
   buildCatalogPressureSizeGrid,
   buildCatalogProductSpecSizeGrid,
   catalogGridSeedCounts,
+  catalogItemCodeTo316,
+  mirrorCatalogSkuAs316,
 } from '@/lib/wms/yuil-catalog-size-grid';
 import { itemMatchesCatalogPressure } from '@/lib/wms/yuil-catalog-filters';
 
@@ -80,6 +83,19 @@ const all = buildAllCatalogSeedSkus();
 assert.equal(all.length, counts.ratingSkus + counts.productSkus);
 assert.equal(new Set(all.map((g) => g.itemCode)).size, all.length, 'merged itemCode unique');
 
+assert.equal(catalogItemCodeTo316('F-304-10K-50A'), 'F-316-10K-50A');
+assert.equal(catalogItemCodeTo316('F-WN-5K-32A'), 'F-WN316-5K-32A');
+assert.equal(catalogItemCodeTo316('F-AWWA-B-15A'), 'F-AWWA316-B-15A');
+assert.notEqual(catalogItemCodeTo316('F-304-AWWA-B-15A'), catalogItemCodeTo316('F-AWWA-B-15A'));
+const m316 = mirrorCatalogSkuAs316(all[0]!);
+assert.equal(m316.materialType, 'SCS316');
+assert.ok(m316.itemName.includes('SCS316'));
+assert.ok(!m316.itemName.includes('SCS304'));
+const with316 = buildAllCatalogSeedSkusWith316();
+assert.equal(with316.length, all.length * 2);
+assert.equal(new Set(with316.map((g) => g.itemCode)).size, with316.length);
+assert.equal(with316.filter((g) => g.materialType === 'SCS316').length, all.length);
+
 console.log(
   'yuil-catalog-size-grid.test.ts OK',
   counts.pressures,
@@ -91,4 +107,6 @@ console.log(
   counts.productSkus,
   '=',
   counts.totalSkus,
+  '+316',
+  all.length,
 );

@@ -24,6 +24,9 @@ import { bandLabelKo, bandTextClass, type StockAlertBand } from '@/lib/wms/stock
 import { wmsControlCompact, wmsLabel } from '@/components/wms/wms-form-styles';
 import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
 import { BandSummaryOpenCard } from '@/components/wms/band-summary-open-card';
+import { MaterialFilterChips } from '@/components/wms/material-filter-chips';
+import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
+import type { MaterialFilter } from '@/lib/wms/material';
 
 function chipClass(active: boolean) {
   return active
@@ -58,6 +61,8 @@ export function SkuStockBoard({
   sizes,
   pressure,
   size,
+  q = '',
+  material = 'ALL',
   overallTotal,
   filteredTotal,
   skuCount,
@@ -84,6 +89,10 @@ export function SkuStockBoard({
   sizes: string[];
   pressure: string;
   size: string;
+  /** 빠른찾기 (압력·사이즈·품번) — URL ?q= */
+  q?: string;
+  /** 재질 필터 — URL ?material= */
+  material?: MaterialFilter;
   overallTotal: number;
   filteredTotal: number;
   skuCount: number;
@@ -115,19 +124,32 @@ export function SkuStockBoard({
   const ratingKeys = allPressureKeys.filter((k) => getCatalogPressureChip(k)?.group !== 'product');
   const productKeys = allPressureKeys.filter((k) => getCatalogPressureChip(k)?.group === 'product');
   const sizeOpts = sizes.length ? sizes : [...NOMINAL_SIZES];
+  const searchQ = (q || '').trim();
+  const materialExtra =
+    material && material !== 'ALL' ? { material } : ({} as Record<string, string | undefined>);
 
   const shortageExtra = shortageOnly ? { shortage: '1' } : undefined;
+  const chipExtra = { ...materialExtra, ...shortageExtra };
   const activeBreakdown = activeBand ? bandPressureBreakdown[activeBand] : [];
   const activeBandTotal = activeBand ? bandCounts[activeBand] : 0;
   const bandSource = previewRows && previewRows.length ? previewRows : rows;
   const bandListRows = activeBand ? bandSource.slice(0, BAND_PANEL_ROW_CAP) : [];
   const bandListOmitted = activeBand ? Math.max(0, activeBandTotal - bandListRows.length) : 0;
   const sizesPanelOnly = activePanel === 'sizes';
+  // 페이지 이동만 검색어 유지 — 압력/사이즈 칩 클릭은 q 미포함(초기화); 재질은 유지
   const pageHref = (p: number) =>
     buildHref(pressure, size, {
+      ...chipExtra,
+      ...(activeBand ? { band: activeBand } : {}),
+      ...(searchQ ? { q: searchQ } : {}),
+      ...(p > 1 ? { page: String(p) } : {}),
+    });
+  const materialHref = (m: MaterialFilter) =>
+    buildHref(pressure, size, {
+      ...(m !== 'ALL' ? { material: m } : {}),
       ...shortageExtra,
       ...(activeBand ? { band: activeBand } : {}),
-      ...(p > 1 ? { page: String(p) } : {}),
+      ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
     });
   const bandCardClass = (band: StockAlertBand, base: string) =>
     `${base} block transition hover:ring-2 hover:ring-teal-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 ${
@@ -145,7 +167,7 @@ export function SkuStockBoard({
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         <BandSummaryOpenCard
-          href="/dashboard?panel=sizes"
+          href={buildHref('ALL', 'ALL', { ...materialExtra, panel: 'sizes' })}
           className={`rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3 transition hover:ring-2 hover:ring-teal-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 ${
             activePanel === 'sizes' ? 'ring-2 ring-teal-500/70' : ''
           }`}
@@ -163,7 +185,7 @@ export function SkuStockBoard({
           <div className="mt-1 text-2xl font-bold tabular-nums text-slate-100">{skuCount.toLocaleString()}</div>
         </div>
         <BandSummaryOpenCard
-          href="/dashboard?band=empty"
+          href={buildHref(pressure, size, { ...materialExtra, band: 'empty' })}
           className={bandCardClass('empty', 'rounded-lg border border-slate-600 bg-slate-900/80 px-4 py-3')}
           title="미입고(0) SKU — 품명/사이즈/보유 새 창"
         >
@@ -179,7 +201,7 @@ export function SkuStockBoard({
           )}
         >
           <BandSummaryOpenCard
-            href="/dashboard?band=critical"
+            href={buildHref(pressure, size, { ...materialExtra, band: 'critical' })}
             className="block"
             title="긴급 SKU — 품명/사이즈/보유 새 창"
           >
@@ -221,7 +243,7 @@ export function SkuStockBoard({
           className={bandCardClass('warn', 'rounded-lg border border-amber-900/60 bg-amber-950/25 px-4 py-3')}
         >
           <BandSummaryOpenCard
-            href="/dashboard?band=warn"
+            href={buildHref(pressure, size, { ...materialExtra, band: 'warn' })}
             className="block"
             title="주의 SKU — 품명/사이즈/보유 새 창"
           >
@@ -260,7 +282,7 @@ export function SkuStockBoard({
           </form>
         </div>
         <BandSummaryOpenCard
-          href="/dashboard?band=ok"
+          href={buildHref(pressure, size, { ...materialExtra, band: 'ok' })}
           className={bandCardClass('ok', 'rounded-lg border border-emerald-900/60 bg-emerald-950/25 px-4 py-3')}
           title="정상 SKU — 품명/사이즈/보유 새 창"
         >
@@ -318,7 +340,7 @@ export function SkuStockBoard({
                       <td className="px-2 py-1.5">
                         {row.size !== '—' ? (
                           <Link
-                            href={`/dashboard?size=${encodeURIComponent(row.size)}`}
+                            href={buildHref('ALL', row.size, materialExtra)}
                             className="text-xs text-teal-300/90 underline-offset-2 hover:underline"
                           >
                             이 사이즈만
@@ -432,7 +454,10 @@ export function SkuStockBoard({
                       </td>
                       <td className="px-2 py-1.5">
                         <PressureOpenChip
-                          href={`/dashboard?pressure=${encodeURIComponent(row.pressureClass)}&band=${activeBand}`}
+                          href={buildHref(row.pressureClass, size, {
+                            ...materialExtra,
+                            ...(activeBand ? { band: activeBand } : {}),
+                          })}
                           className="text-xs text-sky-300 underline-offset-2 hover:underline"
                           title={`${row.pressureClass} · ${bandLabelKo(activeBand)}만`}
                         >
@@ -450,7 +475,10 @@ export function SkuStockBoard({
 
       <section className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3">
         <Link
-          href={buildHref(pressure, size, shortageOnly ? undefined : { shortage: '1' })}
+          href={buildHref(pressure, size, {
+            ...materialExtra,
+            ...(shortageOnly ? undefined : { shortage: '1' }),
+          })}
           className={
             shortageOnly
               ? 'inline-flex min-h-9 items-center rounded-md border border-amber-600 bg-amber-900/50 px-3 text-sm font-semibold text-amber-100'
@@ -471,12 +499,66 @@ export function SkuStockBoard({
       </section>
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+        <div className="mb-3">
+          <MaterialFilterChips material={material} hrefFor={materialHref} />
+          <p className="mt-1.5 text-[11px] text-slate-500">
+            316 행은 빨강 · 칩/합계는 선택한 재질만 집계
+          </p>
+        </div>
+        <div className="mb-2 text-sm font-semibold text-slate-100">빠른찾기 (압력·사이즈·품번)</div>
+        <form method="get" action="/dashboard" className="mb-4 flex flex-wrap items-center gap-2">
+          {pressure !== 'ALL' ? <input type="hidden" name="pressure" value={pressure} /> : null}
+          {size !== 'ALL' ? <input type="hidden" name="size" value={size} /> : null}
+          {material !== 'ALL' ? <input type="hidden" name="material" value={material} /> : null}
+          {activeBand ? <input type="hidden" name="band" value={activeBand} /> : null}
+          {shortageOnly && !activeBand ? <input type="hidden" name="shortage" value="1" /> : null}
+          <label className="block min-w-0 flex-1 basis-[16rem]">
+            <span className="sr-only">압력·사이즈·품번 검색</span>
+            <input
+              type="search"
+              name="q"
+              defaultValue={searchQ}
+              placeholder="예: 50a · 10K · 품번…"
+              className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
+              autoComplete="off"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex min-h-10 items-center rounded-md border border-teal-700 bg-teal-900/50 px-3 text-xs font-semibold text-teal-100 hover:border-teal-500"
+          >
+            찾기
+          </button>
+          {searchQ ? (
+            <Link
+              href={buildHref(pressure, size, {
+                ...chipExtra,
+                ...(activeBand ? { band: activeBand } : {}),
+              })}
+              className="inline-flex min-h-10 items-center rounded-md border border-slate-600 px-3 text-xs text-slate-300 hover:border-teal-600 hover:text-teal-200"
+              title="검색어 지우기"
+            >
+              지우기
+            </Link>
+          ) : null}
+          {searchQ ? (
+            <span className="text-xs text-slate-500">
+              검색 <strong className="text-slate-300">{searchQ}</strong> · SKU{' '}
+              <strong className="text-teal-300">{skuCount.toLocaleString()}</strong>
+            </span>
+          ) : null}
+        </form>
+        <p className="mb-3 text-xs text-slate-500">
+          검색은 압력·사이즈·품번/명칭을 찾습니다. 압력·사이즈 칩을 누르면 검색어는 초기화되고 칩만
+          적용됩니다.
+        </p>
+
         <div className="mb-2 text-sm font-semibold text-slate-100">압력등급</div>
         <div className="mb-1 text-[11px] text-slate-500">
           압력 · kg/cm² · BAR · ANSI/AWWA · 칩=페이지 내 필터 · 보유합계
         </div>
         <div className="flex w-full flex-wrap items-center gap-2">
-          <PressureOpenChip href={buildHref('ALL', size, shortageExtra)} className={chipClass(pressure === 'ALL')}>
+          <PressureOpenChip href={buildHref('ALL', size, chipExtra)} className={chipClass(pressure === 'ALL')}>
             전체
           </PressureOpenChip>
           {ratingKeys.map((p) => {
@@ -485,7 +567,7 @@ export function SkuStockBoard({
             return (
               <PressureOpenChip
                 key={p}
-                href={buildHref(p, size, shortageExtra)}
+                href={buildHref(p, size, chipExtra)}
                 className={chipClass(pressure === p)}
                 title={catalogPressureChipTitle(p)}
               >
@@ -507,7 +589,7 @@ export function SkuStockBoard({
                 return (
                   <PressureOpenChip
                     key={p}
-                    href={buildHref(p, size, shortageExtra)}
+                    href={buildHref(p, size, chipExtra)}
                     className={chipClass(pressure === p)}
                     title={catalogPressureChipTitle(p)}
                   >
@@ -521,11 +603,11 @@ export function SkuStockBoard({
         ) : null}
         <div className="mb-2 mt-4 text-sm font-semibold text-slate-100">사이즈</div>
         <div className="flex w-full flex-wrap items-center gap-2">
-          <Link href={buildHref(pressure, 'ALL', shortageExtra)} className={chipClass(size === 'ALL')}>
+          <Link href={buildHref(pressure, 'ALL', chipExtra)} className={chipClass(size === 'ALL')}>
             전체
           </Link>
           {sizeOpts.map((s) => (
-            <Link key={s} href={buildHref(pressure, s, shortageExtra)} className={chipClass(size === s)}>
+            <Link key={s} href={buildHref(pressure, s, chipExtra)} className={chipClass(size === s)}>
               {s}
             </Link>
           ))}
@@ -572,9 +654,7 @@ export function SkuStockBoard({
         <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium uppercase tracking-wide text-slate-400">
-              <th className="px-3 py-2">압력</th>
-              <th className="px-3 py-2">사이즈</th>
-              <th className="px-3 py-2">품번 / 명칭</th>
+              <SkuIdentityHeaders />
               <th className="px-3 py-2 text-right">보유</th>
               <th className="px-3 py-2">긴급/주의</th>
               <th className="px-3 py-2">입고</th>
@@ -584,20 +664,14 @@ export function SkuStockBoard({
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-slate-800/80 align-top">
-                <td className="px-3 py-2 font-medium text-teal-200">
-                  {catalogPressureChipLabel(r.pressureClass) || r.pressureClass || '—'}
-                </td>
-                <td className="px-3 py-2 font-medium text-sky-200">{r.size || '—'}</td>
-                <td className="px-3 py-2">
-                  <div className="font-mono text-slate-100">{r.itemCode}</div>
-                  <div className="text-xs text-slate-400">{r.itemName}</div>
-                  <div className="text-[11px] text-slate-500">
-                    {r.materialType} · {r.locationName}
+                <SkuIdentityCells
+                  row={r}
+                  metaExtra={
                     <span className="ml-1 text-slate-600">
                       · 적용 &lt;{r.criticalBelow}/{r.warnBelow}
                     </span>
-                  </div>
-                </td>
+                  }
+                />
                 <td className="px-3 py-2">
                   <form action={quickSetOnHandAction} className="flex min-w-[7.5rem] flex-col items-end gap-1">
                     <input type="hidden" name="itemId" value={r.id} />

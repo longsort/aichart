@@ -9,6 +9,12 @@ import {
   catalogPressureChipLabel,
   itemMatchesCatalogPressure,
 } from '@/lib/wms/yuil-catalog-filters';
+import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
+import {
+  materialFilterToPrisma,
+  parseMaterialFilter,
+  type MaterialFilter,
+} from '@/lib/wms/material';
 import {
   classifyStockBand,
   loadThresholdBundle,
@@ -21,6 +27,8 @@ export type SkuBoardFilters = {
   pressureClass?: string;
   size?: string;
   q?: string;
+  /** 재질 필터 — 304|316|ALL (URL ?material=) */
+  material?: MaterialFilter | string;
   /** 긴급·주의만 표시 */
   shortageOnly?: boolean;
   /** 긴급|주의|정상 한 밴드만 */
@@ -33,6 +41,11 @@ export type SkuBoardFilters = {
   /** 상세 표 페이지 (1-based). omitDetailRows면 무시 */
   page?: number;
   pageSize?: number;
+  /**
+   * true면 필터된 SKU 전부 반환 (입고대기 등).
+   * 기본 페이지(80)만 주면 작은 사이즈만 잡혀 50A 검색이 빈 표가 됨.
+   */
+  unpaged?: boolean;
 };
 
 export const SKU_BOARD_DEFAULT_PAGE_SIZE = 80;
@@ -118,25 +131,23 @@ function annotateBand(row: Omit<SkuBoardRow, 'band' | 'criticalBelow' | 'warnBel
   return { ...row, band, criticalBelow: th.criticalBelow, warnBelow: th.warnBelow };
 }
 
-/** 압력·사이즈 칩 + 검색으로 SKU 목록 + 보유수량 + 경보 밴드 */
+/** 압력·사이즈·재질 칩 + 검색으로 SKU 목록 + 보유수량 + 경보 밴드 */
 export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   const where: Prisma.ItemWhereInput = { isActive: true };
   const pressure = (filters.pressureClass || '').trim();
   const size = (filters.size || '').trim();
   const q = (filters.q || '').trim();
+  const material = parseMaterialFilter(filters.material);
+  const materialPrisma = materialFilterToPrisma(material);
   const shortageOnly = Boolean(filters.shortageOnly);
   const bandFilter = filters.band;
 
   if (size && size !== 'ALL') where.size = size;
-  if (q) {
-    where.OR = [
-      { itemCode: { contains: q } },
-      { itemName: { contains: q } },
-      { standard: { contains: q } },
-      { productType: { contains: q } },
-      { pressureClass: { contains: q } },
-    ];
-  }
+  if (materialPrisma) where.materialType = materialPrisma;
+  // q는 Prisma contains(사이즈 부분일치→150A⊃50a) 대신 메모리 토큰 매칭
+
+  const totalsWhere: Prisma.ItemWhereInput = { isActive: true };
+  if (materialPrisma) totalsWhere.materialType = materialPrisma;
 
   const [items, bundle, allActiveItems] = await Promise.all([
     prisma.item.findMany({
@@ -148,9 +159,9 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
       orderBy: [{ pressureClass: 'asc' }, { itemCode: 'asc' }],
     }),
     loadThresholdBundle(),
-    // 압력 칩 합계용 — 필터와 무관하게 활성 전체
+    // 칩·합계용 — 재질 필터는 존중, 압력/사이즈 필터와 무관
     prisma.item.findMany({
-      where: { isActive: true },
+      where: totalsWhere,
       select: {
         pressureClass: true,
         productType: true,
@@ -158,23 +169,39 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
         itemName: true,
         itemCode: true,
         size: true,
+        materialType: true,
         lots: { select: { quantity: true } },
       },
     }),
   ]);
 
-  const matched = items.filter((it) =>
-    itemMatchesCatalogPressure(
+  const matched = items.filter((it) => {
+    if (
+      !itemMatchesCatalogPressure(
+        {
+          pressureClass: it.pressureClass,
+          productType: it.productType,
+          standard: it.standard,
+          itemName: it.itemName,
+          itemCode: it.itemCode,
+        },
+        pressure,
+      )
+    ) {
+      return false;
+    }
+    if (!q) return true;
+    return matchesSkuQuickSearch(
       {
         pressureClass: it.pressureClass,
-        productType: it.productType,
-        standard: it.standard,
-        itemName: it.itemName,
+        size: it.size,
         itemCode: it.itemCode,
+        itemName: it.itemName,
+        extra: `${it.standard || ''} ${it.productType || ''} ${catalogPressureChipLabel(it.pressureClass)}`,
       },
-      pressure,
-    ),
-  );
+      q,
+    );
+  });
 
   const allBanded: SkuBoardRow[] = matched
     .map((it) =>
@@ -223,17 +250,19 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
 
   const filteredTotal = filtered.reduce((s, r) => s + r.onHand, 0);
   const skuCount = filtered.length;
-  const pageSize = Math.min(
-    200,
-    Math.max(20, Math.floor(filters.pageSize || SKU_BOARD_DEFAULT_PAGE_SIZE)),
-  );
-  const totalPages = Math.max(1, Math.ceil(skuCount / pageSize));
-  const page = Math.min(totalPages, Math.max(1, Math.floor(filters.page || 1)));
+  const unpaged = Boolean(filters.unpaged);
+  const pageSize = unpaged
+    ? Math.max(skuCount, 1)
+    : Math.min(200, Math.max(20, Math.floor(filters.pageSize || SKU_BOARD_DEFAULT_PAGE_SIZE)));
+  const totalPages = unpaged ? 1 : Math.max(1, Math.ceil(skuCount / pageSize));
+  const page = unpaged ? 1 : Math.min(totalPages, Math.max(1, Math.floor(filters.page || 1)));
   /** 밴드 요약 표용 미리보기 (페이지와 무관, 상한) */
   const previewRows = filters.omitDetailRows ? [] : filtered.slice(0, 60);
   const rows = filters.omitDetailRows
     ? []
-    : filtered.slice((page - 1) * pageSize, page * pageSize);
+    : unpaged
+      ? filtered
+      : filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const overallTotal = allActiveItems.reduce(
     (s, it) => s + it.lots.reduce((a, l) => a + l.quantity, 0),
