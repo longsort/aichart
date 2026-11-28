@@ -30,6 +30,9 @@ function revalidatePendingPaths() {
   revalidatePath('/stock/pending/stats');
   revalidatePath('/stock/out');
   revalidatePath('/safety');
+  revalidatePath('/mopi/pending');
+  revalidatePath('/mopi/machining');
+  revalidatePath('/mopi/hole');
 }
 
 function safeReturnPath(raw: string): string | null {

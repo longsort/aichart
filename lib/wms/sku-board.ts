@@ -23,12 +23,19 @@ import {
   type ThresholdBundle,
 } from '@/lib/wms/stock-alerts';
 
+export type SkuBoardKind = 'finished' | 'mopi';
+
 export type SkuBoardFilters = {
   pressureClass?: string;
   size?: string;
   q?: string;
-  /** 재질 필터 — 304|316|ALL (URL ?material=) */
+  /** 재질 필터 — 304|316|ALL (URL ?material=). finished 보드만 */
   material?: MaterialFilter | string;
+  /**
+   * finished(기본)=SCS304/316 완성품 · mopi=SEMI_RAW 모피(M-*).
+   * 완성품 보드에 모피가 섞이지 않게 기본 finished.
+   */
+  kind?: SkuBoardKind;
   /** 긴급·주의만 표시 */
   shortageOnly?: boolean;
   /** 긴급|주의|정상 한 밴드만 */
@@ -133,6 +140,7 @@ function annotateBand(row: Omit<SkuBoardRow, 'band' | 'criticalBelow' | 'warnBel
 
 /** 압력·사이즈·재질 칩 + 검색으로 SKU 목록 + 보유수량 + 경보 밴드 */
 export async function listSkuBoard(filters: SkuBoardFilters = {}) {
+  const kind: SkuBoardKind = filters.kind === 'mopi' ? 'mopi' : 'finished';
   const where: Prisma.ItemWhereInput = { isActive: true };
   const pressure = (filters.pressureClass || '').trim();
   const size = (filters.size || '').trim();
@@ -143,11 +151,25 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   const bandFilter = filters.band;
 
   if (size && size !== 'ALL') where.size = size;
-  if (materialPrisma) where.materialType = materialPrisma;
+  if (kind === 'mopi') {
+    where.materialType = 'SEMI_RAW';
+    where.itemCode = { startsWith: 'M-' };
+  } else if (materialPrisma) {
+    where.materialType = materialPrisma;
+  } else {
+    where.materialType = { in: ['SCS304', 'SCS316'] };
+  }
   // q는 Prisma contains(사이즈 부분일치→150A⊃50a) 대신 메모리 토큰 매칭
 
   const totalsWhere: Prisma.ItemWhereInput = { isActive: true };
-  if (materialPrisma) totalsWhere.materialType = materialPrisma;
+  if (kind === 'mopi') {
+    totalsWhere.materialType = 'SEMI_RAW';
+    totalsWhere.itemCode = { startsWith: 'M-' };
+  } else if (materialPrisma) {
+    totalsWhere.materialType = materialPrisma;
+  } else {
+    totalsWhere.materialType = { in: ['SCS304', 'SCS316'] };
+  }
 
   const [items, bundle, allActiveItems] = await Promise.all([
     prisma.item.findMany({
@@ -331,10 +353,10 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   };
 }
 
-/** 칩에 쓸 압력·사이즈 옵션 (카탈로그 전체 + DB에만 있는 값) */
+/** 칩에 쓸 압력·사이즈 옵션 (카탈로그 전체 + DB에만 있는 값) — 완성품만 */
 export async function getSkuFilterOptions() {
   const items = await prisma.item.findMany({
-    where: { isActive: true },
+    where: { isActive: true, materialType: { in: ['SCS304', 'SCS316'] } },
     select: { pressureClass: true, size: true },
   });
 

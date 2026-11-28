@@ -47,11 +47,22 @@ export function StockPendingBoard({
   rows,
   userName,
   material = 'ALL',
+  basePath = '/stock/pending',
+  showMaterialChips = true,
+  showPressureStats = true,
+  crumbLabel = '입고대기',
 }: {
   rows: PendingSkuRow[];
   userName?: string;
   /** URL ?material= — 서버에서 이미 필터된 rows */
   material?: MaterialFilter;
+  /** 폼 returnTo · 재질칩 링크 기준 경로 */
+  basePath?: string;
+  /** 모피 큐 등에서는 재질칩 숨김 */
+  showMaterialChips?: boolean;
+  /** 완성품 입고대기 압력 통계 팝업 */
+  showPressureStats?: boolean;
+  crumbLabel?: string;
 }) {
   const [query, setQuery] = useState('');
   const [pressure, setPressure] = useState<string>('ALL');
@@ -59,7 +70,7 @@ export function StockPendingBoard({
   const [page, setPage] = useState(1);
 
   function materialHref(m: MaterialFilter) {
-    return m === 'ALL' ? '/stock/pending' : `/stock/pending?material=${m}`;
+    return m === 'ALL' ? basePath : `${basePath}?material=${m}`;
   }
 
   /** 칩 클릭 = 해당 압력 목록만 (검색어 잔존으로 빈 표 나는 것 방지) */
@@ -151,7 +162,7 @@ export function StockPendingBoard({
             재고현황
           </Link>
           <span className="hidden text-slate-600 sm:inline">/</span>
-          <span className="shrink-0 text-sm text-slate-400">입고대기</span>
+          <span className="shrink-0 text-sm text-slate-400">{crumbLabel}</span>
           <span className="text-xs text-slate-500">
             미입고 <strong className="tabular-nums text-slate-200">{rows.length.toLocaleString()}</strong>
           </span>
@@ -164,14 +175,16 @@ export function StockPendingBoard({
             <strong className="tabular-nums text-teal-300">{pendingQtyTotal.toLocaleString()}</strong>
           </span>
 
-          <button
-            type="button"
-            onClick={openPressureStatsWindow}
-            className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-teal-700 bg-teal-950/60 px-2.5 text-xs font-semibold text-teal-100 hover:border-teal-500"
-            title="DB 입고대기 압력 통계를 새 창에서 열기"
-          >
-            압력 통계 · 새 창
-          </button>
+          {showPressureStats ? (
+            <button
+              type="button"
+              onClick={openPressureStatsWindow}
+              className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-teal-700 bg-teal-950/60 px-2.5 text-xs font-semibold text-teal-100 hover:border-teal-500"
+              title="DB 입고대기 압력 통계를 새 창에서 열기"
+            >
+              압력 통계 · 새 창
+            </button>
+          ) : null}
 
           <div
             className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white"
@@ -181,9 +194,11 @@ export function StockPendingBoard({
             {userInitial}
           </div>
 
-          <div className="w-full basis-full">
-            <MaterialFilterChips material={material} hrefFor={materialHref} />
-          </div>
+          {showMaterialChips ? (
+            <div className="w-full basis-full">
+              <MaterialFilterChips material={material} hrefFor={materialHref} />
+            </div>
+          ) : null}
 
           {/* 압력 칩: 가로 클립 금지 · 여러 줄 wrap · 같은 페이지 필터만 */}
           <div
@@ -352,7 +367,7 @@ export function StockPendingBoard({
                       className="flex flex-wrap items-center gap-1.5"
                     >
                       <input type="hidden" name="itemId" value={r.id} />
-                      <input type="hidden" name="returnTo" value="/stock/pending" />
+                      <input type="hidden" name="returnTo" value={basePath} />
                       <input type="hidden" name="quantity" value={draftOrPending(r)} />
                       <button
                         type="submit"
@@ -379,7 +394,7 @@ export function StockPendingBoard({
                       className="flex min-w-[7rem] flex-wrap items-center gap-2"
                     >
                       <input type="hidden" name="itemId" value={r.id} />
-                      <input type="hidden" name="returnTo" value="/stock/pending" />
+                      <input type="hidden" name="returnTo" value={basePath} />
                       <input type="hidden" name="quantity" value={draftOrPending(r)} />
                       <button
                         type="submit"

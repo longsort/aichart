@@ -12,7 +12,10 @@ import {
   buildCatalogProductSpecSizeGrid,
   catalogGridSeedCounts,
   catalogItemCodeTo316,
+  catalogItemCodeToMopi,
+  mopiItemCodeToFinished,
   mirrorCatalogSkuAs316,
+  mirrorCatalogSkuAsMopi,
 } from '@/lib/wms/yuil-catalog-size-grid';
 import { itemMatchesCatalogPressure } from '@/lib/wms/yuil-catalog-filters';
 
@@ -96,6 +99,18 @@ assert.equal(with316.length, all.length * 2);
 assert.equal(new Set(with316.map((g) => g.itemCode)).size, with316.length);
 assert.equal(with316.filter((g) => g.materialType === 'SCS316').length, all.length);
 
+assert.equal(catalogItemCodeToMopi('F-304-10K-50A'), 'M-304-10K-50A');
+assert.equal(catalogItemCodeToMopi('F-WN-5K-32A'), 'M-WN-5K-32A');
+assert.equal(mopiItemCodeToFinished('M-304-10K-50A'), 'F-304-10K-50A');
+assert.equal(mopiItemCodeToFinished('M-WN-5K-32A'), 'F-WN-5K-32A');
+const mopi = mirrorCatalogSkuAsMopi(all[0]!);
+assert.equal(mopi.materialType, 'SEMI_RAW');
+assert.equal(mopi.finishedItemCode, all[0]!.itemCode);
+assert.equal(mopi.itemCode, catalogItemCodeToMopi(all[0]!.itemCode));
+assert.ok(mopi.itemName.includes('모피'));
+assert.ok(mopi.itemName.includes('미강품'));
+assert.equal(new Set([...all.map((g) => g.itemCode), ...all.map((g) => catalogItemCodeToMopi(g.itemCode))]).size, all.length * 2);
+
 console.log(
   'yuil-catalog-size-grid.test.ts OK',
   counts.pressures,
@@ -108,5 +123,7 @@ console.log(
   '=',
   counts.totalSkus,
   '+316',
+  all.length,
+  '+mopi',
   all.length,
 );
