@@ -134,6 +134,52 @@ export function mirrorCatalogSkuAs316(sku: CatalogGridSku): CatalogGridSku {
   };
 }
 
+/**
+ * 완성품 품번 → 모피(미강품) 품번. F-… → M-…
+ * 예: F-304-10K-50A → M-304-10K-50A, F-WN-5K-32A → M-WN-5K-32A
+ */
+export function catalogItemCodeToMopi(itemCode: string): string {
+  const c = String(itemCode || '').trim();
+  if (!c) return c;
+  if (c.startsWith('M-')) return c;
+  if (c.startsWith('F-')) return `M-${c.slice(2)}`;
+  return `M-${c}`;
+}
+
+/** 모피 품번 → 대응 완성품 품번. M-… → F-… */
+export function mopiItemCodeToFinished(itemCode: string): string {
+  const c = String(itemCode || '').trim();
+  if (!c) return c;
+  if (c.startsWith('F-')) return c;
+  if (c.startsWith('M-')) return `F-${c.slice(2)}`;
+  return `F-${c}`;
+}
+
+export type CatalogMopiSku = Omit<CatalogGridSku, 'materialType'> & {
+  materialType: 'SEMI_RAW';
+  /** 대응 완성품 품번 (SCS304) */
+  finishedItemCode: string;
+};
+
+/** 304 카탈로그 SKU → 동일 압력×사이즈×규격의 모피(SEMI_RAW, 보유 0) */
+export function mirrorCatalogSkuAsMopi(sku: CatalogGridSku): CatalogMopiSku {
+  const finishedItemCode = sku.itemCode;
+  const itemCode = catalogItemCodeToMopi(finishedItemCode);
+  const baseName = String(sku.itemName || '')
+    .replace(/\s*SCS304\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return {
+    ...sku,
+    itemCode,
+    itemName: `${baseName} 모피(미강품)`.trim(),
+    materialType: 'SEMI_RAW',
+    safetyStock: 0,
+    memo: `${sku.memo || 'catalog'} · mopi/blank · finished=${finishedItemCode} · qty 0`.trim(),
+    finishedItemCode,
+  };
+}
+
 /** 304 그리드 + 1:1 316 미러 (itemCode 중복 없음) */
 export function buildAllCatalogSeedSkusWith316(): CatalogGridSku[] {
   const base = buildAllCatalogSeedSkus();

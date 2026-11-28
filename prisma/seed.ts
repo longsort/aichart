@@ -13,6 +13,7 @@ import {
   buildAllCatalogSeedSkus,
   catalogGridSeedCounts,
   mirrorCatalogSkuAs316,
+  mirrorCatalogSkuAsMopi,
 } from '../lib/wms/yuil-catalog-size-grid';
 
 if (typeof process.env.DATABASE_URL !== 'string' || !process.env.DATABASE_URL.trim()) {
@@ -92,6 +93,27 @@ async function main() {
         unit: g.unit,
         safetyStock: 0,
         locationId: locB.id,
+        memo: g.memo,
+      })),
+    });
+  }
+
+  // 모피(미강품) 미러 — 304 동일 조합, SEMI_RAW, 보유 0
+  const gridMopi = grid.map(mirrorCatalogSkuAsMopi);
+  for (let i = 0; i < gridMopi.length; i += BATCH) {
+    const slice = gridMopi.slice(i, i + BATCH);
+    await prisma.item.createMany({
+      data: slice.map((g) => ({
+        itemCode: g.itemCode,
+        itemName: g.itemName,
+        materialType: MaterialType.SEMI_RAW,
+        productType: g.productType,
+        standard: g.standard,
+        size: g.size,
+        pressureClass: g.pressureClass,
+        unit: g.unit,
+        safetyStock: 0,
+        locationId: locS.id,
         memo: g.memo,
       })),
     });
@@ -420,9 +442,12 @@ async function main() {
   const totalItems = await prisma.item.count();
   const n304 = await prisma.item.count({ where: { materialType: MaterialType.SCS304 } });
   const n316 = await prisma.item.count({ where: { materialType: MaterialType.SCS316 } });
+  const nMopi = await prisma.item.count({
+    where: { materialType: MaterialType.SEMI_RAW, itemCode: { startsWith: 'M-' } },
+  });
   const tenK = await prisma.item.count({ where: { pressureClass: '10K' } });
   console.log(
-    `Seed 완료: rating ${counts.pressures}×${counts.sizes}=${counts.ratingSkus}; productSpecs ${counts.productSpecs}→${counts.productSkus}; extras ${extras.length}; total ${totalItems}; SCS304 ${n304}; SCS316 ${n316}; 10K rows ${tenK}; alerts critical<20 warn<500`,
+    `Seed 완료: rating ${counts.pressures}×${counts.sizes}=${counts.ratingSkus}; productSpecs ${counts.productSpecs}→${counts.productSkus}; extras ${extras.length}; total ${totalItems}; SCS304 ${n304}; SCS316 ${n316}; mopi(M-) ${nMopi}; 10K rows ${tenK}; alerts critical<20 warn<500`,
   );
 }
 

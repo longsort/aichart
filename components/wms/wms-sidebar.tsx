@@ -16,12 +16,17 @@ import {
   AlertTriangle,
   BellRing,
   ClipboardList,
+  Hammer,
+  CircleDot,
 } from 'lucide-react';
 
 /** 재고 사용자용 — 차트/분석 내비 없음. 핵심만 앞에. */
 const NAV = [
   { href: '/dashboard', label: '재고현황', icon: ClipboardList },
   { href: '/stock/pending', label: '입고대기', icon: ArrowDownToLine },
+  { href: '/mopi/pending', label: '모피 입고대기', icon: ArrowDownToLine },
+  { href: '/mopi/machining', label: '가공대기', icon: Hammer },
+  { href: '/mopi/hole', label: '홀가공대기', icon: CircleDot },
   { href: '/items', label: '품목마스터', icon: Package },
   { href: '/inventory', label: 'LOT 상세', icon: Boxes },
   { href: '/stock/in', label: '입고(상세)', icon: ArrowDownToLine },
@@ -62,11 +67,13 @@ export function WmsSidebar() {
         </div>
         <nav className="flex flex-col gap-0.5">
           {NAV.map(({ href, label, icon: Icon }) => {
-            // /settings 와 /settings/alerts 가 서로 하이라이트되지 않게
+            // /settings 와 /settings/alerts · /mopi/* 형제 경로가 서로 하이라이트되지 않게
             const active =
               href === '/settings'
                 ? path === '/settings'
-                : path === href || (href !== '/dashboard' && path.startsWith(href));
+                : href.startsWith('/mopi/')
+                  ? path === href || path.startsWith(`${href}/`)
+                  : path === href || (href !== '/dashboard' && path.startsWith(href));
             return (
               <Link
                 key={href}

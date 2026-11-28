@@ -58,3 +58,4 @@ data/site-users.json
 prisma/dev.db
 prisma/dev.db-journal
 
+tsconfig.tsbuildinfo
