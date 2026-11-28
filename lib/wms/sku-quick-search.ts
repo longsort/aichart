@@ -2,7 +2,7 @@
  * 재고현황·입고대기·모피 큐 빠른찾기.
  * - 공백 분리·단일 토큰
  * - 압축 질의: `50A20BL`, `20K50A`, `50A20BLRF` (사이즈·압력·FACE, 순서 무관, K 생략 가능)
- * - Class 압력: `150#` / `300#` / `100a150#` → Class150 · Class300 (`#` = Class)
+ * - Class 압력: `150#` / `300#` / `100a150#` → Class150 · Class300 only (`#` = Class, never ANSI)
  * - 사이즈형(50a)은 150A 부분일치 방지
  */
 
@@ -119,23 +119,40 @@ export function parseCompactSkuQuery(query: string): CompactSkuTokens {
   };
 }
 
+/** `150#` / class150 → Class only (never ANSI150 / 150LB) */
+function classPressureNum(token: string): string | null {
+  const t = norm(token).replace(/\s+/g, '');
+  const fromClass = t.match(/^class(\d+)$/i)?.[1];
+  if (fromClass) return fromClass;
+  if (/^\d+#$/.test(t)) return t.replace(/#$/, '');
+  return null;
+}
+
+function matchesClassPressureOnly(pressureClass: string, classNum: string): boolean {
+  const pc = norm(pressureClass).replace(/\s+/g, '');
+  if (!pc || !classNum) return false;
+  // ANSI* / *LB alone are not Class
+  if (pc.startsWith('ansi') || /(^|[^a-z])ansi\d+/i.test(pc)) return false;
+  if (pc === `${classNum}lb` || pc.endsWith(`${classNum}lb`)) return false;
+  // Class150 / Class 150 (공백 제거 → class150)
+  if (pc === `class${classNum}`) return true;
+  return new RegExp(`(^|[^a-z0-9])class${classNum}([^a-z0-9]|$)`, 'i').test(pc);
+}
+
 function pressureMatches(pressureClass: string, token: string): boolean {
   const pc = norm(pressureClass).replace(/\s+/g, '');
   const t = norm(token).replace(/\s+/g, '');
   if (!t) return true;
   if (!pc) return false;
+
+  // class150 / 150# → Class150 · Class300 only (never ANSI)
+  const classNum = classPressureNum(t);
+  if (classNum) {
+    return matchesClassPressureOnly(pc, classNum);
+  }
+
   if (pc === t) return true;
   if (pc.includes(t)) return true;
-
-  // class150 / 150# → Class150 · ANSI150 · 150LB
-  const classNum = t.match(/^class(\d+)$/i)?.[1] || (t.endsWith('#') ? t.replace(/#$/, '') : null);
-  if (classNum && /^\d+$/.test(classNum)) {
-    if (pc === `class${classNum}` || pc.includes(`class${classNum}`)) return true;
-    if (pc === `ansi${classNum}` || pc.includes(`ansi${classNum}`)) return true;
-    if (pc === `${classNum}lb` || pc.includes(`${classNum}lb`)) return true;
-    // Class 150 (공백 제거 후 class150)
-    if (pc.replace(/class/, 'class') === `class${classNum}`) return true;
-  }
 
   // 20 / 20k ↔ 20K / 20kg/cm²
   const bare = t.replace(/k$/i, '');
@@ -185,6 +202,12 @@ function matchesCompactTokens(fields: SkuQuickSearchFields, tokens: CompactSkuTo
   }
 
   for (const p of tokens.pressures) {
+    const classNum = classPressureNum(p);
+    // # / classN = pressureClass가 ClassN 일 때만 (품번·ANSI 별칭 무시)
+    if (classNum) {
+      if (matchesClassPressureOnly(fields.pressureClass || '', classNum)) continue;
+      return false;
+    }
     if (
       pressureMatches(pc, p) ||
       includesToken(code, p) ||
@@ -193,22 +216,6 @@ function matchesCompactTokens(fields: SkuQuickSearchFields, tokens: CompactSkuTo
       includesToken(extra, p)
     ) {
       continue;
-    }
-    // class150 → code/name ANSI150 / Class150
-    const classNum = p.match(/^class(\d+)$/i)?.[1];
-    if (classNum) {
-      if (
-        includesToken(code, `class${classNum}`) ||
-        includesToken(code, `ansi${classNum}`) ||
-        includesToken(name, `class${classNum}`) ||
-        includesToken(name, `ansi${classNum}`) ||
-        includesToken(extra, `class${classNum}`) ||
-        includesToken(extra, `ansi${classNum}`) ||
-        code.includes(`class${classNum}`) ||
-        code.includes(`ansi${classNum}`)
-      ) {
-        continue;
-      }
     }
     // bare 20 also try as 20k in code
     if (/^\d+$/.test(p) && (includesToken(code, `${p}k`) || code.includes(`${p}k`))) continue;
