@@ -14,7 +14,12 @@ import {
   catalogPressureChipTitle,
   getCatalogPressureChip,
 } from '@/lib/wms/yuil-catalog-filters';
-import type { BandCounts, BandPressureBreakdown, SkuBoardRow } from '@/lib/wms/sku-board';
+import type {
+  BandCounts,
+  BandPressureBreakdown,
+  SizeOnHandTotal,
+  SkuBoardRow,
+} from '@/lib/wms/sku-board';
 import { bandLabelKo, bandTextClass, type StockAlertBand } from '@/lib/wms/stock-alerts';
 import { wmsControlCompact, wmsLabel } from '@/components/wms/wms-form-styles';
 import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
@@ -55,7 +60,9 @@ export function SkuStockBoard({
   bandCounts,
   bandPressureBreakdown,
   activeBand,
+  activePanel,
   pressureTotals,
+  sizeTotals,
   shortageOnly,
   pressureLabels,
   globalCriticalBelow,
@@ -74,7 +81,10 @@ export function SkuStockBoard({
   bandCounts: BandCounts;
   bandPressureBreakdown: BandPressureBreakdown;
   activeBand?: StockAlertBand;
+  /** sizes = 전체 재고 사이즈별 수량 */
+  activePanel?: 'sizes';
   pressureTotals: Record<string, number>;
+  sizeTotals: SizeOnHandTotal[];
   shortageOnly: boolean;
   pressureLabels?: Record<string, string>;
   /** 전역 긴급/주의 (카드에서 편집) */
@@ -112,10 +122,16 @@ export function SkuStockBoard({
       ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
-        <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3">
-          <div className="text-xs text-slate-400">전체 재고 합계</div>
+        <BandSummaryOpenCard
+          href="/dashboard?panel=sizes"
+          className={`rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3 transition hover:ring-2 hover:ring-teal-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 ${
+            activePanel === 'sizes' ? 'ring-2 ring-teal-500/70' : ''
+          }`}
+          title="사이즈별 보유 수량 — 새 창"
+        >
+          <div className="text-xs text-slate-400">전체 재고 합계 · 클릭=사이즈별</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-teal-300">{overallTotal.toLocaleString()}</div>
-        </div>
+        </BandSummaryOpenCard>
         <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3">
           <div className="text-xs text-slate-400">필터 재고 합계</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-sky-300">{filteredTotal.toLocaleString()}</div>
@@ -232,6 +248,71 @@ export function SkuStockBoard({
           </div>
         </BandSummaryOpenCard>
       </section>
+
+      {activePanel === 'sizes' ? (
+        <section className="rounded-lg border border-teal-800/50 bg-teal-950/20 px-4 py-3">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold text-slate-100">
+              전체 재고 · 사이즈별 수량 ({sizeTotals.length.toLocaleString()}종) · 합계{' '}
+              {overallTotal.toLocaleString()}
+            </h2>
+            <Link
+              href="/dashboard"
+              className="text-xs text-slate-400 underline-offset-2 hover:text-teal-200 hover:underline"
+            >
+              닫기
+            </Link>
+          </div>
+          <p className="mb-3 text-xs text-slate-400">
+            존재하는 사이즈와 보유 합계 · 사이즈 클릭 시 해당 필터
+          </p>
+          {sizeTotals.length === 0 ? (
+            <p className="text-sm text-slate-400">등록된 사이즈 없음</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[360px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-700 text-xs uppercase tracking-wide text-slate-400">
+                    <th className="px-2 py-1.5">사이즈</th>
+                    <th className="px-2 py-1.5 text-right">SKU 수</th>
+                    <th className="px-2 py-1.5 text-right">보유(qty)</th>
+                    <th className="px-2 py-1.5">필터</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sizeTotals.map((row) => (
+                    <tr key={row.size} className="border-b border-slate-800/70">
+                      <td className="px-2 py-1.5 font-semibold text-sky-200">{row.size}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">
+                        {row.skuCount.toLocaleString()}
+                      </td>
+                      <td
+                        className={`px-2 py-1.5 text-right tabular-nums font-semibold ${
+                          row.onHandTotal > 0 ? 'text-teal-300' : 'text-slate-400'
+                        }`}
+                      >
+                        {row.onHandTotal.toLocaleString()}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        {row.size !== '—' ? (
+                          <Link
+                            href={`/dashboard?size=${encodeURIComponent(row.size)}`}
+                            className="text-xs text-teal-300/90 underline-offset-2 hover:underline"
+                          >
+                            이 사이즈만
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-slate-500">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {activeBand ? (
         <section

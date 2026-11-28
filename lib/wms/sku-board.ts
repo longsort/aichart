@@ -64,6 +64,13 @@ export type BandPressureCount = {
 
 export type BandPressureBreakdown = Record<StockAlertBand, BandPressureCount[]>;
 
+/** 전체 재고 — 사이즈별 보유 합계 (존재하는 사이즈) */
+export type SizeOnHandTotal = {
+  size: string;
+  onHandTotal: number;
+  skuCount: number;
+};
+
 function buildBandPressureBreakdown(rows: SkuBoardRow[]): BandPressureBreakdown {
   const acc: Record<StockAlertBand, Record<string, BandPressureCount>> = {
     empty: {},
@@ -210,6 +217,24 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     0,
   );
 
+  // 전체 재고 사이즈별 합계 (SKU가 있는 사이즈 · qty 0 포함)
+  const sizeAcc: Record<string, SizeOnHandTotal> = {};
+  for (const it of allActiveItems) {
+    const sizeKey = (it.size || '').trim() || '—';
+    const qty = it.lots.reduce((s, l) => s + l.quantity, 0);
+    const cur = sizeAcc[sizeKey] || { size: sizeKey, onHandTotal: 0, skuCount: 0 };
+    cur.skuCount += 1;
+    cur.onHandTotal += qty;
+    sizeAcc[sizeKey] = cur;
+  }
+  const sizeTotals: SizeOnHandTotal[] = Object.values(sizeAcc).sort((a, b) => {
+    if (a.size === '—' && b.size !== '—') return 1;
+    if (b.size === '—' && a.size !== '—') return -1;
+    const bySize = compareNominalSize(a.size, b.size);
+    if (bySize !== 0) return bySize;
+    return b.onHandTotal - a.onHandTotal;
+  });
+
   // 압력 칩별 보유 합계 (카탈로그 매칭 + DB-only 키)
   const pressureTotals: Record<string, number> = {};
   for (const key of CATALOG_PRESSURE_CHIP_KEYS) {
@@ -245,6 +270,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     bandCounts,
     bandPressureBreakdown,
     pressureTotals,
+    sizeTotals,
     thresholds: bundle.global,
   };
 }

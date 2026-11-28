@@ -9,6 +9,8 @@ type Search = {
   q?: string;
   shortage?: string;
   band?: string;
+  /** sizes = 전체 재고 사이즈별 수량 패널 */
+  panel?: string;
   err?: string;
   ok?: string;
 };
@@ -30,6 +32,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const q = (sp.q || '').trim();
   const shortageOnly = sp.shortage === '1' || sp.shortage === 'true';
   const band = parseBand(sp.band);
+  const panel = (sp.panel || '').trim().toLowerCase() === 'sizes' ? 'sizes' : undefined;
   const err = sp.err ? decodeURIComponent(sp.err) : '';
   const okMsg = sp.ok ? decodeURIComponent(sp.ok) : '';
 
@@ -62,7 +65,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         bandCounts={board.bandCounts}
         bandPressureBreakdown={board.bandPressureBreakdown}
         activeBand={band}
+        activePanel={panel}
         pressureTotals={board.pressureTotals}
+        sizeTotals={board.sizeTotals}
         shortageOnly={shortageOnly}
         pressureLabels={opts.pressureLabels}
         globalCriticalBelow={board.thresholds.criticalBelowSku}
