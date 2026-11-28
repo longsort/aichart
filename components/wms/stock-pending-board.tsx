@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   clearPendingInboundAction,
   receivePendingInboundAction,
@@ -10,6 +10,9 @@ import {
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
+
+/** 표 DOM만 페이지 — 칩/검색은 전체 rows 기준 */
+const TABLE_PAGE_SIZE = 80;
 
 export type PendingSkuRow = {
   id: string;
@@ -45,11 +48,13 @@ export function StockPendingBoard({
   const [query, setQuery] = useState('');
   const [pressure, setPressure] = useState<string>('ALL');
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(1);
 
   /** 칩 클릭 = 해당 압력 목록만 (검색어 잔존으로 빈 표 나는 것 방지) */
   function selectPressure(next: string) {
     setPressure(next);
     setQuery('');
+    setPage(1);
   }
 
   const pressureChips = useMemo(() => {
@@ -90,6 +95,17 @@ export function StockPendingBoard({
       );
     });
   }, [rows, query, pressure]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / TABLE_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = useMemo(() => {
+    const start = (safePage - 1) * TABLE_PAGE_SIZE;
+    return filtered.slice(start, start + TABLE_PAGE_SIZE);
+  }, [filtered, safePage]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, pressure]);
 
   const pendingSkuCount = useMemo(
     () => rows.filter((r) => r.pendingQty > 0).length,
@@ -221,7 +237,7 @@ export function StockPendingBoard({
           도착 후 <strong className="text-teal-300">입고완료</strong>(StockMove IN). 검색=압력·사이즈·품번/명칭.
           칩=같은 페이지 필터(클릭 시 검색 초기화). 표시{' '}
           <strong className="text-slate-300">{filtered.length.toLocaleString()}</strong>
-          {pressure !== 'ALL' || query.trim() ? ` / 전체 ${rows.length.toLocaleString()}` : null}
+          {` / 전체 ${rows.length.toLocaleString()}`}
           {pressure !== 'ALL' ? (
             <>
               {' '}
@@ -231,10 +247,42 @@ export function StockPendingBoard({
               </strong>
             </>
           ) : null}
+          {totalPages > 1 ? (
+            <>
+              {' '}
+              · 표 {safePage}/{totalPages}페이지
+            </>
+          ) : null}
         </p>
       </section>
 
       <section className="overflow-x-auto rounded-lg border border-slate-700">
+        {totalPages > 1 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2 text-xs text-slate-400">
+            <span>
+              표 {pageRows.length.toLocaleString()}건 표시 · 필터{' '}
+              {filtered.length.toLocaleString()} / 전체 {rows.length.toLocaleString()}
+            </span>
+            <span className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={safePage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="text-teal-300 hover:underline disabled:cursor-not-allowed disabled:text-slate-600"
+              >
+                ← 이전
+              </button>
+              <button
+                type="button"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="text-teal-300 hover:underline disabled:cursor-not-allowed disabled:text-slate-600"
+              >
+                다음 →
+              </button>
+            </span>
+          </div>
+        ) : null}
         <table className="w-full min-w-[880px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium tracking-wide text-slate-400">
@@ -249,7 +297,7 @@ export function StockPendingBoard({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r) => {
+            {pageRows.map((r) => {
               const hasPending = r.pendingQty > 0;
               return (
                 <tr key={r.id} className="border-b border-slate-800/80 align-top">
