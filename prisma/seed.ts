@@ -11,7 +11,9 @@ import {
 } from '@prisma/client';
 import {
   buildAllCatalogSeedSkus,
+  buildCatalogFacePressureSizeGrid,
   catalogGridSeedCounts,
+  catalogFaceGridSeedCounts,
   mirrorCatalogSkuAs316,
   mirrorCatalogSkuAsMopi,
 } from '../lib/wms/yuil-catalog-size-grid';
@@ -102,6 +104,66 @@ async function main() {
   const gridMopi = grid.map(mirrorCatalogSkuAsMopi);
   for (let i = 0; i < gridMopi.length; i += BATCH) {
     const slice = gridMopi.slice(i, i + BATCH);
+    await prisma.item.createMany({
+      data: slice.map((g) => ({
+        itemCode: g.itemCode,
+        itemName: g.itemName,
+        materialType: MaterialType.SEMI_RAW,
+        productType: g.productType,
+        standard: g.standard,
+        size: g.size,
+        pressureClass: g.pressureClass,
+        unit: g.unit,
+        safetyStock: 0,
+        locationId: locS.id,
+        memo: g.memo,
+      })),
+    });
+  }
+
+  // FACE(SOFF/SORF/BLFF/BLRF) × 압력 × 사이즈 — 304/316/모피 가산
+  const face304 = buildCatalogFacePressureSizeGrid();
+  const face316 = face304.map(mirrorCatalogSkuAs316);
+  const faceMopi = face304.map(mirrorCatalogSkuAsMopi);
+  const faceCounts = catalogFaceGridSeedCounts();
+  for (let i = 0; i < face304.length; i += BATCH) {
+    const slice = face304.slice(i, i + BATCH);
+    await prisma.item.createMany({
+      data: slice.map((g) => ({
+        itemCode: g.itemCode,
+        itemName: g.itemName,
+        materialType: MaterialType.SCS304,
+        productType: g.productType,
+        standard: g.standard,
+        size: g.size,
+        pressureClass: g.pressureClass,
+        unit: g.unit,
+        safetyStock: 0,
+        locationId: locA.id,
+        memo: g.memo,
+      })),
+    });
+  }
+  for (let i = 0; i < face316.length; i += BATCH) {
+    const slice = face316.slice(i, i + BATCH);
+    await prisma.item.createMany({
+      data: slice.map((g) => ({
+        itemCode: g.itemCode,
+        itemName: g.itemName,
+        materialType: MaterialType.SCS316,
+        productType: g.productType,
+        standard: g.standard,
+        size: g.size,
+        pressureClass: g.pressureClass,
+        unit: g.unit,
+        safetyStock: 0,
+        locationId: locB.id,
+        memo: g.memo,
+      })),
+    });
+  }
+  for (let i = 0; i < faceMopi.length; i += BATCH) {
+    const slice = faceMopi.slice(i, i + BATCH);
     await prisma.item.createMany({
       data: slice.map((g) => ({
         itemCode: g.itemCode,
@@ -447,7 +509,7 @@ async function main() {
   });
   const tenK = await prisma.item.count({ where: { pressureClass: '10K' } });
   console.log(
-    `Seed 완료: rating ${counts.pressures}×${counts.sizes}=${counts.ratingSkus}; productSpecs ${counts.productSpecs}→${counts.productSkus}; extras ${extras.length}; total ${totalItems}; SCS304 ${n304}; SCS316 ${n316}; mopi(M-) ${nMopi}; 10K rows ${tenK}; alerts critical<20 warn<500`,
+    `Seed 완료: rating ${counts.pressures}×${counts.sizes}=${counts.ratingSkus}; productSpecs ${counts.productSpecs}→${counts.productSkus}; face ${faceCounts.faces}×${faceCounts.perMaterial}/mat; extras ${extras.length}; total ${totalItems}; SCS304 ${n304}; SCS316 ${n316}; mopi(M-) ${nMopi}; 10K rows ${tenK}; alerts critical<20 warn<500`,
   );
 }
 

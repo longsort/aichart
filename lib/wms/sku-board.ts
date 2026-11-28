@@ -16,6 +16,11 @@ import {
   type MaterialFilter,
 } from '@/lib/wms/material';
 import {
+  itemMatchesFaceFilter,
+  parseFaceFilter,
+  type FaceFilter,
+} from '@/lib/wms/flange-face';
+import {
   classifyStockBand,
   loadThresholdBundle,
   resolveSkuThreshold,
@@ -31,6 +36,8 @@ export type SkuBoardFilters = {
   q?: string;
   /** 재질 필터 — 304|316|ALL (URL ?material=). finished 보드만 */
   material?: MaterialFilter | string;
+  /** 면·형식 필터 — SOFF|SORF|BLFF|BLRF|ALL (URL ?face=) */
+  face?: FaceFilter | string;
   /**
    * finished(기본)=SCS304/316 완성품 · mopi=SEMI_RAW 모피(M-*).
    * 완성품 보드에 모피가 섞이지 않게 기본 finished.
@@ -147,6 +154,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   const q = (filters.q || '').trim();
   const material = parseMaterialFilter(filters.material);
   const materialPrisma = materialFilterToPrisma(material);
+  const face = parseFaceFilter(filters.face);
   const shortageOnly = Boolean(filters.shortageOnly);
   const bandFilter = filters.band;
 
@@ -159,6 +167,10 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   } else {
     where.materialType = { in: ['SCS304', 'SCS316'] };
   }
+  // FACE: SQLite contains — 품번 토큰 -SOFF- 등 (ALL이면 생략)
+  if (face !== 'ALL') {
+    where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), { itemCode: { contains: `-${face}-` } }];
+  }
   // q는 Prisma contains(사이즈 부분일치→150A⊃50a) 대신 메모리 토큰 매칭
 
   const totalsWhere: Prisma.ItemWhereInput = { isActive: true };
@@ -169,6 +181,12 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     totalsWhere.materialType = materialPrisma;
   } else {
     totalsWhere.materialType = { in: ['SCS304', 'SCS316'] };
+  }
+  if (face !== 'ALL') {
+    totalsWhere.AND = [
+      ...(Array.isArray(totalsWhere.AND) ? totalsWhere.AND : totalsWhere.AND ? [totalsWhere.AND] : []),
+      { itemCode: { contains: `-${face}-` } },
+    ];
   }
 
   const [items, bundle, allActiveItems] = await Promise.all([
@@ -198,6 +216,9 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   ]);
 
   const matched = items.filter((it) => {
+    if (!itemMatchesFaceFilter({ itemCode: it.itemCode, itemName: it.itemName }, face)) {
+      return false;
+    }
     if (
       !itemMatchesCatalogPressure(
         {

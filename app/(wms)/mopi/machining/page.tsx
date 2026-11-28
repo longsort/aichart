@@ -1,9 +1,10 @@
 import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { MopiMachiningBoard } from '@/components/wms/mopi-machining-board';
 import { listMopiMachiningWaitRows } from '@/lib/wms/mopi-queries';
+import { itemMatchesFaceFilter, parseFaceFilter } from '@/lib/wms/flange-face';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
 
-type Search = { err?: string; ok?: string };
+type Search = { err?: string; ok?: string; face?: string };
 
 /** 가공대기 — 입고된 모피 · 가공완료 → 홀가공대기 */
 export default async function MopiMachiningPage({ searchParams }: { searchParams: Promise<Search> }) {
@@ -11,7 +12,9 @@ export default async function MopiMachiningPage({ searchParams }: { searchParams
   const sp = await searchParams;
   const err = sp.err ? decodeURIComponent(sp.err) : '';
   const ok = sp.ok ? decodeURIComponent(sp.ok) : '';
-  const rows = await listMopiMachiningWaitRows();
+  const face = parseFaceFilter(sp.face);
+  const all = await listMopiMachiningWaitRows();
+  const rows = all.filter((r) => itemMatchesFaceFilter(r, face));
 
   return (
     <>

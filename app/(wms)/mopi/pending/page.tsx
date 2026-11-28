@@ -3,20 +3,22 @@ import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { StockPendingBoard } from '@/components/wms/stock-pending-board';
 import { listSkuBoard } from '@/lib/wms/sku-board';
 import { mapPendingQtyByItemId } from '@/lib/wms/pending-inbound';
+import { parseFaceFilter } from '@/lib/wms/flange-face';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
 
-type Search = { err?: string; ok?: string };
+type Search = { err?: string; ok?: string; face?: string };
 
 /** 모피 입고대기 — 미강품 대기 저장 · 입고완료 → 가공대기 */
 export default async function MopiPendingPage({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams;
   const err = sp.err ? decodeURIComponent(sp.err) : '';
   const ok = sp.ok ? decodeURIComponent(sp.ok) : '';
+  const face = parseFaceFilter(sp.face);
   const auth = requireInventoryAuth();
 
   const [board, pendingMap] = await Promise.all([
     // 모피 전 카탈로그(보유 0 포함) — 대기 수량 입력용
-    listSkuBoard({ kind: 'mopi', unpaged: true }),
+    listSkuBoard({ kind: 'mopi', unpaged: true, face }),
     mapPendingQtyByItemId(),
   ]);
 
@@ -67,8 +69,10 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
       <StockPendingBoard
         rows={rows}
         userName={auth.user}
+        face={face}
         basePath="/mopi/pending"
         showMaterialChips={false}
+        showFaceChips
         showPressureStats={false}
         crumbLabel="모피 입고대기"
       />

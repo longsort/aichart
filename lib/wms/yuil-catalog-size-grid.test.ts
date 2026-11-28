@@ -16,7 +16,11 @@ import {
   mopiItemCodeToFinished,
   mirrorCatalogSkuAs316,
   mirrorCatalogSkuAsMopi,
+  buildCatalogFacePressureSizeGrid,
+  buildCatalogFaceItemCode,
+  catalogFaceGridSeedCounts,
 } from '@/lib/wms/yuil-catalog-size-grid';
+import { FLANGE_FACE_TYPES, extractFaceFromSku, parseFaceFilter } from '@/lib/wms/flange-face';
 import { itemMatchesCatalogPressure } from '@/lib/wms/yuil-catalog-filters';
 
 assert.ok(compareNominalSize('15A', '1000A') < 0);
@@ -111,6 +115,22 @@ assert.ok(mopi.itemName.includes('모피'));
 assert.ok(mopi.itemName.includes('미강품'));
 assert.equal(new Set([...all.map((g) => g.itemCode), ...all.map((g) => catalogItemCodeToMopi(g.itemCode))]).size, all.length * 2);
 
+assert.equal(buildCatalogFaceItemCode('SOFF', '10K', '50A'), 'F-304-SOFF-10K-50A');
+assert.equal(catalogItemCodeTo316('F-304-SOFF-10K-50A'), 'F-316-SOFF-10K-50A');
+assert.equal(catalogItemCodeToMopi('F-304-BLRF-10K-50A'), 'M-304-BLRF-10K-50A');
+assert.equal(mopiItemCodeToFinished('M-304-SORF-5K-15A'), 'F-304-SORF-5K-15A');
+assert.equal(extractFaceFromSku('F-304-SOFF-10K-50A'), 'SOFF');
+assert.equal(parseFaceFilter('blff'), 'BLFF');
+const faceGrid = buildCatalogFacePressureSizeGrid();
+const faceCounts = catalogFaceGridSeedCounts();
+assert.equal(faceGrid.length, faceCounts.perMaterial);
+assert.equal(faceCounts.faces, 4);
+assert.equal(FLANGE_FACE_TYPES.length, 4);
+assert.equal(new Set(faceGrid.map((g) => g.itemCode)).size, faceGrid.length);
+assert.ok(faceGrid.every((g) => g.faceType && g.itemName.includes(g.faceType)));
+assert.equal(mirrorCatalogSkuAs316(faceGrid[0]!).itemCode.startsWith('F-316-'), true);
+assert.equal(mirrorCatalogSkuAsMopi(faceGrid[0]!).materialType, 'SEMI_RAW');
+
 console.log(
   'yuil-catalog-size-grid.test.ts OK',
   counts.pressures,
@@ -126,4 +146,6 @@ console.log(
   all.length,
   '+mopi',
   all.length,
+  '+face',
+  faceGrid.length,
 );

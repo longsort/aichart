@@ -9,8 +9,10 @@ import {
 } from '@/lib/wms/actions/pending-inbound';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import type { MaterialFilter } from '@/lib/wms/material';
+import type { FaceFilter } from '@/lib/wms/flange-face';
 import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
 import { MaterialFilterChips } from '@/components/wms/material-filter-chips';
+import { FaceFilterChips } from '@/components/wms/face-filter-chips';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 
@@ -47,8 +49,10 @@ export function StockPendingBoard({
   rows,
   userName,
   material = 'ALL',
+  face = 'ALL',
   basePath = '/stock/pending',
   showMaterialChips = true,
+  showFaceChips = true,
   showPressureStats = true,
   crumbLabel = '입고대기',
 }: {
@@ -56,10 +60,13 @@ export function StockPendingBoard({
   userName?: string;
   /** URL ?material= — 서버에서 이미 필터된 rows */
   material?: MaterialFilter;
+  /** URL ?face= — 서버에서 이미 필터된 rows */
+  face?: FaceFilter;
   /** 폼 returnTo · 재질칩 링크 기준 경로 */
   basePath?: string;
   /** 모피 큐 등에서는 재질칩 숨김 */
   showMaterialChips?: boolean;
+  showFaceChips?: boolean;
   /** 완성품 입고대기 압력 통계 팝업 */
   showPressureStats?: boolean;
   crumbLabel?: string;
@@ -69,8 +76,22 @@ export function StockPendingBoard({
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
+  function pendingHref(next: { material?: MaterialFilter; face?: FaceFilter }) {
+    const m = next.material ?? material;
+    const f = next.face ?? face;
+    const sp = new URLSearchParams();
+    if (m !== 'ALL') sp.set('material', m);
+    if (f !== 'ALL') sp.set('face', f);
+    const q = sp.toString();
+    return q ? `${basePath}?${q}` : basePath;
+  }
+
   function materialHref(m: MaterialFilter) {
-    return m === 'ALL' ? basePath : `${basePath}?material=${m}`;
+    return pendingHref({ material: m });
+  }
+
+  function faceHref(f: FaceFilter) {
+    return pendingHref({ face: f });
   }
 
   /** 칩 클릭 = 해당 압력 목록만 (검색어 잔존으로 빈 표 나는 것 방지) */
@@ -197,6 +218,11 @@ export function StockPendingBoard({
           {showMaterialChips ? (
             <div className="w-full basis-full">
               <MaterialFilterChips material={material} hrefFor={materialHref} />
+            </div>
+          ) : null}
+          {showFaceChips ? (
+            <div className="w-full basis-full">
+              <FaceFilterChips face={face} hrefFor={faceHref} />
             </div>
           ) : null}
 

@@ -25,8 +25,10 @@ import { wmsControlCompact, wmsLabel } from '@/components/wms/wms-form-styles';
 import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
 import { BandSummaryOpenCard } from '@/components/wms/band-summary-open-card';
 import { MaterialFilterChips } from '@/components/wms/material-filter-chips';
+import { FaceFilterChips } from '@/components/wms/face-filter-chips';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import type { MaterialFilter } from '@/lib/wms/material';
+import type { FaceFilter } from '@/lib/wms/flange-face';
 
 function chipClass(active: boolean) {
   return active
@@ -63,6 +65,7 @@ export function SkuStockBoard({
   size,
   q = '',
   material = 'ALL',
+  face = 'ALL',
   overallTotal,
   filteredTotal,
   skuCount,
@@ -93,6 +96,8 @@ export function SkuStockBoard({
   q?: string;
   /** 재질 필터 — URL ?material= */
   material?: MaterialFilter;
+  /** 면·형식 필터 — URL ?face= */
+  face?: FaceFilter;
   overallTotal: number;
   filteredTotal: number;
   skuCount: number;
@@ -127,9 +132,10 @@ export function SkuStockBoard({
   const searchQ = (q || '').trim();
   const materialExtra =
     material && material !== 'ALL' ? { material } : ({} as Record<string, string | undefined>);
+  const faceExtra = face && face !== 'ALL' ? { face } : ({} as Record<string, string | undefined>);
 
   const shortageExtra = shortageOnly ? { shortage: '1' } : undefined;
-  const chipExtra = { ...materialExtra, ...shortageExtra };
+  const chipExtra = { ...materialExtra, ...faceExtra, ...shortageExtra };
   const activeBreakdown = activeBand ? bandPressureBreakdown[activeBand] : [];
   const activeBandTotal = activeBand ? bandCounts[activeBand] : 0;
   const bandSource = previewRows && previewRows.length ? previewRows : rows;
@@ -147,6 +153,15 @@ export function SkuStockBoard({
   const materialHref = (m: MaterialFilter) =>
     buildHref(pressure, size, {
       ...(m !== 'ALL' ? { material: m } : {}),
+      ...faceExtra,
+      ...shortageExtra,
+      ...(activeBand ? { band: activeBand } : {}),
+      ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
+    });
+  const faceHref = (f: FaceFilter) =>
+    buildHref(pressure, size, {
+      ...materialExtra,
+      ...(f !== 'ALL' ? { face: f } : {}),
       ...shortageExtra,
       ...(activeBand ? { band: activeBand } : {}),
       ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
@@ -501,6 +516,7 @@ export function SkuStockBoard({
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
         <div className="mb-3">
           <MaterialFilterChips material={material} hrefFor={materialHref} />
+          <FaceFilterChips face={face} hrefFor={faceHref} />
           <p className="mt-1.5 text-[11px] text-slate-500">
             316 행은 빨강 · 칩/합계는 선택한 재질만 집계
           </p>

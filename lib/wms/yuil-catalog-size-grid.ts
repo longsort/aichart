@@ -9,6 +9,7 @@
  */
 
 import { YUIL_CATALOG_PRESSURE_CHIPS } from '@/lib/wms/yuil-catalog-filters';
+import { FLANGE_FACE_TYPES, type FlangeFaceType } from '@/lib/wms/flange-face';
 
 /** 카탈로그 표에 자주 괄호로 표기된 비권장 호칭 (시드 스킵) */
 export const CATALOG_UNUSED_NOMINAL_SIZES = [
@@ -87,6 +88,50 @@ export function buildCatalogGridItemName(pressure: string, size: string): string
   return `KS Flange ${pressure} ${size} SCS304`;
 }
 
+/** FACE 포함 품번: F-304-SOFF-10K-50A */
+export function buildCatalogFaceItemCode(face: FlangeFaceType, pressure: string, size: string): string {
+  return `F-304-${face}-${pressureKeyToCodeToken(pressure)}-${size}`;
+}
+
+export function buildCatalogFaceItemName(face: FlangeFaceType, pressure: string, size: string): string {
+  return `KS Flange ${face} ${pressure} ${size} SCS304`;
+}
+
+/**
+ * 압력 × 사이즈 × FACE(SOFF/SORF/BLFF/BLRF) — 기존 FACE 없는 rating SKU와 병행(가산).
+ */
+export function buildCatalogFacePressureSizeGrid(): CatalogGridSku[] {
+  const out: CatalogGridSku[] = [];
+  for (const face of FLANGE_FACE_TYPES) {
+    for (const pressure of CATALOG_SEED_PRESSURE_KEYS) {
+      for (const size of CATALOG_SEED_NOMINAL_SIZES) {
+        out.push({
+          itemCode: buildCatalogFaceItemCode(face, pressure, size),
+          itemName: buildCatalogFaceItemName(face, pressure, size),
+          pressureClass: pressure,
+          size,
+          productType: 'KS Flange',
+          standard: `KS B1506 / JIS B2220 · ${face}`,
+          materialType: 'SCS304',
+          unit: 'EA',
+          safetyStock: 0,
+          memo: `catalog face-grid · ${face} · qty 0`,
+          faceType: face,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+export function catalogFaceGridSeedCounts() {
+  const pressures = CATALOG_SEED_PRESSURE_KEYS.length;
+  const sizes = CATALOG_SEED_NOMINAL_SIZES.length;
+  const faces = FLANGE_FACE_TYPES.length;
+  const perMaterial = pressures * sizes * faces;
+  return { pressures, sizes, faces, perMaterial, faceTypes: [...FLANGE_FACE_TYPES] };
+}
+
 export type CatalogGridSku = {
   itemCode: string;
   itemName: string;
@@ -98,6 +143,8 @@ export type CatalogGridSku = {
   unit: 'EA';
   safetyStock: number;
   memo: string;
+  /** SOFF|SORF|BLFF|BLRF — FACE 시드만 설정 */
+  faceType?: FlangeFaceType;
 };
 
 /**
@@ -131,6 +178,7 @@ export function mirrorCatalogSkuAs316(sku: CatalogGridSku): CatalogGridSku {
     itemName: String(sku.itemName || '').replace(/SCS304/g, 'SCS316'),
     materialType: 'SCS316',
     memo: `${sku.memo || 'catalog'} · SCS316 mirror · qty 0`.trim(),
+    faceType: sku.faceType,
   };
 }
 
