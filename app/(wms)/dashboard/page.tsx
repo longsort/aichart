@@ -2,6 +2,7 @@ import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { SkuStockBoard } from '@/components/wms/sku-stock-board';
 import { parseMaterialFilter } from '@/lib/wms/material';
 import { parseFaceFilter } from '@/lib/wms/flange-face';
+import { parseSkuSortMode } from '@/lib/wms/sku-list-sort';
 import { getSkuFilterOptions, listSkuBoard } from '@/lib/wms/sku-board';
 import type { StockAlertBand } from '@/lib/wms/stock-alerts';
 
@@ -11,6 +12,7 @@ type Search = {
   q?: string;
   material?: string;
   face?: string;
+  sort?: string;
   shortage?: string;
   band?: string;
   /** sizes = 전체 재고 사이즈별 수량 패널 */
@@ -37,6 +39,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const q = (sp.q || '').trim();
   const material = parseMaterialFilter(sp.material);
   const face = parseFaceFilter(sp.face);
+  const sort = parseSkuSortMode(sp.sort);
   const shortageOnly = sp.shortage === '1' || sp.shortage === 'true';
   const band = parseBand(sp.band);
   const panel = (sp.panel || '').trim().toLowerCase() === 'sizes' ? 'sizes' : undefined;
@@ -52,6 +55,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       q: q || undefined,
       material,
       face,
+      sort,
       shortageOnly: band ? false : shortageOnly,
       band,
       // 사이즈별 패널은 25행만 필요 — 1313 SKU 표/폼 RSC·DOM 동결 방지
@@ -65,7 +69,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <>
       <WmsPageHeader
         title="재고현황"
-        subtitle="보유 수량 직접 저장(ADJUST) · 304/316 · SOFF/SORF/BLFF/BLRF · 칩/밴드/합계 동기"
+        subtitle="보유 수량 직접 저장(ADJUST) · 304/316 · FACE · 정렬(보유우선/보유량/압력)"
       />
       <SkuStockBoard
         rows={board.rows}
@@ -77,6 +81,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         q={q}
         material={material}
         face={face}
+        sort={sort}
         overallTotal={board.overallTotal}
         filteredTotal={board.filteredTotal}
         skuCount={board.skuCount}

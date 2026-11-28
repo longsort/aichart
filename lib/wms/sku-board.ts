@@ -21,6 +21,11 @@ import {
   type FaceFilter,
 } from '@/lib/wms/flange-face';
 import {
+  parseSkuSortMode,
+  sortSkuRows,
+  type SkuSortMode,
+} from '@/lib/wms/sku-list-sort';
+import {
   classifyStockBand,
   loadThresholdBundle,
   resolveSkuThreshold,
@@ -38,6 +43,8 @@ export type SkuBoardFilters = {
   material?: MaterialFilter | string;
   /** 면·형식 필터 — SOFF|SORF|BLFF|BLRF|ALL (URL ?face=) */
   face?: FaceFilter | string;
+  /** 목록 정렬 — stock(기본·보유우선)|qty|pressure (URL ?sort=) */
+  sort?: SkuSortMode | string;
   /**
    * finished(기본)=SCS304/316 완성품 · mopi=SEMI_RAW 모피(M-*).
    * 완성품 보드에 모피가 섞이지 않게 기본 finished.
@@ -155,6 +162,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   const material = parseMaterialFilter(filters.material);
   const materialPrisma = materialFilterToPrisma(material);
   const face = parseFaceFilter(filters.face);
+  const sortMode = parseSkuSortMode(filters.sort);
   const shortageOnly = Boolean(filters.shortageOnly);
   const bandFilter = filters.band;
 
@@ -291,6 +299,9 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     filtered = allBanded.filter((r) => r.band === 'critical' || r.band === 'warn');
   }
 
+  // 사용자 정렬 — 필터 후·페이지 전에 적용 (보유우선/보유량/압력)
+  filtered = sortSkuRows(filtered, sortMode);
+
   const filteredTotal = filtered.reduce((s, r) => s + r.onHand, 0);
   const skuCount = filtered.length;
   const unpaged = Boolean(filters.unpaged);
@@ -366,6 +377,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     page,
     pageSize,
     totalPages,
+    sort: sortMode,
     bandCounts,
     bandPressureBreakdown,
     pressureTotals,

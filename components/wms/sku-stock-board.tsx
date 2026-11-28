@@ -26,9 +26,11 @@ import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
 import { BandSummaryOpenCard } from '@/components/wms/band-summary-open-card';
 import { MaterialFilterChips } from '@/components/wms/material-filter-chips';
 import { FaceFilterChips } from '@/components/wms/face-filter-chips';
+import { SkuSortChips } from '@/components/wms/sku-sort-chips';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import type { MaterialFilter } from '@/lib/wms/material';
 import type { FaceFilter } from '@/lib/wms/flange-face';
+import type { SkuSortMode } from '@/lib/wms/sku-list-sort';
 
 function chipClass(active: boolean) {
   return active
@@ -66,6 +68,7 @@ export function SkuStockBoard({
   q = '',
   material = 'ALL',
   face = 'ALL',
+  sort = 'stock',
   overallTotal,
   filteredTotal,
   skuCount,
@@ -98,6 +101,8 @@ export function SkuStockBoard({
   material?: MaterialFilter;
   /** 면·형식 필터 — URL ?face= */
   face?: FaceFilter;
+  /** 목록 정렬 — URL ?sort= */
+  sort?: SkuSortMode;
   overallTotal: number;
   filteredTotal: number;
   skuCount: number;
@@ -133,9 +138,10 @@ export function SkuStockBoard({
   const materialExtra =
     material && material !== 'ALL' ? { material } : ({} as Record<string, string | undefined>);
   const faceExtra = face && face !== 'ALL' ? { face } : ({} as Record<string, string | undefined>);
+  const sortExtra = sort && sort !== 'stock' ? { sort } : ({} as Record<string, string | undefined>);
 
   const shortageExtra = shortageOnly ? { shortage: '1' } : undefined;
-  const chipExtra = { ...materialExtra, ...faceExtra, ...shortageExtra };
+  const chipExtra = { ...materialExtra, ...faceExtra, ...sortExtra, ...shortageExtra };
   const activeBreakdown = activeBand ? bandPressureBreakdown[activeBand] : [];
   const activeBandTotal = activeBand ? bandCounts[activeBand] : 0;
   const bandSource = previewRows && previewRows.length ? previewRows : rows;
@@ -154,6 +160,7 @@ export function SkuStockBoard({
     buildHref(pressure, size, {
       ...(m !== 'ALL' ? { material: m } : {}),
       ...faceExtra,
+      ...sortExtra,
       ...shortageExtra,
       ...(activeBand ? { band: activeBand } : {}),
       ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
@@ -162,9 +169,20 @@ export function SkuStockBoard({
     buildHref(pressure, size, {
       ...materialExtra,
       ...(f !== 'ALL' ? { face: f } : {}),
+      ...sortExtra,
       ...shortageExtra,
       ...(activeBand ? { band: activeBand } : {}),
       ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
+    });
+  const sortHref = (s: SkuSortMode) =>
+    buildHref(pressure, size, {
+      ...materialExtra,
+      ...faceExtra,
+      ...(s !== 'stock' ? { sort: s } : {}),
+      ...shortageExtra,
+      ...(activeBand ? { band: activeBand } : {}),
+      ...(activePanel === 'sizes' ? { panel: 'sizes' } : {}),
+      ...(searchQ ? { q: searchQ } : {}),
     });
   const bandCardClass = (band: StockAlertBand, base: string) =>
     `${base} block transition hover:ring-2 hover:ring-teal-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 ${
@@ -517,6 +535,9 @@ export function SkuStockBoard({
         <div className="mb-3">
           <MaterialFilterChips material={material} hrefFor={materialHref} />
           <FaceFilterChips face={face} hrefFor={faceHref} />
+          <div className="mt-1.5">
+            <SkuSortChips sort={sort} hrefFor={sortHref} />
+          </div>
           <p className="mt-1.5 text-[11px] text-slate-500">
             316 행은 빨강 · 칩/합계는 선택한 재질만 집계
           </p>
@@ -527,6 +548,7 @@ export function SkuStockBoard({
           {size !== 'ALL' ? <input type="hidden" name="size" value={size} /> : null}
           {material !== 'ALL' ? <input type="hidden" name="material" value={material} /> : null}
           {face !== 'ALL' ? <input type="hidden" name="face" value={face} /> : null}
+          {sort !== 'stock' ? <input type="hidden" name="sort" value={sort} /> : null}
           {activeBand ? <input type="hidden" name="band" value={activeBand} /> : null}
           {shortageOnly && !activeBand ? <input type="hidden" name="shortage" value="1" /> : null}
           <label className="block min-w-0 flex-1 basis-[16rem]">

@@ -4,9 +4,10 @@ import { StockPendingBoard } from '@/components/wms/stock-pending-board';
 import { listSkuBoard } from '@/lib/wms/sku-board';
 import { mapPendingQtyByItemId, mapUndoableReceiveQtyByItemId } from '@/lib/wms/pending-inbound';
 import { parseFaceFilter } from '@/lib/wms/flange-face';
+import { parseSkuSortMode } from '@/lib/wms/sku-list-sort';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
 
-type Search = { err?: string; ok?: string; face?: string };
+type Search = { err?: string; ok?: string; face?: string; sort?: string };
 
 /** 모피 입고대기 — 미강품 대기 저장 · 입고완료 → 가공대기 */
 export default async function MopiPendingPage({ searchParams }: { searchParams: Promise<Search> }) {
@@ -14,6 +15,7 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
   const err = sp.err ? decodeURIComponent(sp.err) : '';
   const ok = sp.ok ? decodeURIComponent(sp.ok) : '';
   const face = parseFaceFilter(sp.face);
+  const sort = parseSkuSortMode(sp.sort);
   const auth = requireInventoryAuth();
 
   const [board, pendingMap, undoMap] = await Promise.all([
@@ -72,6 +74,7 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
         rows={rows}
         userName={auth.user}
         face={face}
+        sort={sort}
         basePath="/mopi/pending"
         showMaterialChips={false}
         showFaceChips
