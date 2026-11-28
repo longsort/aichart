@@ -11,4 +11,4 @@ export const wmsFormGrid = 'grid w-full max-w-3xl grid-cols-1 gap-4 md:grid-cols
 export const wmsFieldCol = 'flex min-w-0 flex-col gap-1.5';
 export const wmsFieldSpan2 = 'flex min-w-0 flex-col gap-1.5 md:col-span-2';
 export const wmsRow2 = 'grid grid-cols-1 gap-4 sm:grid-cols-2';
-export const wmsHelp = 'rounded-md border border-slate-700/80 bg-slate-900/60 px-3 py-2 text-xs leading-relaxed text-slate-300';
+export const wmsHelp = 'rounded-md border border-slate-600 bg-slate-900/80 px-3 py-2 text-xs leading-relaxed text-slate-200';

@@ -20,6 +20,26 @@ export function homePathForRole(role: string | undefined | null): string {
   return '/';
 }
 
+/**
+ * 로그인 직후 목적지 — 계정 우선.
+ * u1 → `/dashboard`(WMS), aichart1~3 → `/`(차트). 그 외는 역할 기본.
+ */
+export function homePathForUser(
+  user: string | undefined | null,
+  role?: string | undefined | null,
+): string {
+  const u = String(user || '')
+    .trim()
+    .toLowerCase();
+  if (u === 'u1') return '/dashboard';
+  if (u === 'aichart1' || u === 'aichart2' || u === 'aichart3') return '/';
+  return homePathForRole(role);
+}
+
+export function isInventoryHomeUser(user: string | undefined | null): boolean {
+  return String(user || '').trim().toLowerCase() === 'u1';
+}
+
 export function canAccessChartsClient(role: string | undefined | null): boolean {
   const r = normalizeAppRoleClient(role);
   return r === 'charts' || r === 'both' || r === 'master_admin';

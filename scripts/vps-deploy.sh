@@ -44,13 +44,42 @@ if [ ! -f .env.production ] && [ ! -f .env.local ]; then
   fi
 fi
 
-export NODE_ENV=production
+# Install with devDeps (tailwind/postcss/typescript). NODE_ENV=production
+# before npm ci would skip them and break `next build`.
+echo "[1/4] npm install (incl. devDeps)"
+npm install --no-audit --no-fund
 
-echo "[1/4] npm ci"
-npm ci
+# Tailwind/PostCSS must be present or WMS ships raw @tailwind (unstyled).
+if [ ! -f postcss.config.mjs ] && [ ! -f postcss.config.js ]; then
+  echo "[오류] postcss.config.mjs 없음 — WMS CSS가 빌드되지 않습니다."
+  exit 1
+fi
+if [ ! -f tailwind.config.ts ] && [ ! -f tailwind.config.js ]; then
+  echo "[오류] tailwind.config.* 없음 — WMS CSS가 빌드되지 않습니다."
+  exit 1
+fi
+if [ ! -d node_modules/tailwindcss ] || [ ! -d node_modules/postcss ]; then
+  echo "[오류] tailwindcss/postcss 미설치. npm install 결과를 확인하세요."
+  exit 1
+fi
+
+export NODE_ENV=production
 
 echo "[2/4] npm run build"
 npm run build
+
+# Fail deploy if production CSS still contains raw @tailwind directives.
+CSS_HIT="$(find .next/static/css -name '*.css' -type f 2>/dev/null | head -20)"
+if [ -z "$CSS_HIT" ]; then
+  echo "[오류] .next/static/css 없음 — next build 산출물 확인 필요"
+  exit 1
+fi
+if grep -Rql '@tailwind' .next/static/css --include='*.css' 2>/dev/null; then
+  echo "[오류] 빌드 CSS에 raw @tailwind 남음 (PostCSS/Tailwind 미적용)"
+  grep -Rnl '@tailwind' .next/static/css --include='*.css' || true
+  exit 1
+fi
+echo "[OK] Tailwind CSS compiled ($(echo "$CSS_HIT" | wc -l) css files)"
 
 echo "[3/4] PM2 기동"
 if ! command -v pm2 >/dev/null 2>&1; then

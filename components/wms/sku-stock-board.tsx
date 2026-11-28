@@ -126,7 +126,7 @@ export function SkuStockBoard({
         <BandSummaryOpenCard
           href="/dashboard?band=empty"
           className={bandCardClass('empty', 'rounded-lg border border-slate-600 bg-slate-900/80 px-4 py-3')}
-          title="미입고(0) SKU — 압력등급별 구성 새 창"
+          title="미입고(0) SKU — 품명/사이즈/보유 새 창"
         >
           <div className="text-xs text-slate-400">미입고 · 클릭=새 창</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-slate-200">
@@ -142,7 +142,7 @@ export function SkuStockBoard({
           <BandSummaryOpenCard
             href="/dashboard?band=critical"
             className="block"
-            title="긴급 SKU — 압력등급별 구성 새 창"
+            title="긴급 SKU — 품명/사이즈/보유 새 창"
           >
             <div className="text-xs text-red-300/80">긴급 · 클릭=새 창</div>
             <div className="mt-1 text-2xl font-bold tabular-nums text-red-400">
@@ -184,7 +184,7 @@ export function SkuStockBoard({
           <BandSummaryOpenCard
             href="/dashboard?band=warn"
             className="block"
-            title="주의 SKU — 압력등급별 구성 새 창"
+            title="주의 SKU — 품명/사이즈/보유 새 창"
           >
             <div className="text-xs text-amber-200/80">주의 · 클릭=새 창</div>
             <div className="mt-1 text-2xl font-bold tabular-nums text-amber-300">
@@ -223,7 +223,7 @@ export function SkuStockBoard({
         <BandSummaryOpenCard
           href="/dashboard?band=ok"
           className={bandCardClass('ok', 'rounded-lg border border-emerald-900/60 bg-emerald-950/25 px-4 py-3')}
-          title="정상 SKU — 압력등급별 구성 새 창"
+          title="정상 SKU — 품명/사이즈/보유 새 창"
         >
           <div className="text-xs text-emerald-200/80">정상 · 클릭=새 창</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-emerald-300">
@@ -246,20 +246,57 @@ export function SkuStockBoard({
         >
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold text-slate-100">
-              {bandLabelKo(activeBand)} {activeBandTotal.toLocaleString()} SKU · 압력등급별 구성
+              {bandLabelKo(activeBand)} {activeBandTotal.toLocaleString()} SKU · 품명/사이즈/보유
             </h2>
             <Link href="/dashboard" className="text-xs text-slate-400 underline-offset-2 hover:text-teal-200 hover:underline">
               전체 재고로
             </Link>
           </div>
-          <p className="mb-3 text-xs text-slate-500">어떤 압력등급을 먼저 보충할지 보기 · SKU 수 내림차순</p>
-          {activeBreakdown.length === 0 ? (
+          <p className="mb-3 text-xs text-slate-500">
+            밴드 해당 SKU 목록 (압력·사이즈·품명·보유) · 아래 표에서 입고/출고
+          </p>
+          {rows.length === 0 ? (
             <p className="text-sm text-slate-400">해당 밴드 SKU 없음</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[420px] border-collapse text-left text-sm">
+              <table className="w-full min-w-[520px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-700 text-xs uppercase tracking-wide text-slate-400">
+                    <th className="px-2 py-1.5">압력</th>
+                    <th className="px-2 py-1.5">사이즈</th>
+                    <th className="px-2 py-1.5">품명</th>
+                    <th className="px-2 py-1.5 text-right">보유</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={`band-${r.id}`} className="border-b border-slate-800/70">
+                      <td className="px-2 py-1.5 font-medium text-teal-200">
+                        {catalogPressureChipLabel(r.pressureClass) || r.pressureClass || '—'}
+                      </td>
+                      <td className="px-2 py-1.5 font-semibold text-sky-200">{r.size || '—'}</td>
+                      <td className="px-2 py-1.5">
+                        <div className="text-slate-100">{r.itemName}</div>
+                        <div className="font-mono text-[11px] text-slate-500">{r.itemCode}</div>
+                      </td>
+                      <td className={`px-2 py-1.5 text-right tabular-nums ${bandTextClass(r.band)}`}>
+                        {r.onHand.toLocaleString()}
+                        <span className="ml-1 text-[10px] font-normal text-slate-500">{r.unit}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {activeBreakdown.length > 0 ? (
+            <details className="mt-3 rounded-md border border-slate-800 bg-slate-950/40 px-3 py-2 text-xs text-slate-500">
+              <summary className="cursor-pointer text-slate-400 hover:text-slate-200">
+                압력등급별 합계 ({activeBreakdown.length})
+              </summary>
+              <table className="mt-2 w-full min-w-[360px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-500">
                     <th className="px-2 py-1.5">압력등급</th>
                     <th className="px-2 py-1.5 text-right">SKU 수</th>
                     <th className="px-2 py-1.5 text-right">보유합</th>
@@ -268,16 +305,16 @@ export function SkuStockBoard({
                 </thead>
                 <tbody>
                   {activeBreakdown.map((row) => (
-                    <tr key={row.pressureClass} className="border-b border-slate-800/70">
-                      <td className="px-2 py-1.5 font-medium text-teal-200">
+                    <tr key={row.pressureClass} className="border-b border-slate-800/60">
+                      <td className="px-2 py-1.5 text-teal-200/90">
                         {pressureLabels?.[row.pressureClass] ||
                           catalogPressureChipLabel(row.pressureClass) ||
                           row.pressureClass}
                       </td>
-                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-100">
+                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">
                         {row.skuCount.toLocaleString()}
                       </td>
-                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">
+                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">
                         {row.onHandTotal.toLocaleString()}
                       </td>
                       <td className="px-2 py-1.5">
@@ -293,8 +330,8 @@ export function SkuStockBoard({
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
+            </details>
+          ) : null}
         </section>
       ) : null}
 
