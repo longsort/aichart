@@ -14,7 +14,12 @@ import {
   catalogPressureChipTitle,
   getCatalogPressureChip,
 } from '@/lib/wms/yuil-catalog-filters';
-import type { BandCounts, BandPressureBreakdown, SkuBoardRow } from '@/lib/wms/sku-board';
+import type {
+  BandCounts,
+  BandPressureBreakdown,
+  SizeOnHandTotal,
+  SkuBoardRow,
+} from '@/lib/wms/sku-board';
 import { bandLabelKo, bandTextClass, type StockAlertBand } from '@/lib/wms/stock-alerts';
 import { wmsControlCompact, wmsLabel } from '@/components/wms/wms-form-styles';
 import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
@@ -43,8 +48,12 @@ function buildHref(
   return q ? `/dashboard?${q}` : '/dashboard';
 }
 
+/** 밴드 요약 표 상한 — 전체 SKU 표와 별도 (동결 방지) */
+const BAND_PANEL_ROW_CAP = 60;
+
 export function SkuStockBoard({
   rows,
+  previewRows,
   pressures,
   sizes,
   pressure,
@@ -52,10 +61,15 @@ export function SkuStockBoard({
   overallTotal,
   filteredTotal,
   skuCount,
+  page = 1,
+  pageSize = 80,
+  totalPages = 1,
   bandCounts,
   bandPressureBreakdown,
   activeBand,
+  activePanel,
   pressureTotals,
+  sizeTotals,
   shortageOnly,
   pressureLabels,
   globalCriticalBelow,
@@ -64,6 +78,8 @@ export function SkuStockBoard({
   ok,
 }: {
   rows: SkuBoardRow[];
+  /** 밴드 요약 미리보기 (페이지와 무관, 상한) */
+  previewRows?: SkuBoardRow[];
   pressures: string[];
   sizes: string[];
   pressure: string;
@@ -71,10 +87,16 @@ export function SkuStockBoard({
   overallTotal: number;
   filteredTotal: number;
   skuCount: number;
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
   bandCounts: BandCounts;
   bandPressureBreakdown: BandPressureBreakdown;
   activeBand?: StockAlertBand;
+  /** sizes = 전체 재고 사이즈별 수량 */
+  activePanel?: 'sizes';
   pressureTotals: Record<string, number>;
+  sizeTotals: SizeOnHandTotal[];
   shortageOnly: boolean;
   pressureLabels?: Record<string, string>;
   /** 전역 긴급/주의 (카드에서 편집) */
@@ -97,6 +119,16 @@ export function SkuStockBoard({
   const shortageExtra = shortageOnly ? { shortage: '1' } : undefined;
   const activeBreakdown = activeBand ? bandPressureBreakdown[activeBand] : [];
   const activeBandTotal = activeBand ? bandCounts[activeBand] : 0;
+  const bandSource = previewRows && previewRows.length ? previewRows : rows;
+  const bandListRows = activeBand ? bandSource.slice(0, BAND_PANEL_ROW_CAP) : [];
+  const bandListOmitted = activeBand ? Math.max(0, activeBandTotal - bandListRows.length) : 0;
+  const sizesPanelOnly = activePanel === 'sizes';
+  const pageHref = (p: number) =>
+    buildHref(pressure, size, {
+      ...shortageExtra,
+      ...(activeBand ? { band: activeBand } : {}),
+      ...(p > 1 ? { page: String(p) } : {}),
+    });
   const bandCardClass = (band: StockAlertBand, base: string) =>
     `${base} block transition hover:ring-2 hover:ring-teal-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 ${
       activeBand === band ? 'ring-2 ring-teal-500/70' : ''
@@ -112,10 +144,16 @@ export function SkuStockBoard({
       ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
-        <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3">
-          <div className="text-xs text-slate-400">전체 재고 합계</div>
+        <BandSummaryOpenCard
+          href="/dashboard?panel=sizes"
+          className={`rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3 transition hover:ring-2 hover:ring-teal-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 ${
+            activePanel === 'sizes' ? 'ring-2 ring-teal-500/70' : ''
+          }`}
+          title="사이즈별 보유 수량 — 새 창"
+        >
+          <div className="text-xs text-slate-400">전체 재고 합계 · 클릭=사이즈별</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-teal-300">{overallTotal.toLocaleString()}</div>
-        </div>
+        </BandSummaryOpenCard>
         <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3">
           <div className="text-xs text-slate-400">필터 재고 합계</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-sky-300">{filteredTotal.toLocaleString()}</div>
@@ -233,6 +271,71 @@ export function SkuStockBoard({
         </BandSummaryOpenCard>
       </section>
 
+      {activePanel === 'sizes' ? (
+        <section className="rounded-lg border border-teal-800/50 bg-teal-950/20 px-4 py-3">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold text-slate-100">
+              전체 재고 · 사이즈별 수량 ({sizeTotals.length.toLocaleString()}종) · 합계{' '}
+              {overallTotal.toLocaleString()}
+            </h2>
+            <Link
+              href="/dashboard"
+              className="text-xs text-slate-400 underline-offset-2 hover:text-teal-200 hover:underline"
+            >
+              닫기
+            </Link>
+          </div>
+          <p className="mb-3 text-xs text-slate-400">
+            존재하는 사이즈와 보유 합계 · 사이즈 클릭 시 해당 필터
+          </p>
+          {sizeTotals.length === 0 ? (
+            <p className="text-sm text-slate-400">등록된 사이즈 없음</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[360px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-700 text-xs uppercase tracking-wide text-slate-400">
+                    <th className="px-2 py-1.5">사이즈</th>
+                    <th className="px-2 py-1.5 text-right">SKU 수</th>
+                    <th className="px-2 py-1.5 text-right">보유(qty)</th>
+                    <th className="px-2 py-1.5">필터</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sizeTotals.map((row) => (
+                    <tr key={row.size} className="border-b border-slate-800/70">
+                      <td className="px-2 py-1.5 font-semibold text-sky-200">{row.size}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">
+                        {row.skuCount.toLocaleString()}
+                      </td>
+                      <td
+                        className={`px-2 py-1.5 text-right tabular-nums font-semibold ${
+                          row.onHandTotal > 0 ? 'text-teal-300' : 'text-slate-400'
+                        }`}
+                      >
+                        {row.onHandTotal.toLocaleString()}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        {row.size !== '—' ? (
+                          <Link
+                            href={`/dashboard?size=${encodeURIComponent(row.size)}`}
+                            className="text-xs text-teal-300/90 underline-offset-2 hover:underline"
+                          >
+                            이 사이즈만
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-slate-500">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
+
       {activeBand ? (
         <section
           className={`rounded-lg border px-4 py-3 ${
@@ -256,8 +359,12 @@ export function SkuStockBoard({
           <p className="mb-3 text-xs text-slate-500">
             밴드 해당 SKU 목록 (압력·사이즈·품명·보유) · 아래 표에서 보유 저장/입고/출고
           </p>
-          {rows.length === 0 ? (
+          {activeBandTotal === 0 ? (
             <p className="text-sm text-slate-400">해당 밴드 SKU 없음</p>
+          ) : bandListRows.length === 0 ? (
+            <p className="text-sm text-slate-400">
+              {activeBandTotal.toLocaleString()} SKU — 아래 표에서 확인/편집 (페이지네이션)
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[520px] border-collapse text-left text-sm">
@@ -270,7 +377,7 @@ export function SkuStockBoard({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
+                  {bandListRows.map((r) => (
                     <tr key={`band-${r.id}`} className="border-b border-slate-800/70">
                       <td className="px-2 py-1.5 font-medium text-teal-200">
                         {catalogPressureChipLabel(r.pressureClass) || r.pressureClass || '—'}
@@ -288,6 +395,11 @@ export function SkuStockBoard({
                   ))}
                 </tbody>
               </table>
+              {bandListOmitted > 0 ? (
+                <p className="mt-2 text-xs text-slate-400">
+                  +{bandListOmitted.toLocaleString()}건 더 — 아래 SKU 표에서 페이지로 확인
+                </p>
+              ) : null}
             </div>
           )}
           {activeBreakdown.length > 0 ? (
@@ -424,7 +536,39 @@ export function SkuStockBoard({
         </p>
       </section>
 
+      {sizesPanelOnly ? (
+        <section className="rounded-lg border border-slate-700 bg-slate-900/40 px-4 py-4 text-sm text-slate-300">
+          사이즈별 수량 패널 보기 중 — 상세 SKU 표(폼)는 생략해 브라우저 멈춤을 막습니다.{' '}
+          <Link href="/dashboard" className="text-teal-300 underline-offset-2 hover:underline">
+            전체 재고로 돌아가기
+          </Link>
+          에서 보유 저장·입고·출고를 하세요.
+        </section>
+      ) : (
       <section className="overflow-x-auto rounded-lg border border-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2 text-xs text-slate-400">
+          <span>
+            SKU {skuCount.toLocaleString()}건 · {page}/{totalPages}페이지 · {pageSize}건씩
+          </span>
+          {totalPages > 1 ? (
+            <span className="flex flex-wrap items-center gap-2">
+              {page > 1 ? (
+                <Link href={pageHref(page - 1)} className="text-teal-300 hover:underline">
+                  ← 이전
+                </Link>
+              ) : (
+                <span className="text-slate-600">← 이전</span>
+              )}
+              {page < totalPages ? (
+                <Link href={pageHref(page + 1)} className="text-teal-300 hover:underline">
+                  다음 →
+                </Link>
+              ) : (
+                <span className="text-slate-600">다음 →</span>
+              )}
+            </span>
+          ) : null}
+        </div>
         <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -591,7 +735,27 @@ export function SkuStockBoard({
               : '조건에 맞는 품목이 없습니다. 아래에서 신규 등록하거나 필터를 바꾸세요.'}
           </p>
         ) : null}
+        {totalPages > 1 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 px-3 py-2 text-xs text-slate-400">
+            <span>
+              {page}/{totalPages}페이지
+            </span>
+            <span className="flex gap-3">
+              {page > 1 ? (
+                <Link href={pageHref(page - 1)} className="text-teal-300 hover:underline">
+                  ← 이전
+                </Link>
+              ) : null}
+              {page < totalPages ? (
+                <Link href={pageHref(page + 1)} className="text-teal-300 hover:underline">
+                  다음 →
+                </Link>
+              ) : null}
+            </span>
+          </div>
+        ) : null}
       </section>
+      )}
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
         <h2 className="mb-3 text-sm font-semibold text-slate-100">신규 품목</h2>

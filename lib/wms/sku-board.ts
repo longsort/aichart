@@ -25,7 +25,17 @@ export type SkuBoardFilters = {
   shortageOnly?: boolean;
   /** 긴급|주의|정상 한 밴드만 */
   band?: StockAlertBand;
+  /**
+   * true면 상세 SKU rows를 비움 (사이즈별 패널 등).
+   * sizeTotals·bandCounts·pressureTotals·합계는 유지 — 1313행 DOM 동결 방지.
+   */
+  omitDetailRows?: boolean;
+  /** 상세 표 페이지 (1-based). omitDetailRows면 무시 */
+  page?: number;
+  pageSize?: number;
 };
+
+export const SKU_BOARD_DEFAULT_PAGE_SIZE = 80;
 
 export type SkuBoardRow = {
   id: string;
@@ -63,6 +73,13 @@ export type BandPressureCount = {
 };
 
 export type BandPressureBreakdown = Record<StockAlertBand, BandPressureCount[]>;
+
+/** 전체 재고 — 사이즈별 보유 합계 (존재하는 사이즈) */
+export type SizeOnHandTotal = {
+  size: string;
+  onHandTotal: number;
+  skuCount: number;
+};
 
 function buildBandPressureBreakdown(rows: SkuBoardRow[]): BandPressureBreakdown {
   const acc: Record<StockAlertBand, Record<string, BandPressureCount>> = {
@@ -140,6 +157,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
         standard: true,
         itemName: true,
         itemCode: true,
+        size: true,
         lots: { select: { quantity: true } },
       },
     }),
@@ -196,19 +214,49 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
 
   const bandPressureBreakdown = buildBandPressureBreakdown(allBanded);
 
-  let rows = allBanded;
+  let filtered = allBanded;
   if (bandFilter === 'empty' || bandFilter === 'critical' || bandFilter === 'warn' || bandFilter === 'ok') {
-    rows = allBanded.filter((r) => r.band === bandFilter);
+    filtered = allBanded.filter((r) => r.band === bandFilter);
   } else if (shortageOnly) {
-    rows = allBanded.filter((r) => r.band === 'critical' || r.band === 'warn');
+    filtered = allBanded.filter((r) => r.band === 'critical' || r.band === 'warn');
   }
 
-  const filteredTotal = rows.reduce((s, r) => s + r.onHand, 0);
+  const filteredTotal = filtered.reduce((s, r) => s + r.onHand, 0);
+  const skuCount = filtered.length;
+  const pageSize = Math.min(
+    200,
+    Math.max(20, Math.floor(filters.pageSize || SKU_BOARD_DEFAULT_PAGE_SIZE)),
+  );
+  const totalPages = Math.max(1, Math.ceil(skuCount / pageSize));
+  const page = Math.min(totalPages, Math.max(1, Math.floor(filters.page || 1)));
+  /** 밴드 요약 표용 미리보기 (페이지와 무관, 상한) */
+  const previewRows = filters.omitDetailRows ? [] : filtered.slice(0, 60);
+  const rows = filters.omitDetailRows
+    ? []
+    : filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const overallTotal = allActiveItems.reduce(
     (s, it) => s + it.lots.reduce((a, l) => a + l.quantity, 0),
     0,
   );
+
+  // 전체 재고 사이즈별 합계 (SKU가 있는 사이즈 · qty 0 포함)
+  const sizeAcc: Record<string, SizeOnHandTotal> = {};
+  for (const it of allActiveItems) {
+    const sizeKey = (it.size || '').trim() || '—';
+    const qty = it.lots.reduce((s, l) => s + l.quantity, 0);
+    const cur = sizeAcc[sizeKey] || { size: sizeKey, onHandTotal: 0, skuCount: 0 };
+    cur.skuCount += 1;
+    cur.onHandTotal += qty;
+    sizeAcc[sizeKey] = cur;
+  }
+  const sizeTotals: SizeOnHandTotal[] = Object.values(sizeAcc).sort((a, b) => {
+    if (a.size === '—' && b.size !== '—') return 1;
+    if (b.size === '—' && a.size !== '—') return -1;
+    const bySize = compareNominalSize(a.size, b.size);
+    if (bySize !== 0) return bySize;
+    return b.onHandTotal - a.onHandTotal;
+  });
 
   // 압력 칩별 보유 합계 (카탈로그 매칭 + DB-only 키)
   const pressureTotals: Record<string, number> = {};
@@ -239,12 +287,17 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
 
   return {
     rows,
+    previewRows,
     filteredTotal,
     overallTotal,
-    skuCount: rows.length,
+    skuCount,
+    page,
+    pageSize,
+    totalPages,
     bandCounts,
     bandPressureBreakdown,
     pressureTotals,
+    sizeTotals,
     thresholds: bundle.global,
   };
 }
