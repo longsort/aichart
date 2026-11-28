@@ -11,12 +11,13 @@ import {
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import type { MaterialFilter } from '@/lib/wms/material';
 import type { FaceFilter } from '@/lib/wms/flange-face';
+import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
 import { sortSkuRows, type SkuSortMode } from '@/lib/wms/sku-list-sort';
 import { SkuListFilterPanel } from '@/components/wms/sku-list-filter-panel';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 
-/** 표 DOM만 페이지 — 필터는 URL(서버) */
+/** 표 DOM만 페이지 — 칩은 URL · 빠른찾기는 클라이언트 라이브 */
 const TABLE_PAGE_SIZE = 80;
 
 export type PendingSkuRow = {
@@ -79,9 +80,30 @@ export function StockPendingBoard({
 }) {
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
-  const searchQ = (q || '').trim();
+  const [liveQ, setLiveQ] = useState((q || '').trim());
 
-  const sorted = useMemo(() => sortSkuRows(rows, sort), [rows, sort]);
+  useEffect(() => {
+    setLiveQ((q || '').trim());
+  }, [q]);
+
+  const filtered = useMemo(() => {
+    const query = liveQ.trim();
+    if (!query) return rows;
+    return rows.filter((r) =>
+      matchesSkuQuickSearch(
+        {
+          pressureClass: r.pressureClass,
+          size: r.size,
+          itemCode: r.itemCode,
+          itemName: r.itemName,
+          extra: catalogPressureChipLabel(r.pressureClass) || r.pressureClass,
+        },
+        query,
+      ),
+    );
+  }, [rows, liveQ]);
+
+  const sorted = useMemo(() => sortSkuRows(filtered, sort), [filtered, sort]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -92,7 +114,7 @@ export function StockPendingBoard({
 
   useEffect(() => {
     setPage(1);
-  }, [pressure, size, searchQ, material, face, sort]);
+  }, [pressure, size, liveQ, material, face, sort]);
 
   const pendingSkuCount = useMemo(
     () => rows.filter((r) => r.pendingQty > 0).length,
@@ -162,50 +184,38 @@ export function StockPendingBoard({
 
       <SkuListFilterPanel
         basePath={basePath}
-        values={{ material, face, sort, pressure, size, q: searchQ }}
+        values={{ material, face, sort, pressure, size, q: liveQ }}
         pressures={pressures}
         sizes={sizes}
         pressureTotals={pressureTotals}
         pressureLabels={pressureLabels}
         showMaterial={showMaterialChips}
         showFace={showFaceChips}
+        onLiveQueryChange={setLiveQ}
+        liveSearchNav="history"
         skuCount={sorted.length}
       />
 
-      <p className="text-xs text-slate-500">
-        수량 입력 → <strong className="text-amber-200/90">대기 저장</strong>(DB, 보유 아님) → 공장 도착
-        후 <strong className="text-teal-300">입고완료</strong>. 오클릭 시{' '}
-        <strong className="text-slate-300">되돌리기</strong>. 필터=재고현황과 동일 패널.
-        표시 <strong className="text-slate-300">{sorted.length.toLocaleString()}</strong>
-        {pressure !== 'ALL' ? (
-          <>
-            {' '}
-            · 칩{' '}
-            <strong className="text-teal-300">
-              {catalogPressureChipLabel(pressure) || pressure}
-            </strong>
-          </>
-        ) : null}
-        {size !== 'ALL' ? (
-          <>
-            {' '}
-            · 사이즈 <strong className="text-sky-300">{size}</strong>
-          </>
-        ) : null}
-        {totalPages > 1 ? (
-          <>
-            {' '}
-            · 표 {safePage}/{totalPages}페이지
-          </>
-        ) : null}
-      </p>
-
       <section className="overflow-x-auto rounded-lg border border-slate-700">
-        {totalPages > 1 ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2 text-xs text-slate-400">
-            <span>
-              표 {pageRows.length.toLocaleString()}건 표시 · 필터 {sorted.length.toLocaleString()}
-            </span>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2 text-xs text-slate-400">
+          <span>
+            대기 저장→입고완료 · 표시{' '}
+            <strong className="text-slate-200">{sorted.length.toLocaleString()}</strong>
+            {pressure !== 'ALL' ? (
+              <>
+                {' '}
+                · {catalogPressureChipLabel(pressure) || pressure}
+              </>
+            ) : null}
+            {size !== 'ALL' ? <> · {size}</> : null}
+            {totalPages > 1 ? (
+              <>
+                {' '}
+                · {safePage}/{totalPages}페이지
+              </>
+            ) : null}
+          </span>
+          {totalPages > 1 ? (
             <span className="flex items-center gap-2">
               <button
                 type="button"
@@ -224,8 +234,10 @@ export function StockPendingBoard({
                 다음 →
               </button>
             </span>
-          </div>
-        ) : null}
+          ) : (
+            <span className="text-slate-600">표 {pageRows.length.toLocaleString()}건</span>
+          )}
+        </div>
         <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium uppercase tracking-wide text-slate-400">

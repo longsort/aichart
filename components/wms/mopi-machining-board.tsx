@@ -54,7 +54,7 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
     size: 'ALL',
     q: '',
   });
-  const [localQuery, setLocalQuery] = useState('');
+  const [liveQ, setLiveQ] = useState('');
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
@@ -64,7 +64,7 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
   const pressureTotals = useMemo(() => buildPressureTotals(rows), [rows]);
 
   const filtered = useMemo(() => {
-    const q = localQuery.trim();
+    const q = liveQ.trim();
     const list = rows.filter((r) => {
       if (size !== 'ALL' && r.size !== size) return false;
       if (
@@ -94,7 +94,7 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
       );
     });
     return sortSkuRows(list, sort);
-  }, [rows, localQuery, pressure, size, sort]);
+  }, [rows, liveQ, pressure, size, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -105,7 +105,7 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
 
   useEffect(() => {
     setPage(1);
-  }, [localQuery, pressure, size, sort]);
+  }, [liveQ, pressure, size, sort]);
 
   const onHandTotal = useMemo(() => rows.reduce((s, r) => s + r.onHand, 0), [rows]);
 
@@ -140,13 +140,12 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
       <SkuListFilterPanel
         basePath="/mopi/machining"
         mode="controlled"
-        values={filters}
+        values={{ ...filters, q: liveQ }}
         onChange={(next) => {
           setFilters(next);
-          if (next.q === '') setLocalQuery('');
+          if (next.q === '') setLiveQ('');
         }}
-        localQuery={localQuery}
-        onLocalQueryChange={setLocalQuery}
+        onLiveQueryChange={setLiveQ}
         pressureTotals={pressureTotals}
         showMaterial={false}
         showFace={false}

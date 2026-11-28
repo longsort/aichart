@@ -77,4 +77,58 @@ assert.deepEqual(parsed.sizes, ['50a']);
 assert.ok(parsed.pressures.includes('20'));
 assert.ok(parsed.faces.some((f) => f === 'bl' || f.startsWith('bl')));
 
+// Class via #: 150# / 300# / 100a150# → Class only (never ANSI)
+const rowClass150 = {
+  pressureClass: 'Class150',
+  size: '100A',
+  itemCode: 'F-304-CLASS150-100A',
+  itemName: 'Class150 100A',
+  extra: 'Class150',
+};
+const rowClass300 = {
+  pressureClass: 'Class300',
+  size: '100A',
+  itemCode: 'F-304-CLASS300-100A',
+  itemName: 'Class300 100A',
+  extra: 'Class300',
+};
+const rowAnsi150 = {
+  pressureClass: 'ANSI150',
+  size: '100A',
+  itemCode: 'F-304-ANSI150-100A',
+  itemName: 'ANSI Class150 100A',
+  extra: 'ANSI150',
+};
+const hash150 = parseCompactSkuQuery('150#');
+assert.deepEqual(hash150.pressures, ['class150']);
+const hashCombo = parseCompactSkuQuery('100a150#');
+assert.deepEqual(hashCombo.sizes, ['100a']);
+assert.ok(hashCombo.pressures.includes('class150'));
+// bare 100a150 / 100A150 → class150 (not ANSI)
+const bareCombo = parseCompactSkuQuery('100a150');
+assert.deepEqual(bareCombo.sizes, ['100a']);
+assert.deepEqual(bareCombo.pressures, ['class150']);
+assert.deepEqual(parseCompactSkuQuery('100A150').pressures, ['class150']);
+assert.deepEqual(parseCompactSkuQuery('150').pressures, ['class150']);
+assert.deepEqual(parseCompactSkuQuery('ansi150').pressures, ['ansi150']);
+
+assert.equal(matchesSkuQuickSearch(rowClass150, '150#'), true);
+assert.equal(matchesSkuQuickSearch(rowClass150, '100a150#'), true);
+assert.equal(matchesSkuQuickSearch(rowClass150, '100a150'), true);
+assert.equal(matchesSkuQuickSearch(rowClass150, '100A150'), true);
+assert.equal(matchesSkuQuickSearch(rowClass150, '150'), true);
+assert.equal(matchesSkuQuickSearch(rowClass300, '150#'), false);
+assert.equal(matchesSkuQuickSearch(rowClass300, '300#'), true);
+assert.equal(matchesSkuQuickSearch(rowClass150, '300#'), false);
+assert.equal(matchesSkuQuickSearch(rowAnsi150, '150#'), false);
+assert.equal(matchesSkuQuickSearch(rowAnsi150, '100a150#'), false);
+assert.equal(matchesSkuQuickSearch(rowAnsi150, '100a150'), false);
+assert.equal(matchesSkuQuickSearch(rowAnsi150, '100A150'), false);
+assert.equal(matchesSkuQuickSearch(rowAnsi150, '150'), false);
+assert.equal(matchesSkuQuickSearch(rowAnsi150, '300#'), false);
+// ANSI only when explicitly typed
+assert.equal(matchesSkuQuickSearch(rowAnsi150, 'ansi150'), true);
+assert.equal(matchesSkuQuickSearch(rowAnsi150, '100aansi150'), true);
+assert.equal(matchesSkuQuickSearch(rowClass150, 'ansi150'), false);
+
 console.log('sku-quick-search.test.ts ok');
