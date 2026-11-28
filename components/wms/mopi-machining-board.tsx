@@ -3,79 +3,98 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { completeMopiMachiningAction } from '@/lib/wms/actions/mopi-process';
-import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
+import {
+  YUIL_CATALOG_PRESSURE_CHIPS,
+  catalogPressureChipLabel,
+  itemMatchesCatalogPressure,
+} from '@/lib/wms/yuil-catalog-filters';
 import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
 import { sortSkuRows, type SkuSortMode } from '@/lib/wms/sku-list-sort';
-import { SkuSortChips } from '@/components/wms/sku-sort-chips';
+import {
+  SkuListFilterPanel,
+  type SkuListFilterValues,
+} from '@/components/wms/sku-list-filter-panel';
 import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 import type { MopiSkuQueueRow } from '@/lib/wms/mopi-queries';
 
 const TABLE_PAGE_SIZE = 80;
 
-function chipClass(active: boolean) {
-  return active
-    ? 'inline-flex min-h-8 max-w-full shrink-0 items-center rounded-md bg-teal-700 px-2.5 text-xs font-semibold text-white'
-    : 'inline-flex min-h-8 max-w-full shrink-0 items-center rounded-md border border-slate-600 bg-slate-900 px-2.5 text-xs text-slate-200 hover:border-teal-600 hover:text-teal-200';
+function buildPressureTotals(rows: MopiSkuQueueRow[]): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const chip of YUIL_CATALOG_PRESSURE_CHIPS) totals[chip.key] = 0;
+  for (const r of rows) {
+    if (r.onHand <= 0) continue;
+    const identity = {
+      pressureClass: r.pressureClass,
+      productType: '',
+      standard: '',
+      itemName: r.itemName,
+      itemCode: r.itemCode,
+    };
+    for (const chip of YUIL_CATALOG_PRESSURE_CHIPS) {
+      if (itemMatchesCatalogPressure(identity, chip.key)) {
+        totals[chip.key] = (totals[chip.key] || 0) + r.onHand;
+      }
+    }
+    const pc = (r.pressureClass || '').trim();
+    if (pc && totals[pc] == null) totals[pc] = r.onHand;
+    else if (pc && !YUIL_CATALOG_PRESSURE_CHIPS.some((c) => c.key === pc)) {
+      totals[pc] = (totals[pc] || 0) + r.onHand;
+    }
+  }
+  return totals;
 }
 
 /** 가공대기 — 모피 보유>0 · 가공완료 → 홀가공대기 */
 export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
-  const [query, setQuery] = useState('');
-  const [pressure, setPressure] = useState('ALL');
-  const [sort, setSort] = useState<SkuSortMode>('stock');
+  const [filters, setFilters] = useState<SkuListFilterValues>({
+    sort: 'stock',
+    pressure: 'ALL',
+    size: 'ALL',
+    q: '',
+  });
+  const [localQuery, setLocalQuery] = useState('');
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
-  function selectPressure(next: string) {
-    setPressure(next);
-    setQuery('');
-    setPage(1);
-  }
-
-  function selectSort(next: SkuSortMode) {
-    setSort(next);
-    setPage(1);
-  }
-
-  const pressureChips = useMemo(() => {
-    const counts = new Map<string, { sku: number; onHand: number }>();
-    for (const r of rows) {
-      const key = (r.pressureClass || '').trim() || '—';
-      const cur = counts.get(key) || { sku: 0, onHand: 0 };
-      cur.sku += 1;
-      cur.onHand += r.onHand;
-      counts.set(key, cur);
-    }
-    return [...counts.entries()]
-      .map(([key, v]) => ({
-        key,
-        count: v.sku,
-        onHand: v.onHand,
-        label: catalogPressureChipLabel(key) || key,
-      }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'ko'));
-  }, [rows]);
+  const pressure = filters.pressure || 'ALL';
+  const size = filters.size || 'ALL';
+  const sort = (filters.sort || 'stock') as SkuSortMode;
+  const pressureTotals = useMemo(() => buildPressureTotals(rows), [rows]);
 
   const filtered = useMemo(() => {
-    const q = query.trim();
+    const q = localQuery.trim();
     const list = rows.filter((r) => {
-      const pc = (r.pressureClass || '').trim() || '—';
-      if (pressure !== 'ALL' && pc !== pressure) return false;
+      if (size !== 'ALL' && r.size !== size) return false;
+      if (
+        !itemMatchesCatalogPressure(
+          {
+            pressureClass: r.pressureClass,
+            productType: '',
+            standard: '',
+            itemName: r.itemName,
+            itemCode: r.itemCode,
+          },
+          pressure,
+        )
+      ) {
+        return false;
+      }
       if (!q) return true;
       return matchesSkuQuickSearch(
         {
-          pressureClass: pc,
+          pressureClass: r.pressureClass,
           size: r.size,
           itemCode: r.itemCode,
           itemName: r.itemName,
-          extra: `${r.finishedItemCode} ${catalogPressureChipLabel(pc) || pc}`,
+          extra: `${r.finishedItemCode} ${catalogPressureChipLabel(r.pressureClass) || r.pressureClass}`,
         },
         q,
       );
     });
     return sortSkuRows(list, sort);
-  }, [rows, query, pressure, sort]);
+  }, [rows, localQuery, pressure, size, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / TABLE_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -86,7 +105,7 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
 
   useEffect(() => {
     setPage(1);
-  }, [query, pressure, sort]);
+  }, [localQuery, pressure, size, sort]);
 
   const onHandTotal = useMemo(() => rows.reduce((s, r) => s + r.onHand, 0), [rows]);
 
@@ -115,42 +134,25 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
             보유 합{' '}
             <strong className="tabular-nums text-amber-300">{onHandTotal.toLocaleString()}</strong>
           </span>
-          <div
-            className="flex w-full basis-full flex-wrap items-center gap-1.5"
-            role="toolbar"
-            aria-label="압력 필터"
-          >
-            <button type="button" className={chipClass(pressure === 'ALL')} onClick={() => selectPressure('ALL')}>
-              전체
-              <span className="ml-1 tabular-nums opacity-80">{rows.length.toLocaleString()}</span>
-            </button>
-            {pressureChips.map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                className={chipClass(pressure === c.key)}
-                onClick={() => selectPressure(c.key)}
-                title={`${c.label} · 보유 ${c.onHand}`}
-              >
-                {c.label}
-                <span className="ml-1 tabular-nums opacity-80">{c.count}</span>
-              </button>
-            ))}
-          </div>
-          <div className="w-full basis-full">
-            <SkuSortChips sort={sort} onSelect={selectSort} />
-          </div>
-          <label className="flex w-full max-w-md basis-full items-center gap-2 sm:ml-auto sm:basis-auto">
-            <span className="sr-only">빠른찾기</span>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="예: 50A20BL · 20K50A · BLRF…"
-              className={wmsControlCompact}
-            />
-          </label>
         </div>
       </header>
+
+      <SkuListFilterPanel
+        basePath="/mopi/machining"
+        mode="controlled"
+        values={filters}
+        onChange={(next) => {
+          setFilters(next);
+          if (next.q === '') setLocalQuery('');
+        }}
+        localQuery={localQuery}
+        onLocalQueryChange={setLocalQuery}
+        pressureTotals={pressureTotals}
+        showMaterial={false}
+        showFace={false}
+        showSort
+        skuCount={filtered.length}
+      />
 
       <section className="overflow-x-auto rounded-md border border-slate-800">
         {totalPages > 1 ? (
