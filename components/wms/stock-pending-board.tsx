@@ -197,40 +197,26 @@ export function StockPendingBoard({
         skuCount={sorted.length}
       />
 
-      <p className="text-xs text-slate-500">
-        수량 입력 → <strong className="text-amber-200/90">대기 저장</strong>(DB, 보유 아님) → 공장 도착
-        후 <strong className="text-teal-300">입고완료</strong>. 오클릭 시{' '}
-        <strong className="text-slate-300">되돌리기</strong>. 필터=재고현황과 동일 패널.
-        표시 <strong className="text-slate-300">{sorted.length.toLocaleString()}</strong>
-        {pressure !== 'ALL' ? (
-          <>
-            {' '}
-            · 칩{' '}
-            <strong className="text-teal-300">
-              {catalogPressureChipLabel(pressure) || pressure}
-            </strong>
-          </>
-        ) : null}
-        {size !== 'ALL' ? (
-          <>
-            {' '}
-            · 사이즈 <strong className="text-sky-300">{size}</strong>
-          </>
-        ) : null}
-        {totalPages > 1 ? (
-          <>
-            {' '}
-            · 표 {safePage}/{totalPages}페이지
-          </>
-        ) : null}
-      </p>
-
       <section className="overflow-x-auto rounded-lg border border-slate-700">
-        {totalPages > 1 ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2 text-xs text-slate-400">
-            <span>
-              표 {pageRows.length.toLocaleString()}건 표시 · 필터 {sorted.length.toLocaleString()}
-            </span>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2 text-xs text-slate-400">
+          <span>
+            대기 저장→입고완료 · 표시{' '}
+            <strong className="text-slate-200">{sorted.length.toLocaleString()}</strong>
+            {pressure !== 'ALL' ? (
+              <>
+                {' '}
+                · {catalogPressureChipLabel(pressure) || pressure}
+              </>
+            ) : null}
+            {size !== 'ALL' ? <> · {size}</> : null}
+            {totalPages > 1 ? (
+              <>
+                {' '}
+                · {safePage}/{totalPages}페이지
+              </>
+            ) : null}
+          </span>
+          {totalPages > 1 ? (
             <span className="flex items-center gap-2">
               <button
                 type="button"
@@ -249,8 +235,10 @@ export function StockPendingBoard({
                 다음 →
               </button>
             </span>
-          </div>
-        ) : null}
+          ) : (
+            <span className="text-slate-600">표 {pageRows.length.toLocaleString()}건</span>
+          )}
+        </div>
         <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium uppercase tracking-wide text-slate-400">
