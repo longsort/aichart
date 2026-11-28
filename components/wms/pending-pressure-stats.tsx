@@ -4,18 +4,19 @@ import { listPendingPressureStats } from '@/lib/wms/pending-inbound';
 
 /**
  * 입고대기 압력 통계 — DB PendingInbound(대기>0)만 집계.
+ * 메인 표: SKU별 압력 + 사이즈 + 대기수량 (압력만 합치면 50A 등이 가려짐).
  * localStorage 대기열과 무관.
  */
 export async function PendingPressureStats() {
   const { stats, skuTotal, qtyTotal, items } = await listPendingPressureStats();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-1">
+    <div className="mx-auto max-w-3xl space-y-4 p-1">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-700 pb-3">
         <div>
           <h1 className="text-lg font-semibold text-slate-100">입고대기 · 압력 통계</h1>
           <p className="mt-1 text-xs text-slate-500">
-            DB 대기 수량만 · 전체 미입고(빈 카탈로그)와 무관 · 보유(LOT) 아님
+            DB 대기 수량만 · 압력+사이즈+대기수량 · 보유(LOT) 아님
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -56,53 +57,70 @@ export async function PendingPressureStats() {
           <span className="text-slate-400">입고대기</span>에서 수량을 넣고 「대기 저장」하세요.
         </p>
       ) : (
-        <section className="overflow-x-auto rounded-lg border border-slate-700">
-          <table className="w-full min-w-[360px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-700 bg-slate-900/90 text-xs uppercase tracking-wide text-slate-400">
-                <th className="px-3 py-2">압력등급</th>
-                <th className="px-3 py-2 text-right">SKU 수</th>
-                <th className="px-3 py-2 text-right">대기수량</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.map((row) => (
-                <tr key={row.pressureClass} className="border-b border-slate-800/80">
-                  <td className="px-3 py-2 font-medium text-teal-200">
-                    {row.label || catalogPressureChipLabel(row.pressureClass) || row.pressureClass}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-100">
-                    {row.skuCount.toLocaleString()}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-amber-300">
-                    {row.qtyTotal > 0 ? row.qtyTotal.toLocaleString() : '—'}
-                  </td>
+        <>
+          <section className="overflow-x-auto rounded-lg border border-slate-700">
+            <table className="w-full min-w-[480px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-700 bg-slate-900/90 text-xs uppercase tracking-wide text-slate-400">
+                  <th className="px-3 py-2">압력</th>
+                  <th className="px-3 py-2">사이즈</th>
+                  <th className="px-3 py-2">품번</th>
+                  <th className="px-3 py-2 text-right">대기수량</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+              </thead>
+              <tbody>
+                {items.map((it) => (
+                  <tr key={it.itemId} className="border-b border-slate-800/80">
+                    <td className="px-3 py-2 font-medium text-teal-200">
+                      {catalogPressureChipLabel(it.pressureClass) || it.pressureClass || '—'}
+                    </td>
+                    <td className="px-3 py-2 font-semibold text-sky-200">{it.size || '—'}</td>
+                    <td className="px-3 py-2">
+                      <div className="text-slate-100">{it.itemCode}</div>
+                      {it.itemName ? (
+                        <div className="text-xs text-slate-500">{it.itemName}</div>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-amber-300">
+                      {it.quantity.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
 
-      {skuTotal > 0 ? (
-        <details className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2 text-xs text-slate-500">
-          <summary className="cursor-pointer text-slate-400 hover:text-slate-200">
-            대기 SKU 목록 ({skuTotal})
-          </summary>
-          <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">
-            {items.map((it) => (
-              <li key={it.itemId} className="flex flex-wrap gap-x-2 text-slate-400">
-                <span className="text-teal-300/90">
-                  {catalogPressureChipLabel(it.pressureClass) || it.pressureClass}
-                </span>
-                <span>{it.size || '—'}</span>
-                <span className="text-slate-300">{it.itemCode}</span>
-                <span className="tabular-nums text-amber-300/90">대기 {it.quantity}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
+          <details className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2 text-xs text-slate-500">
+            <summary className="cursor-pointer text-slate-400 hover:text-slate-200">
+              압력별 합계 ({stats.length})
+            </summary>
+            <table className="mt-2 w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-800 text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-2 py-1.5">압력등급</th>
+                  <th className="px-2 py-1.5 text-right">SKU</th>
+                  <th className="px-2 py-1.5 text-right">대기합</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.map((row) => (
+                  <tr key={row.pressureClass} className="border-b border-slate-800/60">
+                    <td className="px-2 py-1.5 text-teal-200/90">
+                      {row.label || catalogPressureChipLabel(row.pressureClass) || row.pressureClass}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">
+                      {row.skuCount.toLocaleString()}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-amber-300/80">
+                      {row.qtyTotal > 0 ? row.qtyTotal.toLocaleString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        </>
+      )}
     </div>
   );
 }
