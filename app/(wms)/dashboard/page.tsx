@@ -48,7 +48,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <>
       <WmsPageHeader
         title="재고현황"
-        subtitle="긴급·주의 카드/보유 옆에서 기준 숫자 직접 편집 · 보유 색 반영 · 입고/출고 원장"
+        subtitle="보유 수량 직접 저장(ADJUST) · 긴급/주의 기준 편집 · 칩/밴드/합계 동기 · 입고/출고 원장"
       />
       <SkuStockBoard
         rows={board.rows}
