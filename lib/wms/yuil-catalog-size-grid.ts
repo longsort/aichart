@@ -100,7 +100,7 @@ export type CatalogGridSku = {
   memo: string;
 };
 
-/** 압력 × 사이즈 전체 그리드 (수량 0 시드용) */
+/** 압력 × 사이즈 전체 그리드 (수량 0 시드용) — KS Flange 기본 축 */
 export function buildCatalogPressureSizeGrid(): CatalogGridSku[] {
   const out: CatalogGridSku[] = [];
   for (const pressure of CATALOG_SEED_PRESSURE_KEYS) {
@@ -122,13 +122,222 @@ export function buildCatalogPressureSizeGrid(): CatalogGridSku[] {
   return out;
 }
 
+/**
+ * 제품·규격 칩별 시드 축.
+ * rating 그리드(KS Flange)만으로는 WELDING NECK / DIN / ANSI 제품칩이 비므로
+ * 칩 매칭용 productType·standard·itemName 을 압력×사이즈로 채운다.
+ * (KS-FLANGES 는 rating 그리드 productType 으로 이미 매칭 → 여기 제외)
+ */
+export type CatalogProductSeedSpec = {
+  chipKey: string;
+  codeToken: string;
+  productType: string;
+  standard: string;
+  namePrefix: string;
+  pressures: readonly string[];
+};
+
+const KS_RATING = ['5K', '10K', '16K', '20K', '30K', '40K', '63K'] as const;
+const DIN_BARS = ['6BAR', '10BAR', '16BAR', '25BAR', '40BAR'] as const;
+
+export const CATALOG_PRODUCT_SEED_SPECS: CatalogProductSeedSpec[] = [
+  {
+    chipKey: 'WELDING-NECK',
+    codeToken: 'WN',
+    productType: 'Welding Neck',
+    standard: 'JIS B2220 / KS B1506',
+    namePrefix: 'Welding Neck',
+    pressures: KS_RATING,
+  },
+  {
+    chipKey: 'OIL-PRESSURE',
+    codeToken: 'OIL',
+    productType: 'Oil Pressure',
+    standard: 'JIS B2291-1907',
+    namePrefix: 'Oil Pressure SHA',
+    pressures: ['210kgf/cm²'],
+  },
+  {
+    chipKey: 'ANSI-FLANGES',
+    codeToken: 'ANSI',
+    productType: 'ANSI Flange',
+    standard: 'ANSI B16.5 / JPI 7S-15',
+    namePrefix: 'ANSI Flange',
+    pressures: ['ANSI150', 'ANSI300'],
+  },
+  {
+    chipKey: 'AWWA-FLANGES',
+    codeToken: 'AWWA',
+    productType: 'AWWA Flange',
+    standard: 'AWWA C207 / C20',
+    namePrefix: 'AWWA Flange',
+    pressures: ['AWWA-B', 'AWWA-D', 'AWWA-E'],
+  },
+  {
+    chipKey: 'DIN-FLANGES',
+    codeToken: 'DIN',
+    productType: 'DIN Flange',
+    standard: 'DIN slip-on/blind/WN',
+    namePrefix: 'DIN Flange',
+    pressures: DIN_BARS,
+  },
+  {
+    chipKey: 'DIN-2545',
+    codeToken: 'DIN2545',
+    productType: 'DIN Flange',
+    standard: 'DIN 2545',
+    namePrefix: 'DIN 2545 SLIP-ON',
+    pressures: ['40BAR'],
+  },
+  {
+    chipKey: 'DIN-2527',
+    codeToken: 'DIN2527',
+    productType: 'DIN Flange',
+    standard: 'DIN 2527',
+    namePrefix: 'DIN 2527 BLIND',
+    pressures: DIN_BARS,
+  },
+  {
+    chipKey: 'DIN-2635',
+    codeToken: 'DIN2635',
+    productType: 'DIN Flange',
+    standard: 'DIN 2635',
+    namePrefix: 'DIN 2635 WELDING NECK',
+    pressures: ['40BAR'],
+  },
+  {
+    chipKey: 'DIN-2573',
+    codeToken: 'DIN2573',
+    productType: 'DIN Flange',
+    standard: 'DIN 2573',
+    namePrefix: 'DIN 2573 SLIP-ON',
+    pressures: ['6BAR'],
+  },
+  {
+    chipKey: 'DIN-2631',
+    codeToken: 'DIN2631',
+    productType: 'DIN Flange',
+    standard: 'DIN 2631',
+    namePrefix: 'DIN 2631 WELDING NECK',
+    pressures: ['6BAR'],
+  },
+  {
+    chipKey: 'SSC13-ACF',
+    codeToken: 'SSC13',
+    productType: 'SSC13 ACF',
+    standard: 'SSC13 ACF',
+    namePrefix: 'SSC13 ACF 원심주조플랜지',
+    pressures: ['10K'],
+  },
+  {
+    chipKey: 'JESU-KSD4308',
+    codeToken: 'JESU4308',
+    productType: '제수변 Flange',
+    standard: 'KSD 4308',
+    namePrefix: '제수변 KSD 4308',
+    pressures: ['10K'],
+  },
+  {
+    chipKey: 'KS-B2332',
+    codeToken: 'B2332',
+    productType: '제수변 Flange',
+    standard: 'KS B 2332-1994',
+    namePrefix: '수도용 제수밸브용 플랜지',
+    pressures: ['10K', '16K'],
+  },
+  {
+    chipKey: 'KS-B2333',
+    codeToken: 'B2333',
+    productType: '제수변 Flange',
+    standard: 'KS B 2333-1994',
+    namePrefix: '수도용 버터플라이 밸브용 플랜지',
+    pressures: ['10K', '16K'],
+  },
+  {
+    chipKey: 'KS-D3578',
+    codeToken: 'D3578',
+    productType: '수도용 도복장',
+    standard: 'KS D 3578-1997',
+    namePrefix: '수도용 도복장 강관 이형관용 플랜지',
+    pressures: ['10K', '16K', '20K'],
+  },
+  {
+    chipKey: 'KS-B6216',
+    codeToken: 'B6216',
+    productType: '안전변 Flange',
+    standard: 'KS B 6216-1998 / JIS B 8210',
+    namePrefix: '스프링 안전밸브 설치 플랜지',
+    pressures: ['10K', '20K'],
+  },
+];
+
+export function buildCatalogProductSpecItemCode(
+  codeToken: string,
+  pressure: string,
+  size: string,
+): string {
+  let pTok = pressureKeyToCodeToken(pressure);
+  // 가독성: AWWA-B → B, 210kgf/cm² → 210
+  if (codeToken === 'AWWA' && /^AWWA-/i.test(pressure)) {
+    pTok = pressure.replace(/^AWWA-/i, '');
+  } else if (codeToken === 'OIL' && /210/.test(pressure)) {
+    pTok = '210';
+  }
+  return `F-${codeToken}-${pTok}-${size}`;
+}
+
+/** 제품·규격 칩 × 해당 압력 × 사이즈 그리드 */
+export function buildCatalogProductSpecSizeGrid(): CatalogGridSku[] {
+  const out: CatalogGridSku[] = [];
+  for (const spec of CATALOG_PRODUCT_SEED_SPECS) {
+    for (const pressure of spec.pressures) {
+      for (const size of CATALOG_SEED_NOMINAL_SIZES) {
+        out.push({
+          itemCode: buildCatalogProductSpecItemCode(spec.codeToken, pressure, size),
+          itemName: `${spec.namePrefix} ${pressure} ${size} SCS304`,
+          pressureClass: pressure,
+          size,
+          productType: spec.productType,
+          standard: spec.standard,
+          materialType: 'SCS304',
+          unit: 'EA',
+          safetyStock: 0,
+          memo: `catalog product-spec seed · ${spec.chipKey} · qty 0`,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** rating 그리드 + 제품·규격 그리드 (itemCode 중복 없이 합침) */
+export function buildAllCatalogSeedSkus(): CatalogGridSku[] {
+  const rating = buildCatalogPressureSizeGrid();
+  const products = buildCatalogProductSpecSizeGrid();
+  const seen = new Set(rating.map((g) => g.itemCode));
+  const merged = [...rating];
+  for (const g of products) {
+    if (seen.has(g.itemCode)) continue;
+    seen.add(g.itemCode);
+    merged.push(g);
+  }
+  return merged;
+}
+
 export function catalogGridSeedCounts() {
   const pressures = CATALOG_SEED_PRESSURE_KEYS.length;
   const sizes = CATALOG_SEED_NOMINAL_SIZES.length;
+  const ratingSkus = pressures * sizes;
+  const productSkus = buildCatalogProductSpecSizeGrid().length;
+  const productSpecs = CATALOG_PRODUCT_SEED_SPECS.length;
   return {
     pressures,
     sizes,
-    skus: pressures * sizes,
+    skus: ratingSkus,
+    ratingSkus,
+    productSkus,
+    productSpecs,
+    totalSkus: ratingSkus + productSkus,
     unusedSkipped: CATALOG_UNUSED_NOMINAL_SIZES.length,
   };
 }

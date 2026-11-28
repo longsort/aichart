@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict';
 import { compareNominalSize } from '@/lib/wms/codes';
 import {
+  CATALOG_PRODUCT_SEED_SPECS,
   CATALOG_SEED_NOMINAL_SIZES,
   CATALOG_SEED_PRESSURE_KEYS,
   CATALOG_UNUSED_NOMINAL_SIZES,
+  buildAllCatalogSeedSkus,
   buildCatalogGridItemCode,
   buildCatalogPressureSizeGrid,
+  buildCatalogProductSpecSizeGrid,
   catalogGridSeedCounts,
 } from '@/lib/wms/yuil-catalog-size-grid';
+import { itemMatchesCatalogPressure } from '@/lib/wms/yuil-catalog-filters';
 
 assert.ok(compareNominalSize('15A', '1000A') < 0);
 assert.ok(compareNominalSize('100A', '1000A') < 0);
@@ -55,11 +59,36 @@ assert.ok(tenK.some((g) => g.size === '1000A'));
 const codes = new Set(grid.map((g) => g.itemCode));
 assert.equal(codes.size, grid.length, 'itemCode unique');
 
+assert.ok(CATALOG_PRODUCT_SEED_SPECS.some((s) => s.chipKey === 'WELDING-NECK'));
+assert.ok(CATALOG_PRODUCT_SEED_SPECS.some((s) => s.chipKey === 'DIN-2545'));
+assert.ok(!CATALOG_PRODUCT_SEED_SPECS.some((s) => s.chipKey === 'KS-FLANGES'));
+
+const productGrid = buildCatalogProductSpecSizeGrid();
+assert.equal(productGrid.length, counts.productSkus);
+assert.ok(counts.productSkus >= CATALOG_SEED_NOMINAL_SIZES.length * 10);
+
+const wn = productGrid.filter((g) => g.productType === 'Welding Neck');
+assert.equal(wn.length, 7 * counts.sizes);
+assert.ok(wn.every((g) => itemMatchesCatalogPressure(g, 'WELDING-NECK')));
+assert.ok(
+  productGrid
+    .filter((g) => g.standard === 'DIN 2545')
+    .every((g) => itemMatchesCatalogPressure(g, 'DIN-2545') && itemMatchesCatalogPressure(g, 'DIN-FLANGES')),
+);
+
+const all = buildAllCatalogSeedSkus();
+assert.equal(all.length, counts.ratingSkus + counts.productSkus);
+assert.equal(new Set(all.map((g) => g.itemCode)).size, all.length, 'merged itemCode unique');
+
 console.log(
   'yuil-catalog-size-grid.test.ts OK',
   counts.pressures,
   '×',
   counts.sizes,
   '=',
-  counts.skus,
+  counts.ratingSkus,
+  '+ product',
+  counts.productSkus,
+  '=',
+  counts.totalSkus,
 );

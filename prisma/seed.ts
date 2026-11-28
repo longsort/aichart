@@ -10,7 +10,7 @@ import {
   AttachmentFileType,
 } from '@prisma/client';
 import {
-  buildCatalogPressureSizeGrid,
+  buildAllCatalogSeedSkus,
   catalogGridSeedCounts,
 } from '../lib/wms/yuil-catalog-size-grid';
 
@@ -51,10 +51,10 @@ async function main() {
     data: { name: '가공대기', zone: 'S', description: '소재 반제품' },
   });
 
-  const grid = buildCatalogPressureSizeGrid();
+  const grid = buildAllCatalogSeedSkus();
   const counts = catalogGridSeedCounts();
 
-  // 압력등급 × 사이즈 전체 자동 등록 (보유 0 — 입고 원장으로만 수량 증가)
+  // 압력등급×사이즈 + 제품·규격칩×압력×사이즈 (보유 0 — 입고 원장으로만 증가)
   const BATCH = 100;
   for (let i = 0; i < grid.length; i += BATCH) {
     const slice = grid.slice(i, i + BATCH);
@@ -75,7 +75,7 @@ async function main() {
     });
   }
 
-  // 그리드 밖 제품군 데모 (카탈로그 제품 칩 필터용) — itemCode 충돌 없음
+  // 그리드 밖 데모만 (인치 ANSI · 반제품 가공)
   const extras = await Promise.all(
     [
       {
@@ -104,149 +104,6 @@ async function main() {
         locationId: locS.id,
         memo: 'process demo',
       },
-      {
-        itemCode: 'F-WN-5K-32A',
-        itemName: 'Welding Neck 5K 32A SCS304',
-        materialType: MaterialType.SCS304,
-        productType: 'Welding Neck',
-        standard: 'JIS',
-        size: '32A',
-        pressureClass: '5K',
-        unit: 'EA',
-        safetyStock: 20,
-        locationId: locA.id,
-        memo: 'WN demo (grid keeps F-304-5K-32A)',
-      },
-      {
-        itemCode: 'F-3578-10KG-100A',
-        itemName: '수도용 도복장 강관 이형관용(KS D 3578-1997)플랜지 10kg 100A',
-        materialType: MaterialType.SCS304,
-        productType: '수도용 도복장',
-        standard: 'KS D 3578-1997',
-        size: '100A',
-        pressureClass: '10kg/cm²',
-        unit: 'EA',
-        safetyStock: 10,
-        locationId: locA.id,
-        memo: 'catalog p.55',
-      },
-      {
-        itemCode: 'F-3578-16KG-150A',
-        itemName: '수도용 도복장 강관 이형관용(KS D 3578-1997)플랜지 16kg 150A',
-        materialType: MaterialType.SCS304,
-        productType: '수도용 도복장',
-        standard: 'KS D 3578-1997',
-        size: '150A',
-        pressureClass: '16kg/cm²',
-        unit: 'EA',
-        safetyStock: 8,
-        locationId: locA.id,
-        memo: 'catalog p.55',
-      },
-      {
-        itemCode: 'F-DIN2545-40BAR-50A',
-        itemName: '40BAR DIN 2545 SLIP-ON 50A',
-        materialType: MaterialType.SCS304,
-        productType: 'DIN Flange',
-        standard: 'DIN 2545',
-        size: '50A',
-        pressureClass: '40BAR',
-        unit: 'EA',
-        safetyStock: 12,
-        locationId: locA.id,
-        memo: 'catalog p.51',
-      },
-      {
-        itemCode: 'F-DIN2635-40BAR-50A',
-        itemName: '40BAR DIN 2635 WELDING NECK 50A',
-        materialType: MaterialType.SCS316,
-        productType: 'DIN Flange',
-        standard: 'DIN 2635',
-        size: '50A',
-        pressureClass: '40BAR',
-        unit: 'EA',
-        safetyStock: 10,
-        locationId: locB.id,
-        memo: 'catalog p.51',
-      },
-      {
-        itemCode: 'F-DIN2527-40BAR-50A',
-        itemName: '40BAR DIN 2527 BLIND 50A',
-        materialType: MaterialType.SCS304,
-        productType: 'DIN Flange',
-        standard: 'DIN 2527',
-        size: '50A',
-        pressureClass: '40BAR',
-        unit: 'EA',
-        safetyStock: 10,
-        locationId: locA.id,
-        memo: 'catalog p.51',
-      },
-      {
-        itemCode: 'F-OIL-210-25A',
-        itemName: '210kgf/cm² Oil Pressure SHA 25A',
-        materialType: MaterialType.SCS304,
-        productType: 'Oil Pressure',
-        standard: 'JIS B2291-1907',
-        size: '25A',
-        pressureClass: '210kgf/cm²',
-        unit: 'EA',
-        safetyStock: 6,
-        locationId: locA.id,
-        memo: 'catalog p.35',
-      },
-      {
-        itemCode: 'F-AWWA-C207-B-100A',
-        itemName: 'AWWA C207 Class B Slip-on 100A',
-        materialType: MaterialType.SCS304,
-        productType: 'AWWA Flange',
-        standard: 'AWWA C207',
-        size: '100A',
-        pressureClass: 'AWWA-B',
-        unit: 'EA',
-        safetyStock: 5,
-        locationId: locA.id,
-        memo: 'catalog p.44',
-      },
-      {
-        itemCode: 'F-JESU-4308-200A',
-        itemName: '제수변 KSD 4308 200A',
-        materialType: MaterialType.SCS304,
-        productType: '제수변 Flange',
-        standard: 'KSD 4308',
-        size: '200A',
-        pressureClass: 'JESU-KSD4308',
-        unit: 'EA',
-        safetyStock: 4,
-        locationId: locA.id,
-        memo: 'catalog p.52',
-      },
-      {
-        itemCode: 'F-SAFE-6216-10K-50A',
-        itemName: '스프링 안전밸브 설치 플랜지 KS B 6216 10K 50A',
-        materialType: MaterialType.SCS304,
-        productType: '안전변 Flange',
-        standard: 'KS B 6216-1998',
-        size: '50A',
-        pressureClass: '10K',
-        unit: 'EA',
-        safetyStock: 8,
-        locationId: locA.id,
-        memo: 'catalog p.56',
-      },
-      {
-        itemCode: 'F-SSC13-ACF-80A',
-        itemName: 'SSC13 ACF 원심주조플랜지 80A',
-        materialType: MaterialType.SCS304,
-        productType: 'SSC13 ACF',
-        standard: 'SSC13 ACF',
-        size: '80A',
-        pressureClass: 'SSC13-ACF',
-        unit: 'EA',
-        safetyStock: 5,
-        locationId: locA.id,
-        memo: 'catalog p.6',
-      },
     ].map((data) => prisma.item.create({ data })),
   );
 
@@ -262,17 +119,18 @@ async function main() {
   const i20k50 = await byCode('F-304-20K-50A');
   const i316 = extras.find((e) => e.itemCode === 'F-316-ANSI150-2B')!;
   const iSemi = extras.find((e) => e.itemCode === 'SEMI-RAW-001')!;
-  const iWn = extras.find((e) => e.itemCode === 'F-WN-5K-32A')!;
-  const iD3578 = extras.find((e) => e.itemCode === 'F-3578-10KG-100A')!;
-  const iD3578b = extras.find((e) => e.itemCode === 'F-3578-16KG-150A')!;
-  const iDin40 = extras.find((e) => e.itemCode === 'F-DIN2545-40BAR-50A')!;
-  const iDin40wn = extras.find((e) => e.itemCode === 'F-DIN2635-40BAR-50A')!;
-  const iDinBlind = extras.find((e) => e.itemCode === 'F-DIN2527-40BAR-50A')!;
-  const iOil = extras.find((e) => e.itemCode === 'F-OIL-210-25A')!;
-  const iAwwa = extras.find((e) => e.itemCode === 'F-AWWA-C207-B-100A')!;
-  const iJesu = extras.find((e) => e.itemCode === 'F-JESU-4308-200A')!;
-  const iSafety = extras.find((e) => e.itemCode === 'F-SAFE-6216-10K-50A')!;
-  const iSsc13 = extras.find((e) => e.itemCode === 'F-SSC13-ACF-80A')!;
+  // 제품·규격 그리드 SKU (데모 LOT용)
+  const iWn = await byCode('F-WN-5K-32A');
+  const iD3578 = await byCode('F-D3578-10K-100A');
+  const iD3578b = await byCode('F-D3578-16K-150A');
+  const iDin40 = await byCode('F-DIN2545-40BAR-50A');
+  const iDin40wn = await byCode('F-DIN2635-40BAR-50A');
+  const iDinBlind = await byCode('F-DIN2527-40BAR-50A');
+  const iOil = await byCode('F-OIL-210-25A');
+  const iAwwa = await byCode('F-AWWA-B-100A');
+  const iJesu = await byCode('F-JESU4308-10K-200A');
+  const iSafety = await byCode('F-B6216-10K-50A');
+  const iSsc13 = await byCode('F-SSC13-10K-80A');
 
   // 데모 재고가 있는 SKU만 safetyStock 보정
   await prisma.item.update({
@@ -540,7 +398,7 @@ async function main() {
   const totalItems = await prisma.item.count();
   const tenK = await prisma.item.count({ where: { pressureClass: '10K' } });
   console.log(
-    `Seed 완료: grid ${counts.pressures} pressures × ${counts.sizes} sizes = ${counts.skus} SKUs; extras ${extras.length}; total items ${totalItems}; 10K rows ${tenK}; alerts critical<20 warn<500`,
+    `Seed 완료: rating ${counts.pressures}×${counts.sizes}=${counts.ratingSkus}; productSpecs ${counts.productSpecs}→${counts.productSkus}; extras ${extras.length}; total items ${totalItems}; 10K rows ${tenK}; alerts critical<20 warn<500`,
   );
 }
 
