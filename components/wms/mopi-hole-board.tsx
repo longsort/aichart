@@ -127,7 +127,7 @@ export function MopiHoleBoard({ rows }: { rows: MopiHoleWaitRow[] }) {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="압력·사이즈·품번·지시번호"
+              placeholder="예: 50A20BL · 20K50A · BLRF · 지시번호…"
               className={wmsControlCompact}
             />
           </label>

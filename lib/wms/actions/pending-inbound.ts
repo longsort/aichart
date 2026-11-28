@@ -6,7 +6,9 @@ import { InventoryLotStatus, StockMoveType, type Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import {
   BULK_RECEIVE_DOC_PREFIX,
+  SINGLE_RECEIVE_DOC_PREFIX,
   bulkReceiveDocumentNo,
+  singleReceiveDocumentNo,
 } from '@/lib/wms/pending-inbound';
 
 const OPEN_LOT = 'OPEN';
@@ -133,6 +135,14 @@ async function receiveOnePendingInTx(
       reason: note,
     },
   });
+
+  // 단건 입고는 documentNo에 PENDING-ONE 태깅 (되돌리기용). 배치 입고는 호출측 documentNo 유지.
+  if (!opts.documentNo) {
+    await tx.stockMove.update({
+      where: { id: move.id },
+      data: { documentNo: singleReceiveDocumentNo(move.id) },
+    });
+  }
 
   const remain = pendingQty - qty;
   if (remain <= 0) {
@@ -419,6 +429,87 @@ export async function undoLastBulkReceiveAction(formData: FormData) {
         }),
       ),
     );
+  } catch (e) {
+    redirect(
+      dest(new URLSearchParams({ err: e instanceof Error ? e.message : '되돌리기 실패' })),
+    );
+  }
+}
+
+/**
+ * 품번 단건 입고완료 한 단계 되돌리기 — 최근 PENDING-ONE(또는 입고완료 reason) IN 취소 → 대기 복원.
+ */
+export async function undoLastPendingReceiveAction(formData: FormData) {
+  const itemId = String(formData.get('itemId') || '').trim();
+  const returnTo = safeReturnPath(String(formData.get('returnTo') || '')) || '/stock/pending';
+
+  const dest = (sp: URLSearchParams) => {
+    const q = sp.toString();
+    return q ? `${returnTo}?${q}` : returnTo;
+  };
+
+  if (!itemId) {
+    redirect(dest(new URLSearchParams({ err: '품목을 선택하세요.' })));
+  }
+
+  try {
+    assertPendingInboundReady();
+    const result = await prisma.$transaction(async (tx) => {
+      const move = await tx.stockMove.findFirst({
+        where: {
+          itemId,
+          moveType: StockMoveType.IN,
+          OR: [
+            { documentNo: { startsWith: SINGLE_RECEIVE_DOC_PREFIX } },
+            {
+              AND: [
+                { reason: { contains: '입고완료' } },
+                { NOT: { documentNo: { startsWith: BULK_RECEIVE_DOC_PREFIX } } },
+              ],
+            },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!move) throw new Error('되돌릴 입고완료가 없습니다.');
+
+      if (move.lotId) {
+        const lot = await tx.inventoryLot.findUnique({ where: { id: move.lotId } });
+        if (lot) {
+          const nextQty = Math.max(0, lot.quantity - move.quantity);
+          await tx.inventoryLot.update({
+            where: { id: lot.id },
+            data: {
+              quantity: nextQty,
+              status: nextQty <= 0 ? InventoryLotStatus.SHIPPED : lot.status,
+            },
+          });
+        }
+      }
+
+      await tx.stockMove.delete({ where: { id: move.id } });
+
+      const existing = await tx.pendingInbound.findUnique({ where: { itemId } });
+      if (existing) {
+        await tx.pendingInbound.update({
+          where: { itemId },
+          data: { quantity: existing.quantity + move.quantity, memo: '되돌리기(입고완료)' },
+        });
+      } else {
+        await tx.pendingInbound.create({
+          data: {
+            itemId,
+            quantity: move.quantity,
+            memo: '되돌리기(입고완료)',
+          },
+        });
+      }
+
+      return { qty: move.quantity };
+    });
+
+    revalidatePendingPaths();
+    redirect(dest(new URLSearchParams({ ok: `입고 되돌리기 · 대기 +${result.qty}` })));
   } catch (e) {
     redirect(
       dest(new URLSearchParams({ err: e instanceof Error ? e.message : '되돌리기 실패' })),

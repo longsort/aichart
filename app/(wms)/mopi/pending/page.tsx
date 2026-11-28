@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { StockPendingBoard } from '@/components/wms/stock-pending-board';
 import { listSkuBoard } from '@/lib/wms/sku-board';
-import { mapPendingQtyByItemId } from '@/lib/wms/pending-inbound';
+import { mapPendingQtyByItemId, mapUndoableReceiveQtyByItemId } from '@/lib/wms/pending-inbound';
 import { parseFaceFilter } from '@/lib/wms/flange-face';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
 
@@ -16,10 +16,11 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
   const face = parseFaceFilter(sp.face);
   const auth = requireInventoryAuth();
 
-  const [board, pendingMap] = await Promise.all([
+  const [board, pendingMap, undoMap] = await Promise.all([
     // 모피 전 카탈로그(보유 0 포함) — 대기 수량 입력용
     listSkuBoard({ kind: 'mopi', unpaged: true, face }),
     mapPendingQtyByItemId(),
+    mapUndoableReceiveQtyByItemId(),
   ]);
 
   const rows = board.rows.map((r) => ({
@@ -32,6 +33,7 @@ export default async function MopiPendingPage({ searchParams }: { searchParams: 
     locationName: r.locationName,
     onHand: r.onHand,
     pendingQty: pendingMap.get(r.id) ?? 0,
+    undoableQty: undoMap.get(r.id) ?? 0,
   }));
 
   return (

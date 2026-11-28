@@ -6,6 +6,7 @@ import {
   clearPendingInboundAction,
   receivePendingInboundAction,
   savePendingInboundAction,
+  undoLastPendingReceiveAction,
 } from '@/lib/wms/actions/pending-inbound';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import type { MaterialFilter } from '@/lib/wms/material';
@@ -31,6 +32,8 @@ export type PendingSkuRow = {
   onHand: number;
   /** DB 입고대기 수량 */
   pendingQty: number;
+  /** 단건 입고완료 되돌리기 가능 수량 (있으면 버튼 표시) */
+  undoableQty?: number;
 };
 
 function chipClass(active: boolean) {
@@ -265,7 +268,7 @@ export function StockPendingBoard({
       </header>
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-3">
-        <div className="mb-2 text-sm font-semibold text-slate-100">빠른찾기 (압력·사이즈·품번)</div>
+        <div className="mb-2 text-sm font-semibold text-slate-100">빠른찾기 (압력·사이즈·FACE·압축)</div>
         <div className="mb-2 flex gap-2">
           <label className="block min-w-0 flex-1">
             <span className="sr-only">압력·사이즈·품번 검색</span>
@@ -273,7 +276,7 @@ export function StockPendingBoard({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="예: 50a · 10K · 품번… (칩 클릭 시 검색 초기화)"
+              placeholder="예: 50A20BL · 20K50A · 50a · BLRF… (칩 클릭 시 검색 초기화)"
               className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
               autoComplete="off"
             />
@@ -291,9 +294,9 @@ export function StockPendingBoard({
         </div>
         <p className="text-xs text-slate-500">
           수량 입력 → <strong className="text-amber-200/90">대기 저장</strong>(DB, 보유 아님) → 공장
-          도착 후 <strong className="text-teal-300">입고완료</strong>(StockMove IN). 검색=압력·사이즈·품번/명칭.
-          칩=같은 페이지 필터(클릭 시 검색 초기화). 표시{' '}
-          <strong className="text-slate-300">{filtered.length.toLocaleString()}</strong>
+          도착 후 <strong className="text-teal-300">입고완료</strong>. 오클릭 시{' '}
+          <strong className="text-slate-300">되돌리기</strong>. 검색=압축 가능(50A20BL). 칩=같은 페이지.
+          표시 <strong className="text-slate-300">{filtered.length.toLocaleString()}</strong>
           {` / 전체 ${rows.length.toLocaleString()}`}
           {pressure !== 'ALL' ? (
             <>
@@ -348,12 +351,13 @@ export function StockPendingBoard({
               <th className="px-3 py-2 text-right">대기</th>
               <th className="px-3 py-2">수량</th>
               <th className="px-3 py-2">대기 저장</th>
-              <th className="px-3 py-2">입고완료</th>
+              <th className="px-3 py-2">입고·되돌리기</th>
             </tr>
           </thead>
           <tbody>
             {pageRows.map((r) => {
               const hasPending = r.pendingQty > 0;
+              const undoQty = r.undoableQty && r.undoableQty > 0 ? r.undoableQty : 0;
               return (
                 <tr key={r.id} className="border-b border-slate-800/80 align-top">
                   <SkuIdentityCells row={r} />
@@ -415,26 +419,38 @@ export function StockPendingBoard({
                     </form>
                   </td>
                   <td className="px-3 py-2">
-                    <form
-                      action={receivePendingInboundAction}
-                      className="flex min-w-[7rem] flex-wrap items-center gap-2"
-                    >
-                      <input type="hidden" name="itemId" value={r.id} />
-                      <input type="hidden" name="returnTo" value={basePath} />
-                      <input type="hidden" name="quantity" value={draftOrPending(r)} />
-                      <button
-                        type="submit"
-                        disabled={!hasPending}
-                        className="inline-flex min-h-9 items-center justify-center rounded-md border border-teal-700 bg-teal-900/50 px-3 text-xs font-semibold text-teal-100 hover:border-teal-500 disabled:cursor-not-allowed disabled:opacity-40"
-                        title={
-                          hasPending
-                            ? '공장 도착 후: 대기→실재고(StockMove IN)'
-                            : '먼저 대기 저장하세요'
-                        }
-                      >
-                        입고완료
-                      </button>
-                    </form>
+                    <div className="flex min-w-[7rem] flex-wrap items-center gap-1.5">
+                      <form action={receivePendingInboundAction} className="inline-flex">
+                        <input type="hidden" name="itemId" value={r.id} />
+                        <input type="hidden" name="returnTo" value={basePath} />
+                        <input type="hidden" name="quantity" value={draftOrPending(r)} />
+                        <button
+                          type="submit"
+                          disabled={!hasPending}
+                          className="inline-flex min-h-9 items-center justify-center rounded-md border border-teal-700 bg-teal-900/50 px-3 text-xs font-semibold text-teal-100 hover:border-teal-500 disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            hasPending
+                              ? '공장 도착 후: 대기→실재고(StockMove IN)'
+                              : '먼저 대기 저장하세요'
+                          }
+                        >
+                          입고완료
+                        </button>
+                      </form>
+                      {undoQty > 0 ? (
+                        <form action={undoLastPendingReceiveAction} className="inline-flex">
+                          <input type="hidden" name="itemId" value={r.id} />
+                          <input type="hidden" name="returnTo" value={basePath} />
+                          <button
+                            type="submit"
+                            className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-600 px-2 text-xs text-slate-300 hover:border-amber-600 hover:text-amber-200"
+                            title={`최근 입고완료 ${undoQty} 되돌리기 → 대기로 복원`}
+                          >
+                            되돌리기
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               );

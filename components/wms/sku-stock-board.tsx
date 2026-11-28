@@ -521,20 +521,21 @@ export function SkuStockBoard({
             316 행은 빨강 · 칩/합계는 선택한 재질만 집계
           </p>
         </div>
-        <div className="mb-2 text-sm font-semibold text-slate-100">빠른찾기 (압력·사이즈·품번)</div>
+        <div className="mb-2 text-sm font-semibold text-slate-100">빠른찾기 (압력·사이즈·FACE·압축)</div>
         <form method="get" action="/dashboard" className="mb-4 flex flex-wrap items-center gap-2">
           {pressure !== 'ALL' ? <input type="hidden" name="pressure" value={pressure} /> : null}
           {size !== 'ALL' ? <input type="hidden" name="size" value={size} /> : null}
           {material !== 'ALL' ? <input type="hidden" name="material" value={material} /> : null}
+          {face !== 'ALL' ? <input type="hidden" name="face" value={face} /> : null}
           {activeBand ? <input type="hidden" name="band" value={activeBand} /> : null}
           {shortageOnly && !activeBand ? <input type="hidden" name="shortage" value="1" /> : null}
           <label className="block min-w-0 flex-1 basis-[16rem]">
-            <span className="sr-only">압력·사이즈·품번 검색</span>
+            <span className="sr-only">압력·사이즈·FACE 압축 검색</span>
             <input
               type="search"
               name="q"
               defaultValue={searchQ}
-              placeholder="예: 50a · 10K · 품번…"
+              placeholder="예: 50A20BL · 20K50A · BLRF…"
               className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
               autoComplete="off"
             />
@@ -565,8 +566,7 @@ export function SkuStockBoard({
           ) : null}
         </form>
         <p className="mb-3 text-xs text-slate-500">
-          검색은 압력·사이즈·품번/명칭을 찾습니다. 압력·사이즈 칩을 누르면 검색어는 초기화되고 칩만
-          적용됩니다.
+          압축 검색 가능(50A20BL · K 생략). 압력·사이즈·FACE 칩 클릭 시 검색어는 초기화됩니다.
         </p>
 
         <div className="mb-2 text-sm font-semibold text-slate-100">압력등급</div>

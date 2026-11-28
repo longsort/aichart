@@ -133,7 +133,7 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="압력·사이즈·품번"
+              placeholder="예: 50A20BL · 20K50A · BLRF…"
               className={wmsControlCompact}
             />
           </label>
