@@ -147,6 +147,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
         standard: true,
         itemName: true,
         itemCode: true,
+        size: true,
         lots: { select: { quantity: true } },
       },
     }),
