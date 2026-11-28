@@ -5,6 +5,7 @@ import {
   receivePendingInboundAction,
   undoLastBulkReceiveAction,
   undoLastPendingReceiveAction,
+  updatePendingStatsRowAction,
 } from '@/lib/wms/actions/pending-inbound';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import {
@@ -16,7 +17,7 @@ import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 
 /**
  * 입고대기 압력 통계 — DB PendingInbound(대기>0)만 집계.
- * 전체입고완료 · 품번별 입고완료 · 대기 취소 · 한 단계 되돌리기.
+ * 행별 압력·사이즈·품번/명칭·대기수량 수정 · 입고완료 · 대기 취소 · 되돌리기.
  */
 export async function PendingPressureStats({
   err,
@@ -33,12 +34,12 @@ export async function PendingPressureStats({
     ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-1">
+    <div className="mx-auto max-w-6xl space-y-4 p-1">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-700 pb-3">
         <div>
           <h1 className="text-lg font-semibold text-slate-100">입고대기 · 압력 통계</h1>
           <p className="mt-1 text-xs text-slate-500">
-            DB 대기 수량만 · 전체/품번 입고완료 · 행별 대기 취소 · 되돌리기
+            행 수정(압력·사이즈·품번/명칭·대기) · 입고완료 · 대기 취소 · 되돌리기
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -135,91 +136,150 @@ export async function PendingPressureStats({
       ) : (
         <>
           <section className="overflow-x-auto rounded-lg border border-slate-700">
-            <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[980px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-700 bg-slate-900/90 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="px-3 py-2">압력</th>
-                  <th className="px-3 py-2">사이즈</th>
-                  <th className="px-3 py-2">품번</th>
-                  <th className="px-3 py-2 text-right">대기수량</th>
-                  <th className="px-3 py-2">입고완료</th>
-                  <th className="px-3 py-2">대기 취소</th>
-                  <th className="px-3 py-2">되돌리기</th>
+                  <th className="px-2 py-2">압력</th>
+                  <th className="px-2 py-2">사이즈</th>
+                  <th className="px-2 py-2">품번 / 명칭</th>
+                  <th className="px-2 py-2 text-right">대기수량</th>
+                  <th className="px-2 py-2">저장</th>
+                  <th className="px-2 py-2">입고완료</th>
+                  <th className="px-2 py-2">대기 취소</th>
+                  <th className="px-2 py-2">되돌리기</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((it) => {
                   const undoQty = undoByItem.get(it.itemId) || 0;
+                  const formId = `pending-edit-${it.itemId}`;
                   return (
-                  <tr key={it.itemId} className="border-b border-slate-800/80 align-middle">
-                    <td className="px-3 py-2 font-medium text-teal-200">
-                      {catalogPressureChipLabel(it.pressureClass) || it.pressureClass || '—'}
-                    </td>
-                    <td className="px-3 py-2 font-semibold text-sky-200">{it.size || '—'}</td>
-                    <td className="px-3 py-2">
-                      <div className="text-slate-100">{it.itemCode}</div>
-                      {it.itemName ? (
-                        <div className="text-xs text-slate-500">{it.itemName}</div>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-amber-300">
-                      {it.quantity.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2">
-                      <form
-                        action={receivePendingInboundAction}
-                        className="flex min-w-[8.5rem] flex-wrap items-center gap-1"
-                      >
-                        <input type="hidden" name="itemId" value={it.itemId} />
-                        <input type="hidden" name="returnTo" value="/stock/pending/stats" />
+                    <tr key={it.itemId} className="border-b border-slate-800/80 align-top">
+                      <td className="px-2 py-2">
+                        <form id={formId} action={updatePendingStatsRowAction} className="hidden">
+                          <input type="hidden" name="itemId" value={it.itemId} />
+                          <input type="hidden" name="returnTo" value="/stock/pending/stats" />
+                        </form>
                         <input
+                          form={formId}
+                          name="pressureClass"
+                          type="text"
+                          defaultValue={it.pressureClass || ''}
+                          className={`${wmsControlCompact} w-[7.5rem] text-teal-100`}
+                          aria-label={`${it.itemCode} 압력`}
+                          required
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <input
+                          form={formId}
+                          name="size"
+                          type="text"
+                          defaultValue={it.size || ''}
+                          className={`${wmsControlCompact} w-20 text-sky-100`}
+                          aria-label={`${it.itemCode} 사이즈`}
+                          required
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <div className="flex min-w-[14rem] flex-col gap-1">
+                          <input
+                            form={formId}
+                            name="itemCode"
+                            type="text"
+                            defaultValue={it.itemCode}
+                            className={`${wmsControlCompact} font-mono text-xs text-slate-100`}
+                            aria-label={`${it.itemCode} 품번`}
+                            required
+                          />
+                          <input
+                            form={formId}
+                            name="itemName"
+                            type="text"
+                            defaultValue={it.itemName || ''}
+                            className={`${wmsControlCompact} text-xs text-slate-300`}
+                            aria-label={`${it.itemCode} 명칭`}
+                            required
+                          />
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <input
+                          form={formId}
                           name="quantity"
                           type="number"
-                          min={1}
-                          max={it.quantity}
+                          min={0}
                           defaultValue={it.quantity}
-                          className={`${wmsControlCompact} w-16`}
-                          aria-label={`${it.itemCode} 입고 수량`}
+                          className={`${wmsControlCompact} w-20 text-right tabular-nums text-amber-200`}
+                          aria-label={`${it.itemCode} 대기수량`}
+                          required
                         />
+                      </td>
+                      <td className="px-2 py-2">
                         <button
+                          form={formId}
                           type="submit"
-                          className="inline-flex min-h-8 items-center rounded-md bg-emerald-800 px-2 text-[11px] font-semibold text-white hover:bg-emerald-700"
+                          className="inline-flex min-h-8 items-center rounded-md border border-sky-700 bg-sky-950/40 px-2 text-[11px] font-semibold text-sky-100 hover:border-sky-500"
+                          title="압력·사이즈·품번/명칭·대기수량 저장"
                         >
-                          입고완료
+                          저장
                         </button>
-                      </form>
-                    </td>
-                    <td className="px-3 py-2">
-                      <form action={clearPendingInboundAction} className="inline-flex">
-                        <input type="hidden" name="itemId" value={it.itemId} />
-                        <input type="hidden" name="returnTo" value="/stock/pending/stats" />
-                        <button
-                          type="submit"
-                          className="inline-flex min-h-8 items-center rounded-md border border-slate-600 px-2 text-[11px] font-semibold text-slate-300 hover:border-red-700 hover:text-red-200"
-                          title="대기 취소(재고 변동 없음) — 이 행 대기 수량 삭제"
+                      </td>
+                      <td className="px-2 py-2">
+                        <form
+                          action={receivePendingInboundAction}
+                          className="flex min-w-[8.5rem] flex-wrap items-center gap-1"
                         >
-                          대기 취소
-                        </button>
-                      </form>
-                    </td>
-                    <td className="px-3 py-2">
-                      {undoQty > 0 ? (
-                        <form action={undoLastPendingReceiveAction} className="inline-flex">
+                          <input type="hidden" name="itemId" value={it.itemId} />
+                          <input type="hidden" name="returnTo" value="/stock/pending/stats" />
+                          <input
+                            name="quantity"
+                            type="number"
+                            min={1}
+                            max={it.quantity}
+                            defaultValue={it.quantity}
+                            className={`${wmsControlCompact} w-16`}
+                            aria-label={`${it.itemCode} 입고 수량`}
+                          />
+                          <button
+                            type="submit"
+                            className="inline-flex min-h-8 items-center rounded-md bg-emerald-800 px-2 text-[11px] font-semibold text-white hover:bg-emerald-700"
+                          >
+                            입고완료
+                          </button>
+                        </form>
+                      </td>
+                      <td className="px-2 py-2">
+                        <form action={clearPendingInboundAction} className="inline-flex">
                           <input type="hidden" name="itemId" value={it.itemId} />
                           <input type="hidden" name="returnTo" value="/stock/pending/stats" />
                           <button
                             type="submit"
-                            className="inline-flex min-h-8 items-center rounded-md border border-amber-700/70 bg-amber-950/30 px-2 text-[11px] font-semibold text-amber-100 hover:border-amber-500"
-                            title={`최근 입고완료 ${undoQty} 되돌리기 → 대기로 복원`}
+                            className="inline-flex min-h-8 items-center rounded-md border border-slate-600 px-2 text-[11px] font-semibold text-slate-300 hover:border-red-700 hover:text-red-200"
+                            title="대기 취소(재고 변동 없음) — 이 행 대기 수량 삭제"
                           >
-                            전 단계 되돌리기
+                            대기 취소
                           </button>
                         </form>
-                      ) : (
-                        <span className="text-[11px] text-slate-600">—</span>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-2 py-2">
+                        {undoQty > 0 ? (
+                          <form action={undoLastPendingReceiveAction} className="inline-flex">
+                            <input type="hidden" name="itemId" value={it.itemId} />
+                            <input type="hidden" name="returnTo" value="/stock/pending/stats" />
+                            <button
+                              type="submit"
+                              className="inline-flex min-h-8 items-center rounded-md border border-amber-700/70 bg-amber-950/30 px-2 text-[11px] font-semibold text-amber-100 hover:border-amber-500"
+                              title={`최근 입고완료 ${undoQty} 되돌리기 → 대기로 복원`}
+                            >
+                              전 단계 되돌리기
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="text-[11px] text-slate-600">—</span>
+                        )}
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>

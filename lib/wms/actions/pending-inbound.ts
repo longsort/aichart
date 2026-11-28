@@ -545,3 +545,93 @@ export async function clearPendingInboundAction(formData: FormData) {
   revalidatePendingPaths();
   redirect(dest(new URLSearchParams({ ok: '대기 취소' })));
 }
+
+/**
+ * 압력 통계 행 수정 — 압력·사이즈·품번·명칭(Item) + 대기수량(PendingInbound).
+ * 대기수량 0 → 대기 행 삭제(재고 변동 없음).
+ */
+export async function updatePendingStatsRowAction(formData: FormData) {
+  const itemId = String(formData.get('itemId') || '').trim();
+  const returnTo = safeReturnPath(String(formData.get('returnTo') || '')) || '/stock/pending/stats';
+  const pressureClass = String(formData.get('pressureClass') || '').trim();
+  const size = String(formData.get('size') || '').trim();
+  const itemCode = String(formData.get('itemCode') || '').trim();
+  const itemName = String(formData.get('itemName') || '').trim();
+  const qtyRaw = Math.floor(Number(formData.get('quantity') || 0));
+
+  const dest = (sp: URLSearchParams) => {
+    const q = sp.toString();
+    return q ? `${returnTo}?${q}` : returnTo;
+  };
+
+  if (!itemId) {
+    redirect(dest(new URLSearchParams({ err: '품목을 선택하세요.' })));
+  }
+  if (!itemCode || !itemName) {
+    redirect(dest(new URLSearchParams({ err: '품번·명칭은 필수입니다.' })));
+  }
+  if (!pressureClass || !size) {
+    redirect(dest(new URLSearchParams({ err: '압력·사이즈는 필수입니다.' })));
+  }
+  if (!Number.isFinite(qtyRaw) || qtyRaw < 0) {
+    redirect(dest(new URLSearchParams({ err: '대기 수량은 0 이상이어야 합니다.' })));
+  }
+
+  try {
+    assertPendingInboundReady();
+    await prisma.$transaction(async (tx) => {
+      const item = await tx.item.findUnique({ where: { id: itemId } });
+      if (!item || !item.isActive) throw new Error('품목을 찾을 수 없습니다.');
+
+      if (itemCode !== item.itemCode) {
+        const clash = await tx.item.findUnique({
+          where: { itemCode },
+          select: { id: true },
+        });
+        if (clash && clash.id !== itemId) {
+          throw new Error(`품번 중복: ${itemCode}`);
+        }
+      }
+
+      await tx.item.update({
+        where: { id: itemId },
+        data: {
+          itemCode,
+          itemName,
+          pressureClass,
+          size,
+        },
+      });
+
+      if (qtyRaw === 0) {
+        await tx.pendingInbound.deleteMany({ where: { itemId } });
+      } else {
+        await tx.pendingInbound.upsert({
+          where: { itemId },
+          create: {
+            itemId,
+            quantity: qtyRaw,
+            memo: '압력통계 수정',
+          },
+          update: {
+            quantity: qtyRaw,
+            memo: '압력통계 수정',
+          },
+        });
+      }
+    });
+  } catch (e) {
+    redirect(
+      dest(new URLSearchParams({ err: e instanceof Error ? e.message : '행 수정 실패' })),
+    );
+  }
+
+  revalidatePendingPaths();
+  redirect(
+    dest(
+      new URLSearchParams({
+        ok: qtyRaw === 0 ? '행 수정 · 대기 삭제' : `행 수정 · 대기 ${qtyRaw}`,
+      }),
+    ),
+  );
+}
