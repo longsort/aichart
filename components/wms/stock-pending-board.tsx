@@ -151,7 +151,16 @@ export function StockPendingBoard({
           </button>
 
           <div
-            className="ml-auto flex max-w-full min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-0.5 sm:ml-2 sm:flex-none sm:justify-end"
+            className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white"
+            title={userName || 'user'}
+            aria-label={userName ? `로그인 ${userName}` : '사용자'}
+          >
+            {userInitial}
+          </div>
+
+          {/* 압력 칩: 가로 클립 금지 · 여러 줄 wrap으로 전부 보이게 */}
+          <div
+            className="flex w-full basis-full flex-wrap items-center gap-1.5"
             role="toolbar"
             aria-label="압력별 목록 필터"
           >
@@ -172,18 +181,10 @@ export function StockPendingBoard({
                 onClick={() => setPressure(c.key)}
                 title={`${c.label} · ${c.count}건 · 목록 필터`}
               >
-                <span className="truncate">{c.label}</span>
+                <span>{c.label}</span>
                 <span className="ml-1 tabular-nums opacity-80">{c.count.toLocaleString()}</span>
               </button>
             ))}
-          </div>
-
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white"
-            title={userName || 'user'}
-            aria-label={userName ? `로그인 ${userName}` : '사용자'}
-          >
-            {userInitial}
           </div>
         </div>
       </header>

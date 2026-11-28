@@ -251,7 +251,7 @@ export function SkuStockBoard({
         <div className="mb-1 text-[11px] text-slate-500">
           압력 · kg/cm² · BAR · ANSI/AWWA · 칩=페이지 내 필터 · 보유합계
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2">
           <PressureOpenChip href={buildHref('ALL', size, shortageExtra)} className={chipClass(pressure === 'ALL')}>
             전체
           </PressureOpenChip>
@@ -265,7 +265,7 @@ export function SkuStockBoard({
                 className={chipClass(pressure === p)}
                 title={catalogPressureChipTitle(p)}
               >
-                <span className="truncate">{label}</span>
+                <span>{label}</span>
                 <span className="ml-1.5 tabular-nums opacity-80">{total.toLocaleString()}</span>
               </PressureOpenChip>
             );
@@ -276,7 +276,7 @@ export function SkuStockBoard({
             <div className="mb-1 text-[11px] text-slate-500">
               유일 카탈로그 제품·규격명 (페이지 내 필터 · 보유합계)
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2">
               {productKeys.map((p) => {
                 const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
                 const total = pressureTotals[p] ?? 0;
@@ -287,7 +287,7 @@ export function SkuStockBoard({
                     className={chipClass(pressure === p)}
                     title={catalogPressureChipTitle(p)}
                   >
-                    <span className="truncate">{label}</span>
+                    <span>{label}</span>
                     <span className="ml-1.5 tabular-nums opacity-80">{total.toLocaleString()}</span>
                   </PressureOpenChip>
                 );
@@ -296,7 +296,7 @@ export function SkuStockBoard({
           </div>
         ) : null}
         <div className="mb-2 mt-4 text-sm font-semibold text-slate-100">사이즈</div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2">
           <Link href={buildHref(pressure, 'ALL', shortageExtra)} className={chipClass(size === 'ALL')}>
             전체
           </Link>
