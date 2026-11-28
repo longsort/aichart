@@ -139,7 +139,6 @@ export function MopiHoleBoard({ rows }: { rows: MopiHoleWaitRow[] }) {
         }}
         onLiveQueryChange={setLiveQ}
         pressureTotals={pressureTotals}
-        searchRows={rows}
         showMaterial={false}
         showFace={false}
         showSort

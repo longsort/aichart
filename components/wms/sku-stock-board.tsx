@@ -494,7 +494,6 @@ export function SkuStockBoard({
         pressureLabels={pressureLabels}
         preserveExtra={filterPreserveExtra}
         liveSearchNav="router"
-        searchRows={previewRows && previewRows.length ? previewRows : rows}
         skuCount={skuCount}
       />
 

@@ -2,6 +2,7 @@
  * 재고현황·입고대기·모피 큐 빠른찾기.
  * - 공백 분리·단일 토큰
  * - 압축 질의: `50A20BL`, `20K50A`, `50A20BLRF` (사이즈·압력·FACE, 순서 무관, K 생략 가능)
+ * - Class 압력: `150#` / `300#` / `100a150#` → Class150 · Class300 (`#` = Class)
  * - 사이즈형(50a)은 150A 부분일치 방지
  */
 
@@ -50,6 +51,7 @@ export function includesToken(haystack: string, token: string): boolean {
  * 예: 50a20bl → sizes[50a] pressures[20] faces[bl]
  */
 export function parseCompactSkuQuery(query: string): CompactSkuTokens {
+  // # 는 Class 표기용으로 유지 (150# → Class150)
   let q = norm(query).replace(/[\s,_./-]+/g, '');
   const sizes: string[] = [];
   const pressures: string[] = [];
@@ -66,6 +68,12 @@ export function parseCompactSkuQuery(query: string): CompactSkuTokens {
   // 사이즈 NNa
   q = q.replace(/(\d+)a/gi, (_m, n: string) => {
     sizes.push(`${n}a`);
+    return '';
+  });
+
+  // Class 약기: 150# / 300# → class150 / class300 (# = Class)
+  q = q.replace(/(\d+)#/g, (_m, n: string) => {
+    pressures.push(`class${n}`);
     return '';
   });
 
@@ -113,11 +121,21 @@ export function parseCompactSkuQuery(query: string): CompactSkuTokens {
 
 function pressureMatches(pressureClass: string, token: string): boolean {
   const pc = norm(pressureClass).replace(/\s+/g, '');
-  const t = norm(token);
+  const t = norm(token).replace(/\s+/g, '');
   if (!t) return true;
   if (!pc) return false;
   if (pc === t) return true;
   if (pc.includes(t)) return true;
+
+  // class150 / 150# → Class150 · ANSI150 · 150LB
+  const classNum = t.match(/^class(\d+)$/i)?.[1] || (t.endsWith('#') ? t.replace(/#$/, '') : null);
+  if (classNum && /^\d+$/.test(classNum)) {
+    if (pc === `class${classNum}` || pc.includes(`class${classNum}`)) return true;
+    if (pc === `ansi${classNum}` || pc.includes(`ansi${classNum}`)) return true;
+    if (pc === `${classNum}lb` || pc.includes(`${classNum}lb`)) return true;
+    // Class 150 (공백 제거 후 class150)
+    if (pc.replace(/class/, 'class') === `class${classNum}`) return true;
+  }
 
   // 20 / 20k ↔ 20K / 20kg/cm²
   const bare = t.replace(/k$/i, '');
@@ -175,6 +193,22 @@ function matchesCompactTokens(fields: SkuQuickSearchFields, tokens: CompactSkuTo
       includesToken(extra, p)
     ) {
       continue;
+    }
+    // class150 → code/name ANSI150 / Class150
+    const classNum = p.match(/^class(\d+)$/i)?.[1];
+    if (classNum) {
+      if (
+        includesToken(code, `class${classNum}`) ||
+        includesToken(code, `ansi${classNum}`) ||
+        includesToken(name, `class${classNum}`) ||
+        includesToken(name, `ansi${classNum}`) ||
+        includesToken(extra, `class${classNum}`) ||
+        includesToken(extra, `ansi${classNum}`) ||
+        code.includes(`class${classNum}`) ||
+        code.includes(`ansi${classNum}`)
+      ) {
+        continue;
+      }
     }
     // bare 20 also try as 20k in code
     if (/^\d+$/.test(p) && (includesToken(code, `${p}k`) || code.includes(`${p}k`))) continue;

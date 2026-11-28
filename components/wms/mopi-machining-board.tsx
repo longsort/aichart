@@ -147,7 +147,6 @@ export function MopiMachiningBoard({ rows }: { rows: MopiSkuQueueRow[] }) {
         }}
         onLiveQueryChange={setLiveQ}
         pressureTotals={pressureTotals}
-        searchRows={rows}
         showMaterial={false}
         showFace={false}
         showSort
