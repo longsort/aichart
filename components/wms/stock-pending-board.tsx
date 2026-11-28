@@ -8,6 +8,7 @@ import {
   savePendingInboundAction,
 } from '@/lib/wms/actions/pending-inbound';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
+import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 
 export type PendingSkuRow = {
@@ -71,15 +72,22 @@ export function StockPendingBoard({
   }, [rows]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     return rows.filter((r) => {
       const pc = (r.pressureClass || '').trim() || '—';
       // 칩 키는 rows의 pressureClass 그대로 — 카운트와 동일 집합
       if (pressure !== 'ALL' && pc !== pressure) return false;
       if (!q) return true;
-      const label = (catalogPressureChipLabel(pc) || pc).toLowerCase();
-      const hay = `${pc} ${label} ${r.size} ${r.itemCode} ${r.itemName}`.toLowerCase();
-      return hay.includes(q);
+      return matchesSkuQuickSearch(
+        {
+          pressureClass: pc,
+          size: r.size,
+          itemCode: r.itemCode,
+          itemName: r.itemName,
+          extra: catalogPressureChipLabel(pc) || pc,
+        },
+        q,
+      );
     });
   }, [rows, query, pressure]);
 

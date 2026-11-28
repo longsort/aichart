@@ -9,6 +9,7 @@ import {
   catalogPressureChipLabel,
   itemMatchesCatalogPressure,
 } from '@/lib/wms/yuil-catalog-filters';
+import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
 import {
   classifyStockBand,
   loadThresholdBundle,
@@ -133,16 +134,7 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
   const bandFilter = filters.band;
 
   if (size && size !== 'ALL') where.size = size;
-  if (q) {
-    where.OR = [
-      { itemCode: { contains: q } },
-      { itemName: { contains: q } },
-      { size: { contains: q } },
-      { standard: { contains: q } },
-      { productType: { contains: q } },
-      { pressureClass: { contains: q } },
-    ];
-  }
+  // q는 Prisma contains(사이즈 부분일치→150A⊃50a) 대신 메모리 토큰 매칭
 
   const [items, bundle, allActiveItems] = await Promise.all([
     prisma.item.findMany({
@@ -169,18 +161,33 @@ export async function listSkuBoard(filters: SkuBoardFilters = {}) {
     }),
   ]);
 
-  const matched = items.filter((it) =>
-    itemMatchesCatalogPressure(
+  const matched = items.filter((it) => {
+    if (
+      !itemMatchesCatalogPressure(
+        {
+          pressureClass: it.pressureClass,
+          productType: it.productType,
+          standard: it.standard,
+          itemName: it.itemName,
+          itemCode: it.itemCode,
+        },
+        pressure,
+      )
+    ) {
+      return false;
+    }
+    if (!q) return true;
+    return matchesSkuQuickSearch(
       {
         pressureClass: it.pressureClass,
-        productType: it.productType,
-        standard: it.standard,
-        itemName: it.itemName,
+        size: it.size,
         itemCode: it.itemCode,
+        itemName: it.itemName,
+        extra: `${it.standard || ''} ${it.productType || ''} ${catalogPressureChipLabel(it.pressureClass)}`,
       },
-      pressure,
-    ),
-  );
+      q,
+    );
+  });
 
   const allBanded: SkuBoardRow[] = matched
     .map((it) =>
