@@ -45,6 +45,12 @@ export function StockPendingBoard({
   const [pressure, setPressure] = useState<string>('ALL');
   const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
 
+  /** 칩 클릭 = 해당 압력 목록만 (검색어 잔존으로 빈 표 나는 것 방지) */
+  function selectPressure(next: string) {
+    setPressure(next);
+    setQuery('');
+  }
+
   const pressureChips = useMemo(() => {
     const counts = new Map<string, { sku: number; pendingQty: number }>();
     for (const r of rows) {
@@ -68,6 +74,7 @@ export function StockPendingBoard({
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
       const pc = (r.pressureClass || '').trim() || '—';
+      // 칩 키는 rows의 pressureClass 그대로 — 카운트와 동일 집합
       if (pressure !== 'ALL' && pc !== pressure) return false;
       if (!q) return true;
       const label = (catalogPressureChipLabel(pc) || pc).toLowerCase();
@@ -147,8 +154,8 @@ export function StockPendingBoard({
             <button
               type="button"
               className={chipClass(pressure === 'ALL')}
-              onClick={() => setPressure('ALL')}
-              title="전체 압력"
+              onClick={() => selectPressure('ALL')}
+              title="전체 압력 (검색 초기화)"
             >
               전체
               <span className="ml-1 tabular-nums opacity-80">{rows.length.toLocaleString()}</span>
@@ -158,7 +165,7 @@ export function StockPendingBoard({
                 type="button"
                 key={c.key}
                 className={chipClass(pressure === c.key)}
-                onClick={() => setPressure(c.key)}
+                onClick={() => selectPressure(c.key)}
                 title={
                   c.pendingQty > 0
                     ? `${c.label} · ${c.count}건 · 대기 ${c.pendingQty} · 목록 필터`
@@ -178,23 +185,44 @@ export function StockPendingBoard({
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-3">
         <div className="mb-2 text-sm font-semibold text-slate-100">압력 빠른찾기</div>
-        <label className="mb-2 block">
-          <span className="sr-only">압력·품번 검색</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="10K · 40BAR · 품번 검색…"
-            className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
-            autoComplete="off"
-          />
-        </label>
+        <div className="mb-2 flex gap-2">
+          <label className="block min-w-0 flex-1">
+            <span className="sr-only">압력·사이즈·품번 검색</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="10K · 50A · 품번 검색… (칩 클릭 시 검색 초기화)"
+              className="w-full min-h-10 rounded-md border border-slate-600 bg-slate-950 px-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-teal-600 focus:outline-none"
+              autoComplete="off"
+            />
+          </label>
+          {query.trim() ? (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="inline-flex min-h-10 shrink-0 items-center rounded-md border border-slate-600 px-3 text-xs text-slate-300 hover:border-teal-600 hover:text-teal-200"
+              title="검색어 지우기"
+            >
+              지우기
+            </button>
+          ) : null}
+        </div>
         <p className="text-xs text-slate-500">
           수량 입력 → <strong className="text-amber-200/90">대기 저장</strong>(DB, 보유 아님) → 공장
-          도착 후 <strong className="text-teal-300">입고완료</strong>(StockMove IN). 칩=같은 페이지
-          필터. 표시{' '}
+          도착 후 <strong className="text-teal-300">입고완료</strong>(StockMove IN). 압력 칩=같은 페이지
+          필터(클릭 시 검색 초기화). 표시{' '}
           <strong className="text-slate-300">{filtered.length.toLocaleString()}</strong>
           {pressure !== 'ALL' || query.trim() ? ` / 전체 ${rows.length.toLocaleString()}` : null}
+          {pressure !== 'ALL' ? (
+            <>
+              {' '}
+              · 칩{' '}
+              <strong className="text-teal-300">
+                {catalogPressureChipLabel(pressure) || pressure}
+              </strong>
+            </>
+          ) : null}
         </p>
       </section>
 
@@ -313,7 +341,9 @@ export function StockPendingBoard({
           <p className="px-4 py-8 text-center text-sm text-slate-500">
             {rows.length === 0
               ? '미입고(보유 0) SKU가 없습니다.'
-              : '검색·칩 조건에 맞는 SKU가 없습니다.'}
+              : query.trim()
+                ? '검색어와 압력 칩을 동시에 만족하는 SKU가 없습니다. 검색을 지우거나 압력 칩을 다시 누르세요.'
+                : '선택한 압력에 해당하는 SKU가 없습니다.'}
           </p>
         ) : null}
       </section>
