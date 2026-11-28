@@ -9,6 +9,7 @@ import {
 } from '@/lib/wms/actions/pending-inbound';
 import { catalogPressureChipLabel } from '@/lib/wms/yuil-catalog-filters';
 import { matchesSkuQuickSearch } from '@/lib/wms/sku-quick-search';
+import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 import { wmsControlCompact } from '@/components/wms/wms-form-styles';
 
 /** 표 DOM만 페이지 — 칩/검색은 전체 rows 기준 */
@@ -20,6 +21,8 @@ export type PendingSkuRow = {
   itemName: string;
   pressureClass: string;
   size: string;
+  materialType?: string;
+  locationName?: string;
   /** 실보유(LOT) — 미입고 목록이면 보통 0 */
   onHand: number;
   /** DB 입고대기 수량 */
@@ -283,12 +286,10 @@ export function StockPendingBoard({
             </span>
           </div>
         ) : null}
-        <table className="w-full min-w-[880px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium tracking-wide text-slate-400">
-              <th className="px-3 py-2">압력</th>
-              <th className="px-3 py-2">사이즈</th>
-              <th className="px-3 py-2">품번 / 명칭</th>
+            <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium uppercase tracking-wide text-slate-400">
+              <SkuIdentityHeaders />
               <th className="px-3 py-2 text-right">보유</th>
               <th className="px-3 py-2 text-right">대기</th>
               <th className="px-3 py-2">수량</th>
@@ -301,14 +302,7 @@ export function StockPendingBoard({
               const hasPending = r.pendingQty > 0;
               return (
                 <tr key={r.id} className="border-b border-slate-800/80 align-top">
-                  <td className="px-3 py-2 font-medium text-teal-200">
-                    {catalogPressureChipLabel(r.pressureClass) || r.pressureClass || '—'}
-                  </td>
-                  <td className="px-3 py-2 text-slate-200">{r.size || '—'}</td>
-                  <td className="px-3 py-2">
-                    <div className="font-medium text-slate-100">{r.itemCode}</div>
-                    <div className="text-xs text-slate-400">{r.itemName}</div>
-                  </td>
+                  <SkuIdentityCells row={r} />
                   <td className="px-3 py-2 text-right tabular-nums text-slate-400">
                     {r.onHand.toLocaleString()}
                   </td>

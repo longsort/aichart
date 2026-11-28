@@ -32,6 +32,8 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
     itemName: r.itemName,
     pressureClass: r.pressureClass,
     size: r.size,
+    materialType: r.materialType,
+    locationName: r.locationName,
     onHand: r.onHand,
     pendingQty: pendingMap.get(r.id) ?? 0,
   }));

@@ -24,6 +24,7 @@ import { bandLabelKo, bandTextClass, type StockAlertBand } from '@/lib/wms/stock
 import { wmsControlCompact, wmsLabel } from '@/components/wms/wms-form-styles';
 import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
 import { BandSummaryOpenCard } from '@/components/wms/band-summary-open-card';
+import { SkuIdentityCells, SkuIdentityHeaders } from '@/components/wms/sku-identity-cells';
 
 function chipClass(active: boolean) {
   return active
@@ -625,9 +626,7 @@ export function SkuStockBoard({
         <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700 bg-slate-900/90 text-xs font-medium uppercase tracking-wide text-slate-400">
-              <th className="px-3 py-2">압력</th>
-              <th className="px-3 py-2">사이즈</th>
-              <th className="px-3 py-2">품번 / 명칭</th>
+              <SkuIdentityHeaders />
               <th className="px-3 py-2 text-right">보유</th>
               <th className="px-3 py-2">긴급/주의</th>
               <th className="px-3 py-2">입고</th>
@@ -637,20 +636,14 @@ export function SkuStockBoard({
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-slate-800/80 align-top">
-                <td className="px-3 py-2 font-medium text-teal-200">
-                  {catalogPressureChipLabel(r.pressureClass) || r.pressureClass || '—'}
-                </td>
-                <td className="px-3 py-2 font-medium text-sky-200">{r.size || '—'}</td>
-                <td className="px-3 py-2">
-                  <div className="font-mono text-slate-100">{r.itemCode}</div>
-                  <div className="text-xs text-slate-400">{r.itemName}</div>
-                  <div className="text-[11px] text-slate-500">
-                    {r.materialType} · {r.locationName}
+                <SkuIdentityCells
+                  row={r}
+                  metaExtra={
                     <span className="ml-1 text-slate-600">
                       · 적용 &lt;{r.criticalBelow}/{r.warnBelow}
                     </span>
-                  </div>
-                </td>
+                  }
+                />
                 <td className="px-3 py-2">
                   <form action={quickSetOnHandAction} className="flex min-w-[7.5rem] flex-col items-end gap-1">
                     <input type="hidden" name="itemId" value={r.id} />
