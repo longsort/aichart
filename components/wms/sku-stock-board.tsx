@@ -11,9 +11,11 @@ import {
   catalogPressureChipTitle,
   getCatalogPressureChip,
 } from '@/lib/wms/yuil-catalog-filters';
-import type { BandCounts, SkuBoardRow } from '@/lib/wms/sku-board';
-import { bandTextClass } from '@/lib/wms/stock-alerts';
+import type { BandCounts, BandPressureBreakdown, SkuBoardRow } from '@/lib/wms/sku-board';
+import { bandLabelKo, bandTextClass, type StockAlertBand } from '@/lib/wms/stock-alerts';
 import { wmsControlCompact, wmsLabel } from '@/components/wms/wms-form-styles';
+import { PressureOpenChip } from '@/components/wms/pressure-open-chip';
+import { BandSummaryOpenCard } from '@/components/wms/band-summary-open-card';
 
 function chipClass(active: boolean) {
   return active
@@ -48,6 +50,8 @@ export function SkuStockBoard({
   filteredTotal,
   skuCount,
   bandCounts,
+  bandPressureBreakdown,
+  activeBand,
   pressureTotals,
   shortageOnly,
   pressureLabels,
@@ -63,6 +67,8 @@ export function SkuStockBoard({
   filteredTotal: number;
   skuCount: number;
   bandCounts: BandCounts;
+  bandPressureBreakdown: BandPressureBreakdown;
+  activeBand?: StockAlertBand;
   pressureTotals: Record<string, number>;
   shortageOnly: boolean;
   pressureLabels?: Record<string, string>;
@@ -81,6 +87,12 @@ export function SkuStockBoard({
   const sizeOpts = sizes.length ? sizes : [...NOMINAL_SIZES];
 
   const shortageExtra = shortageOnly ? { shortage: '1' } : undefined;
+  const activeBreakdown = activeBand ? bandPressureBreakdown[activeBand] : [];
+  const activeBandTotal = activeBand ? bandCounts[activeBand] : 0;
+  const bandCardClass = (band: StockAlertBand, base: string) =>
+    `${base} block transition hover:ring-2 hover:ring-teal-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 ${
+      activeBand === band ? 'ring-2 ring-teal-500/70' : ''
+    }`;
 
   return (
     <div className="space-y-4">
@@ -91,7 +103,7 @@ export function SkuStockBoard({
         <p className="rounded-md border border-emerald-800/60 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">{ok}</p>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-4 py-3">
           <div className="text-xs text-slate-400">전체 재고 합계</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-teal-300">{overallTotal.toLocaleString()}</div>
@@ -104,19 +116,113 @@ export function SkuStockBoard({
           <div className="text-xs text-slate-400">표시 SKU</div>
           <div className="mt-1 text-2xl font-bold tabular-nums text-slate-100">{skuCount.toLocaleString()}</div>
         </div>
-        <div className="rounded-lg border border-red-900/60 bg-red-950/30 px-4 py-3">
-          <div className="text-xs text-red-300/80">긴급</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-red-400">{bandCounts.critical.toLocaleString()}</div>
-        </div>
-        <div className="rounded-lg border border-amber-900/60 bg-amber-950/25 px-4 py-3">
-          <div className="text-xs text-amber-200/80">주의</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-amber-300">{bandCounts.warn.toLocaleString()}</div>
-        </div>
-        <div className="rounded-lg border border-emerald-900/60 bg-emerald-950/25 px-4 py-3">
-          <div className="text-xs text-emerald-200/80">정상</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-emerald-300">{bandCounts.ok.toLocaleString()}</div>
-        </div>
+        <BandSummaryOpenCard
+          href="/dashboard?band=empty"
+          className={bandCardClass('empty', 'rounded-lg border border-slate-600 bg-slate-900/80 px-4 py-3')}
+          title="미입고(0) SKU — 압력등급별 구성 새 창"
+        >
+          <div className="text-xs text-slate-400">미입고 · 클릭=새 창</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-slate-200">
+            {(bandCounts.empty ?? 0).toLocaleString()}
+          </div>
+        </BandSummaryOpenCard>
+        <BandSummaryOpenCard
+          href="/dashboard?band=critical"
+          className={bandCardClass('critical', 'rounded-lg border border-red-900/60 bg-red-950/30 px-4 py-3')}
+          title="긴급 SKU — 압력등급별 구성 새 창"
+        >
+          <div className="text-xs text-red-300/80">긴급 · 클릭=새 창</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-red-400">
+            {bandCounts.critical.toLocaleString()}
+          </div>
+        </BandSummaryOpenCard>
+        <BandSummaryOpenCard
+          href="/dashboard?band=warn"
+          className={bandCardClass('warn', 'rounded-lg border border-amber-900/60 bg-amber-950/25 px-4 py-3')}
+          title="주의 SKU — 압력등급별 구성 새 창"
+        >
+          <div className="text-xs text-amber-200/80">주의 · 클릭=새 창</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-amber-300">
+            {bandCounts.warn.toLocaleString()}
+          </div>
+        </BandSummaryOpenCard>
+        <BandSummaryOpenCard
+          href="/dashboard?band=ok"
+          className={bandCardClass('ok', 'rounded-lg border border-emerald-900/60 bg-emerald-950/25 px-4 py-3')}
+          title="정상 SKU — 압력등급별 구성 새 창"
+        >
+          <div className="text-xs text-emerald-200/80">정상 · 클릭=새 창</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-emerald-300">
+            {bandCounts.ok.toLocaleString()}
+          </div>
+        </BandSummaryOpenCard>
       </section>
+
+      {activeBand ? (
+        <section
+          className={`rounded-lg border px-4 py-3 ${
+            activeBand === 'empty'
+              ? 'border-slate-600 bg-slate-900/50'
+              : activeBand === 'critical'
+                ? 'border-red-900/60 bg-red-950/25'
+                : activeBand === 'warn'
+                  ? 'border-amber-900/60 bg-amber-950/20'
+                  : 'border-emerald-900/60 bg-emerald-950/20'
+          }`}
+        >
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold text-slate-100">
+              {bandLabelKo(activeBand)} {activeBandTotal.toLocaleString()} SKU · 압력등급별 구성
+            </h2>
+            <Link href="/dashboard" className="text-xs text-slate-400 underline-offset-2 hover:text-teal-200 hover:underline">
+              전체 재고로
+            </Link>
+          </div>
+          <p className="mb-3 text-xs text-slate-500">어떤 압력등급을 먼저 보충할지 보기 · SKU 수 내림차순</p>
+          {activeBreakdown.length === 0 ? (
+            <p className="text-sm text-slate-400">해당 밴드 SKU 없음</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-700 text-xs uppercase tracking-wide text-slate-400">
+                    <th className="px-2 py-1.5">압력등급</th>
+                    <th className="px-2 py-1.5 text-right">SKU 수</th>
+                    <th className="px-2 py-1.5 text-right">보유합</th>
+                    <th className="px-2 py-1.5">필터</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeBreakdown.map((row) => (
+                    <tr key={row.pressureClass} className="border-b border-slate-800/70">
+                      <td className="px-2 py-1.5 font-medium text-teal-200">
+                        {pressureLabels?.[row.pressureClass] ||
+                          catalogPressureChipLabel(row.pressureClass) ||
+                          row.pressureClass}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-100">
+                        {row.skuCount.toLocaleString()}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">
+                        {row.onHandTotal.toLocaleString()}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <PressureOpenChip
+                          href={`/dashboard?pressure=${encodeURIComponent(row.pressureClass)}&band=${activeBand}`}
+                          className="text-xs text-sky-300 underline-offset-2 hover:underline"
+                          title={`${row.pressureClass} · ${bandLabelKo(activeBand)}만`}
+                        >
+                          필터
+                        </PressureOpenChip>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <section className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3">
         <Link
@@ -136,22 +242,24 @@ export function SkuStockBoard({
           재고 경보 설정
         </Link>
         <p className="text-xs text-slate-500">
-          보유 색 = 긴급(빨강) / 주의(노랑) / 정상(초록). 기준은 설정에서 변경.
+          긴급/주의/정상 카드 클릭 → 새 창에서 압력등급별 SKU 수. 보유 색 = 긴급(빨강)/주의(노랑)/정상(초록).
         </p>
       </section>
 
       <section className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
         <div className="mb-2 text-sm font-semibold text-slate-100">압력등급</div>
-        <div className="mb-1 text-[11px] text-slate-500">압력 · kg/cm² · BAR · ANSI/AWWA · 칩에 보유합계</div>
+        <div className="mb-1 text-[11px] text-slate-500">
+          압력 · kg/cm² · BAR · ANSI/AWWA · 칩=페이지 내 필터 · 보유합계
+        </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={buildHref('ALL', size, shortageExtra)} className={chipClass(pressure === 'ALL')}>
+          <PressureOpenChip href={buildHref('ALL', size, shortageExtra)} className={chipClass(pressure === 'ALL')}>
             전체
-          </Link>
+          </PressureOpenChip>
           {ratingKeys.map((p) => {
             const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
             const total = pressureTotals[p] ?? 0;
             return (
-              <Link
+              <PressureOpenChip
                 key={p}
                 href={buildHref(p, size, shortageExtra)}
                 className={chipClass(pressure === p)}
@@ -159,21 +267,21 @@ export function SkuStockBoard({
               >
                 <span className="truncate">{label}</span>
                 <span className="ml-1.5 tabular-nums opacity-80">{total.toLocaleString()}</span>
-              </Link>
+              </PressureOpenChip>
             );
           })}
         </div>
         {productKeys.length ? (
           <div className="mt-3">
             <div className="mb-1 text-[11px] text-slate-500">
-              유일 카탈로그 제품·규격명 (같은 압력칩 필터 · 보유합계)
+              유일 카탈로그 제품·규격명 (페이지 내 필터 · 보유합계)
             </div>
             <div className="flex flex-wrap gap-2">
               {productKeys.map((p) => {
                 const label = pressureLabels?.[p] || catalogPressureChipLabel(p);
                 const total = pressureTotals[p] ?? 0;
                 return (
-                  <Link
+                  <PressureOpenChip
                     key={p}
                     href={buildHref(p, size, shortageExtra)}
                     className={chipClass(pressure === p)}
@@ -181,7 +289,7 @@ export function SkuStockBoard({
                   >
                     <span className="truncate">{label}</span>
                     <span className="ml-1.5 tabular-nums opacity-80">{total.toLocaleString()}</span>
-                  </Link>
+                  </PressureOpenChip>
                 );
               })}
             </div>
@@ -199,10 +307,8 @@ export function SkuStockBoard({
           ))}
         </div>
         <p className="mt-3 text-xs text-slate-500">
-          예: <strong className="text-slate-300">10K</strong> ·{' '}
-          <strong className="text-slate-300">40BAR</strong> ·{' '}
-          <strong className="text-slate-300">수도용 도복장(KS D 3578)</strong> → 해당 행 ·{' '}
-          <strong className="text-slate-300">15A</strong>와 같이 고르면 교집합.
+          압력·사이즈 칩은 이 페이지에서 교집합 필터 (예:{' '}
+          <strong className="text-slate-300">/dashboard?pressure=10K</strong>).
         </p>
       </section>
 

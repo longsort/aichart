@@ -50,6 +50,7 @@ async function verifySiteAuthCookieEdge(token: string, secret: string): Promise<
 
 const AUTH_WHITELIST_PREFIXES = [
   '/api/auth/verify-briefing',
+  /** 회원가입 API는 403만 반환 — 화이트리스트에 두어 쿠키 없이 거절 응답 */
   '/api/auth/signup',
   '/api/auth/logout',
   '/api/auth/session',

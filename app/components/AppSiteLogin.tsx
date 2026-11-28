@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 import AppDisclaimerBanner from './AppDisclaimerBanner';
 import { setStoredBriefingCredentials } from '@/lib/clientAiCredentials';
@@ -12,7 +11,7 @@ type Props = {
   onLoggedIn?: (user: string, role: string) => void;
 };
 
-/** 사이트 최초 진입 시 ID/비밀번호 */
+/** 사이트 최초 진입 시 ID/비밀번호 — 익명 홈 차단 · 회원가입 없음 */
 export default function AppSiteLogin({ onLoggedIn }: Props) {
   const visitor = useVisitorCount();
   const [user, setUser] = useState('');
@@ -66,7 +65,7 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
           로그인
         </h1>
         <p className="subtle" style={{ marginBottom: 20 }}>
-          아이디·비밀번호로 접속합니다. 역할에 따라 차트 또는 재고 화면으로 이동합니다.
+          허용된 계정으로만 접속할 수 있습니다.
           {visitor.count != null && (
             <span style={{ marginLeft: 10, color: 'var(--muted)' }}>· 현재 {visitor.count}명 접속</span>
           )}
@@ -105,12 +104,6 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
             {loading ? '확인 중...' : '접속'}
           </button>
         </form>
-        <p className="site-login-signup">
-          계정이 없나요? <Link href="/signup">회원가입</Link>
-        </p>
-        <p className="site-login-devhint">
-          개발용 재고 계정: <code>u1</code> / <code>u1</code> (실서버에서는 비밀번호를 바꾸세요)
-        </p>
         <AppDisclaimerBanner variant="login" />
       </div>
       <style jsx>{`
@@ -154,24 +147,6 @@ export default function AppSiteLogin({ onLoggedIn }: Props) {
           margin-top: 8px;
           padding: 12px 16px;
           font-weight: 700;
-        }
-        .site-login-signup {
-          margin: 16px 0 0;
-          font-size: 13px;
-          color: var(--muted);
-        }
-        .site-login-signup :global(a) {
-          color: #5eead4;
-          font-weight: 600;
-        }
-        .site-login-devhint {
-          margin: 8px 0 0;
-          font-size: 11px;
-          color: var(--muted);
-          opacity: 0.85;
-        }
-        .site-login-devhint code {
-          font-size: 11px;
         }
       `}</style>
     </div>
