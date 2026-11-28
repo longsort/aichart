@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { StockPendingBoard } from '@/components/wms/stock-pending-board';
 import { parseMaterialFilter } from '@/lib/wms/material';
+import { parseFaceFilter } from '@/lib/wms/flange-face';
 import { mapPendingQtyByItemId } from '@/lib/wms/pending-inbound';
 import { listSkuBoard } from '@/lib/wms/sku-board';
 import { requireInventoryAuth } from '@/lib/wms/requireInventoryAuth';
@@ -10,6 +11,7 @@ type Search = {
   err?: string;
   ok?: string;
   material?: string;
+  face?: string;
 };
 
 /**
@@ -21,11 +23,12 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
   const err = sp.err ? decodeURIComponent(sp.err) : '';
   const ok = sp.ok ? decodeURIComponent(sp.ok) : '';
   const material = parseMaterialFilter(sp.material);
+  const face = parseFaceFilter(sp.face);
   const auth = requireInventoryAuth();
 
   const [board, pendingMap] = await Promise.all([
     // unpaged: 미입고 전체(사이즈 50A 등) — 기본 80건 페이지면 검색이 빈 표
-    listSkuBoard({ band: 'empty', unpaged: true, material }),
+    listSkuBoard({ band: 'empty', unpaged: true, material, face }),
     mapPendingQtyByItemId(),
   ]);
 
@@ -73,7 +76,7 @@ export default async function StockPendingPage({ searchParams }: { searchParams:
         </span>
       </section>
 
-      <StockPendingBoard rows={rows} userName={auth.user} material={material} />
+      <StockPendingBoard rows={rows} userName={auth.user} material={material} face={face} />
     </>
   );
 }

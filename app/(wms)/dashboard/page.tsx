@@ -1,6 +1,7 @@
 import { WmsPageHeader } from '@/components/wms/wms-shell';
 import { SkuStockBoard } from '@/components/wms/sku-stock-board';
 import { parseMaterialFilter } from '@/lib/wms/material';
+import { parseFaceFilter } from '@/lib/wms/flange-face';
 import { getSkuFilterOptions, listSkuBoard } from '@/lib/wms/sku-board';
 import type { StockAlertBand } from '@/lib/wms/stock-alerts';
 
@@ -9,6 +10,7 @@ type Search = {
   size?: string;
   q?: string;
   material?: string;
+  face?: string;
   shortage?: string;
   band?: string;
   /** sizes = 전체 재고 사이즈별 수량 패널 */
@@ -34,6 +36,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const size = (sp.size || 'ALL').trim() || 'ALL';
   const q = (sp.q || '').trim();
   const material = parseMaterialFilter(sp.material);
+  const face = parseFaceFilter(sp.face);
   const shortageOnly = sp.shortage === '1' || sp.shortage === 'true';
   const band = parseBand(sp.band);
   const panel = (sp.panel || '').trim().toLowerCase() === 'sizes' ? 'sizes' : undefined;
@@ -48,6 +51,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       size: size === 'ALL' ? undefined : size,
       q: q || undefined,
       material,
+      face,
       shortageOnly: band ? false : shortageOnly,
       band,
       // 사이즈별 패널은 25행만 필요 — 1313 SKU 표/폼 RSC·DOM 동결 방지
@@ -61,7 +65,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <>
       <WmsPageHeader
         title="재고현황"
-        subtitle="보유 수량 직접 저장(ADJUST) · 304/316 재질 분리 · 칩/밴드/합계 동기 · 입고/출고 원장"
+        subtitle="보유 수량 직접 저장(ADJUST) · 304/316 · SOFF/SORF/BLFF/BLRF · 칩/밴드/합계 동기"
       />
       <SkuStockBoard
         rows={board.rows}
@@ -72,6 +76,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         size={size}
         q={q}
         material={material}
+        face={face}
         overallTotal={board.overallTotal}
         filteredTotal={board.filteredTotal}
         skuCount={board.skuCount}
